@@ -1,0 +1,75 @@
+import { type ReactNode } from "react";
+import { NavLink } from "react-router-dom";
+import { Home, History, Settings } from "lucide-react";
+import { cn } from "@/shared/lib/cn";
+import { env } from "@/shared/lib/env";
+
+type NavItem = { to: string; label: string; icon: typeof Home; disabled?: boolean };
+
+const navItems: NavItem[] = [
+  { to: "/app/home", label: "홈", icon: Home },
+  { to: "/app/jobs", label: "작업 기록", icon: History, disabled: true },
+  { to: "/app/settings", label: "설정", icon: Settings },
+];
+
+type AppShellProps = {
+  title: string;
+  headerRight?: ReactNode;
+  children: ReactNode;
+};
+
+/** 앱 셸: Ink 사이드바 + 상단 앱 바(docs/03 §3, docs/04 §6). */
+export function AppShell({ title, headerRight, children }: AppShellProps) {
+  return (
+    <div className="flex h-full">
+      <aside className="flex w-sidebar flex-col bg-brand-ink text-white/90">
+        <div className="flex h-topbar items-center px-4 text-[18px] font-bold">Standin</div>
+        <nav className="flex flex-1 flex-col gap-1 px-2">
+          {navItems.map(({ to, label, icon: Icon, disabled }) =>
+            disabled ? (
+              <span
+                key={to}
+                aria-disabled
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-[14px] text-white/40"
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                {label}
+              </span>
+            ) : (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-[14px] transition-colors",
+                    isActive
+                      ? "bg-white/10 font-semibold text-white"
+                      : "text-white/70 hover:bg-white/5 hover:text-white",
+                  )
+                }
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                {label}
+              </NavLink>
+            ),
+          )}
+        </nav>
+        {env.useMockApi && (
+          <div className="px-4 py-3">
+            <span className="rounded bg-brand-coral/20 px-2 py-1 text-[11px] font-semibold text-brand-coral">
+              MOCK 모드
+            </span>
+          </div>
+        )}
+      </aside>
+
+      <div className="flex flex-1 flex-col">
+        <header className="flex h-topbar items-center justify-between border-b border-border bg-surface-0 px-6">
+          <h1 className="text-[16px] font-bold text-text-primary">{title}</h1>
+          <div className="flex items-center gap-3">{headerRight}</div>
+        </header>
+        <main className="flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
+      </div>
+    </div>
+  );
+}

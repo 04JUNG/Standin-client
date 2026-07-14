@@ -1,0 +1,27 @@
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--surface-1);
+    color: var(--text-primary);
+    font-family: "Pretendard Variable", "Pretendard", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 접근성: 키보드 포커스 링 유지(docs/04 §13) */
+  :focus-visible {
+    outline: 2px solid var(--brand-sky);
+    outline-offset: 2px;
+  }
+}

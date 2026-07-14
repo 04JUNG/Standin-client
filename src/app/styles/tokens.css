@@ -1,0 +1,29 @@
+/*
+ * 디자인 토큰 단일 정본. docs/04_DESKTOP_UI_GUIDE.md §3 컬러와 랜딩페이지 브랜드 토큰 공유.
+ * Tailwind(tailwind.config.js)가 이 CSS 변수를 참조한다. ADR-001 참고.
+ */
+:root {
+  --brand-ink: #152238;
+  --brand-coral: #ff6b57;
+  --brand-coral-dark: #e95543;
+  --brand-sky: #8ed8e8;
+  --brand-paper: #f8f5ef;
+  --brand-canvas: #202b3c;
+
+  --surface-0: #ffffff;
+  --surface-1: #f5f7f9;
+  --surface-2: #eef1f4;
+  --border: #d8dde5;
+  --text-primary: #101722;
+  --text-secondary: #667085;
+}
+
+/* 다크 모드는 이번 주 필수 아님(docs/04 §12). Canvas 색은 유지하고 명도 대비만 우선 확보. */
+.dark {
+  --surface-0: #151c27;
+  --surface-1: #1b2431;
+  --surface-2: #222d3d;
+  --border: #2c3949;
+  --text-primary: #eef2f7;
+  --text-secondary: #9aa7b8;
+}
