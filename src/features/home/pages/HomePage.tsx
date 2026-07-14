@@ -1,9 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { Camera, Video } from "lucide-react";
+import { Camera, Video, AlertCircle } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { DropZone } from "@/features/upload/components/DropZone";
+import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 
 /**
  * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
@@ -13,6 +14,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { start: startCapture, isStarting, error: captureError } = useStartCapture();
 
   async function handleLogout() {
     await logout();
@@ -44,17 +46,38 @@ export function HomePage() {
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <SecondaryCard
-            icon={Camera}
-            title="화면 캡처"
-            desc="영역을 드래그해 바로 캡처 (준비 중)"
-            highlight
-          />
+          <button
+            type="button"
+            onClick={() => void startCapture()}
+            disabled={isStarting}
+            className={[
+              "flex items-center gap-3 rounded-xl border p-4 text-left transition-colors",
+              "border-brand-coral/40 bg-brand-coral/5 hover:border-brand-coral",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+              "disabled:cursor-not-allowed disabled:opacity-60",
+            ].join(" ")}
+          >
+            <Camera className="h-5 w-5 text-brand-coral" aria-hidden />
+            <div>
+              <div className="text-[14px] font-semibold text-text-primary">화면 캡처</div>
+              <div className="text-[12px] text-text-secondary">
+                {isStarting ? "화면을 준비하는 중…" : "영역을 드래그해 바로 캡처"}
+              </div>
+            </div>
+          </button>
+
           <SecondaryCard icon={Video} title="화면 녹화" desc="준비 중" />
         </div>
 
+        {captureError && (
+          <p role="alert" className="mt-3 flex items-center gap-2 text-[13px] text-brand-coral">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+            {captureError}
+          </p>
+        )}
+
         <p className="mt-6 text-[13px] text-text-secondary">
-          화면 캡처·녹화는 후속 브랜치에서 연결됩니다.
+          화면 녹화는 후속 스프린트에서 연결됩니다.
         </p>
       </div>
     </AppShell>

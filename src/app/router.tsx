@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
 import { HomePage } from "@/features/home/pages/HomePage";
 import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
+import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { RequireAuth, RedirectIfAuthed } from "./guards";
 
@@ -29,6 +30,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <InputPreviewPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/app/capture",
+    element: (
+      <RequireAuth>
+        <CaptureOverlayPage />
       </RequireAuth>
     ),
   },
