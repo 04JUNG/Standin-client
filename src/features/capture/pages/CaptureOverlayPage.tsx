@@ -27,16 +27,16 @@ export function CaptureOverlayPage() {
   const [sel, setSel] = useState<Rect | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  // 오버레이 동안 전체화면(Tauri). 언마운트 시 해제하고 프레임 정리.
-  // 프레임 정리를 언마운트로 미루는 이유: 성공 경로에서 frame을 즉시 비우면
-  // 재렌더 시 `if (!frame)` 가드가 홈으로 리다이렉트하는 레이스가 생긴다.
+  // 오버레이 동안 전체화면(Tauri). 언마운트 시 해제.
+  // frame은 여기서 비우지 않는다: 성공 경로에서 즉시 비우면 `if (!frame)` 가드가
+  // 홈으로 리다이렉트하는 레이스가 생기고, StrictMode의 setup→cleanup→setup
+  // 이중 호출에서도 frame이 지워져 가드가 발동한다. 다음 캡처가 frame을 덮어쓴다.
   useEffect(() => {
     void setOverlayFullscreen(true);
     return () => {
       void setOverlayFullscreen(false);
-      resetCapture();
     };
-  }, [resetCapture]);
+  }, []);
 
   // Escape 취소(정상 복귀).
   useEffect(() => {
