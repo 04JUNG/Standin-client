@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { Upload, Camera, Video } from "lucide-react";
+import { Camera, Video } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { DropZone } from "@/features/upload/components/DropZone";
 
 /**
- * 홈 화면 스켈레톤(docs/03 §4). 입력 카드 자리와 사용자 메뉴만 우선 구현.
- * 파일 DropZone / 캡처 흐름은 후속 브랜치(feat/file-input, feat/region-capture).
+ * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
+ * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
  */
 export function HomePage() {
   const navigate = useNavigate();
@@ -38,52 +39,49 @@ export function HomePage() {
           파일을 놓거나 화면에서 필요한 부분만 바로 캡처하세요.
         </p>
 
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <InputCard
-            icon={Upload}
-            title="파일 업로드"
-            desc="PNG · JPG · WEBP 드래그 또는 선택"
-            disabled
-          />
-          <InputCard
+        <div className="mt-6">
+          <DropZone />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <SecondaryCard
             icon={Camera}
             title="화면 캡처"
-            desc="영역을 드래그해 바로 캡처"
+            desc="영역을 드래그해 바로 캡처 (준비 중)"
             highlight
-            disabled
           />
-          <InputCard icon={Video} title="화면 녹화" desc="준비 중" disabled />
+          <SecondaryCard icon={Video} title="화면 녹화" desc="준비 중" />
         </div>
 
         <p className="mt-6 text-[13px] text-text-secondary">
-          입력 카드 동작은 후속 브랜치에서 연결됩니다(파일 입력 · 캡처).
+          화면 캡처·녹화는 후속 브랜치에서 연결됩니다.
         </p>
       </div>
     </AppShell>
   );
 }
 
-type InputCardProps = {
-  icon: typeof Upload;
+type SecondaryCardProps = {
+  icon: typeof Camera;
   title: string;
   desc: string;
   highlight?: boolean;
-  disabled?: boolean;
 };
 
-function InputCard({ icon: Icon, title, desc, highlight, disabled }: InputCardProps) {
+function SecondaryCard({ icon: Icon, title, desc, highlight }: SecondaryCardProps) {
   return (
     <div
-      aria-disabled={disabled || undefined}
+      aria-disabled
       className={[
-        "flex flex-col gap-2 rounded-xl border p-6 transition-colors",
-        highlight ? "border-brand-coral bg-brand-coral/5" : "border-border bg-surface-0",
-        disabled ? "opacity-60" : "hover:border-brand-ink/30",
+        "flex items-center gap-3 rounded-xl border p-4 opacity-60",
+        highlight ? "border-brand-coral/40 bg-brand-coral/5" : "border-border bg-surface-0",
       ].join(" ")}
     >
-      <Icon className={highlight ? "h-6 w-6 text-brand-coral" : "h-6 w-6 text-brand-ink"} aria-hidden />
-      <div className="text-[16px] font-semibold text-text-primary">{title}</div>
-      <div className="text-[13px] text-text-secondary">{desc}</div>
+      <Icon className={highlight ? "h-5 w-5 text-brand-coral" : "h-5 w-5 text-brand-ink"} aria-hidden />
+      <div>
+        <div className="text-[14px] font-semibold text-text-primary">{title}</div>
+        <div className="text-[12px] text-text-secondary">{desc}</div>
+      </div>
     </div>
   );
 }

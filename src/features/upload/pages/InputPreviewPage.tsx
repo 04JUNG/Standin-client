@@ -1,0 +1,92 @@
+import { useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { Trash2, RefreshCw, Info } from "lucide-react";
+import { AppShell } from "@/shared/components/AppShell";
+import { Button } from "@/shared/components/Button";
+import { formatBytes } from "@/shared/lib/formatBytes";
+import type { UploadSource } from "@/shared/types/upload";
+import { useUploadStore } from "../store/uploadStore";
+
+const SOURCE_LABEL: Record<UploadSource, string> = {
+  file: "파일 업로드",
+  capture: "화면 캡처",
+  clipboard: "클립보드",
+};
+
+/**
+ * 입력 미리보기 화면(docs/03 §5, docs/07 §10).
+ * 회전·크롭은 이번 주 제외(자리 없음). 분석 시작은 후속 브랜치에서 연결.
+ */
+export function InputPreviewPage() {
+  const navigate = useNavigate();
+  const draft = useUploadStore((s) => s.draft);
+  const clearDraft = useUploadStore((s) => s.clearDraft);
+  const [analysisNotice, setAnalysisNotice] = useState(false);
+
+  // 초안이 없으면(새로고침·직접 진입) 홈으로.
+  if (!draft) return <Navigate to="/app/home" replace />;
+
+  function discardAndHome() {
+    clearDraft();
+    navigate("/app/home", { replace: true });
+  }
+
+  return (
+    <AppShell title="입력 미리보기">
+      <div className="mx-auto flex max-w-[960px] flex-col gap-6 lg:flex-row">
+        <div className="flex flex-1 items-center justify-center rounded-xl border border-border bg-brand-paper p-4">
+          <img
+            src={draft.previewUrl}
+            alt={draft.originalName}
+            className="max-h-[60vh] max-w-full rounded object-contain"
+          />
+        </div>
+
+        <div className="flex w-full flex-col gap-4 lg:w-[300px]">
+          <div className="rounded-xl border border-border bg-surface-0 p-4">
+            <dl className="flex flex-col gap-3 text-[13px]">
+              <Row label="출처" value={SOURCE_LABEL[draft.source]} />
+              <Row label="파일명" value={draft.originalName} title />
+              <Row label="크기" value={`${draft.width} × ${draft.height} px`} />
+              {draft.sizeBytes !== undefined && (
+                <Row label="용량" value={formatBytes(draft.sizeBytes)} />
+              )}
+            </dl>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Button size="lg" onClick={() => setAnalysisNotice(true)}>
+              분석 시작
+            </Button>
+            <Button variant="secondary" size="md" onClick={discardAndHome}>
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              다시 선택
+            </Button>
+            <Button variant="ghost" size="md" onClick={discardAndHome}>
+              <Trash2 className="h-4 w-4" aria-hidden />
+              삭제
+            </Button>
+          </div>
+
+          {analysisNotice && (
+            <p className="flex items-start gap-2 rounded-lg bg-surface-2 p-3 text-[12px] text-text-secondary">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              분석 요청은 후속 브랜치(analysis)에서 서버와 연결됩니다. 이번 주는 입력 준비까지 지원합니다.
+            </p>
+          )}
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+function Row({ label, value, title }: { label: string; value: string; title?: boolean }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="shrink-0 text-text-secondary">{label}</dt>
+      <dd className={title ? "truncate text-right text-text-primary" : "text-right text-text-primary"} title={title ? value : undefined}>
+        {value}
+      </dd>
+    </div>
+  );
+}
