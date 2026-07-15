@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "기본 창 권한. 최소 capability 원칙(docs/11 §3). 캡처·저장 command 권한은 후속 브랜치에서 추가.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-set-fullscreen"]
 }

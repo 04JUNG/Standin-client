@@ -1,4 +1,4 @@
-/** 바이트를 사람이 읽는 단위로. */
+/** 바이트를 사람이 읽는 단위로. 10 미만은 소수 한 자리, 그 외는 정수(불필요한 .0 제거). */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB"];
@@ -8,5 +8,6 @@ export function formatBytes(bytes: number): string {
     value /= 1024;
     unit += 1;
   }
-  return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
+  const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
+  return `${rounded} ${units[unit]}`;
 }
