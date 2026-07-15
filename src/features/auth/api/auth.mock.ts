@@ -1,10 +1,5 @@
 import { authError } from "@/shared/api/errors";
-import type {
-  AuthService,
-  AuthSession,
-  AuthUser,
-  LoginInput,
-} from "./auth.contract";
+import type { AuthService, AuthSession, AuthUser, LoginInput } from "./auth.contract";
 
 /**
  * 개발용 Mock. 실제 계약과 동일한 타입을 반환한다(docs/10 §6).

@@ -1,11 +1,18 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { env } from "@/shared/lib/env";
 import { useAuthStore } from "../store/authStore";
 import { loginSchema, type LoginFormValues } from "../schemas/login.schema";
+import {
+  clearRememberedEmail,
+  getRememberedEmail,
+  setRememberedEmail,
+} from "../lib/rememberedEmail";
 
 /** 로그인 화면(docs/03 §2). 입력/로딩/인증실패/네트워크 상태를 표시한다. */
 export function LoginPage() {
@@ -13,16 +20,22 @@ export function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const loginError = useAuthStore((s) => s.loginError);
 
+  const rememberedEmail = getRememberedEmail();
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(rememberedEmail !== "");
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: rememberedEmail, password: "" },
   });
 
   async function onSubmit(values: LoginFormValues) {
+    if (rememberEmail) setRememberedEmail(values.email);
+    else clearRememberedEmail();
     try {
       await login(values);
       navigate("/app/home", { replace: true });
@@ -51,11 +64,36 @@ export function LoginPage() {
           />
           <Input
             label="비밀번호"
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             error={errors.password?.message}
+            rightSlot={
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 표시"}
+                aria-pressed={showPassword}
+                className="flex h-7 w-7 items-center justify-center rounded text-text-secondary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            }
             {...register("password")}
           />
+
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-text-secondary">
+            <input
+              type="checkbox"
+              checked={rememberEmail}
+              onChange={(e) => setRememberEmail(e.target.checked)}
+              className="h-4 w-4 accent-brand-coral"
+            />
+            이메일 기억하기
+          </label>
 
           {loginError && (
             <p role="alert" className="text-[13px] text-brand-coral">

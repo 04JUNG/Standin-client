@@ -100,7 +100,10 @@ function SecondaryCard({ icon: Icon, title, desc, highlight }: SecondaryCardProp
         highlight ? "border-brand-coral/40 bg-brand-coral/5" : "border-border bg-surface-0",
       ].join(" ")}
     >
-      <Icon className={highlight ? "h-5 w-5 text-brand-coral" : "h-5 w-5 text-brand-ink"} aria-hidden />
+      <Icon
+        className={highlight ? "h-5 w-5 text-brand-coral" : "h-5 w-5 text-brand-ink"}
+        aria-hidden
+      />
       <div>
         <div className="text-[14px] font-semibold text-text-primary">{title}</div>
         <div className="text-[12px] text-text-secondary">{desc}</div>

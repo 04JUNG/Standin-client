@@ -12,11 +12,7 @@ export type ScreenFrame = {
 };
 
 export type CaptureErrorCode =
-  | "CANCELLED"
-  | "PERMISSION_DENIED"
-  | "CAPTURE_FAILED"
-  | "SAVE_FAILED"
-  | "UNSUPPORTED";
+  "CANCELLED" | "PERMISSION_DENIED" | "CAPTURE_FAILED" | "SAVE_FAILED" | "UNSUPPORTED";
 
 export class CaptureError extends Error {
   constructor(

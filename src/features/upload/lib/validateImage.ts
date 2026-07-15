@@ -2,8 +2,7 @@ import type { AppError } from "@/shared/api/errors";
 import { ALLOWED_EXT, ALLOWED_MIME, MAX_FILE_BYTES, MIN_IMAGE_SIZE } from "../constants";
 
 export type ImageValidation =
-  | { ok: true; width: number; height: number }
-  | { ok: false; error: AppError };
+  { ok: true; width: number; height: number } | { ok: false; error: AppError };
 
 function fail(message: string): ImageValidation {
   return { ok: false, error: { kind: "validation", message } };

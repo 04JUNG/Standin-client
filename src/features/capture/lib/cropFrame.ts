@@ -9,11 +9,7 @@ export type Size = { width: number; height: number };
  * 오버레이(CSS px)에서 그린 선택 영역을 프레임의 물리 픽셀 좌표로 변환한다.
  * 프레임이 오버레이보다 크거나 작아도 비율로 매핑한다(고배율/스케일 대응, docs/07 §12).
  */
-export function scaleSelectionToFrame(
-  sel: SelectionRect,
-  container: Size,
-  frame: Size,
-): CropRect {
+export function scaleSelectionToFrame(sel: SelectionRect, container: Size, frame: Size): CropRect {
   const scaleX = frame.width / container.width;
   const scaleY = frame.height / container.height;
   return {

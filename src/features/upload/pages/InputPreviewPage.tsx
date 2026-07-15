@@ -71,7 +71,8 @@ export function InputPreviewPage() {
           {analysisNotice && (
             <p className="flex items-start gap-2 rounded-lg bg-surface-2 p-3 text-[12px] text-text-secondary">
               <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              분석 요청은 후속 브랜치(analysis)에서 서버와 연결됩니다. 이번 주는 입력 준비까지 지원합니다.
+              분석 요청은 후속 브랜치(analysis)에서 서버와 연결됩니다. 이번 주는 입력 준비까지
+              지원합니다.
             </p>
           )}
         </div>
@@ -84,7 +85,10 @@ function Row({ label, value, title }: { label: string; value: string; title?: bo
   return (
     <div className="flex justify-between gap-3">
       <dt className="shrink-0 text-text-secondary">{label}</dt>
-      <dd className={title ? "truncate text-right text-text-primary" : "text-right text-text-primary"} title={title ? value : undefined}>
+      <dd
+        className={title ? "truncate text-right text-text-primary" : "text-right text-text-primary"}
+        title={title ? value : undefined}
+      >
         {value}
       </dd>
     </div>
