@@ -1,5 +1,11 @@
 import { authError } from "@/shared/api/errors";
-import type { AuthService, AuthSession, AuthUser, LoginInput } from "./auth.contract";
+import type {
+  AuthService,
+  AuthSession,
+  AuthUser,
+  LoginInput,
+  OAuthProvider,
+} from "./auth.contract";
 
 /**
  * 개발용 Mock. 실제 계약과 동일한 타입을 반환한다(docs/10 §6).
@@ -38,6 +44,24 @@ export const authMock: AuthService = {
       throw authError("이메일 또는 비밀번호를 확인해 주세요.");
     }
     mockSession = makeSession();
+    return mockSession;
+  },
+
+  async oauthLogin(provider: OAuthProvider): Promise<AuthSession> {
+    await delay();
+    const labels: Record<OAuthProvider, string> = {
+      google: "Google",
+      kakao: "카카오",
+      naver: "네이버",
+    };
+    mockSession = {
+      ...makeSession(),
+      user: {
+        id: `user_${provider}_demo`,
+        email: `${provider}@standin.app`,
+        displayName: `${labels[provider]} 데모`,
+      },
+    };
     return mockSession;
   },
 

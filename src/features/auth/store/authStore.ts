@@ -3,7 +3,7 @@ import { setAccessToken } from "@/shared/api/client";
 import { isAppError } from "@/shared/api/errors";
 import { authService } from "../api/auth.service";
 import { authStorage } from "../lib/authStorage";
-import type { AuthUser, LoginInput } from "../api/auth.contract";
+import type { AuthUser, LoginInput, OAuthProvider } from "../api/auth.contract";
 
 /** docs/06 §7 인증 가드 상태. */
 export type AuthStatus = "initializing" | "authenticated" | "unauthenticated";
@@ -13,6 +13,10 @@ type AuthState = {
   user: AuthUser | null;
   loginError: string | null;
   login(input: LoginInput): Promise<void>;
+  /** 소셜 로그인. true=세션 완료(즉시 로그인), false=외부 브라우저에서 진행(콜백 대기). */
+  oauthLogin(provider: OAuthProvider): Promise<boolean>;
+  /** 소셜 콜백에서 받은 토큰으로 세션 완성(/auth/callback). */
+  completeOAuth(accessToken: string, refreshToken?: string): Promise<void>;
   logout(): Promise<void>;
   restore(): Promise<void>;
 };
@@ -39,6 +43,28 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ loginError: messageOf(err, "로그인에 실패했습니다.") });
       throw err;
     }
+  },
+
+  async oauthLogin(provider) {
+    set({ loginError: null });
+    try {
+      const session = await authService.oauthLogin(provider);
+      if (!session) return false; // HTTP: 외부 브라우저로 진행 → /auth/callback에서 완성
+      setAccessToken(session.accessToken);
+      if (session.refreshToken) await authStorage.setRefreshToken(session.refreshToken);
+      set({ status: "authenticated", user: session.user });
+      return true;
+    } catch (err) {
+      set({ loginError: messageOf(err, "소셜 로그인에 실패했습니다.") });
+      throw err;
+    }
+  },
+
+  async completeOAuth(accessToken, refreshToken) {
+    setAccessToken(accessToken);
+    if (refreshToken) await authStorage.setRefreshToken(refreshToken);
+    const user = await authService.getCurrentUser();
+    set({ status: "authenticated", user, loginError: null });
   },
 
   async logout() {

@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoginPage } from "@/features/auth/pages/LoginPage";
+import { OAuthCallbackPage } from "@/features/auth/pages/OAuthCallbackPage";
 import { HomePage } from "@/features/home/pages/HomePage";
 import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
 import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
       </RedirectIfAuthed>
     ),
   },
+  { path: "/auth/callback", element: <OAuthCallbackPage /> },
   {
     path: "/app/home",
     element: (
