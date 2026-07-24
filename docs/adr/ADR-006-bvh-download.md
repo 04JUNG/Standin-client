@@ -2,7 +2,7 @@
 
 - 상태: 제안됨
 - 날짜: 2026-07-14
-- 관련 문서: docs/08_API_CONTRACT.md §8, docs/03_USER_FLOW_AND_SCREENS.md §8, docs/11_QA_SECURITY_RELEASE.md §3
+- 관련 문서: docs/08_API_CONTRACT.md §8, docs/03_USER_FLOW_AND_SCREENS.md §8, docs/11_QA_SECURITY_RELEASE.md §3, docs/12_EXPORT_AND_SAVE_SPEC.md
 
 ## 배경
 
@@ -44,3 +44,4 @@
 - signed URL 만료(`expiresAt`) 시 재발급 흐름을 서버와 합의.
 - 서버팀 확인(docs/08 §11 Q9): BVH 사전 생성 여부와 export 방식.
 - 재검토 조건: 후보마다 BVH가 사전 생성되지 않고 요청 시 생성된다면, 생성 대기 상태(Job) 처리를 추가한다.
+- 기본 저장 폴더는 OS 다운로드 폴더로 하고 사용자가 변경 가능하게 한다. 클립스튜디오 소재 폴더 직접 저장은 이번 MVP에 포함하지 않는다(조사 내용과 사유는 docs/12_EXPORT_AND_SAVE_SPEC.md §5~§6 참고).
