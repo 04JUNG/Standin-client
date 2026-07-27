@@ -1,11 +1,6 @@
 import { apiFetch } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
-import type {
-  AuthService,
-  AuthSession,
-  AuthUser,
-  LoginInput,
-} from "./auth.contract";
+import type { AuthService, AuthSession, AuthUser, LoginInput } from "./auth.contract";
 
 /**
  * 실제 HTTP 구현. 서버 응답을 계약 타입으로 변환하는 adapter 자리.

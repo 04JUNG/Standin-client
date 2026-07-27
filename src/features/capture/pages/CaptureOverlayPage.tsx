@@ -110,6 +110,18 @@ export function CaptureOverlayPage() {
     }
   }
 
+  // 드래그 중 선택 영역의 실제 캡처 크기(프레임 물리 픽셀)를 표시.
+  function selectionSizeLabel(): string {
+    const c = containerRef.current;
+    if (!sel || !c) return "";
+    const phys = scaleSelectionToFrame(
+      sel,
+      { width: c.clientWidth, height: c.clientHeight },
+      { width: frame!.width, height: frame!.height },
+    );
+    return `${Math.round(phys.width)} × ${Math.round(phys.height)}`;
+  }
+
   return (
     <div
       ref={containerRef}
@@ -130,16 +142,24 @@ export function CaptureOverlayPage() {
       </div>
 
       {sel && sel.w > 0 && sel.h > 0 && (
-        <div
-          className="pointer-events-none absolute border-2 border-brand-sky"
-          style={{
-            left: sel.x,
-            top: sel.y,
-            width: sel.w,
-            height: sel.h,
-            boxShadow: "0 0 0 9999px rgba(21,34,56,0.45)",
-          }}
-        />
+        <>
+          <div
+            className="pointer-events-none absolute border-2 border-brand-sky"
+            style={{
+              left: sel.x,
+              top: sel.y,
+              width: sel.w,
+              height: sel.h,
+              boxShadow: "0 0 0 9999px rgba(21,34,56,0.45)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute rounded bg-brand-ink/90 px-2 py-1 text-[11px] font-medium text-white"
+            style={{ left: sel.x, top: Math.max(sel.y - 26, 4) }}
+          >
+            {selectionSizeLabel()}
+          </div>
+        </>
       )}
 
       {processing && (

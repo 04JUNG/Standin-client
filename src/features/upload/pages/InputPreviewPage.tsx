@@ -80,7 +80,10 @@ function Row({ label, value, title }: { label: string; value: string; title?: bo
   return (
     <div className="flex justify-between gap-3">
       <dt className="shrink-0 text-text-secondary">{label}</dt>
-      <dd className={title ? "truncate text-right text-text-primary" : "text-right text-text-primary"} title={title ? value : undefined}>
+      <dd
+        className={title ? "truncate text-right text-text-primary" : "text-right text-text-primary"}
+        title={title ? value : undefined}
+      >
         {value}
       </dd>
     </div>

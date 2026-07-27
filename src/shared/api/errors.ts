@@ -17,10 +17,5 @@ export function authError(message = "인증에 실패했습니다."): AppError {
 }
 
 export function isAppError(value: unknown): value is AppError {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "kind" in value &&
-    "message" in value
-  );
+  return typeof value === "object" && value !== null && "kind" in value && "message" in value;
 }

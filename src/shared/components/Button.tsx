@@ -12,12 +12,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClass: Record<Variant, string> = {
-  primary:
-    "bg-brand-coral text-white hover:bg-brand-coral-dark disabled:opacity-50",
+  primary: "bg-brand-coral text-white hover:bg-brand-coral-dark disabled:opacity-50",
   secondary:
     "bg-surface-0 text-text-primary border border-border hover:bg-surface-2 disabled:opacity-50",
-  ghost:
-    "bg-transparent text-text-primary hover:bg-surface-2 disabled:opacity-50",
+  ghost: "bg-transparent text-text-primary hover:bg-surface-2 disabled:opacity-50",
 };
 
 const sizeClass: Record<Size, string> = {
