@@ -5,6 +5,7 @@ import { cn } from "@/shared/lib/cn";
 import { env } from "@/shared/lib/env";
 import { useAppShortcuts } from "@/shared/hooks/useAppShortcuts";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { ShortcutCheatSheet } from "./ShortcutCheatSheet";
 
 type NavItem = { to: string; label: string; icon: typeof Home; disabled?: boolean };
 
@@ -96,6 +97,8 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         </header>
         <main className="flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
       </div>
+
+      <ShortcutCheatSheet />
     </div>
   );
 }
