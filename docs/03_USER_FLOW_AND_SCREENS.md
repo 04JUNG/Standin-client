@@ -289,6 +289,8 @@ standin_pose_YYYYMMDD_HHmm.bvh
 - `폴더 열기`
 - `새 장면 분석`
 
+저장 위치 기본값(다운로드 폴더), 사용자 지정 폴더 변경, 클립스튜디오 소재 폴더 조사 내용은 `docs/12_EXPORT_AND_SAVE_SPEC.md`를 따른다.
+
 ---
 
 ## 9. 설정 화면

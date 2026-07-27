@@ -61,6 +61,7 @@ Standin Desktop은 웹툰 작가가 러프 콘티 또는 화면 캡처를 입력
 9. `docs/09_STATE_AND_DATA_MODEL.md`
 10. `docs/10_THIS_WEEK_PLAN.md`
 11. `docs/11_QA_SECURITY_RELEASE.md`
+12. `docs/12_EXPORT_AND_SAVE_SPEC.md`
 
 문서가 충돌하면 아래 우선순위를 따른다.
 
