@@ -1,11 +1,16 @@
+import { isTauri } from "@tauri-apps/api/core";
+
 /**
  * 외부 URL 열기(소셜 로그인 인가 페이지 등).
  *
- * dev 브라우저(vite)에서는 새 탭으로 열린다.
- * TODO(desktop): Tauri 패키지 앱에서는 OS 브라우저로 열고 콜백 토큰을 딥링크로 받아야 한다.
- *   → `@tauri-apps/plugin-opener`(URL 열기) + `@tauri-apps/plugin-deep-link`(콜백 수신) 도입,
- *      BFF의 `OAUTH_SUCCESS_REDIRECT`를 앱 딥링크(예: `standin://auth/callback`)로 설정.
+ * - Tauri 데스크톱: OS 기본 브라우저로 연다(opener 플러그인). 콜백 토큰은 딥링크(`standin://auth/callback`)로 수신.
+ * - dev 브라우저(vite): 새 탭으로 연다. 콜백은 same-origin `/auth/callback` 라우트로 수신.
  */
-export function openExternal(url: string): void {
+export async function openExternal(url: string): Promise<void> {
+  if (isTauri()) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+    return;
+  }
   window.open(url, "_blank", "noopener,noreferrer");
 }

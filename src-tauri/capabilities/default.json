@@ -1,7 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "기본 창 권한. 최소 capability 원칙(docs/11 §3). 캡처·저장 command 권한은 후속 브랜치에서 추가.",
+  "description": "기본 창 권한 + 소셜 로그인용 외부 열기(opener)·딥링크 수신(deep-link). 최소 capability 원칙(docs/11 §3).",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-set-fullscreen"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-fullscreen",
+    "opener:default",
+    "deep-link:default"
+  ]
 }
