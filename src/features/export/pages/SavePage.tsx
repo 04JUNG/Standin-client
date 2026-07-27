@@ -59,7 +59,10 @@ export function SavePage() {
 
   useEffect(() => {
     if (!folder) {
-      exportService.getDefaultFolder().then(setFolder).catch(() => {});
+      exportService
+        .getDefaultFolder()
+        .then(setFolder)
+        .catch(() => {});
     }
     if (!fileName) {
       setFileName(defaultFileName(draft?.originalName));
@@ -166,11 +169,7 @@ export function SavePage() {
   return (
     <AppShell title="저장">
       <div className="mx-auto flex max-w-[520px] flex-col gap-5 rounded-xl border border-border bg-surface-0 p-6">
-        <Input
-          label="파일 이름"
-          value={fileName}
-          onChange={(e) => setFileName(e.target.value)}
-        />
+        <Input label="파일 이름" value={fileName} onChange={(e) => setFileName(e.target.value)} />
 
         <div className="flex flex-col gap-1">
           <span className="text-[13px] font-semibold text-text-secondary">저장 위치</span>
@@ -197,7 +196,12 @@ export function SavePage() {
           </div>
         )}
 
-        <Button size="lg" loading={status === "saving"} disabled={!folder || !fileName} onClick={handleSave}>
+        <Button
+          size="lg"
+          loading={status === "saving"}
+          disabled={!folder || !fileName}
+          onClick={handleSave}
+        >
           저장 {selections.length > 1 ? `(${selections.length}개 파일)` : ""}
           <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} className="ml-1" />
         </Button>

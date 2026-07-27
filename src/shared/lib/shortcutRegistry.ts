@@ -1,9 +1,4 @@
-import type {
-  Accelerator,
-  ShortcutDef,
-  ShortcutId,
-  ShortcutScope,
-} from "@/shared/types/shortcuts";
+import type { Accelerator, ShortcutDef, ShortcutId, ShortcutScope } from "@/shared/types/shortcuts";
 
 /**
  * 단축키 정본(docs/07 §7 기본값, docs/04 §13 화면 표시, docs/03 §9 설정).

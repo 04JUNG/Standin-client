@@ -22,9 +22,9 @@ describe("isTypingTarget", () => {
   });
 
   it('role="textbox"를 감지한다', () => {
-    expect(isTypingTarget(el("DIV", { getAttribute: (n: string) => (n === "role" ? "textbox" : null) }))).toBe(
-      true,
-    );
+    expect(
+      isTypingTarget(el("DIV", { getAttribute: (n: string) => (n === "role" ? "textbox" : null) })),
+    ).toBe(true);
   });
 
   it("일반 요소는 입력 대상이 아니다", () => {

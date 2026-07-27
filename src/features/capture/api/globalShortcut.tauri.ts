@@ -16,8 +16,7 @@ function toGlobalShortcutError(raw: unknown): GlobalShortcutError {
   // Rust command은 { code, message } 형태로 오류를 반환한다.
   if (typeof raw === "object" && raw !== null && "code" in raw) {
     const code = (raw as { code: string }).code as GlobalShortcutErrorCode;
-    const message =
-      (raw as { message?: string }).message ?? "전역 단축키를 등록하지 못했습니다.";
+    const message = (raw as { message?: string }).message ?? "전역 단축키를 등록하지 못했습니다.";
     if (KNOWN_CODES.includes(code)) return new GlobalShortcutError(code, message);
   }
   return new GlobalShortcutError("REGISTER_FAILED", "전역 단축키를 등록하지 못했습니다.");

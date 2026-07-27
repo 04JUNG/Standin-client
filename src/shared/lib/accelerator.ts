@@ -178,11 +178,7 @@ export function acceleratorFromEvent(e: KeyEventLike): Accelerator | null {
  * 이벤트가 accelerator와 일치하는지. 수정자 조합이 **정확히** 같아야 한다.
  * (Ctrl+Shift+S가 Ctrl+S를 발동시키지 않게 하는 것이 핵심이다.)
  */
-export function matchesAccelerator(
-  e: KeyEventLike,
-  accel: Accelerator,
-  mac: boolean,
-): boolean {
+export function matchesAccelerator(e: KeyEventLike, accel: Accelerator, mac: boolean): boolean {
   const parsed = parseAccelerator(accel);
   if (!parsed) return false;
   if (e.code !== parsed.code) return false;

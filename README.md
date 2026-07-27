@@ -62,6 +62,19 @@ npm run tauri icon path/to/logo.png
 
 - 개발용 로그인 계정: `demo@standin.app` / `password`
 
+## 단축키
+
+전체 목록은 앱에서 `?`를 눌러 치트시트로 확인한다. 정본은 `src/shared/lib/shortcutRegistry.ts` 하나이며 앱 내 훅·네이티브 등록·설정 UI·치트시트가 모두 그것을 읽는다.
+
+- **전역 캡처**: `Ctrl+Shift+S`(macOS `⌘⇧S`). 앱이 백그라운드여도 동작하며 설정에서 변경할 수 있다.
+- **앱 내**: 화면별 고정. 예) 저장 `Ctrl+S`, 분석 시작 `Ctrl+Enter`, 취소 `Esc`.
+
+전역 단축키는 데스크톱(`npm run tauri dev`)에서만 등록된다. 브라우저 개발 모드에서는 같은 키가 앱이 활성일 때만 동작하는 대체 경로로 내려가고, 설정 화면이 그 사실을 표시한다.
+
+다른 프로그램이 이미 쓰는 조합으로 바꾸면 등록에 실패하고 이전 키로 되돌릴 수 있다.
+
+자세한 규칙은 [docs/07 §7](docs/07_CAPTURE_AND_UPLOAD_SPEC.md), 등록 계층 결정은 [ADR-007](docs/adr/ADR-007-global-shortcut-registration.md).
+
 ## 폴더 구조
 
 ```text

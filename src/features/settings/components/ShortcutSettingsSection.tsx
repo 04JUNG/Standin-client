@@ -3,12 +3,12 @@ import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import {
+  DEFAULT_BINDINGS,
   SCOPE_LABEL,
   SCOPE_ORDER,
   listedShortcuts,
   resolveAccelerator,
 } from "@/shared/lib/shortcutRegistry";
-import { DEFAULT_BINDINGS } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import type { ShortcutId } from "@/shared/types/shortcuts";
 import { ShortcutRebindDialog } from "./ShortcutRebindDialog";
@@ -78,7 +78,11 @@ export function ShortcutSettingsSection() {
                         />
                         {def.customizable ? (
                           <>
-                            <Button variant="secondary" size="md" onClick={() => setRebinding(def.id)}>
+                            <Button
+                              variant="secondary"
+                              size="md"
+                              onClick={() => setRebinding(def.id)}
+                            >
                               변경
                             </Button>
                             {!isDefault && (
@@ -97,7 +101,14 @@ export function ShortcutSettingsSection() {
                       </div>
                     </div>
 
-                    {isGlobal && <GlobalStatusRow status={globalStatus} error={globalError} canRevert={Boolean(previousGlobal)} onRevert={revertGlobal} />}
+                    {isGlobal && (
+                      <GlobalStatusRow
+                        status={globalStatus}
+                        error={globalError}
+                        canRevert={Boolean(previousGlobal)}
+                        onRevert={revertGlobal}
+                      />
+                    )}
                   </li>
                 );
               })}

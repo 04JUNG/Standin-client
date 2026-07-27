@@ -95,9 +95,15 @@ export function PoseViewerPage() {
           <span className="text-[12px] font-semibold text-text-secondary">원본</span>
           <div className="flex max-h-[240px] items-center justify-center overflow-hidden rounded-lg bg-brand-paper">
             {draft ? (
-              <img src={draft.previewUrl} alt={draft.originalName} className="max-h-[240px] max-w-full object-contain" />
+              <img
+                src={draft.previewUrl}
+                alt={draft.originalName}
+                className="max-h-[240px] max-w-full object-contain"
+              />
             ) : (
-              <p className="p-4 text-center text-[13px] text-text-secondary">원본 미리보기가 없습니다.</p>
+              <p className="p-4 text-center text-[13px] text-text-secondary">
+                원본 미리보기가 없습니다.
+              </p>
             )}
           </div>
         </div>
@@ -109,7 +115,9 @@ export function PoseViewerPage() {
                 key={person.index}
                 className="flex items-center justify-between gap-3 rounded-xl border border-brand-coral/40 bg-brand-coral/10 p-4"
               >
-                <span className="text-[13px] font-semibold text-text-primary">인물 {person.index + 1}</span>
+                <span className="text-[13px] font-semibold text-text-primary">
+                  인물 {person.index + 1}
+                </span>
                 <span className="flex items-center gap-2 text-[12px] font-semibold text-brand-coral">
                   <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
                   검색 실패 — 이 인물에 맞는 포즈 후보를 찾지 못했습니다.
@@ -121,7 +129,10 @@ export function PoseViewerPage() {
           const selectedId = selectedByPerson[person.index];
           const selectedCandidate = person.candidates.find((c) => c.id === selectedId) ?? null;
           return (
-            <div key={person.index} className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
+            <div
+              key={person.index}
+              className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-semibold text-text-primary">
                   인물 {person.index + 1}

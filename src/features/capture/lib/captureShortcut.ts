@@ -36,9 +36,8 @@ async function applyGlobalBinding(accel: Accelerator | undefined): Promise<void>
     await globalShortcutService.register(native);
     useShortcutStore.getState().setGlobalStatus("registered");
   } catch (err) {
-    const status = err instanceof GlobalShortcutError && err.code === "UNSUPPORTED"
-      ? "unavailable"
-      : "failed";
+    const status =
+      err instanceof GlobalShortcutError && err.code === "UNSUPPORTED" ? "unavailable" : "failed";
     const message =
       err instanceof GlobalShortcutError && err.code === "REGISTER_FAILED"
         ? "다른 프로그램이 이미 이 단축키를 사용하고 있습니다. 다른 키로 변경해 주세요."

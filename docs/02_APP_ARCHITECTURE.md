@@ -162,6 +162,21 @@ get_secure_token
 set_secure_token
 ```
 
+현재 구현된 command:
+
+```text
+grab_screen                    (commands/capture.rs)
+default_save_dir               (commands/export.rs)
+choose_save_folder
+save_pose_file
+reveal_in_folder
+register_capture_shortcut      (commands/shortcuts.rs, ADR-007)
+unregister_capture_shortcut
+focus_main_window
+```
+
+`register_capture_shortcut`의 핸들러는 프론트로 `shortcut://capture` 이벤트를 emit한다. 자체 command와 이벤트 수신은 capability 추가가 필요 없어 `capabilities/default.json`은 그대로다(docs/11 §3).
+
 ---
 
 ## 5. 데이터 흐름

@@ -83,9 +83,9 @@ describe("matchesAccelerator", () => {
   });
 
   it("수정자가 덜 눌려 있으면 일치하지 않는다", () => {
-    expect(
-      matchesAccelerator(ev({ code: "KeyS", ctrlKey: true }), "Mod+Shift+KeyS", false),
-    ).toBe(false);
+    expect(matchesAccelerator(ev({ code: "KeyS", ctrlKey: true }), "Mod+Shift+KeyS", false)).toBe(
+      false,
+    );
   });
 
   it("맨 키는 수정자가 하나도 없어야 일치한다", () => {
