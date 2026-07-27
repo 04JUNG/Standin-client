@@ -7,6 +7,8 @@ import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { env } from "@/shared/lib/env";
 import { useAuthStore } from "../store/authStore";
+import { SocialLoginButtons } from "../components/SocialLoginButtons";
+import type { OAuthProvider } from "../api/auth.contract";
 import { loginSchema, type LoginFormValues } from "../schemas/login.schema";
 import {
   clearRememberedEmail,
@@ -18,6 +20,7 @@ import {
 export function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const oauthLogin = useAuthStore((s) => s.oauthLogin);
   const loginError = useAuthStore((s) => s.loginError);
 
   const rememberedEmail = getRememberedEmail();
@@ -39,6 +42,16 @@ export function LoginPage() {
     try {
       await login(values);
       navigate("/app/home", { replace: true });
+    } catch {
+      // 오류 메시지는 store의 loginError로 표시된다.
+    }
+  }
+
+  async function onSocial(provider: OAuthProvider) {
+    try {
+      const done = await oauthLogin(provider);
+      // Mock: 즉시 세션 완료 → 홈으로. HTTP: 외부 브라우저로 진행(콜백에서 이동).
+      if (done) navigate("/app/home", { replace: true });
     } catch {
       // 오류 메시지는 store의 loginError로 표시된다.
     }
@@ -105,6 +118,14 @@ export function LoginPage() {
             로그인
           </Button>
         </form>
+
+        <div className="my-5 flex items-center gap-3 text-[12px] text-text-secondary">
+          <span className="h-px flex-1 bg-border" />
+          또는
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <SocialLoginButtons onSelect={onSocial} disabled={isSubmitting} />
 
         <div className="mt-6 flex justify-between text-[13px] text-text-secondary">
           <span>계정 만들기 / 비밀번호 찾기는 웹에서 진행합니다.</span>

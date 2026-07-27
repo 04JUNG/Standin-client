@@ -7,6 +7,7 @@ export const endpoints = {
     refresh: "/v1/auth/refresh",
     logout: "/v1/auth/logout",
     me: "/v1/users/me",
+    oauthStart: (provider: string) => `/v1/auth/oauth/${provider}/start`,
   },
   analysis: {
     jobs: "/v1/analysis/jobs",
