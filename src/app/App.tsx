@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { initDeepLinkAuth } from "@/features/auth/lib/deepLinkAuth";
 import { router } from "./router";
 
 /** 앱 진입: 세션 복원 후 라우터를 렌더. initializing 동안 splash(docs/06 §7). */
@@ -11,6 +12,7 @@ export function App() {
 
   useEffect(() => {
     void restore();
+    void initDeepLinkAuth();
   }, [restore]);
 
   if (status === "initializing") {

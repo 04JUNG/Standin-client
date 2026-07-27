@@ -27,7 +27,7 @@ export const authHttp: AuthService = {
     // BFF의 소셜 로그인 시작 URL을 외부 브라우저로 연다.
     // 토큰은 콜백(BFF → OAUTH_SUCCESS_REDIRECT → /auth/callback)에서 완성되므로 여기선 null.
     const base = env.apiBaseUrl.replace(/\/+$/, "");
-    openExternal(`${base}${endpoints.auth.oauthStart(provider)}`);
+    await openExternal(`${base}${endpoints.auth.oauthStart(provider)}`);
     return null;
   },
 
