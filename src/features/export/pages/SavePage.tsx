@@ -5,6 +5,10 @@ import { CheckCircle2, FolderOpen, Sparkles } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
+import { ShortcutKey } from "@/shared/components/ShortcutKey";
+import { useShortcuts } from "@/shared/hooks/useShortcuts";
+import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
+import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
@@ -51,6 +55,7 @@ export function SavePage() {
   const setError = useExportStore((s) => s.setError);
   const clearError = useExportStore((s) => s.clearError);
   const reset = useExportStore((s) => s.reset);
+  const bindings = useShortcutStore((s) => s.bindings);
 
   useEffect(() => {
     if (!folder) {
@@ -64,6 +69,16 @@ export function SavePage() {
   }, []);
 
   const selections = Object.entries(selectedByPerson);
+  const isSaved = status === "saved" && savedPaths.length > 0;
+  const canSave = Boolean(folder && fileName) && status !== "saving";
+
+  // 가드보다 먼저 호출해 hook 순서를 고정한다.
+  // 저장 완료 화면과 입력 화면이 서로 다른 키를 쓰므로 분기해서 넘긴다.
+  useShortcuts({
+    "save.save": !isSaved && canSave ? () => void handleSave() : undefined,
+    "save.chooseFolder": !isSaved ? () => void handleChooseFolder() : undefined,
+    "save.newScene": isSaved ? () => handleNewScene() : undefined,
+  });
 
   if (!jobId) return <Navigate to="/app/home" replace />;
   if (selections.length === 0) return <Navigate to={`/app/jobs/${jobId}`} replace />;
@@ -137,6 +152,10 @@ export function SavePage() {
             <Button variant="secondary" size="md" onClick={handleNewScene}>
               <Sparkles className="h-4 w-4" aria-hidden />
               새 장면 분석
+              <ShortcutKey
+                accelerator={resolveAccelerator("save.newScene", bindings)!}
+                className="ml-1"
+              />
             </Button>
           </div>
         </div>
@@ -161,6 +180,10 @@ export function SavePage() {
             </p>
             <Button variant="secondary" size="md" onClick={handleChooseFolder}>
               다른 폴더 선택
+              <ShortcutKey
+                accelerator={resolveAccelerator("save.chooseFolder", bindings)!}
+                className="ml-1"
+              />
             </Button>
           </div>
         </div>
@@ -176,6 +199,7 @@ export function SavePage() {
 
         <Button size="lg" loading={status === "saving"} disabled={!folder || !fileName} onClick={handleSave}>
           저장 {selections.length > 1 ? `(${selections.length}개 파일)` : ""}
+          <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} className="ml-1" />
         </Button>
       </div>
     </AppShell>

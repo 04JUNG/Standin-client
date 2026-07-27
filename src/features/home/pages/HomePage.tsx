@@ -2,6 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { Camera, Video, AlertCircle } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
+import { ShortcutKey } from "@/shared/components/ShortcutKey";
+import { useShortcuts } from "@/shared/hooks/useShortcuts";
+import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
+import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
@@ -15,6 +19,16 @@ export function HomePage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { start: startCapture, isStarting, error: captureError } = useStartCapture();
+  const bindings = useShortcutStore((s) => s.bindings);
+  const globalStatus = useShortcutStore((s) => s.globalStatus);
+
+  const captureAccelerator = resolveAccelerator("capture.start", bindings)!;
+  // 전역 등록이 살아 있으면 네이티브가 처리하므로 앱 내 대체 경로를 끈다(이중 발동 방지).
+  const globalActive = globalStatus === "registered";
+
+  useShortcuts({
+    "home.startCapture": globalActive || isStarting ? undefined : () => void startCapture(),
+  });
 
   async function handleLogout() {
     await logout();
@@ -64,6 +78,18 @@ export function HomePage() {
                 {isStarting ? "화면을 준비하는 중…" : "영역을 드래그해 바로 캡처"}
               </div>
             </div>
+            {/* 전역 등록 전에는 흐리게 + 안내. 동작하지 않는 것을 동작하는 것처럼
+                보이게 하지 않는다(CLAUDE.md §10). */}
+            <ShortcutKey
+              accelerator={captureAccelerator}
+              muted={!globalActive}
+              className="ml-auto shrink-0"
+              title={
+                globalActive
+                  ? "다른 프로그램을 쓰는 중에도 이 키로 캡처할 수 있습니다."
+                  : "지금은 Standin 창이 활성일 때만 동작합니다."
+              }
+            />
           </button>
 
           <SecondaryCard icon={Video} title="화면 녹화" desc="준비 중" />

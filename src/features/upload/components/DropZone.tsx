@@ -2,6 +2,10 @@ import { useRef, useState, type DragEvent } from "react";
 import { Upload, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
+import { ShortcutKey } from "@/shared/components/ShortcutKey";
+import { useShortcuts } from "@/shared/hooks/useShortcuts";
+import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
+import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { ACCEPT_ATTR, SUPPORTED_LABEL, MAX_FILE_BYTES } from "../constants";
 import { formatBytes } from "@/shared/lib/formatBytes";
 import { useImageInput } from "../hooks/useImageInput";
@@ -14,6 +18,12 @@ export function DropZone() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOver, setIsOver] = useState(false);
   const { acceptFile, error, isProcessing } = useImageInput();
+  const bindings = useShortcutStore((s) => s.bindings);
+
+  // 파일 선택기의 소유자가 여기라서 단축키도 여기서 등록한다(ref를 위로 노출하지 않는다).
+  useShortcuts({
+    "home.openFilePicker": isProcessing ? undefined : () => inputRef.current?.click(),
+  });
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
@@ -59,6 +69,10 @@ export function DropZone() {
         <div className="text-[16px] font-semibold text-text-primary">파일을 여기에 놓으세요</div>
         <Button variant="secondary" size="md" type="button" tabIndex={-1}>
           또는 파일 선택
+          <ShortcutKey
+            accelerator={resolveAccelerator("home.openFilePicker", bindings)!}
+            className="ml-1"
+          />
         </Button>
         <div className="text-[12px] text-text-secondary">
           {SUPPORTED_LABEL} · 최대 {formatBytes(MAX_FILE_BYTES)}

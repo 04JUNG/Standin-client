@@ -2,6 +2,10 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Trash2, RefreshCw } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
+import { ShortcutKey } from "@/shared/components/ShortcutKey";
+import { useShortcuts } from "@/shared/hooks/useShortcuts";
+import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
+import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { formatBytes } from "@/shared/lib/formatBytes";
 import type { UploadSource } from "@/shared/types/upload";
 import { useUploadStore } from "../store/uploadStore";
@@ -20,6 +24,13 @@ export function InputPreviewPage() {
   const navigate = useNavigate();
   const draft = useUploadStore((s) => s.draft);
   const clearDraft = useUploadStore((s) => s.clearDraft);
+  const bindings = useShortcutStore((s) => s.bindings);
+
+  // 가드보다 먼저 호출해 hook 순서를 고정한다(초안 없음 → 조기 반환).
+  useShortcuts({
+    "inputPreview.startAnalysis": () => startAnalysis(),
+    "inputPreview.discard": () => discardAndHome(),
+  });
 
   // 초안이 없으면(새로고침·직접 진입) 홈으로.
   if (!draft) return <Navigate to="/app/home" replace />;
@@ -60,6 +71,10 @@ export function InputPreviewPage() {
           <div className="flex flex-col gap-2">
             <Button size="lg" onClick={startAnalysis}>
               분석 시작
+              <ShortcutKey
+                accelerator={resolveAccelerator("inputPreview.startAnalysis", bindings)!}
+                className="ml-1"
+              />
             </Button>
             <Button variant="secondary" size="md" onClick={discardAndHome}>
               <RefreshCw className="h-4 w-4" aria-hidden />

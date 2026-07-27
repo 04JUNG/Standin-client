@@ -1,8 +1,10 @@
 import { type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, History, Settings } from "lucide-react";
+import { Home, History, Settings, Keyboard } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { env } from "@/shared/lib/env";
+import { useAppShortcuts } from "@/shared/hooks/useAppShortcuts";
+import { useShortcutStore } from "@/shared/stores/shortcutStore";
 
 type NavItem = { to: string; label: string; icon: typeof Home; disabled?: boolean };
 
@@ -18,8 +20,17 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-/** 앱 셸: Ink 사이드바 + 상단 앱 바(docs/03 §3, docs/04 §6). */
+/**
+ * 앱 셸: Ink 사이드바 + 상단 앱 바(docs/03 §3, docs/04 §6).
+ *
+ * 라우터가 flat 구조라 layout route가 없으므로 여기가 앱 전역 단축키와 치트시트의
+ * 유일한 마운트 지점이다. LoginPage·CaptureOverlayPage는 AppShell을 쓰지 않아
+ * 구조적으로 제외된다 — 의도한 동작이다.
+ */
 export function AppShell({ title, headerRight, children }: AppShellProps) {
+  useAppShortcuts();
+  const openCheatSheet = useShortcutStore((s) => s.openCheatSheet);
+
   return (
     <div className="flex h-full">
       <aside className="flex w-sidebar flex-col bg-brand-ink text-white/90">
@@ -66,7 +77,22 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
       <div className="flex flex-1 flex-col">
         <header className="flex h-topbar items-center justify-between border-b border-border bg-surface-0 px-6">
           <h1 className="text-[16px] font-bold text-text-primary">{title}</h1>
-          <div className="flex items-center gap-3">{headerRight}</div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={openCheatSheet}
+              aria-label="단축키 도움말 (?)"
+              title="단축키 도움말 (?)"
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-lg transition-colors",
+                "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+              )}
+            >
+              <Keyboard className="h-4 w-4" aria-hidden />
+            </button>
+            {headerRight}
+          </div>
         </header>
         <main className="flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
       </div>

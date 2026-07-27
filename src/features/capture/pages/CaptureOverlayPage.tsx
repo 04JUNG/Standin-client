@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { useShortcuts } from "@/shared/hooks/useShortcuts";
+import { ShortcutKey } from "@/shared/components/ShortcutKey";
+import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
+import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { useCaptureStore } from "../store/captureStore";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { cropFrameToFile, scaleSelectionToFrame } from "../lib/cropFrame";
@@ -38,17 +42,18 @@ export function CaptureOverlayPage() {
     };
   }, []);
 
-  // Escape 취소(정상 복귀).
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        resetCapture();
-        navigate("/app/home", { replace: true });
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [navigate, resetCapture]);
+  const bindings = useShortcutStore((s) => s.bindings);
+  const cancelAccelerator = resolveAccelerator("captureOverlay.cancel", bindings) ?? "Escape";
+
+  // Escape 취소(정상 복귀). 크롭 처리 중에는 취소를 막는다.
+  useShortcuts({
+    "captureOverlay.cancel": processing
+      ? undefined
+      : () => {
+          resetCapture();
+          navigate("/app/home", { replace: true });
+        },
+  });
 
   // 프레임이 없으면(직접 진입·새로고침) 홈으로.
   if (!frame) return <Navigate to="/app/home" replace />;
@@ -137,8 +142,11 @@ export function CaptureOverlayPage() {
         className="pointer-events-none h-full w-full object-fill"
       />
 
-      <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-brand-ink/90 px-4 py-2 text-[13px] text-white">
-        드래그로 영역을 선택하세요 · Esc 취소
+      <div className="pointer-events-none absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-2 rounded-full bg-brand-ink/90 px-4 py-2 text-[13px] text-white">
+        <span>드래그로 영역을 선택하세요</span>
+        <span aria-hidden>·</span>
+        <ShortcutKey accelerator={cancelAccelerator} />
+        <span>취소</span>
       </div>
 
       {sel && sel.w > 0 && sel.h > 0 && (
