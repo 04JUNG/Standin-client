@@ -9,6 +9,7 @@ import {
   toDisplayKeys,
   toTauriAccelerator,
 } from "./accelerator";
+import { DEFAULT_BINDINGS } from "./shortcutRegistry";
 
 /** 기본이 모두 false인 이벤트를 만들어 테스트 의도만 덮어쓴다. */
 function ev(partial: Partial<KeyEventLike> & { code: string }): KeyEventLike {
@@ -166,22 +167,38 @@ describe("toDisplayKeys", () => {
 });
 
 describe("toTauriAccelerator", () => {
-  it("Mod를 CmdOrCtrl로 바꾸고 code를 키 토큰으로 바꾼다", () => {
-    expect(toTauriAccelerator("Mod+Shift+KeyS")).toBe("CmdOrCtrl+Shift+S");
-    expect(toTauriAccelerator("Mod+Digit2")).toBe("CmdOrCtrl+2");
+  // global-hotkey 0.8의 parse_key가 code 이름을 대문자화해 그대로 받으므로
+  // key 부분은 변환하지 않는다. 수정자 이름만 바꾼다.
+  it("Mod를 CmdOrCtrl로 바꾸고 code는 그대로 넘긴다", () => {
+    expect(toTauriAccelerator("Mod+Shift+KeyS")).toBe("CmdOrCtrl+Shift+KeyS");
+    expect(toTauriAccelerator("Mod+Digit2")).toBe("CmdOrCtrl+Digit2");
   });
 
-  it("기호·특수 키를 변환표로 바꾼다", () => {
-    expect(toTauriAccelerator("Shift+Slash")).toBe("Shift+/");
+  it("기호·특수 키도 code 이름으로 넘긴다", () => {
+    expect(toTauriAccelerator("Shift+Slash")).toBe("Shift+Slash");
     expect(toTauriAccelerator("Mod+Enter")).toBe("CmdOrCtrl+Enter");
-    expect(toTauriAccelerator("ArrowUp")).toBe("Up");
+    expect(toTauriAccelerator("ArrowUp")).toBe("ArrowUp");
+    expect(toTauriAccelerator("Mod+Shift+KeyO")).toBe("CmdOrCtrl+Shift+KeyO");
+  });
+
+  it("Alt·Shift는 이름이 같고 Meta는 Super로 간다", () => {
+    expect(toTauriAccelerator("Alt+F4")).toBe("Alt+F4");
+    expect(toTauriAccelerator("Mod+Meta+KeyS")).toBe("CmdOrCtrl+Super+KeyS");
   });
 
   it("펑션 키는 그대로 통과", () => {
     expect(toTauriAccelerator("F12")).toBe("F12");
   });
 
-  it("변환 불가면 null", () => {
+  it("파싱 불가면 null", () => {
     expect(toTauriAccelerator("Mod+Bogus")).toBeNull();
+    expect(toTauriAccelerator("Mod+Shift")).toBeNull();
+  });
+
+  it("출하되는 모든 기본값을 변환할 수 있다", () => {
+    // 표에서 빠진 키를 조용히 거부하는 사고를 막는다.
+    for (const accel of Object.values(DEFAULT_BINDINGS)) {
+      expect(toTauriAccelerator(accel), accel).not.toBeNull();
+    }
   });
 });

@@ -65,31 +65,34 @@ const DISPLAY_KEY: Record<string, string> = {
 };
 
 /**
- * code → Tauri accelerator 키 토큰.
- * 플러그인에 raw code 이름("KeyS")을 그대로 넘기지 않는다.
+ * 우리가 accelerator로 허용하는 비영숫자 code 목록.
+ *
+ * 이 집합은 global-hotkey 0.8의 `parse_key`가 받아들이는 code 이름과 일치한다
+ * (그 함수는 입력을 대문자화해 "SLASH"·"ARROWUP"·"NUMPADENTER" 등을 그대로 받는다).
+ * 따라서 네이티브로 넘길 때 별도 변환표가 필요 없다 — toTauriAccelerator 참고.
  */
-const TAURI_KEY: Record<string, string> = {
-  Escape: "Escape",
-  Enter: "Enter",
-  NumpadEnter: "Enter",
-  Space: "Space",
-  Tab: "Tab",
-  Slash: "/",
-  Comma: ",",
-  Period: ".",
-  Semicolon: ";",
-  Quote: "'",
-  Backquote: "`",
-  Minus: "-",
-  Equal: "=",
-  BracketLeft: "[",
-  BracketRight: "]",
-  Backslash: "\\",
-  ArrowUp: "Up",
-  ArrowDown: "Down",
-  ArrowLeft: "Left",
-  ArrowRight: "Right",
-};
+const NAMED_CODES = new Set([
+  "Escape",
+  "Enter",
+  "NumpadEnter",
+  "Space",
+  "Tab",
+  "Slash",
+  "Comma",
+  "Period",
+  "Semicolon",
+  "Quote",
+  "Backquote",
+  "Minus",
+  "Equal",
+  "BracketLeft",
+  "BracketRight",
+  "Backslash",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+]);
 
 /** "KeyS" → "S", "Digit1" → "1". 그 외는 null. */
 function plainKeyChar(code: string): string | null {
@@ -131,10 +134,7 @@ export function parseAccelerator(input: string): ParsedAccelerator | null {
 
   if (code === null) return null; // 수정자만
   // code가 우리가 아는 형태인지 확인한다(손상된 영속값 거부).
-  const known =
-    plainKeyChar(code) !== null ||
-    isFunctionKey(code) ||
-    Object.prototype.hasOwnProperty.call(TAURI_KEY, code);
+  const known = plainKeyChar(code) !== null || isFunctionKey(code) || NAMED_CODES.has(code);
   if (!known) return null;
 
   return { mods, code };
@@ -237,7 +237,14 @@ export function toDisplayKeys(accel: Accelerator, mac: boolean): string[] {
 
 /**
  * 네이티브(tauri-plugin-global-shortcut) accelerator 문자열로 변환한다.
- * 변환할 수 없는 조합은 null — 호출부가 등록을 시도하지 않고 안내한다.
+ * 파싱할 수 없는 조합은 null — 호출부가 등록을 시도하지 않고 안내한다.
+ *
+ * key 부분은 변환하지 않고 code를 그대로 넘긴다. global-hotkey의 `parse_key`가
+ * 입력을 대문자화해 "KEYS"·"DIGIT2"·"SLASH"·"ARROWUP" 같은 code 이름을 그대로
+ * 받아들이기 때문이다("S"·"2"·"/" 단축 표기도 받지만 둘 중 하나만 쓰면 된다).
+ * 변환표를 두면 표에서 빠진 키를 조용히 거부하게 되므로 두지 않는다.
+ *
+ * 수정자만 이름이 다르다: Mod → CmdOrCtrl(Windows/Linux는 Ctrl, macOS는 Command).
  */
 export function toTauriAccelerator(accel: Accelerator): string | null {
   const parsed = parseAccelerator(accel);
@@ -247,15 +254,10 @@ export function toTauriAccelerator(accel: Accelerator): string | null {
   for (const mod of MODIFIER_ORDER) {
     if (!parsed.mods.includes(mod)) continue;
     if (mod === "Mod") out.push("CmdOrCtrl");
-    else if (mod === "Alt") out.push("Alt");
-    else if (mod === "Shift") out.push("Shift");
-    else out.push("Meta");
+    else if (mod === "Meta") out.push("Super");
+    else out.push(mod); // Alt · Shift는 이름이 같다
   }
 
-  const plain = plainKeyChar(parsed.code);
-  const key = plain ?? TAURI_KEY[parsed.code] ?? (isFunctionKey(parsed.code) ? parsed.code : null);
-  if (key === null) return null;
-
-  out.push(key);
+  out.push(parsed.code);
   return out.join("+");
 }
