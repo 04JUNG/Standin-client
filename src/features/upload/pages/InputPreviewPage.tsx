@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Trash2, RefreshCw, Info } from "lucide-react";
+import { Trash2, RefreshCw } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { formatBytes } from "@/shared/lib/formatBytes";
@@ -15,13 +14,12 @@ const SOURCE_LABEL: Record<UploadSource, string> = {
 
 /**
  * 입력 미리보기 화면(docs/03 §5, docs/07 §10).
- * 회전·크롭은 이번 주 제외(자리 없음). 분석 시작은 후속 브랜치에서 연결.
+ * 회전·크롭은 이번 주 제외(자리 없음). 분석 시작은 Mock jobId로 포즈 후보 뷰어로 이동한다(docs/12).
  */
 export function InputPreviewPage() {
   const navigate = useNavigate();
   const draft = useUploadStore((s) => s.draft);
   const clearDraft = useUploadStore((s) => s.clearDraft);
-  const [analysisNotice, setAnalysisNotice] = useState(false);
 
   // 초안이 없으면(새로고침·직접 진입) 홈으로.
   if (!draft) return <Navigate to="/app/home" replace />;
@@ -29,6 +27,11 @@ export function InputPreviewPage() {
   function discardAndHome() {
     clearDraft();
     navigate("/app/home", { replace: true });
+  }
+
+  function startAnalysis() {
+    // 실제 분석 Job 생성은 서버 연동 후속 브랜치. 지금은 Mock 포즈 후보 뷰어로 바로 이동한다(docs/12).
+    navigate(`/app/jobs/${crypto.randomUUID()}`);
   }
 
   return (
@@ -55,7 +58,7 @@ export function InputPreviewPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Button size="lg" onClick={() => setAnalysisNotice(true)}>
+            <Button size="lg" onClick={startAnalysis}>
               분석 시작
             </Button>
             <Button variant="secondary" size="md" onClick={discardAndHome}>
@@ -67,13 +70,6 @@ export function InputPreviewPage() {
               삭제
             </Button>
           </div>
-
-          {analysisNotice && (
-            <p className="flex items-start gap-2 rounded-lg bg-surface-2 p-3 text-[12px] text-text-secondary">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              분석 요청은 후속 브랜치(analysis)에서 서버와 연결됩니다. 이번 주는 입력 준비까지 지원합니다.
-            </p>
-          )}
         </div>
       </div>
     </AppShell>
