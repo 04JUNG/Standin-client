@@ -9,9 +9,13 @@ function readBool(value: string | undefined, fallback: boolean): boolean {
   return value === "true" || value === "1";
 }
 
+const useMockApi = readBool(import.meta.env.VITE_USE_MOCK_API, true);
+
 export const env = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000",
-  useMockApi: readBool(import.meta.env.VITE_USE_MOCK_API, true),
+  useMockApi,
+  // 포즈 분석 서버만 먼저 붙는 과도기 지원: 미설정이면 useMockApi를 그대로 따른다.
+  useMockPoseApi: readBool(import.meta.env.VITE_USE_MOCK_POSE_API, useMockApi),
   appEnv: (import.meta.env.VITE_APP_ENV as AppEnv | undefined) ?? "development",
   get isProduction(): boolean {
     return this.appEnv === "production";

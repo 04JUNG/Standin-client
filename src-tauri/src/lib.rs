@@ -12,6 +12,7 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|_app| {
             // Windows/Linux 개발 환경에선 런타임에 스킴을 등록해야 딥링크가 잡힌다.
             #[cfg(any(windows, target_os = "linux"))]
@@ -21,7 +22,13 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![commands::capture::grab_screen])
+        .invoke_handler(tauri::generate_handler![
+            commands::capture::grab_screen,
+            commands::export::default_save_dir,
+            commands::export::choose_save_folder,
+            commands::export::save_pose_file,
+            commands::export::reveal_in_folder,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
