@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -15,6 +15,11 @@ type ModalProps = {
   closeOnEscape?: boolean;
   /** 패널 최대 폭. docs/04 §4는 dialog를 440~640px로 규정한다. */
   width?: "sm" | "md" | "lg";
+  /**
+   * 열릴 때 포커스를 받을 요소. 지정하지 않으면 패널의 첫 포커스 가능 요소(=닫기 버튼)로
+   * 간다. 키 입력을 받아야 하는 대화상자는 반드시 넘겨야 한다.
+   */
+  initialFocus?: RefObject<HTMLElement>;
   children: ReactNode;
 };
 
@@ -34,6 +39,7 @@ export function Modal({
   title,
   closeOnEscape = true,
   width = "md",
+  initialFocus,
   children,
 }: ModalProps) {
   const titleId = useId();
@@ -45,13 +51,15 @@ export function Modal({
     if (!open) return;
     restoreRef.current = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? panel)?.focus();
+    // 자식 effect가 먼저 돌기 때문에 여기서 포커스를 다시 잡으면 자식이 지정한 위치를
+    // 덮어쓴다. 그래서 대상은 항상 이 effect가 결정한다.
+    const target = initialFocus?.current ?? panel?.querySelector<HTMLElement>(FOCUSABLE) ?? panel;
+    target?.focus();
 
     return () => {
       restoreRef.current?.focus?.();
     };
-  }, [open]);
+  }, [open, initialFocus]);
 
   // 열려 있는 동안 화면 단축키를 멈춘다.
   useEffect(() => {
