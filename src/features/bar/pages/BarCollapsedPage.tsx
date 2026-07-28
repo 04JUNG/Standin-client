@@ -17,7 +17,8 @@ export function BarCollapsedPage() {
   const handlers = useDragOrClick(() => navigate("/bar/actions", { replace: true }));
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-transparent">
+    // 창 경계에서 원이 잘리지 않도록 4px 안쪽에 그린다(barSizes 주석 참고).
+    <div className="flex h-full w-full items-center justify-center bg-transparent p-1">
       <button
         type="button"
         {...handlers}

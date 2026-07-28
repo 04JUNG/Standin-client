@@ -7,8 +7,14 @@ import type { WindowMode, WindowSize } from "../api/windowMode.contract";
 export type BarState = "collapsed" | "actions" | "progress" | "candidates" | "save";
 
 export const BAR_SIZES: Record<BarState, WindowSize> = {
-  /** 옮길 수 있는 원형 버튼. 기본 상태. */
-  collapsed: { width: 56, height: 56 },
+  /**
+   * 옮길 수 있는 원형 버튼. 기본 상태.
+   *
+   * 창이 원과 같은 크기면 안티에일리어싱된 가장자리와 ring이 창 경계에서 잘려
+   * 위아래 양옆이 깎여 보인다(실측). 창을 64로 두고 원은 4px 안쪽에 그린다.
+   * 남는 4px 테두리는 투명해서 보이지 않는다.
+   */
+  collapsed: { width: 64, height: 64 },
   // 헤더 33 + 패딩 12 + 버튼 38(단축키 칩 22px가 높이를 지배) + 테두리 2 = 85.
   // 실측으로 확인했다 — 72·84에서는 세로 스크롤바가 났다.
   /** 캡처 / 업로드 */
