@@ -9,8 +9,10 @@ export type BarState = "collapsed" | "actions" | "progress" | "candidates" | "sa
 export const BAR_SIZES: Record<BarState, WindowSize> = {
   /** 옮길 수 있는 원형 버튼. 기본 상태. */
   collapsed: { width: 56, height: 56 },
+  // 헤더 33 + 패딩 12 + 버튼 38(단축키 칩 22px가 높이를 지배) + 테두리 2 = 85.
+  // 실측으로 확인했다 — 72·84에서는 세로 스크롤바가 났다.
   /** 캡처 / 업로드 */
-  actions: { width: 360, height: 72 },
+  actions: { width: 360, height: 88 },
   /** 분석 진행 상태 */
   progress: { width: 360, height: 96 },
   /** 후보 5개 비교·선택 */
