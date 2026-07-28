@@ -46,6 +46,20 @@ export function PoseViewerPage() {
     onRerun: () => setRerunNotice(true),
   });
 
+  // 후보를 하나도 못 찾은 인물은 선택 대상이 아니라 "검색 실패"로만 보여준다.
+  // 조기 반환보다 먼저 계산해 단축키 hook 순서를 고정한다.
+  const people = data?.people ?? [];
+  const selectablePeople = people.filter((p) => p.candidates.length > 0);
+  const failedPeople = people.filter((p) => p.candidates.length === 0);
+  const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
+  const allSelected = selectablePeople.length > 0 && selectedCount === selectablePeople.length;
+
+  usePoseViewerShortcuts({
+    canConfirm: allSelected,
+    onConfirm: () => navigate(`/app/jobs/${jobId}/save`),
+    onRerun: () => setRerunNotice(true),
+  });
+
   if (!jobId) return <Navigate to="/app/home" replace />;
 
   if (!sourceFile) {
