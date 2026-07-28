@@ -173,9 +173,14 @@ reveal_in_folder
 register_capture_shortcut      (commands/shortcuts.rs, ADR-007)
 unregister_capture_shortcut
 focus_main_window
+set_window_mode                (commands/window_mode.rs, ADR-008)
+get_window_position
+set_window_position
 ```
 
-`register_capture_shortcut`의 핸들러는 프론트로 `shortcut://capture` 이벤트를 emit한다. 자체 command와 이벤트 수신은 capability 추가가 필요 없어 `capabilities/default.json`은 그대로다(docs/11 §3).
+`register_capture_shortcut`의 핸들러는 프론트로 `shortcut://capture` 이벤트를 emit한다. 자체 command와 이벤트 수신은 capability 추가가 필요 없다.
+
+창 조작을 Rust로 모으면서 `core:window:allow-set-fullscreen`이 **불필요해져 제거했다**. 현재 `capabilities/default.json`의 권한은 `core:default` · `opener:default` · `deep-link:default` 셋뿐이다(docs/11 §3 최소 capability).
 
 ---
 
