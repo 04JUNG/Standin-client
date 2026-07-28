@@ -177,6 +177,26 @@ type ShortcutState = {
 
 ---
 
+## 4-2. 창 모드와 흐름 시작점 (ADR-008)
+
+**창 모드는 store에 두지 않는다.** 라우트에서 파생하므로 store에 두면 진실 공급원이 둘이 되고 "창은 56×56인데 화면은 홈" 같은 불일치가 가능해진다. `WindowModeSync`가 `useLocation`으로 모드와 크기를 계산해 네이티브에 반영한다.
+
+`windowModeStore`(`shared` 아님, `features/bar/stores`)는 영속이 필요한 값만 갖는다.
+
+```ts
+type WindowModeState = {
+  barPosition: { x: number; y: number } | null; // 사용자가 옮긴 바 자리
+};
+```
+
+`standin-window` 키로 영속화한다. 손상된 값(숫자 아님·무한대)은 버리고, 사라진 모니터를 가리키는 좌표는 Rust가 작업 영역으로 클램프한다.
+
+### 흐름 시작점
+
+`uploadStore.origin`과 `captureStore.origin`이 `"app" | "bar"`를 갖는다. 진입 시점에 기록하고 이후 단계가 `flowOrigin`의 헬퍼로 목적지를 계산한다 — 각 단계가 개별 분기하지 않게 하기 위한 것이다.
+
+---
+
 ## 5. 최근 작업
 
 MVP 선택지:

@@ -14,21 +14,42 @@ import type { Accelerator, ShortcutDef, ShortcutId, ShortcutScope } from "@/shar
 export const SHORTCUTS: readonly ShortcutDef[] = [
   {
     id: "capture.start",
-    label: "화면 캡처 시작",
+    label: "캡처 바 열기",
     scope: "global",
-    hint: "앱이 백그라운드여도 동작합니다.",
+    hint: "앱이 백그라운드여도 바가 화면 위에 뜹니다.",
     // Windows Ctrl+Shift+S / macOS ⌘⇧S (docs/07 §7)
     defaultAccelerator: "Mod+Shift+KeyS",
     customizable: true,
   },
   {
     id: "home.startCapture",
-    label: "화면 캡처 시작(앱 내)",
+    label: "캡처 바 열기(앱 내)",
     scope: "home",
     hint: "전역 등록에 실패했거나 브라우저 개발 모드일 때만 동작합니다.",
     defaultAccelerator: "Mod+Shift+KeyS",
     customizable: false,
     mirrorOf: "capture.start",
+  },
+  {
+    id: "bar.capture",
+    label: "화면 캡처",
+    scope: "bar",
+    defaultAccelerator: "KeyC",
+    customizable: false,
+  },
+  {
+    id: "bar.upload",
+    label: "파일 업로드",
+    scope: "bar",
+    defaultAccelerator: "KeyU",
+    customizable: false,
+  },
+  {
+    id: "bar.collapse",
+    label: "바 접기",
+    scope: "bar",
+    defaultAccelerator: "Escape",
+    customizable: false,
   },
   {
     id: "app.toggleCheatSheet",
@@ -134,6 +155,7 @@ export function resolveAccelerator(
 export const SCOPE_LABEL: Record<ShortcutScope, string> = {
   global: "전역",
   app: "모든 화면",
+  bar: "플로팅 바",
   home: "홈",
   captureOverlay: "캡처 영역 선택",
   inputPreview: "입력 미리보기",
@@ -145,6 +167,7 @@ export const SCOPE_LABEL: Record<ShortcutScope, string> = {
 export const SCOPE_ORDER: readonly ShortcutScope[] = [
   "global",
   "app",
+  "bar",
   "home",
   "captureOverlay",
   "inputPreview",

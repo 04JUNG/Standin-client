@@ -2,3 +2,4 @@
 pub mod capture;
 pub mod export;
 pub mod shortcuts;
+pub mod window_mode;

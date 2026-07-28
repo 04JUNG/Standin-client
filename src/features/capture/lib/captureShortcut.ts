@@ -3,9 +3,9 @@ import { toTauriAccelerator } from "@/shared/lib/accelerator";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import type { Accelerator } from "@/shared/types/shortcuts";
+import { toggleBar } from "@/features/bar/lib/openBar";
 import { GlobalShortcutError } from "../api/globalShortcut.contract";
 import { globalShortcutService } from "../api/globalShortcut.service";
-import { startCaptureFlow } from "./startCaptureFlow";
 
 /**
  * 전역 캡처 단축키 초기화(docs/07 §7).
@@ -69,8 +69,9 @@ export async function initCaptureShortcut(): Promise<void> {
   }
 
   const { listen } = await import("@tauri-apps/api/event");
+  // 단축키는 캡처를 바로 시작하지 않고 바를 연다(ADR-008). 캡처는 바의 버튼으로 시작한다.
   await listen("shortcut://capture", () => {
-    void startCaptureFlow();
+    void toggleBar();
   });
 
   await syncCaptureShortcut();

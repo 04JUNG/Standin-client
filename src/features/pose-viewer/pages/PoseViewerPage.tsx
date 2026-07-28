@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, Info, Loader2 } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
-import { poseService } from "../api/pose.service";
-import { poseQueryKeys } from "../queryKeys";
+import { useAnalysisResult } from "../hooks/useAnalysisResult";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
@@ -19,7 +17,7 @@ export function PoseViewerPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const draft = useUploadStore((s) => s.draft);
-  const { selectedByPerson, setJobId, selectCandidate } = usePoseSelectionStore();
+  const setJobId = usePoseSelectionStore((s) => s.setJobId);
   const [rerunNotice, setRerunNotice] = useState(false);
   const bindings = useShortcutStore((s) => s.bindings);
 
@@ -27,12 +25,25 @@ export function PoseViewerPage() {
     if (jobId) setJobId(jobId);
   }, [jobId, setJobId]);
 
-  const sourceFile = draft?.file ?? null;
+  // 조회·파생은 바 모드와 공유한다(뷰만 다르다).
+  const {
+    data,
+    isPending,
+    isError,
+    error,
+    sourceFile,
+    selectablePeople,
+    failedPeople,
+    selectedByPerson,
+    selectedCount,
+    allSelected,
+    selectCandidate,
+  } = useAnalysisResult(jobId);
 
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: poseQueryKeys.result(jobId ?? ""),
-    queryFn: () => poseService.analyze({ jobId: jobId ?? "", file: sourceFile! }),
-    enabled: Boolean(jobId && sourceFile),
+  usePoseViewerShortcuts({
+    canConfirm: allSelected,
+    onConfirm: () => navigate(`/app/jobs/${jobId}/save`),
+    onRerun: () => setRerunNotice(true),
   });
 
   // 후보를 하나도 못 찾은 인물은 선택 대상이 아니라 "검색 실패"로만 보여준다.

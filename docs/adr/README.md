@@ -28,6 +28,7 @@
 | [ADR-005](ADR-005-3d-viewer-timing.md) | 3D 뷰어 도입 시점 | 제안됨 |
 | [ADR-006](ADR-006-bvh-download.md) | BVH 다운로드 방식 | 제안됨 |
 | [ADR-007](ADR-007-global-shortcut-registration.md) | 전역 단축키 등록 계층 | 제안됨 |
+| [ADR-008](ADR-008-window-modes.md) | 플로팅 바의 창 구조 | 제안됨 |
 
 ## 템플릿
 
