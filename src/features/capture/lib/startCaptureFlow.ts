@@ -1,5 +1,6 @@
 import { router } from "@/app/router";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { idleRoute, type FlowOrigin } from "@/features/bar/lib/flowOrigin";
 import { captureService } from "../api/capture.service";
 import { CaptureError } from "../api/capture.contract";
 import { globalShortcutService } from "../api/globalShortcut.service";
@@ -26,7 +27,7 @@ export function captureErrorMessage(err: unknown): string {
   return "화면 캡처에 실패했습니다. 다시 시도해 주세요.";
 }
 
-export async function startCaptureFlow(): Promise<void> {
+export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void> {
   const auth = useAuthStore.getState();
   // 미인증 상태에서는 캡처를 시작하지 않는다(RequireAuth 우회 금지, docs/06 §7).
   // 전역 단축키로 들어온 경우를 위해 창만 앞으로 가져온다.
@@ -40,6 +41,8 @@ export async function startCaptureFlow(): Promise<void> {
   if (capture.status === "grabbing" || capture.status === "selecting") return;
   if (router.state.location.pathname === "/app/capture") return;
 
+  // 오버레이가 끝난 뒤 돌아갈 곳을 기억한다(바에서 시작했으면 바로 복귀).
+  capture.setOrigin(origin);
   capture.setError(null);
   capture.setStatus("grabbing");
   try {
@@ -51,6 +54,7 @@ export async function startCaptureFlow(): Promise<void> {
     // 취소는 오류가 아니라 정상 복귀(docs/07 §6).
     if (err instanceof CaptureError && err.code === "CANCELLED") {
       useCaptureStore.getState().reset();
+      await router.navigate(idleRoute(origin), { replace: true });
       return;
     }
     const message = captureErrorMessage(err);

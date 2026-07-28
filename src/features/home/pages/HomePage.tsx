@@ -9,6 +9,7 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
+import { toggleBar } from "@/features/bar/lib/openBar";
 
 /**
  * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
@@ -27,7 +28,8 @@ export function HomePage() {
   const globalActive = globalStatus === "registered";
 
   useShortcuts({
-    "home.startCapture": globalActive || isStarting ? undefined : () => void startCapture(),
+    // 전역 등록이 살아 있으면 네이티브가 바를 여니 여기서는 끈다(이중 발동 방지).
+    "home.startCapture": globalActive ? undefined : () => void toggleBar(),
   });
 
   async function handleLogout() {

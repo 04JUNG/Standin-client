@@ -8,6 +8,7 @@
 export type ShortcutScope =
   | "global" // OS 전역. 네이티브(Rust)가 등록하며 앱이 백그라운드여도 동작.
   | "app" // 앱 셸 전체(AppShell 안의 모든 화면)
+  | "bar" // 플로팅 바 전체(BarShell 안의 모든 상태)
   | "home"
   | "captureOverlay"
   | "inputPreview"
@@ -17,6 +18,9 @@ export type ShortcutScope =
 export type ShortcutId =
   | "capture.start"
   | "home.startCapture"
+  | "bar.collapse"
+  | "bar.capture"
+  | "bar.upload"
   | "app.toggleCheatSheet"
   | "home.openFilePicker"
   | "captureOverlay.cancel"

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useRef, useState, type PointerEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
@@ -9,7 +9,7 @@ import { useCaptureStore } from "../store/captureStore";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { cropFrameToFile, scaleSelectionToFrame } from "../lib/cropFrame";
 import { createUploadDraft } from "@/features/upload/lib/createUploadDraft";
-import { setOverlayFullscreen } from "../lib/overlayWindow";
+import { afterInputRoute, idleRoute } from "@/features/bar/lib/flowOrigin";
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -24,6 +24,7 @@ export function CaptureOverlayPage() {
   const navigate = useNavigate();
   const frame = useCaptureStore((s) => s.frame);
   const resetCapture = useCaptureStore((s) => s.reset);
+  const origin = useCaptureStore((s) => s.origin);
   const setDraft = useUploadStore((s) => s.setDraft);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,16 +32,10 @@ export function CaptureOverlayPage() {
   const [sel, setSel] = useState<Rect | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  // 오버레이 동안 전체화면(Tauri). 언마운트 시 해제.
+  // 전체화면 전환은 WindowModeSync가 라우트에서 파생해 처리한다(ADR-008).
   // frame은 여기서 비우지 않는다: 성공 경로에서 즉시 비우면 `if (!frame)` 가드가
-  // 홈으로 리다이렉트하는 레이스가 생기고, StrictMode의 setup→cleanup→setup
-  // 이중 호출에서도 frame이 지워져 가드가 발동한다. 다음 캡처가 frame을 덮어쓴다.
-  useEffect(() => {
-    void setOverlayFullscreen(true);
-    return () => {
-      void setOverlayFullscreen(false);
-    };
-  }, []);
+  // 리다이렉트하는 레이스가 생기고, StrictMode의 이중 호출에서도 가드가 발동한다.
+  // 다음 캡처가 frame을 덮어쓴다.
 
   const bindings = useShortcutStore((s) => s.bindings);
   const cancelAccelerator = resolveAccelerator("captureOverlay.cancel", bindings) ?? "Escape";
@@ -51,12 +46,12 @@ export function CaptureOverlayPage() {
       ? undefined
       : () => {
           resetCapture();
-          navigate("/app/home", { replace: true });
+          navigate(idleRoute(origin), { replace: true });
         },
   });
 
   // 프레임이 없으면(직접 진입·새로고침) 홈으로.
-  if (!frame) return <Navigate to="/app/home" replace />;
+  if (!frame) return <Navigate to={idleRoute(origin)} replace />;
 
   function localPoint(e: PointerEvent) {
     const r = containerRef.current!.getBoundingClientRect();
@@ -106,9 +101,9 @@ export function CaptureOverlayPage() {
       );
       const { file, width, height } = await cropFrameToFile(frame!.dataUrl, cropRect);
       const draft = createUploadDraft(file, { width, height }, "capture");
-      setDraft(draft);
-      // frame 정리는 언마운트 cleanup이 담당한다(위 useEffect 참고).
-      navigate("/app/preview", { replace: true });
+      setDraft(draft, origin);
+      // 시작한 곳으로 돌아간다 — 바에서 시작했으면 앱 창을 거치지 않는다(ADR-008).
+      navigate(afterInputRoute(origin), { replace: true });
     } catch {
       setProcessing(false);
       setSel(null);

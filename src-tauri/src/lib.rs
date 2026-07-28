@@ -45,6 +45,9 @@ pub fn run() {
             commands::shortcuts::register_capture_shortcut,
             commands::shortcuts::unregister_capture_shortcut,
             commands::shortcuts::focus_main_window,
+            commands::window_mode::set_window_mode,
+            commands::window_mode::get_window_position,
+            commands::window_mode::set_window_position,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
