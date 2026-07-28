@@ -155,6 +155,28 @@ type PoseSelectionState = {
 
 ---
 
+## 4-1. 단축키 Store
+
+`shared/stores/shortcutStore.ts`에 둔다. features가 아니라 shared인 이유는 바인딩을 `shared/hooks`와 `shared/components`가 읽기 때문이다 — features에 두면 `shared → features` 역의존이 생긴다.
+
+```ts
+type ShortcutState = {
+  bindings: Record<ShortcutId, Accelerator>;
+  previousGlobal: Accelerator | null;   // 등록 실패 시 되돌릴 값
+  globalStatus: "idle" | "registering" | "registered" | "failed" | "unavailable";
+  globalError: string | null;
+  cheatSheetOpen: boolean;
+};
+```
+
+`bindings`만 영속화한다(`standin-shortcuts`, version 1). 키바인딩은 비밀정보가 아니라 localStorage로 충분하며 docs/06 §6의 토큰 저장 금지 대상이 아니다.
+
+영속값은 항상 기본값과 병합한다. 레지스트리에 항목을 추가하면 기존 사용자의 영속값에는 그 키가 없기 때문이다. 아울러 레지스트리에 없는 id, 문자열이 아닌 값, 파싱 불가한 accelerator는 버리고 기본값으로 되돌린다(docs/11 §3).
+
+`globalStatus`는 영속화하지 않는다 — 실행할 때마다 실제 등록 결과로 다시 정해져야 한다.
+
+---
+
 ## 5. 최근 작업
 
 MVP 선택지:

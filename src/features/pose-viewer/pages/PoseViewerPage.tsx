@@ -7,7 +7,11 @@ import { Button } from "@/shared/components/Button";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { poseService } from "../api/pose.service";
 import { poseQueryKeys } from "../queryKeys";
+import { ShortcutKey } from "@/shared/components/ShortcutKey";
+import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
+import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
+import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
@@ -17,6 +21,7 @@ export function PoseViewerPage() {
   const draft = useUploadStore((s) => s.draft);
   const { selectedByPerson, setJobId, selectCandidate } = usePoseSelectionStore();
   const [rerunNotice, setRerunNotice] = useState(false);
+  const bindings = useShortcutStore((s) => s.bindings);
 
   useEffect(() => {
     if (jobId) setJobId(jobId);
@@ -28,6 +33,20 @@ export function PoseViewerPage() {
     queryKey: poseQueryKeys.result(jobId ?? ""),
     queryFn: () => poseService.analyze({ jobId: jobId ?? "", file: sourceFile! }),
     enabled: Boolean(jobId && sourceFile),
+  });
+
+  // 후보를 하나도 못 찾은 인물은 선택 대상이 아니라 "검색 실패"로만 보여준다.
+  // 조기 반환보다 먼저 계산해 단축키 hook 순서를 고정한다.
+  const people = data?.people ?? [];
+  const selectablePeople = people.filter((p) => p.candidates.length > 0);
+  const failedPeople = people.filter((p) => p.candidates.length === 0);
+  const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
+  const allSelected = selectablePeople.length > 0 && selectedCount === selectablePeople.length;
+
+  usePoseViewerShortcuts({
+    canConfirm: allSelected,
+    onConfirm: () => navigate(`/app/jobs/${jobId}/save`),
+    onRerun: () => setRerunNotice(true),
   });
 
   if (!jobId) return <Navigate to="/app/home" replace />;
@@ -69,12 +88,6 @@ export function PoseViewerPage() {
     );
   }
 
-  // 후보를 하나도 못 찾은 인물은 선택 대상이 아니라 "검색 실패"로만 보여준다.
-  const selectablePeople = data.people.filter((p) => p.candidates.length > 0);
-  const failedPeople = data.people.filter((p) => p.candidates.length === 0);
-  const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
-  const allSelected = selectablePeople.length > 0 && selectedCount === selectablePeople.length;
-
   return (
     <AppShell title="포즈 후보">
       <div className="flex h-full flex-col gap-4">
@@ -82,9 +95,15 @@ export function PoseViewerPage() {
           <span className="text-[12px] font-semibold text-text-secondary">원본</span>
           <div className="flex max-h-[240px] items-center justify-center overflow-hidden rounded-lg bg-brand-paper">
             {draft ? (
-              <img src={draft.previewUrl} alt={draft.originalName} className="max-h-[240px] max-w-full object-contain" />
+              <img
+                src={draft.previewUrl}
+                alt={draft.originalName}
+                className="max-h-[240px] max-w-full object-contain"
+              />
             ) : (
-              <p className="p-4 text-center text-[13px] text-text-secondary">원본 미리보기가 없습니다.</p>
+              <p className="p-4 text-center text-[13px] text-text-secondary">
+                원본 미리보기가 없습니다.
+              </p>
             )}
           </div>
         </div>
@@ -96,7 +115,9 @@ export function PoseViewerPage() {
                 key={person.index}
                 className="flex items-center justify-between gap-3 rounded-xl border border-brand-coral/40 bg-brand-coral/10 p-4"
               >
-                <span className="text-[13px] font-semibold text-text-primary">인물 {person.index + 1}</span>
+                <span className="text-[13px] font-semibold text-text-primary">
+                  인물 {person.index + 1}
+                </span>
                 <span className="flex items-center gap-2 text-[12px] font-semibold text-brand-coral">
                   <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
                   검색 실패 — 이 인물에 맞는 포즈 후보를 찾지 못했습니다.
@@ -108,7 +129,10 @@ export function PoseViewerPage() {
           const selectedId = selectedByPerson[person.index];
           const selectedCandidate = person.candidates.find((c) => c.id === selectedId) ?? null;
           return (
-            <div key={person.index} className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
+            <div
+              key={person.index}
+              className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4"
+            >
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-semibold text-text-primary">
                   인물 {person.index + 1}
@@ -142,6 +166,10 @@ export function PoseViewerPage() {
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={() => setRerunNotice(true)}>
               다른 후보 찾기
+              <ShortcutKey
+                accelerator={resolveAccelerator("poseViewer.rerun", bindings)!}
+                className="ml-1"
+              />
             </Button>
             {rerunNotice && (
               <p className="flex items-center gap-2 text-[12px] text-text-secondary">
@@ -156,6 +184,10 @@ export function PoseViewerPage() {
             onClick={() => navigate(`/app/jobs/${jobId}/save`)}
           >
             이 포즈 사용하기 ({selectedCount}/{selectablePeople.length})
+            <ShortcutKey
+              accelerator={resolveAccelerator("poseViewer.confirm", bindings)!}
+              className="ml-1"
+            />
           </Button>
         </div>
       </div>

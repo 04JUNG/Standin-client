@@ -1,57 +1,17 @@
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { captureService } from "../api/capture.service";
-import { CaptureError } from "../api/capture.contract";
+import { useCallback } from "react";
 import { useCaptureStore } from "../store/captureStore";
+import { startCaptureFlow } from "../lib/startCaptureFlow";
 
-function messageFor(err: unknown): string {
-  if (err instanceof CaptureError) {
-    switch (err.code) {
-      case "PERMISSION_DENIED":
-        return "화면 기록 권한이 필요합니다. 시스템 설정에서 권한을 허용해 주세요.";
-      case "UNSUPPORTED":
-        return "이 환경에서는 화면 캡처를 사용할 수 없습니다.";
-      default:
-        return "화면 캡처에 실패했습니다. 다시 시도해 주세요.";
-    }
-  }
-  return "화면 캡처에 실패했습니다. 다시 시도해 주세요.";
-}
-
-/** 화면 캡처 시작: 전체 화면을 잡아 프레임을 store에 넣고 오버레이로 이동. */
+/**
+ * 화면 캡처 시작(홈 버튼용). 오케스트레이션은 startCaptureFlow가 소유하고
+ * 여기서는 화면이 쓸 상태만 store에서 파생한다 — 전역 단축키가 같은 흐름을
+ * React 밖에서 호출해도 상태가 어긋나지 않게 하기 위해서다.
+ */
 export function useStartCapture() {
-  const navigate = useNavigate();
-  const setFrame = useCaptureStore((s) => s.setFrame);
-  const setStatus = useCaptureStore((s) => s.setStatus);
-  const setError = useCaptureStore((s) => s.setError);
-  const reset = useCaptureStore((s) => s.reset);
-  const [error, setLocalError] = useState<string | null>(null);
-  const [isStarting, setIsStarting] = useState(false);
+  const status = useCaptureStore((s) => s.status);
+  const error = useCaptureStore((s) => s.error);
 
-  const start = useCallback(async () => {
-    setLocalError(null);
-    setError(null);
-    setStatus("grabbing");
-    setIsStarting(true);
-    try {
-      const frame = await captureService.grabScreen();
-      setFrame(frame);
-      setStatus("selecting");
-      navigate("/app/capture");
-    } catch (err) {
-      // 취소는 오류가 아니라 정상 복귀(docs/07 §6).
-      if (err instanceof CaptureError && err.code === "CANCELLED") {
-        reset();
-        return;
-      }
-      const message = messageFor(err);
-      setError(message);
-      setStatus("error");
-      setLocalError(message);
-    } finally {
-      setIsStarting(false);
-    }
-  }, [navigate, reset, setError, setFrame, setStatus]);
+  const start = useCallback(() => startCaptureFlow(), []);
 
-  return { start, isStarting, error };
+  return { start, isStarting: status === "grabbing", error };
 }

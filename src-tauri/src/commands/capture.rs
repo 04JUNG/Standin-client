@@ -75,6 +75,9 @@ pub async fn grab_screen(window: tauri::Window) -> Result<ScreenFrame, CaptureEr
     .await
     .map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?;
 
+    // 전역 단축키로 진입하면 창이 최소화 상태일 수 있다. Windows에서 최소화된 창은
+    // show()만으로 복원되지 않아 오버레이가 보이지 않는다. 기존 버튼 경로에는 no-op이다.
+    let _ = window.unminimize();
     let _ = window.show();
     let _ = window.set_focus();
 
