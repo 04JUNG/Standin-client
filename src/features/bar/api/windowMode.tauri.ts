@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  WindowControlAction,
   WindowMode,
   WindowModeService,
   WindowPosition,
@@ -37,6 +38,24 @@ export const windowModeTauri: WindowModeService = {
         width: size.width,
         height: size.height,
       });
+    } catch {
+      // 무시.
+    }
+  },
+
+  async startDragging(): Promise<void> {
+    try {
+      // capabilities의 core:window:allow-start-dragging이 있어야 동작한다.
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().startDragging();
+    } catch {
+      // 끌기 실패는 치명적이지 않다.
+    }
+  },
+
+  async control(action: WindowControlAction): Promise<void> {
+    try {
+      await invoke("window_control", { action });
     } catch {
       // 무시.
     }

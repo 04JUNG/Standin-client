@@ -14,6 +14,41 @@ use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewWindow};
 const APP_MIN_WIDTH: f64 = 960.0;
 const APP_MIN_HEIGHT: f64 = 640.0;
 
+/// 창을 최소화했을 때 프론트에 "바로 접어라"를 알리는 이벤트(ADR-008).
+pub const COLLAPSE_TO_BAR_EVENT: &str = "window://collapse-to-bar";
+
+/// 창 제어(최소화·최대화·닫기). 창이 항상 무장식이라 앱 모드가 직접 제목 표시줄을 그린다.
+///
+/// JS 플러그인 API로 하면 core:window:allow-minimize·allow-close 등을 열어야 하지만
+/// 자체 command는 권한이 필요 없다(docs/11 §3).
+#[tauri::command]
+pub fn window_control(app: AppHandle, action: String) -> Result<(), WindowError> {
+    let window = main_window(&app)?;
+    match action.as_str() {
+        // 최소화는 on_window_event가 가로채 플로팅 바로 접는다.
+        "minimize" => {
+            let _ = window.minimize();
+        }
+        "toggleMaximize" => {
+            if window.is_maximized().unwrap_or(false) {
+                let _ = window.unmaximize();
+            } else {
+                let _ = window.maximize();
+            }
+        }
+        "close" => {
+            let _ = window.close();
+        }
+        other => {
+            return Err(WindowError::new(
+                "UNKNOWN_ACTION",
+                format!("알 수 없는 창 동작입니다: {other}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowModeRequest {
@@ -85,10 +120,11 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
             let width = req.width.unwrap_or(360.0);
             let height = req.height.unwrap_or(64.0);
 
-            // 최소 크기 해제가 반드시 먼저다.
+            // 최대화 상태에서는 Windows가 set_size를 무시한다. 해제가 먼저다(실측).
+            let _ = window.unmaximize();
+            // 최소 크기 해제도 축소 전에 해야 한다.
             let _ = window.set_min_size(None::<LogicalSize<f64>>);
             let _ = window.set_fullscreen(false);
-            let _ = window.set_decorations(false);
             let _ = window.set_resizable(false);
             let _ = window.set_always_on_top(true);
             window
@@ -100,7 +136,6 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
         "overlay" => {
             // 프리즈 프레임이 화면과 1:1로 맞아야 하므로 전체화면으로 덮는다.
             let _ = window.set_min_size(None::<LogicalSize<f64>>);
-            let _ = window.set_decorations(false);
             let _ = window.set_resizable(false);
             let _ = window.set_always_on_top(true);
             window
@@ -114,12 +149,25 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
 
             let _ = window.set_fullscreen(false);
             let _ = window.set_always_on_top(false);
-            let _ = window.set_decorations(true);
             let _ = window.set_resizable(true);
-            // 크기를 키운 뒤 최소 크기를 복원한다(순서가 반대면 거부될 수 있다).
-            let _ = window.set_size(LogicalSize::new(width, height));
             let _ = window.set_min_size(Some(LogicalSize::new(APP_MIN_WIDTH, APP_MIN_HEIGHT)));
-            let _ = window.center();
+
+            // 사용자가 최대화해 둔 창은 그대로 둔다 — 앱 화면 사이를 오갈 때마다
+            // 크기를 되돌리면 의도를 빼앗는다. 작은 상태에서 올 때만 기본 크기로 맞춘다.
+            if !window.is_maximized().unwrap_or(false) {
+                let (w, h) = window
+                    .inner_size()
+                    .map(|s| {
+                        let scale = window.scale_factor().unwrap_or(1.0);
+                        (s.width as f64 / scale, s.height as f64 / scale)
+                    })
+                    .unwrap_or((0.0, 0.0));
+                // 이미 앱 크기라면(앱 화면 간 이동) 건드리지 않는다.
+                if w < APP_MIN_WIDTH || h < APP_MIN_HEIGHT {
+                    let _ = window.set_size(LogicalSize::new(width, height));
+                    let _ = window.center();
+                }
+            }
         }
 
         other => {
