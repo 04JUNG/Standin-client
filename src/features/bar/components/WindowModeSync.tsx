@@ -22,6 +22,9 @@ export function WindowModeSync() {
     const barState = barStateForPath(pathname);
     const wasBar = previousBarState.current !== null;
 
+    // 바에서는 창 배경을 비워 둥근 모서리 밖이 흰 네모로 보이지 않게 한다(index.css).
+    document.body.dataset.windowMode = target.mode;
+
     let cancelled = false;
 
     void (async () => {

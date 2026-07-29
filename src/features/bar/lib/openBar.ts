@@ -12,6 +12,15 @@ import { barStateForPath } from "./barSizes";
  * React 밖(네이티브 이벤트 리스너)에서 호출되므로 store.getState()와 router.navigate를
  * 직접 쓴다. deepLinkAuth.ts와 같은 방식이다.
  */
+/** 접힌 바로 만든다. 창 최소화를 가로챌 때 쓴다. */
+export async function collapseToBar(): Promise<void> {
+  if (useAuthStore.getState().status !== "authenticated") return;
+  const state = barStateForPath(router.state.location.pathname);
+  // 흐름 도중(진행·후보·저장)에는 작업을 잃지 않도록 접지 않는다.
+  if (state !== null && state !== "collapsed" && state !== "actions") return;
+  await router.navigate("/bar", { replace: true });
+}
+
 export async function toggleBar(): Promise<void> {
   // 미인증이면 바를 열지 않는다. 로그인 폼은 56×56에 들어갈 수 없으므로
   // 창만 앞으로 가져오고 RequireAuth가 로그인 화면으로 보낸다.

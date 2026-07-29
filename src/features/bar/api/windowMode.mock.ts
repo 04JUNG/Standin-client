@@ -14,4 +14,10 @@ export const windowModeMock: WindowModeService = {
   async setPosition(): Promise<void> {
     // no-op
   },
+  async startDragging(): Promise<void> {
+    // no-op
+  },
+  async control(): Promise<void> {
+    // no-op
+  },
 };

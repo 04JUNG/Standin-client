@@ -19,6 +19,14 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /*
+   * 플로팅 바에서는 창 배경을 비운다(ADR-008). 창은 사각형이라 배경이 칠해져 있으면
+   * 둥근 패널·원형 버튼 바깥이 흰 네모로 드러난다. 표식은 WindowModeSync가 세운다.
+   */
+  body[data-window-mode="bar"] {
+    background-color: transparent;
+  }
+
   /* 접근성: 키보드 포커스 링 유지(docs/04 §13) */
   :focus-visible {
     outline: 2px solid var(--brand-sky);

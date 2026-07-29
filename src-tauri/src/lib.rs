@@ -36,6 +36,18 @@ pub fn run() {
             }
             Ok(())
         })
+        // 앱 창을 최소화하면 작업 표시줄로 숨는 대신 플로팅 바로 접는다(ADR-008).
+        // Tauri v2에는 Minimized 이벤트가 없어 Resized에서 상태를 확인한다.
+        .on_window_event(|window, event| {
+            #[cfg(desktop)]
+            if let tauri::WindowEvent::Resized(_) = event {
+                if window.is_minimized().unwrap_or(false) {
+                    use tauri::Emitter;
+                    let _ = window.unminimize();
+                    let _ = window.emit(commands::window_mode::COLLAPSE_TO_BAR_EVENT, ());
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::capture::grab_screen,
             commands::export::default_save_dir,
@@ -48,6 +60,7 @@ pub fn run() {
             commands::window_mode::set_window_mode,
             commands::window_mode::get_window_position,
             commands::window_mode::set_window_position,
+            commands::window_mode::window_control,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
