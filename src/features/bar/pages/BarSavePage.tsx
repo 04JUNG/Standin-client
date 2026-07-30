@@ -1,10 +1,19 @@
 import { Navigate, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, FolderOpen, Loader2, RotateCcw, Save, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FolderOpen,
+  Loader2,
+  RotateCcw,
+  Save,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { dragService } from "@/features/export/api/drag.service";
 import { SavedFileList } from "@/features/export/components/SavedFileList";
 import { useSaveFlow } from "@/features/export/hooks/useSaveFlow";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -13,8 +22,9 @@ import { BarShell } from "../components/BarShell";
 /**
  * 바 모드의 저장(ADR-008, ADR-009). 여기까지 오면 앱 창에 한 번도 들어가지 않고 흐름이 끝난다.
  *
- * 저장은 자동으로 일어나므로 이 화면의 주 동작은 `폴더 열기`다. 바가 클립스튜디오 위에
- * 떠 있으니 폴더를 열고 바로 캔버스로 드래그할 수 있다.
+ * 저장은 자동으로 일어나므로 이 화면의 주 동작은 파일 목록을 클립스튜디오 캔버스로
+ * 끌어놓는 것이다. 바가 클립스튜디오 위에 떠 있어서 드래그 거리가 가장 짧다.
+ * `폴더 열기`는 드래그가 막힌 환경의 폴백이다.
  *
  * 로직은 useSaveFlow로 앱 모드와 공유한다.
  */
@@ -104,16 +114,18 @@ export function BarSavePage() {
               포즈 {selections.length}개를 저장했습니다.
             </p>
 
+            <p className="shrink-0 text-[10px] text-text-secondary">
+              {dragService.isSupported
+                ? "파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
+                : "폴더를 열고 BVH를 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."}
+            </p>
+
             <div className="min-h-0 flex-1 overflow-auto">
               <SavedFileList paths={savedPaths} onCopy={copyPath} dense />
             </div>
 
-            <p className="shrink-0 text-[10px] text-text-secondary">
-              폴더를 열고 BVH를 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.
-            </p>
-
             <div className="flex shrink-0 flex-col gap-1.5">
-              <Button size="md" onClick={revealSaved}>
+              <Button variant="secondary" size="md" onClick={revealSaved}>
                 <FolderOpen className="h-3.5 w-3.5" aria-hidden />
                 폴더 열기
                 <ShortcutKey accelerator={resolveAccelerator("save.revealFolder", bindings)!} />

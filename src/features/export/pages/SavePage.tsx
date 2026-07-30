@@ -14,6 +14,7 @@ import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { dragService } from "../api/drag.service";
 import { SavedFileList } from "../components/SavedFileList";
 import { useSaveFlow } from "../hooks/useSaveFlow";
 
@@ -113,10 +114,17 @@ export function SavePage() {
               </p>
             </div>
 
-            <SavedFileList paths={savedPaths} onCopy={copyPath} />
-
             <div className="flex flex-col gap-2">
-              <Button size="lg" onClick={revealSaved}>
+              <p className="text-[13px] text-text-secondary">
+                {dragService.isSupported
+                  ? "아래 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
+                  : "폴더를 열어 BVH를 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."}
+              </p>
+              <SavedFileList paths={savedPaths} onCopy={copyPath} />
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <Button variant="secondary" size="md" onClick={revealSaved}>
                 <FolderOpen className="h-4 w-4" aria-hidden />
                 폴더 열기
                 <ShortcutKey
@@ -124,12 +132,6 @@ export function SavePage() {
                   className="ml-1"
                 />
               </Button>
-              <p className="text-center text-[12px] text-text-secondary">
-                BVH 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 border-t border-border pt-4">
               <Button variant="secondary" size="md" onClick={() => void saveToAnotherFolder()}>
                 <Save className="h-4 w-4" aria-hidden />
                 다른 폴더에 저장

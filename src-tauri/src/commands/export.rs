@@ -74,6 +74,30 @@ fn unique_path(folder: &Path, file_name: &str) -> PathBuf {
     folder.join(format!("{stem}_{nanos}.{ext}"))
 }
 
+/// 드래그 미리보기 이미지. tauri-plugin-drag가 이미지 파일 **경로**를 요구하므로
+/// 바이너리에 넣어 두고 필요할 때 앱 데이터 폴더에 풀어 쓴다. 번들 리소스로 두면
+/// tauri.conf 설정이 필요하고 개발·배포 경로가 갈리는데, 이 방식은 양쪽에서 같다.
+const DRAG_PREVIEW_PNG: &[u8] = include_bytes!("../../icons/64x64.png");
+
+/// 드래그 미리보기 이미지 경로. 없으면 한 번 만들고 이후에는 같은 경로를 돌려준다(ADR-009).
+#[tauri::command]
+pub fn drag_icon_path(app: AppHandle) -> Result<String, ExportError> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| ExportError::new("UNSUPPORTED", e.to_string()))?;
+
+    fs::create_dir_all(&dir).map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
+
+    let path = dir.join("drag-preview.png");
+    if !path.exists() {
+        fs::write(&path, DRAG_PREVIEW_PNG)
+            .map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
+    }
+
+    Ok(path.to_string_lossy().to_string())
+}
+
 /// 폴더가 아직 존재하는지 확인한다. 설정에 저장해둔 폴더가 삭제됐을 때 안내하려고 쓴다(docs/03 §9).
 #[tauri::command]
 pub fn folder_exists(path: String) -> bool {
