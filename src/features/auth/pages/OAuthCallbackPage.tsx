@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toAppError } from "@/shared/api/errors";
 import { useAuthStore } from "../store/authStore";
+import { takePendingReturnTo } from "../lib/returnTo";
 
 /**
- * 소셜 로그인 콜백 처리(/auth/callback).
- * BFF가 `OAUTH_SUCCESS_REDIRECT`로 이 경로에 `accessToken`·`refreshToken`을 붙여 보낸다.
- * 토큰으로 세션을 완성한 뒤 홈으로 이동한다.
+ * 소셜 로그인 콜백 처리(/auth/callback) — dev 브라우저 경로.
+ * BFF가 `OAUTH_SUCCESS_REDIRECT`로 이 경로에 1회용 `code`를 붙여 보낸다.
+ * 코드를 토큰으로 교환한 뒤 원래 가려던 화면으로 이동한다.
+ * (패키지된 데스크톱 앱은 `deepLinkAuth.ts`가 같은 일을 한다)
  */
 export function OAuthCallbackPage() {
   const [params] = useSearchParams();
@@ -18,15 +21,14 @@ export function OAuthCallbackPage() {
     if (ran.current) return; // StrictMode 이중 실행 방지
     ran.current = true;
 
-    const accessToken = params.get("accessToken");
-    const refreshToken = params.get("refreshToken") ?? undefined;
-    if (!accessToken) {
-      setError("로그인 토큰을 받지 못했습니다. 다시 시도해 주세요.");
+    const code = params.get("code");
+    if (!code) {
+      setError("소셜 로그인을 완료하지 못했습니다. 다시 시도해 주세요.");
       return;
     }
-    completeOAuth(accessToken, refreshToken)
-      .then(() => navigate("/app/home", { replace: true }))
-      .catch(() => setError("로그인 완료에 실패했습니다. 다시 시도해 주세요."));
+    completeOAuth(code)
+      .then(() => navigate(takePendingReturnTo(), { replace: true }))
+      .catch((err: unknown) => setError(toAppError(err).message));
   }, [params, completeOAuth, navigate]);
 
   return (
