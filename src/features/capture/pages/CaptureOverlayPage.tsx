@@ -24,6 +24,7 @@ export function CaptureOverlayPage() {
   const navigate = useNavigate();
   const frame = useCaptureStore((s) => s.frame);
   const resetCapture = useCaptureStore((s) => s.reset);
+  const setCaptureStatus = useCaptureStore((s) => s.setStatus);
   const origin = useCaptureStore((s) => s.origin);
   const setDraft = useUploadStore((s) => s.setDraft);
 
@@ -33,9 +34,9 @@ export function CaptureOverlayPage() {
   const [processing, setProcessing] = useState(false);
 
   // 전체화면 전환은 WindowModeSync가 라우트에서 파생해 처리한다(ADR-008).
-  // frame은 여기서 비우지 않는다: 성공 경로에서 즉시 비우면 `if (!frame)` 가드가
-  // 리다이렉트하는 레이스가 생기고, StrictMode의 이중 호출에서도 가드가 발동한다.
-  // 다음 캡처가 frame을 덮어쓴다.
+  // 성공 경로에서는 frame을 유지한 채 status만 idle로 되돌린다. frame을 즉시
+  // 비우면 `if (!frame)` 가드가 먼저 발동할 수 있고, status가 selecting에 남으면
+  // startCaptureFlow의 재진입 가드가 이후 캡처를 계속 무시한다.
 
   const bindings = useShortcutStore((s) => s.bindings);
   const cancelAccelerator = resolveAccelerator("captureOverlay.cancel", bindings) ?? "Escape";
@@ -102,6 +103,7 @@ export function CaptureOverlayPage() {
       const { file, width, height } = await cropFrameToFile(frame!.dataUrl, cropRect);
       const draft = createUploadDraft(file, { width, height }, "capture");
       setDraft(draft, origin);
+      setCaptureStatus("idle");
       // 시작한 곳으로 돌아간다 — 바에서 시작했으면 앱 창을 거치지 않는다(ADR-008).
       navigate(afterInputRoute(origin), { replace: true });
     } catch {
