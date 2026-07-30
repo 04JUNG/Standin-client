@@ -1,8 +1,8 @@
 # ADR-006: BVH 다운로드 방식
 
-- 상태: 제안됨
+- 상태: 제안됨 (저장 UX는 ADR-009로 보완됨)
 - 날짜: 2026-07-14
-- 관련 문서: docs/08_API_CONTRACT.md §8, docs/03_USER_FLOW_AND_SCREENS.md §8, docs/11_QA_SECURITY_RELEASE.md §3, docs/12_EXPORT_AND_SAVE_SPEC.md
+- 관련 문서: docs/08_API_CONTRACT.md §8, docs/03_USER_FLOW_AND_SCREENS.md §8, docs/11_QA_SECURITY_RELEASE.md §3, docs/12_EXPORT_AND_SAVE_SPEC.md, docs/adr/ADR-009-pose-file-delivery.md
 
 ## 배경
 
@@ -37,11 +37,19 @@
 
 ## 결과
 
-- Rust command 예: `save_pose_file(downloadUrl | candidateId, defaultFileName) -> savedPath`. 저장 대화상자로 사용자가 경로 확정, 저장 후 `폴더 열기` 지원.
+- Rust command 예: `save_pose_file(downloadUrl | candidateId, defaultFileName) -> savedPath`. 저장 후 `폴더 열기` 지원.
 - 기본 파일명 규칙(docs/03 §8): 원본명이 있으면 `{originalName}_standin_pose.bvh`, 없으면 `standin_pose_YYYYMMDD_HHmm.bvh`.
 - 서버가 준 파일명을 그대로 신뢰하지 않고 정리(sanitization)한다. 확장자는 `.bvh`로 강제하고 실행 파일 확장자를 허용하지 않는다.
-- 저장 취소, 같은 파일명, 폴더 권한 없음, 다운로드 실패를 각각 처리(docs/11 §2 내보내기).
+- 같은 파일명, 폴더 권한 없음, 다운로드 실패를 각각 처리(docs/11 §2 내보내기). 저장 취소는 "다른 폴더에 저장" 대화상자에서만 발생한다(ADR-009).
 - signed URL 만료(`expiresAt`) 시 재발급 흐름을 서버와 합의.
 - 서버팀 확인(docs/08 §11 Q9): BVH 사전 생성 여부와 export 방식.
 - 재검토 조건: 후보마다 BVH가 사전 생성되지 않고 요청 시 생성된다면, 생성 대기 상태(Job) 처리를 추가한다.
-- 기본 저장 폴더는 OS 다운로드 폴더로 하고 사용자가 변경 가능하게 한다. 클립스튜디오 소재 폴더 직접 저장은 이번 MVP에 포함하지 않는다(조사 내용과 사유는 docs/12_EXPORT_AND_SAVE_SPEC.md §5~§6 참고).
+- 기본 저장 폴더는 OS 다운로드 폴더로 하고 사용자가 변경 가능하게 한다. 클립스튜디오 소재 폴더 직접 저장은 조사 결과 성립하지 않아 영구 제외한다(사유는 docs/12_EXPORT_AND_SAVE_SPEC.md §5~§6).
+
+## 보완 (ADR-009)
+
+이 ADR은 다운로드·저장을 **어느 계층에서** 처리할지에 대한 결정이며, 그 부분은 유효하다. 저장 UX는 ADR-009가 다음과 같이 대체했다.
+
+- 저장 대화상자로 매번 경로를 확정하는 방식 → **설정된 저장 폴더에 자동 저장**. 저장 버튼을 반복해 누르는 단계를 없앤다.
+- 저장 폴더 변경은 설정 화면에서 하고, 저장 결과의 "다른 폴더에 저장"은 이번 한 번만 적용하는 부가 경로다.
+- `폴더 열기`는 부가 기능이 아니라 주 경로의 일부다. 저장된 BVH를 클립스튜디오 캔버스로 드래그하는 출발점이기 때문이다.
