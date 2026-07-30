@@ -2,8 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 /**
- * 저장 화면 상태(docs/09 §2 ExportDraft에 대응). folder만 영속화해서 다음 저장 때
- * 기본값으로 재사용한다(docs/12 §4). reset()은 folder는 유지하고 나머지만 idle로 되돌린다.
+ * 저장 상태(docs/09 §2 ExportDraft에 대응).
+ *
+ * `folder`는 **기본 저장 폴더**다. 설정 화면에서만 바꾸고 영속화해서 모든 저장에 쓴다
+ * (ADR-009). 저장 화면의 "다른 폴더에 저장"은 이 값을 바꾸지 않고 save 호출에만
+ * 대상 폴더를 넘긴다.
+ *
+ * reset()은 folder는 유지하고 나머지만 idle로 되돌린다 — 다음 장면도 같은 폴더에 저장한다.
  */
 export type ExportStatus = "idle" | "saving" | "saved" | "error";
 

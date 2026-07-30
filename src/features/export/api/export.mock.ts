@@ -78,11 +78,21 @@ export const exportMock: ExportService = {
     return next;
   },
 
+  // 브라우저는 임의 경로의 존재를 확인할 수 없다. 가짜 폴더는 항상 있는 것으로 둔다.
+  async folderExists(): Promise<boolean> {
+    return true;
+  },
+
   async saveCandidates(input: { folder: string; files: { fileName: string; content: string }[] }): Promise<SavedFile[]> {
     if (input.files.length === 0) return [];
 
-    if (supportsFsAccess()) {
-      const dir = cachedDirHandle ?? (await pickDirectory());
+    // 이미 폴더 핸들을 받아둔 경우에만 실제 폴더에 쓴다.
+    //
+    // 저장은 화면 진입과 함께 자동으로 일어나므로(ADR-009) 여기서 showDirectoryPicker를
+    // 부를 수 없다 — 사용자 제스처가 없는 호출은 브라우저가 거부한다. 핸들은 사용자가
+    // "다른 폴더에 저장"을 눌렀을 때 chooseFolder에서 받아 캐시된다.
+    if (supportsFsAccess() && cachedDirHandle) {
+      const dir = cachedDirHandle;
       const results: SavedFile[] = [];
       for (const file of input.files) {
         await writeFile(dir, file.fileName, file.content);
@@ -92,7 +102,7 @@ export const exportMock: ExportService = {
       return results;
     }
 
-    // 폴백: File System Access 미지원 브라우저.
+    // 폴백: 폴더 핸들이 없거나 File System Access 미지원 브라우저.
     await delay(500);
     if (input.files.length === 1) {
       const file = input.files[0];

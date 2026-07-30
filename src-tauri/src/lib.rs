@@ -52,6 +52,7 @@ pub fn run() {
             commands::capture::grab_screen,
             commands::export::default_save_dir,
             commands::export::choose_save_folder,
+            commands::export::folder_exists,
             commands::export::save_pose_file,
             commands::export::reveal_in_folder,
             commands::shortcuts::register_capture_shortcut,
