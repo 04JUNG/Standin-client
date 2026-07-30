@@ -84,23 +84,26 @@ export function BarSavePage() {
             </p>
             <div className="mt-auto flex shrink-0 flex-col gap-1.5">
               <div className="flex gap-1.5">
-                <Button size="md" className="flex-1" onClick={() => void retry()}>
-                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                <Button size="sm" className="min-w-0 flex-1" onClick={() => void retry()}>
+                  <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   다시 저장
-                  <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} />
+                  <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} compact />
                 </Button>
                 <Button
                   variant="secondary"
-                  size="md"
-                  className="flex-1"
+                  size="sm"
+                  className="min-w-0 flex-1"
                   onClick={() => void saveToAnotherFolder()}
                 >
-                  <Save className="h-3.5 w-3.5" aria-hidden />
+                  <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   다른 폴더
-                  <ShortcutKey accelerator={resolveAccelerator("save.chooseFolder", bindings)!} />
+                  <ShortcutKey
+                    accelerator={resolveAccelerator("save.chooseFolder", bindings)!}
+                    compact
+                  />
                 </Button>
               </div>
-              <Button variant="ghost" size="md" onClick={() => void resetToDownloads()}>
+              <Button variant="ghost" size="sm" onClick={() => void resetToDownloads()}>
                 다운로드 폴더로 재설정하고 저장
               </Button>
             </div>
@@ -124,26 +127,45 @@ export function BarSavePage() {
               <SavedFileList paths={savedPaths} onCopy={copyPath} dense />
             </div>
 
+            {/*
+              420px 안에 버튼 두 개가 들어가야 해서 바에서는 작은 크기와 compact 단축키를 쓴다.
+              md + 22px 칩으로는 "다른 폴더"가 두 줄로 깨졌다.
+            */}
             <div className="flex shrink-0 flex-col gap-1.5">
-              <Button variant="secondary" size="md" onClick={revealSaved}>
-                <FolderOpen className="h-3.5 w-3.5" aria-hidden />
+              <Button variant="secondary" size="sm" onClick={revealSaved}>
+                <FolderOpen className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 폴더 열기
-                <ShortcutKey accelerator={resolveAccelerator("save.revealFolder", bindings)!} />
+                <ShortcutKey
+                  accelerator={resolveAccelerator("save.revealFolder", bindings)!}
+                  compact
+                />
               </Button>
               <div className="flex gap-1.5">
                 <Button
                   variant="secondary"
-                  size="md"
-                  className="flex-1"
+                  size="sm"
+                  className="min-w-0 flex-1"
                   onClick={() => void saveToAnotherFolder()}
                 >
-                  <Save className="h-3.5 w-3.5" aria-hidden />
+                  <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   다른 폴더
-                  <ShortcutKey accelerator={resolveAccelerator("save.chooseFolder", bindings)!} />
+                  <ShortcutKey
+                    accelerator={resolveAccelerator("save.chooseFolder", bindings)!}
+                    compact
+                  />
                 </Button>
-                <Button variant="ghost" size="md" className="flex-1" onClick={handleNewScene}>
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden />새 장면
-                  <ShortcutKey accelerator={resolveAccelerator("save.newScene", bindings)!} />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="min-w-0 flex-1"
+                  onClick={handleNewScene}
+                >
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  새 장면
+                  <ShortcutKey
+                    accelerator={resolveAccelerator("save.newScene", bindings)!}
+                    compact
+                  />
                 </Button>
               </div>
             </div>
