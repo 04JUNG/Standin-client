@@ -1,6 +1,7 @@
 import { router } from "@/app/router";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { globalShortcutService } from "@/features/capture/api/globalShortcut.service";
+import { barRouteForAppPath } from "@/shared/lib/modeRoutes";
 import { barStateForPath } from "./barSizes";
 
 /**
@@ -12,13 +13,22 @@ import { barStateForPath } from "./barSizes";
  * React 밖(네이티브 이벤트 리스너)에서 호출되므로 store.getState()와 router.navigate를
  * 직접 쓴다. deepLinkAuth.ts와 같은 방식이다.
  */
-/** 접힌 바로 만든다. 창 최소화를 가로챌 때 쓴다. */
+/** 바로 접는다. 창 최소화를 가로챌 때 쓴다. */
 export async function collapseToBar(): Promise<void> {
   if (useAuthStore.getState().status !== "authenticated") return;
-  const state = barStateForPath(router.state.location.pathname);
-  // 흐름 도중(진행·후보·저장)에는 작업을 잃지 않도록 접지 않는다.
-  if (state !== null && state !== "collapsed" && state !== "actions") return;
-  await router.navigate("/bar", { replace: true });
+  const pathname = router.state.location.pathname;
+  const state = barStateForPath(pathname);
+
+  // 이미 바 안이면: 흐름 도중(진행·후보·저장)에는 작업을 잃지 않도록 접지 않는다.
+  if (state !== null) {
+    if (state === "collapsed" || state === "actions") {
+      await router.navigate("/bar", { replace: true });
+    }
+    return;
+  }
+
+  // 앱 창이면 같은 단계의 바 화면으로 접는다. 흐름 상태는 스토어에 있어 그대로 이어진다.
+  await router.navigate(barRouteForAppPath(pathname), { replace: true });
 }
 
 export async function toggleBar(): Promise<void> {
