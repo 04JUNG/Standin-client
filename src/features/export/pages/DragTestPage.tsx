@@ -7,19 +7,24 @@ import { cn } from "@/shared/lib/cn";
 import { copyText } from "@/shared/lib/copyText";
 import { dragService } from "../api/drag.service";
 import { exportService } from "../api/export.service";
+import sampleBvh from "./fixtures/sample_pose.bvh?raw";
 
 /**
  * 임시 드래그 실험 페이지 — 커밋 대상 아님. `/dev/drag-test`(개발 빌드 전용).
  *
- * 목적: 앱 창 → 클립스튜디오 네이티브 드래그가 동작하는지 확인한다. 지금 클립스튜디오
- * 버전이 BVH를 지원하지 않으므로, 지원되는 포맷으로 먼저 드래그 자체를 검증한다.
+ * 목적: 앱 창 → 클립스튜디오 네이티브 드래그가 동작하는지 확인한다.
  *
  * 확인 순서(위에서 아래로):
- *  1) PNG   — 모든 버전이 받는다. 여기서 실패하면 포맷 문제가 아니라 드래그 문제다
- *  2) OBJ   — Ver 1.x부터 지원하는 3D 포맷. 3D 레이어가 생겨야 한다
- *  3) BVH   — Ver 3.1+ 필요. 이 버전에서는 실패하는 게 정상인 대조군
+ *  1) PNG — 모든 버전이 받는다. 여기서 실패하면 포맷 문제가 아니라 드래그 문제다
+ *  2) OBJ — Ver 1.x부터 지원하는 3D 포맷. 3D 레이어가 생겨야 한다
+ *  3) BVH — 실제로 생성된 포즈 파일. 데생 인형에 포즈가 적용되어야 한다
  *
- * 확인이 끝나면 이 파일, 라우트, src-tauri/src/commands/dragtest.rs를 함께 지운다.
+ * BVH 샘플은 처음에 "실제 BVH 아님" 플레이스홀더 텍스트였는데, 그건 BVH 형식이 아니라
+ * 클립스튜디오가 "지원하지 않는 형식의 파일"로 거절하는 게 당연했다. 지금은
+ * `fixtures/sample_pose.bvh`에 둔 실제 생성 파일(Mixamo 리그, 1프레임)을 쓴다.
+ *
+ * 확인이 끝나면 이 파일, fixtures 폴더, 라우트, src-tauri/src/commands/dragtest.rs를
+ * 함께 지운다.
  */
 
 type Sample = {
@@ -35,6 +40,11 @@ function toBase64(text: string): string {
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary);
+}
+
+function describeBvh(text: string): string {
+  const sizeKb = new TextEncoder().encode(text).byteLength / 1024;
+  return `${sizeKb.toFixed(1)} KB`;
 }
 
 async function makePngBase64(): Promise<string> {
@@ -72,11 +82,8 @@ const OBJ_CUBE = [
   "",
 ].join("\n");
 
-const BVH_PLACEHOLDER = [
-  "STANDIN DRAG TEST — 실제 BVH 아님",
-  "Ver 3.1 미만에서는 가져오기가 동작하지 않는 것이 정상입니다.",
-  "",
-].join("\n");
+/** 실제 생성된 포즈 파일. Mixamo 리그 + 1프레임(`fixtures/sample_pose.bvh`). */
+const BVH_SAMPLE = sampleBvh;
 
 const SAMPLES: Sample[] = [
   {
@@ -96,9 +103,10 @@ const SAMPLES: Sample[] = [
   {
     id: "bvh",
     fileName: "standin_drag_test.bvh",
-    label: "3. BVH (대조군)",
-    note: "Ver 3.1+ 필요. 이 클립스튜디오에서는 실패하는 게 정상입니다.",
-    make: () => toBase64(BVH_PLACEHOLDER),
+    label: "3. BVH 포즈 (실제 생성 파일)",
+    // 크기를 함께 보여줘 픽스처가 비어 있지 않은지 눈으로 확인할 수 있게 한다.
+    note: `Mixamo 리그 · 1프레임 · ${describeBvh(BVH_SAMPLE)}. 데생 인형에 포즈가 적용되면 성공입니다. 실패하면 오류 대화상자의 문구를 그대로 알려주세요.`,
+    make: () => toBase64(BVH_SAMPLE),
   },
 ];
 
