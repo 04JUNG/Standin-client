@@ -1,7 +1,7 @@
 # ADR-002: 인증 토큰 저장 방식
 
-- 상태: 제안됨
-- 날짜: 2026-07-14
+- 상태: 승인됨(구현 완료)
+- 날짜: 2026-07-14 (구현·확정 2026-07-31)
 - 관련 문서: docs/02_APP_ARCHITECTURE.md §6, docs/06_AUTH_SPEC.md §6, docs/11_QA_SECURITY_RELEASE.md §3
 
 ## 배경
@@ -50,8 +50,21 @@ interface AuthStorage {
 
 ## 결과
 
-- Rust command로 `get_secure_token` / `set_secure_token` / `clear_secure_token`을 노출하고, capability를 최소 범위로 제한(docs/11 §3).
-- access token은 메모리(예: Zustand 비영속 슬라이스 또는 모듈 변수)에만 둔다.
-- **refresh 동시성**: 여러 요청이 동시에 401을 받을 때 refresh를 한 번만 수행하고 나머지를 대기시키는 single-flight를 API client에 구현한다(별도 구현 항목).
-- 서버팀 확인 필요(docs/08 §11): refresh token 회전 여부, refresh 요청 형식(body vs 쿠키).
+- Rust command로 `get_secure_token` / `set_secure_token` / `clear_secure_token`을 노출한다(`src-tauri/src/commands/secure_store.rs`). `keyring` 크레이트를 쓰고 서비스명은 번들 식별자 `app.standin.desktop`, 계정명은 `refresh_token`.
+  - **capability는 한 줄도 추가하지 않았다.** `generate_handler!`에 등록한 자체 command는 permission 대상이 아니다. JS 저장소 플러그인을 쓰면 그 권한을 통째로 열어야 하므로, 자체 command 쪽이 최소 권한 원칙에 더 부합한다(docs/11 §3, `shortcuts.rs`와 같은 판단).
+  - 브라우저(Vite dev)에는 키체인이 없으므로 인메모리 구현으로 갈라진다(`authStorage.memory.ts`). dev에서 새로고침 시 로그아웃되는 것은 의도된 동작이다.
+- access token은 메모리(`shared/api/client.ts` 모듈 변수)에만 둔다.
+- **refresh 동시성**: 여러 요청이 동시에 401을 받을 때 refresh를 한 번만 수행하고 나머지를 대기시키는 single-flight를 API client에 구현한다.
+
+## 서버 확인 결과 (2026-07-31, `Standin-app-server` 코드 기준)
+
+문서의 미해결 질문(docs/08 §11)은 BFF 구현으로 모두 확정됐다.
+
+- **refresh token 회전: 한다.** 유효 jti를 DB 화이트리스트로 두고, 회전 시 이전 jti를 삭제한다. 즉 refresh token은 **1회용**이다 → single-flight가 선택이 아니라 필수다. 동시에 두 번 보내면 하나는 반드시 401.
+- **refresh 요청 형식: 쿠키가 아니라 body.** `POST /v1/auth/refresh` `{ refreshToken }`. `POST /v1/auth/logout`도 `{ refreshToken }`을 받아 서버 측 토큰을 폐기한다.
+- **refresh 응답에는 `user`가 없다.** 토큰 3필드뿐이므로 세션 복원 시 `GET /v1/users/me`로 유저를 따로 채운다.
+- access token 수명은 서버 `ACCESS_TOKEN_TTL`(기본 900초), refresh는 `REFRESH_TOKEN_TTL`(기본 14일).
+
+## 결과 (기타)
+
 - 재검토 조건: 저장할 비밀이 늘어나면(예: 다중 계정) stronghold로 재평가.

@@ -1,15 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { env } from "@/shared/lib/env";
+import { openExternal } from "@/shared/lib/openExternal";
 import { useAuthStore } from "../store/authStore";
+import { authService } from "../api/auth.service";
 import { SocialLoginButtons } from "../components/SocialLoginButtons";
 import type { OAuthProvider } from "../api/auth.contract";
 import { loginSchema, type LoginFormValues } from "../schemas/login.schema";
+import { DEFAULT_RETURN_TO, setPendingReturnTo } from "../lib/returnTo";
 import {
   clearRememberedEmail,
   getRememberedEmail,
@@ -19,13 +22,20 @@ import {
 /** 로그인 화면(docs/03 §2). 입력/로딩/인증실패/네트워크 상태를 표시한다. */
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const login = useAuthStore((s) => s.login);
   const oauthLogin = useAuthStore((s) => s.oauthLogin);
   const loginError = useAuthStore((s) => s.loginError);
+  const unverifiedEmail = useAuthStore((s) => s.unverifiedEmail);
+  const setLoginError = useAuthStore((s) => s.setLoginError);
 
   const rememberedEmail = getRememberedEmail();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberEmail, setRememberEmail] = useState(rememberedEmail !== "");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+
+  // 가드가 막아 세운 목적지. 없으면 홈.
+  const returnTo = (location.state as { from?: string } | null)?.from ?? DEFAULT_RETURN_TO;
 
   const {
     register,
@@ -36,25 +46,45 @@ export function LoginPage() {
     defaultValues: { email: rememberedEmail, password: "" },
   });
 
+  // 이전 방문에서 남은 오류가 다음 진입에 그대로 보이지 않게 한다.
+  useEffect(() => {
+    return () => setLoginError(null);
+  }, [setLoginError]);
+
   async function onSubmit(values: LoginFormValues) {
     if (rememberEmail) setRememberedEmail(values.email);
     else clearRememberedEmail();
+    setResendState("idle");
     try {
       await login(values);
-      navigate("/app/home", { replace: true });
+      navigate(returnTo, { replace: true });
     } catch {
       // 오류 메시지는 store의 loginError로 표시된다.
     }
   }
 
   async function onSocial(provider: OAuthProvider) {
+    // 외부 브라우저를 거치면 라우터 상태가 남지 않으므로 목적지를 따로 적어둔다.
+    setPendingReturnTo(returnTo);
     try {
       const done = await oauthLogin(provider);
-      // Mock: 즉시 세션 완료 → 홈으로. HTTP: 외부 브라우저로 진행(콜백에서 이동).
-      if (done) navigate("/app/home", { replace: true });
+      // Mock: 즉시 세션 완료 → 이동. HTTP: 외부 브라우저로 진행(콜백에서 이동).
+      if (done) navigate(returnTo, { replace: true });
     } catch {
       // 오류 메시지는 store의 loginError로 표시된다.
     }
+  }
+
+  async function onResendVerification() {
+    if (!unverifiedEmail) return;
+    setResendState("sending");
+    try {
+      await authService.resendVerification(unverifiedEmail);
+    } catch {
+      // 서버는 계정 존재 여부를 노출하지 않으려 항상 성공을 돌려준다.
+      // 실패해도 사용자가 할 수 있는 일은 같으므로 같은 안내를 보여준다.
+    }
+    setResendState("sent");
   }
 
   return (
@@ -109,9 +139,26 @@ export function LoginPage() {
           </label>
 
           {loginError && (
-            <p role="alert" className="text-[13px] text-brand-coral">
-              {loginError}
-            </p>
+            <div>
+              <p role="alert" className="text-[13px] text-brand-coral">
+                {loginError}
+              </p>
+              {unverifiedEmail &&
+                (resendState === "sent" ? (
+                  <p className="mt-1 text-[13px] text-text-secondary">
+                    인증 메일을 다시 보냈습니다. 메일함을 확인해 주세요.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onResendVerification}
+                    disabled={resendState === "sending"}
+                    className="mt-1 text-[13px] text-brand-sky underline disabled:opacity-60"
+                  >
+                    {resendState === "sending" ? "보내는 중…" : "인증 메일 다시 보내기"}
+                  </button>
+                ))}
+            </div>
           )}
 
           <Button type="submit" size="lg" loading={isSubmitting} className="mt-2 w-full">
@@ -127,9 +174,19 @@ export function LoginPage() {
 
         <SocialLoginButtons onSelect={onSocial} disabled={isSubmitting} />
 
-        <div className="mt-6 flex justify-between text-[13px] text-text-secondary">
-          <span>계정 만들기 / 비밀번호 찾기는 웹에서 진행합니다.</span>
-        </div>
+        {/* 회원가입은 앱이 아니라 웹에서 진행한다(docs/06 §1). 약관 동의·이메일 인증이 웹에 있다. */}
+        <p className="mt-6 text-center text-[13px] text-text-secondary">
+          아직 계정이 없나요?{" "}
+          <button
+            type="button"
+            // 후행 슬래시가 필요하다. 랜딩은 Vite MPA라 가입 페이지가 signup/index.html이고,
+            // 슬래시가 없으면 dev 서버가 랜딩 index.html로 폴백한다.
+            onClick={() => void openExternal(`${env.webBaseUrl}/signup/`)}
+            className="text-brand-sky underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
+          >
+            웹에서 계정 만들기
+          </button>
+        </p>
 
         {env.useMockApi && (
           <p className="mt-4 rounded-lg bg-surface-2 p-3 text-[12px] text-text-secondary">
