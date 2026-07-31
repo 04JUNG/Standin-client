@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { WindowModeSync } from "@/features/bar/components/WindowModeSync";
 import { windowTargetForPath } from "@/features/bar/lib/barSizes";
 import { AppTitleBar } from "./AppTitleBar";
@@ -28,17 +28,6 @@ export function RootLayout() {
         </div>
       ) : (
         <Outlet />
-      )}
-
-      {/* 임시: 드래그 실험 페이지 진입 버튼. Tauri 창에는 주소창이 없어서 필요하다.
-          확인이 끝나면 이 블록과 Link import를 지운다. */}
-      {import.meta.env.DEV && isAppMode && pathname !== "/dev/drag-test" && (
-        <Link
-          to="/dev/drag-test"
-          className="fixed bottom-3 right-3 z-50 rounded-full bg-brand-coral px-3 py-2 text-[11px] font-bold text-white shadow-lg hover:opacity-90"
-        >
-          드래그 실험
-        </Link>
       )}
     </>
   );

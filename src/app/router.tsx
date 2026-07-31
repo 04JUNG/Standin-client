@@ -7,8 +7,6 @@ import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage"
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { PoseViewerPage } from "@/features/pose-viewer/pages/PoseViewerPage";
 import { SavePage } from "@/features/export/pages/SavePage";
-// 임시: 드래그 실험용. 확인이 끝나면 이 import와 아래 /dev/drag-test 라우트를 지운다.
-import { DragTestPage } from "@/features/export/pages/DragTestPage";
 import { BarCollapsedPage } from "@/features/bar/pages/BarCollapsedPage";
 import { BarActionsPage } from "@/features/bar/pages/BarActionsPage";
 import { BarProgressPage } from "@/features/bar/pages/BarProgressPage";
@@ -127,9 +125,6 @@ export const router = createBrowserRouter([
           </RequireAuth>
         ),
       },
-
-      // 임시: 드래그 실험용. 개발 빌드에만 존재하고 로그인도 요구하지 않는다.
-      ...(import.meta.env.DEV ? [{ path: "/dev/drag-test", element: <DragTestPage /> }] : []),
 
       { path: "*", element: <Navigate to="/app/home" replace /> },
     ],

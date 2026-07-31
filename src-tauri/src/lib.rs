@@ -58,8 +58,6 @@ pub fn run() {
             commands::export::choose_save_folder,
             commands::export::folder_exists,
             commands::export::drag_icon_path,
-            // 임시: 드래그 실험용. 확인이 끝나면 지운다.
-            commands::dragtest::write_drag_test_file,
             commands::export::save_pose_file,
             commands::export::reveal_in_folder,
             commands::shortcuts::register_capture_shortcut,
