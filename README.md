@@ -54,7 +54,7 @@ npm run tauri icon path/to/logo.png
 | 변수 | 기본값 | 설명 |
 |---|---|---|
 | `VITE_API_BASE_URL` | `http://localhost:8000` | 서버(BFF) base URL |
-| `VITE_WEB_BASE_URL` | `http://localhost:3000` | 랜딩페이지 URL. 회원가입 링크가 이 주소로 열린다 |
+| `VITE_WEB_BASE_URL` | `http://localhost:5173` | 랜딩페이지 URL. 회원가입 링크가 이 주소의 `/signup`을 연다 |
 | `VITE_USE_MOCK_API` | `true` | Mock 서비스 사용 여부. 운영 build에서 비활성 |
 | `VITE_USE_MOCK_POSE_API` | `VITE_USE_MOCK_API`를 따름 | 포즈 분석 서버만 먼저 붙일 때 `false` |
 | `VITE_APP_ENV` | `development` | `development` / `production` / `test` |

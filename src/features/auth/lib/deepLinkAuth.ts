@@ -11,8 +11,14 @@ import { takePendingReturnTo } from "./returnTo";
  * (dev 브라우저는 `/auth/callback` 라우트가 같은 일을 한다)
  *
  * ⚠ 토큰은 URL에 실려 오지 않는다 — 딥링크 URL은 OS에 흔적이 남는다(docs/06 §6).
+ *
+ * ⚠ 이 핸들러는 host가 `auth`이거나 경로에 `callback`이 있는 URL을 **소셜 콜백으로
+ * 간주해 오류를 표시한다.** 그래서 로그인과 무관한 딥링크(예: 웹 가입 완료 후
+ * "앱으로 돌아가기")는 반드시 다른 host를 써야 한다 — 현재 `standin://open`을 쓰고,
+ * 그런 URL은 여기서 조용히 무시된다. 창을 앞으로 가져오는 일은 Rust의
+ * single-instance 콜백(lib.rs)이 처리하므로 여기서 할 일이 없다.
  */
-function handleUrl(url: string): void {
+export function handleUrl(url: string): void {
   let parsed: URL;
   try {
     parsed = new URL(url);
