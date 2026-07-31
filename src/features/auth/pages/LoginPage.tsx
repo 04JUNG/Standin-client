@@ -179,7 +179,9 @@ export function LoginPage() {
           아직 계정이 없나요?{" "}
           <button
             type="button"
-            onClick={() => void openExternal(`${env.webBaseUrl}/signup`)}
+            // 후행 슬래시가 필요하다. 랜딩은 Vite MPA라 가입 페이지가 signup/index.html이고,
+            // 슬래시가 없으면 dev 서버가 랜딩 index.html로 폴백한다.
+            onClick={() => void openExternal(`${env.webBaseUrl}/signup/`)}
             className="text-brand-sky underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
           >
             웹에서 계정 만들기

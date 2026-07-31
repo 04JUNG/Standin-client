@@ -23,7 +23,8 @@ const storage = vi.hoisted(() => ({
 vi.mock("../api/auth.service", () => ({ authService: service }));
 vi.mock("../lib/authStorage", () => ({ authStorage: storage }));
 vi.mock("@/shared/api/client", () => ({ setAccessToken: vi.fn() }));
-vi.mock("@/shared/lib/openExternal", () => ({ openExternal: vi.fn(async () => {}) }));
+const openExternal = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/shared/lib/openExternal", () => ({ openExternal }));
 
 const { LoginPage } = await import("./LoginPage");
 const { useAuthStore } = await import("../store/authStore");
@@ -153,6 +154,16 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: "로그인" }));
 
     expect(await screen.findByText("홈 화면")).toBeInTheDocument();
+  });
+
+  it("계정 만들기는 랜딩의 가입 페이지를 외부 브라우저로 연다", async () => {
+    // 후행 슬래시가 없으면 랜딩(Vite MPA) dev 서버가 랜딩 index.html로 폴백한다.
+    const user = userEvent.setup();
+    renderLogin();
+
+    await user.click(screen.getByRole("button", { name: "웹에서 계정 만들기" }));
+
+    expect(openExternal).toHaveBeenCalledWith(expect.stringMatching(/\/signup\/$/));
   });
 
   it("화면을 떠나면 이전 오류가 남지 않는다", async () => {
