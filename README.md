@@ -44,6 +44,7 @@ npm run tauri icon path/to/logo.png
 | `npm run build` | 타입 검사 + 프로덕션 빌드 |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
+| `npm test` | Vitest(jsdom). 컴포넌트 테스트 포함 |
 | `npm run tauri dev` | 데스크톱 앱 개발 실행(Rust 필요) |
 
 ## 환경변수
@@ -52,9 +53,17 @@ npm run tauri icon path/to/logo.png
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
-| `VITE_API_BASE_URL` | `http://localhost:8000` | 서버 base URL |
+| `VITE_API_BASE_URL` | `http://localhost:8000` | 서버(BFF) base URL |
+| `VITE_WEB_BASE_URL` | `http://localhost:5173` | 랜딩페이지 URL. 회원가입 링크가 이 주소의 `/signup`을 연다 |
 | `VITE_USE_MOCK_API` | `true` | Mock 서비스 사용 여부. 운영 build에서 비활성 |
+| `VITE_USE_MOCK_POSE_API` | `VITE_USE_MOCK_API`를 따름 | 포즈 분석 서버만 먼저 붙일 때 `false` |
 | `VITE_APP_ENV` | `development` | `development` / `production` / `test` |
+
+## 인증
+
+- 회원가입·비밀번호 찾기는 **앱이 아니라 웹**에서 진행한다(docs/06 §1). 로그인 화면의 링크가 `VITE_WEB_BASE_URL`로 열린다.
+- refresh token은 **OS 키체인**(Windows Credential Manager / macOS Keychain)에 저장한다(ADR-002). 그래서 세션 유지는 `npm run tauri dev`로 띄웠을 때만 동작하고, 브라우저(`npm run dev`)에서는 새로고침 시 로그아웃된다.
+- access token은 메모리에만 둔다. 만료되면(기본 15분) 401을 받은 요청이 자동으로 재발급 후 재시도한다.
 
 ## Mock 모드
 

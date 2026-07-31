@@ -1,12 +1,11 @@
-import { useNavigate } from "react-router-dom";
 import { Camera, Video, AlertCircle } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
-import { Button } from "@/shared/components/Button";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { useAuthStore } from "@/features/auth/store/authStore";
+import { LogoutButton } from "@/features/auth/components/LogoutButton";
 import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 import { toggleBar } from "@/features/bar/lib/openBar";
@@ -16,9 +15,7 @@ import { toggleBar } from "@/features/bar/lib/openBar";
  * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
  */
 export function HomePage() {
-  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const { start: startCapture, isStarting, error: captureError } = useStartCapture();
   const bindings = useShortcutStore((s) => s.bindings);
   const globalStatus = useShortcutStore((s) => s.globalStatus);
@@ -32,20 +29,13 @@ export function HomePage() {
     "home.startCapture": globalActive ? undefined : () => void toggleBar(),
   });
 
-  async function handleLogout() {
-    await logout();
-    navigate("/auth/login", { replace: true });
-  }
-
   return (
     <AppShell
       title="홈"
       headerRight={
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-text-secondary">{user?.email}</span>
-          <Button variant="secondary" size="md" onClick={handleLogout}>
-            로그아웃
-          </Button>
+          <LogoutButton />
         </div>
       }
     >

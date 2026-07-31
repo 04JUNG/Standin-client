@@ -8,6 +8,9 @@ export const endpoints = {
     logout: "/v1/auth/logout",
     me: "/v1/users/me",
     oauthStart: (provider: string) => `/v1/auth/oauth/${provider}/start`,
+    /** 소셜 콜백이 딥링크로 넘긴 1회용 코드 → 토큰 교환. */
+    oauthExchange: "/v1/auth/oauth/exchange",
+    resendVerification: "/v1/auth/resend-verification",
   },
   analysis: {
     jobs: "/v1/analysis/jobs",
