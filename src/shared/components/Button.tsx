@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 
 type Variant = "primary" | "secondary" | "ghost";
-type Size = "md" | "lg";
+type Size = "sm" | "md" | "lg";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
@@ -19,8 +19,10 @@ const variantClass: Record<Variant, string> = {
 };
 
 const sizeClass: Record<Size, string> = {
-  md: "h-btn px-4 text-[14px]",
-  lg: "h-btn-lg px-6 text-[15px]",
+  // 바 모드처럼 폭이 좁은 곳(420px 안에 버튼 두 개)용. 아이콘·라벨·단축키 칩이 한 줄에 들어간다.
+  sm: "h-8 gap-1.5 px-2 text-[13px]",
+  md: "h-btn gap-2 px-4 text-[14px]",
+  lg: "h-btn-lg gap-2 px-6 text-[15px]",
 };
 
 /** 공통 버튼. hover/focus/disabled/loading 상태를 모두 지원(CLAUDE.md §11). */
@@ -32,7 +34,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         aria-busy={loading || undefined}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+          // 라벨은 줄바꿈하지 않는다 — 좁은 바에서 "다른 폴더"가 두 줄로 깨졌다.
+          "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-semibold",
           "transition-colors focus-visible:outline-none disabled:cursor-not-allowed",
           variantClass[variant],
           sizeClass[size],

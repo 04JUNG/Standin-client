@@ -1,8 +1,9 @@
 import { type ReactNode } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, History, Settings, Keyboard, PictureInPicture2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { env } from "@/shared/lib/env";
+import { barRouteForAppPath } from "@/shared/lib/modeRoutes";
 import { useAppShortcuts } from "@/shared/hooks/useAppShortcuts";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { ShortcutCheatSheet } from "./ShortcutCheatSheet";
@@ -34,6 +35,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
   // 바 전환은 경로 이동이면 충분하다. shared에서 features를 import하지 않기 위해
   // navigate만 쓴다(인증 가드는 /bar 라우트의 RequireAuth가 담당).
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   return (
     <div className="flex h-full">
@@ -84,7 +86,8 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate("/bar/actions")}
+              // 지금 단계를 바에서 그대로 이어간다 — 흐름 도중에 눌러도 처음으로 돌아가지 않는다.
+              onClick={() => navigate(barRouteForAppPath(pathname, "/bar/actions"))}
               aria-label="플로팅 바로 전환"
               title="플로팅 바로 전환 — 작업 화면 위에 작게 띄웁니다"
               className={cn(

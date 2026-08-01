@@ -23,6 +23,10 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_global_shortcut::Builder::new().build());
 
+    // 저장된 포즈 파일을 창 밖(클립스튜디오)으로 끌어놓기 위한 네이티브 드래그(ADR-009).
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_drag::init());
+
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -52,6 +56,8 @@ pub fn run() {
             commands::capture::grab_screen,
             commands::export::default_save_dir,
             commands::export::choose_save_folder,
+            commands::export::folder_exists,
+            commands::export::drag_icon_path,
             commands::export::save_pose_file,
             commands::export::reveal_in_folder,
             commands::secure_store::get_secure_token,

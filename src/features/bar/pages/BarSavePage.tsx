@@ -1,20 +1,32 @@
 import { Navigate, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, FolderOpen, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FolderOpen,
+  Loader2,
+  RotateCcw,
+  Save,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/shared/components/Button";
-import { Input } from "@/shared/components/Input";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { dragService } from "@/features/export/api/drag.service";
+import { SavedFileList } from "@/features/export/components/SavedFileList";
 import { useSaveFlow } from "@/features/export/hooks/useSaveFlow";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
 
 /**
- * 바 모드의 저장(ADR-008). 여기까지 오면 앱 창에 한 번도 들어가지 않고 흐름이 끝난다.
+ * 바 모드의 저장(ADR-008, ADR-009). 여기까지 오면 앱 창에 한 번도 들어가지 않고 흐름이 끝난다.
  *
- * 로직은 useSaveFlow로 앱 모드와 공유한다. 폴더 선택은 Rust 네이티브 대화상자라
- * 420px 창에서도 정상 동작한다.
+ * 저장은 자동으로 일어나므로 이 화면의 주 동작은 파일 목록을 클립스튜디오 캔버스로
+ * 끌어놓는 것이다. 바가 클립스튜디오 위에 떠 있어서 드래그 거리가 가장 짧다.
+ * `폴더 열기`는 드래그가 막힌 환경의 폴백이다.
+ *
+ * 로직은 useSaveFlow로 앱 모드와 공유한다.
  */
 export function BarSavePage() {
   const navigate = useNavigate();
@@ -23,107 +35,142 @@ export function BarSavePage() {
 
   const {
     folder,
-    fileName,
     status,
     savedPaths,
     error,
     selections,
     isSaved,
-    canSave,
-    setFileName,
-    chooseFolder,
-    save,
+    retry,
+    saveToAnotherFolder,
+    resetToDownloads,
     newScene,
     revealSaved,
+    copyPath,
   } = useSaveFlow(jobId ?? undefined);
 
+  function handleNewScene() {
+    newScene();
+    navigate("/bar/actions", { replace: true });
+  }
+
   useShortcuts({
-    "save.save": !isSaved && canSave ? () => void save() : undefined,
-    "save.chooseFolder": !isSaved ? () => void chooseFolder() : undefined,
-    "save.newScene": isSaved
-      ? () => {
-          newScene();
-          navigate("/bar/actions", { replace: true });
-        }
-      : undefined,
+    "save.revealFolder": isSaved ? () => revealSaved() : undefined,
+    "save.chooseFolder": status !== "saving" ? () => void saveToAnotherFolder() : undefined,
+    "save.save": status === "error" ? () => void retry() : undefined,
+    "save.newScene": isSaved ? () => handleNewScene() : undefined,
   });
 
   if (!jobId) return <Navigate to="/bar/actions" replace />;
   if (selections.length === 0) return <Navigate to="/bar/candidates" replace />;
 
-  if (isSaved) {
-    return (
-      <BarShell title="저장 완료">
-        <div className="flex h-full flex-col gap-2 p-2.5">
-          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-text-primary">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-coral" aria-hidden />
-            포즈 {selections.length}개를 저장했습니다.
-          </p>
-          <ul className="min-h-0 flex-1 overflow-auto rounded-lg bg-surface-1 p-2">
-            {savedPaths.map((path) => (
-              <li key={path} className="break-all text-[11px] text-text-secondary">
-                {path}
-              </li>
-            ))}
-          </ul>
-          <div className="flex shrink-0 gap-1.5">
-            <Button size="md" onClick={revealSaved} className="flex-1">
-              <FolderOpen className="h-3.5 w-3.5" aria-hidden />
-              폴더 열기
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
-              className="flex-1"
-              onClick={() => {
-                newScene();
-                navigate("/bar/actions", { replace: true });
-              }}
-            >
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />새 장면
-              <ShortcutKey accelerator={resolveAccelerator("save.newScene", bindings)!} />
-            </Button>
-          </div>
-        </div>
-      </BarShell>
-    );
-  }
-
   return (
-    <BarShell title="저장">
+    <BarShell title={isSaved ? "저장 완료" : "저장"}>
       <div className="flex h-full flex-col gap-2 p-2.5">
-        <Input label="파일 이름" value={fileName} onChange={(e) => setFileName(e.target.value)} />
-
-        <div className="flex min-w-0 items-end gap-1.5">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="text-[11px] font-semibold text-text-secondary">저장 위치</span>
-            <p className="truncate rounded-lg border border-border bg-surface-1 px-2 py-1.5 text-[11px] text-text-primary">
-              {folder ?? "불러오는 중…"}
-            </p>
+        {status === "saving" && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
+            <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            <p className="text-[12px]">포즈 {selections.length}개를 저장하고 있습니다…</p>
           </div>
-          <Button variant="secondary" size="md" onClick={() => void chooseFolder()}>
-            변경
-            <ShortcutKey accelerator={resolveAccelerator("save.chooseFolder", bindings)!} />
-          </Button>
-        </div>
-
-        {error && (
-          <p role="alert" className="flex items-start gap-1 text-[11px] text-brand-coral">
-            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-            {error}
-          </p>
         )}
 
-        <Button
-          size="md"
-          className="mt-auto"
-          loading={status === "saving"}
-          disabled={!canSave}
-          onClick={() => void save()}
-        >
-          저장 {selections.length > 1 ? `(${selections.length}개)` : ""}
-          <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} />
-        </Button>
+        {status === "error" && (
+          <>
+            <p role="alert" className="flex items-start gap-1 text-[11px] text-brand-coral">
+              <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+              {error}
+            </p>
+            <p className="truncate text-[10px] text-text-secondary" title={folder ?? undefined}>
+              {folder}
+            </p>
+            <div className="mt-auto flex shrink-0 flex-col gap-1.5">
+              <div className="flex gap-1.5">
+                <Button size="sm" className="min-w-0 flex-1" onClick={() => void retry()}>
+                  <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  다시 저장
+                  <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} compact />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="min-w-0 flex-1"
+                  onClick={() => void saveToAnotherFolder()}
+                >
+                  <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  다른 폴더
+                  <ShortcutKey
+                    accelerator={resolveAccelerator("save.chooseFolder", bindings)!}
+                    compact
+                  />
+                </Button>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => void resetToDownloads()}>
+                다운로드 폴더로 재설정하고 저장
+              </Button>
+            </div>
+          </>
+        )}
+
+        {isSaved && (
+          <>
+            <p className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-text-primary">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-coral" aria-hidden />
+              포즈 {selections.length}개를 저장했습니다.
+            </p>
+
+            <p className="shrink-0 text-[10px] text-text-secondary">
+              {dragService.isSupported
+                ? "파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
+                : "폴더를 열고 BVH를 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."}
+            </p>
+
+            <div className="min-h-0 flex-1 overflow-auto">
+              <SavedFileList paths={savedPaths} onCopy={copyPath} dense />
+            </div>
+
+            {/*
+              420px 안에 버튼 두 개가 들어가야 해서 바에서는 작은 크기와 compact 단축키를 쓴다.
+              md + 22px 칩으로는 "다른 폴더"가 두 줄로 깨졌다.
+            */}
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <Button variant="secondary" size="sm" onClick={revealSaved}>
+                <FolderOpen className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                폴더 열기
+                <ShortcutKey
+                  accelerator={resolveAccelerator("save.revealFolder", bindings)!}
+                  compact
+                />
+              </Button>
+              <div className="flex gap-1.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="min-w-0 flex-1"
+                  onClick={() => void saveToAnotherFolder()}
+                >
+                  <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  다른 폴더
+                  <ShortcutKey
+                    accelerator={resolveAccelerator("save.chooseFolder", bindings)!}
+                    compact
+                  />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="min-w-0 flex-1"
+                  onClick={handleNewScene}
+                >
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  새 장면
+                  <ShortcutKey
+                    accelerator={resolveAccelerator("save.newScene", bindings)!}
+                    compact
+                  />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </BarShell>
   );

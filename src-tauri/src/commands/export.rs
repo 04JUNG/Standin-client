@@ -42,6 +42,68 @@ fn sanitize_file_name(raw: &str) -> String {
     }
 }
 
+/// 같은 이름의 파일이 있으면 덮어쓰지 않고 `이름 (1).bvh`처럼 번호를 붙인다.
+///
+/// 저장이 자동으로 일어나므로(ADR-009) 사용자가 덮어쓰기를 승인할 기회가 없다.
+/// 결과물도 덮어쓰지 않는다는 비파괴적 흐름 원칙을 따른다(CLAUDE.md §5, docs/12 §4).
+fn unique_path(folder: &Path, file_name: &str) -> PathBuf {
+    let first = folder.join(file_name);
+    if !first.exists() {
+        return first;
+    }
+
+    let as_path = Path::new(file_name);
+    let stem = as_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("standin_pose");
+    let ext = as_path.extension().and_then(|s| s.to_str()).unwrap_or("bvh");
+
+    for n in 1..=999 {
+        let next = folder.join(format!("{stem} ({n}).{ext}"));
+        if !next.exists() {
+            return next;
+        }
+    }
+
+    // 번호가 다 찬 극단적 경우엔 타임스탬프로 피한다. 저장 실패보다는 낫다.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    folder.join(format!("{stem}_{nanos}.{ext}"))
+}
+
+/// 드래그 미리보기 이미지. tauri-plugin-drag가 이미지 파일 **경로**를 요구하므로
+/// 바이너리에 넣어 두고 필요할 때 앱 데이터 폴더에 풀어 쓴다. 번들 리소스로 두면
+/// tauri.conf 설정이 필요하고 개발·배포 경로가 갈리는데, 이 방식은 양쪽에서 같다.
+const DRAG_PREVIEW_PNG: &[u8] = include_bytes!("../../icons/64x64.png");
+
+/// 드래그 미리보기 이미지 경로. 없으면 한 번 만들고 이후에는 같은 경로를 돌려준다(ADR-009).
+#[tauri::command]
+pub fn drag_icon_path(app: AppHandle) -> Result<String, ExportError> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| ExportError::new("UNSUPPORTED", e.to_string()))?;
+
+    fs::create_dir_all(&dir).map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
+
+    let path = dir.join("drag-preview.png");
+    if !path.exists() {
+        fs::write(&path, DRAG_PREVIEW_PNG)
+            .map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
+    }
+
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// 폴더가 아직 존재하는지 확인한다. 설정에 저장해둔 폴더가 삭제됐을 때 안내하려고 쓴다(docs/03 §9).
+#[tauri::command]
+pub fn folder_exists(path: String) -> bool {
+    !path.is_empty() && Path::new(&path).is_dir()
+}
+
 /// OS 다운로드 폴더 경로(docs/12 §4 기본값). 하드코딩하지 않고 Tauri path resolver로 조회한다.
 #[tauri::command]
 pub fn default_save_dir(app: AppHandle) -> Result<String, ExportError> {
@@ -84,7 +146,7 @@ pub fn save_pose_file(folder: String, file_name: String, content: String) -> Res
     }
 
     let safe_name = sanitize_file_name(&file_name);
-    let final_path: PathBuf = folder_path.join(&safe_name);
+    let final_path: PathBuf = unique_path(folder_path, &safe_name);
 
     // 경로 traversal 방지: 최종 경로는 반드시 선택한 폴더 하위여야 한다.
     if final_path.parent() != Some(folder_path) {

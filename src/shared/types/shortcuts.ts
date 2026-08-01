@@ -29,6 +29,7 @@ export type ShortcutId =
   | "poseViewer.rerun"
   | "poseViewer.confirm"
   | "save.save"
+  | "save.revealFolder"
   | "save.chooseFolder"
   | "save.newScene";
 

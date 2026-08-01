@@ -1,12 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "기본 창 권한 + 소셜 로그인용 외부 열기(opener)·딥링크 수신(deep-link) + 플로팅 바 드래그. 창 모드 전환·전역 단축키는 자체 command가 담당해 권한이 필요 없다. 최소 capability 원칙(docs/11 §3).",
+  "description": "기본 창 권한 + 소셜 로그인용 외부 열기(opener)·딥링크 수신(deep-link) + 플로팅 바 드래그 + 저장된 포즈 파일을 창 밖으로 끌어놓기(drag). 창 모드 전환·전역 단축키는 자체 command가 담당해 권한이 필요 없다. 최소 capability 원칙(docs/11 §3).",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
     "opener:default",
-    "deep-link:default"
+    "deep-link:default",
+    "drag:default"
   ]
 }

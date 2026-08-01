@@ -23,6 +23,8 @@ export interface ExportService {
   getDefaultFolder(): Promise<string>;
   /** 네이티브 폴더 선택 대화상자. 취소 시 null. */
   chooseFolder(currentFolder?: string): Promise<string | null>;
+  /** 저장 폴더가 아직 존재하는지. 설정에 저장해둔 폴더가 삭제됐을 때 안내하려고 쓴다(docs/03 §9). */
+  folderExists(path: string): Promise<boolean>;
   /**
    * 인물별 후보 파일들을 한 번에 저장한다(다인 컷 지원).
    * 브라우저 어댑터는 파일이 여러 개면 zip 하나로 묶어 반환할 수 있다(다중 자동 다운로드는 브라우저가 차단하므로).

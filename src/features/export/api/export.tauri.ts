@@ -30,6 +30,15 @@ export const exportTauri: ExportService = {
     }
   },
 
+  async folderExists(path: string): Promise<boolean> {
+    try {
+      return await invoke<boolean>("folder_exists", { path });
+    } catch {
+      // 확인에 실패했다고 폴더가 없다고 단정하지 않는다. 저장 시점에 실제 오류로 드러난다.
+      return true;
+    }
+  },
+
   async saveCandidates(input: { folder: string; files: { fileName: string; content: string }[] }): Promise<SavedFile[]> {
     // 네이티브 fs 쓰기는 브라우저 다운로드 매니저를 거치지 않으므로 여러 파일을 그대로 각각 저장한다.
     const results: SavedFile[] = [];

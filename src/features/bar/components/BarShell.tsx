@@ -1,8 +1,11 @@
 import { type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { GripVertical, Minus, Maximize2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
+import { appRouteForBarPath } from "@/shared/lib/modeRoutes";
+import { useUploadStore } from "@/features/upload/store/uploadStore";
+import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 
 type BarShellProps = {
   title?: string;
@@ -19,6 +22,9 @@ type BarShellProps = {
  */
 export function BarShell({ title, hideCollapse, children }: BarShellProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const jobId = usePoseSelectionStore((s) => s.jobId);
+  const hasDraft = useUploadStore((s) => s.draft !== null);
 
   useShortcuts({
     // 바에서 Esc는 접기(앱 모드로 나가지 않는다).
@@ -45,7 +51,11 @@ export function BarShell({ title, hideCollapse, children }: BarShellProps) {
             <Minus className="h-3.5 w-3.5" aria-hidden />
           </BarIconButton>
         )}
-        <BarIconButton label="앱 창으로 열기" onClick={() => navigate("/app/home")}>
+        {/* 확대는 지금 단계를 그대로 앱 창에서 이어 연다 — 홈으로 돌아가면 흐름을 잃는다. */}
+        <BarIconButton
+          label="앱 창으로 열기"
+          onClick={() => navigate(appRouteForBarPath(pathname, { jobId, hasDraft }))}
+        >
           <Maximize2 className="h-3.5 w-3.5" aria-hidden />
         </BarIconButton>
       </div>

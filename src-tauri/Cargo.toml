@@ -28,3 +28,6 @@ keyring = "4"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+# 저장된 포즈 파일을 앱에서 클립스튜디오로 바로 끌어놓기 위한 네이티브 드래그(ADR-009).
+# 데스크톱 전용이라 모바일 타깃에서는 제외한다.
+tauri-plugin-drag = "2"

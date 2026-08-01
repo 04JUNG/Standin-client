@@ -1,15 +1,18 @@
 import { AppShell } from "@/shared/components/AppShell";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { LogoutButton } from "@/features/auth/components/LogoutButton";
+import { SaveFolderSection } from "../components/SaveFolderSection";
 import { ShortcutSettingsSection } from "../components/ShortcutSettingsSection";
 
-/** 설정 화면(docs/03 §9). 단축키와 계정 섹션을 제공한다. */
+/** 설정 화면(docs/03 §9). 기본 저장 폴더 · 단축키 · 계정 섹션을 제공한다. */
 export function SettingsPage() {
   const user = useAuthStore((s) => s.user);
 
   return (
     <AppShell title="설정">
       <div className="mx-auto flex max-w-[640px] flex-col gap-8">
+        <SaveFolderSection />
+
         <ShortcutSettingsSection />
 
         <section>
@@ -28,7 +31,7 @@ export function SettingsPage() {
         <section>
           <h2 className="text-[15px] font-bold text-text-primary">그 외</h2>
           <p className="mt-1 text-[14px] text-text-secondary">
-            기본 저장 폴더 · 테마 설정은 후속 브랜치에서 구현합니다.
+            테마 설정은 후속 브랜치에서 구현합니다.
           </p>
         </section>
       </div>
