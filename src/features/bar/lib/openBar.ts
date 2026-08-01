@@ -3,6 +3,11 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 import { globalShortcutService } from "@/features/capture/api/globalShortcut.service";
 import { barRouteForAppPath } from "@/shared/lib/modeRoutes";
 import { barStateForPath } from "./barSizes";
+import { env } from "@/shared/lib/env";
+
+function canUseApp(): boolean {
+  return env.skipAuth || useAuthStore.getState().status === "authenticated";
+}
 
 /**
  * 전역 단축키의 목적지(ADR-008).
@@ -15,7 +20,7 @@ import { barStateForPath } from "./barSizes";
  */
 /** 바로 접는다. 창 최소화를 가로챌 때 쓴다. */
 export async function collapseToBar(): Promise<void> {
-  if (useAuthStore.getState().status !== "authenticated") return;
+  if (!canUseApp()) return;
   const pathname = router.state.location.pathname;
   const state = barStateForPath(pathname);
 
@@ -34,7 +39,7 @@ export async function collapseToBar(): Promise<void> {
 export async function toggleBar(): Promise<void> {
   // 미인증이면 바를 열지 않는다. 로그인 폼은 56×56에 들어갈 수 없으므로
   // 창만 앞으로 가져오고 RequireAuth가 로그인 화면으로 보낸다.
-  if (useAuthStore.getState().status !== "authenticated") {
+  if (!canUseApp()) {
     await globalShortcutService.focusMainWindow();
     return;
   }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { apiFetchText } from "@/shared/api/client";
 import { copyText } from "@/shared/lib/copyText";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -14,14 +15,11 @@ import { useExportStore } from "../store/exportStore";
 /** 후보의 실 서버 bvh_url에서 원본 BVH 내용을 받아온다. 없으면(Mock 후보) placeholder로 대체. */
 async function resolveBvhContent(bvhUrl: string | undefined, candidateId: string): Promise<string> {
   if (!bvhUrl) return mockBvhContent(candidateId);
-  let res: Response;
   try {
-    res = await fetch(bvhUrl);
+    return await apiFetchText(bvhUrl);
   } catch {
     throw new Error("BVH 파일을 서버에서 받아오지 못했습니다.");
   }
-  if (!res.ok) throw new Error(`BVH 다운로드에 실패했습니다. (HTTP ${res.status})`);
-  return res.text();
 }
 
 /**

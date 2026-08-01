@@ -19,4 +19,7 @@ export const endpoints = {
     rerun: (id: string) => `/v1/analysis/jobs/${id}/rerun`,
     cancel: (id: string) => `/v1/analysis/jobs/${id}/cancel`,
   },
+  poseCandidates: {
+    export: (id: string) => `/v1/pose-candidates/${encodeURIComponent(id)}/export`,
+  },
 } as const;

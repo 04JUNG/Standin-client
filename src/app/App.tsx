@@ -6,6 +6,7 @@ import { attachAuthRefresh } from "@/features/auth/lib/attachAuthRefresh";
 import { initDeepLinkAuth } from "@/features/auth/lib/deepLinkAuth";
 import { initCaptureShortcut } from "@/features/capture/lib/captureShortcut";
 import { initCollapseToBar } from "@/features/bar/lib/collapseListener";
+import { env } from "@/shared/lib/env";
 import { queryClient } from "./queryClient";
 import { clearQueryCacheOnSessionEnd } from "./sessionCacheReset";
 import { router } from "./router";
@@ -17,16 +18,18 @@ export function App() {
 
   useEffect(() => {
     // 401 자동 재발급을 먼저 꽂아야 restore 중 만료도 처리된다.
-    attachAuthRefresh();
-    void restore();
-    void initDeepLinkAuth();
+    if (!env.skipAuth) {
+      attachAuthRefresh();
+      void restore();
+      void initDeepLinkAuth();
+    }
     void initCaptureShortcut();
     void initCollapseToBar();
   }, [restore]);
 
   useEffect(() => clearQueryCacheOnSessionEnd(queryClient), []);
 
-  if (status === "initializing") {
+  if (!env.skipAuth && status === "initializing") {
     return (
       <div className="flex h-full items-center justify-center bg-brand-paper">
         <Loader2 className="h-6 w-6 animate-spin text-brand-ink" aria-label="불러오는 중" />

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetApiClient,
   apiFetch,
+  apiFetchBlob,
   ApiError,
   setAccessToken,
   setUnauthorizedHandler,
@@ -15,10 +16,13 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function errorResponse(status: number, code: string): Response {
-  return new Response(JSON.stringify({ error: { code, message: "server text", requestId: "req_1" } }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ error: { code, message: "server text", requestId: "req_1" } }),
+    {
+      status,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 }
 
 /** 요청에 실린 Authorization 헤더를 꺼낸다. */
@@ -52,6 +56,20 @@ describe("apiFetch", () => {
 
     await apiFetch("/v1/auth/login", { method: "POST", body: {}, auth: false });
     expect(authHeaderOf(fetchMock.mock.calls[1])).toBeNull();
+  });
+
+  it("FormData는 브라우저가 multipart boundary를 붙이도록 본문을 그대로 보낸다", async () => {
+    setAccessToken("tok-multipart");
+    fetchMock.mockResolvedValue(jsonResponse({ jobId: "job_1" }, 202));
+    const formData = new FormData();
+    formData.append("file", new File(["image"], "rough.png", { type: "image/png" }));
+
+    await apiFetch("/v1/analysis/jobs", { method: "POST", body: formData });
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.body).toBe(formData);
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+    expect(authHeaderOf(fetchMock.mock.calls[0])).toBe("Bearer tok-multipart");
   });
 
   it("401을 받으면 토큰을 재발급하고 원 요청을 새 토큰으로 재시도한다", async () => {
@@ -89,11 +107,7 @@ describe("apiFetch", () => {
       return "fresh";
     });
 
-    const results = await Promise.all([
-      apiFetch("/v1/a"),
-      apiFetch("/v1/b"),
-      apiFetch("/v1/c"),
-    ]);
+    const results = await Promise.all([apiFetch("/v1/a"), apiFetch("/v1/b"), apiFetch("/v1/c")]);
 
     expect(refreshCalls).toBe(1);
     expect(results).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
@@ -115,7 +129,9 @@ describe("apiFetch", () => {
     const handler = vi.fn(async () => "fresh");
     setUnauthorizedHandler(handler);
 
-    await expect(apiFetch("/v1/auth/refresh", { method: "POST", skipRefresh: true })).rejects.toThrow();
+    await expect(
+      apiFetch("/v1/auth/refresh", { method: "POST", skipRefresh: true }),
+    ).rejects.toThrow();
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -130,5 +146,20 @@ describe("apiFetch", () => {
   it("204는 본문 파싱 없이 통과한다", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(apiFetch("/v1/auth/logout", { method: "POST" })).resolves.toBeUndefined();
+  });
+
+  it("바이너리 응답도 인증 헤더를 유지한 채 Blob으로 반환한다", async () => {
+    setAccessToken("image-token");
+    fetchMock.mockResolvedValue(
+      new Response(new Uint8Array([137, 80, 78, 71]), {
+        headers: { "Content-Type": "image/png" },
+      }),
+    );
+
+    const blob = await apiFetchBlob("/v1/pose-candidates/pose-1/thumbnail?view=front");
+
+    expect(blob.type).toBe("image/png");
+    expect(blob.size).toBe(4);
+    expect(authHeaderOf(fetchMock.mock.calls[0])).toBe("Bearer image-token");
   });
 });

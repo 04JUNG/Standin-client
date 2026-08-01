@@ -1,7 +1,7 @@
 /**
  * 포즈 후보 결과 계약. docs/09 §2, docs/03 §7.
- * 실 서버(도원 포즈 파이프라인)는 job 폴링이 아니라 이미지 파일을 즉시 분석해 응답한다.
- * jobId는 서버 개념이 아니라 라우팅·쿼리 키용 클라이언트 식별자다.
+ * 클라이언트는 BFF에 분석 Job을 만들고 완료될 때까지 폴링한 뒤 이 형태로 변환한다.
+ * 라우트의 jobId는 쿼리 키용 클라이언트 식별자이며, 응답의 jobId는 BFF가 발급한 값이다.
  */
 export type MatchLevel = "high" | "medium" | "low";
 
@@ -15,7 +15,7 @@ export type PoseCandidate = {
   previewImages: Array<{ view: string; url: string }>;
   modelUrl?: string | null;
   bvhAvailable: boolean;
-  /** 실 서버 후보의 BVH 원본 다운로드 절대 URL. Mock 후보에는 없음(저장 시 placeholder로 대체). */
+  /** BFF를 통한 BVH 다운로드 경로. Mock 후보에는 없음(저장 시 placeholder로 대체). */
   bvhUrl?: string;
 };
 

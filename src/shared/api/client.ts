@@ -79,19 +79,28 @@ async function parseError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, code, message, requestId);
 }
 
-export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+function isFormData(body: unknown): body is FormData {
+  return typeof FormData !== "undefined" && body instanceof FormData;
+}
+
+async function apiRequest(path: string, options: RequestOptions = {}): Promise<Response> {
   const { method = "GET", body, signal, auth = true, skipRefresh = false } = options;
 
   async function send(): Promise<Response> {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    const multipart = isFormData(body);
+    if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
     if (auth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
     try {
-      return await fetch(`${env.apiBaseUrl}${path}`, {
+      const url =
+        path.startsWith("http://") || path.startsWith("https://")
+          ? path
+          : `${env.apiBaseUrl}${path}`;
+      return await fetch(url, {
         method,
         headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: multipart ? body : body !== undefined ? JSON.stringify(body) : undefined,
         signal,
       });
     } catch {
@@ -111,6 +120,24 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   if (!res.ok) throw await parseError(res);
 
+  return res;
+}
+
+export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const res = await apiRequest(path, options);
+
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** 인증·토큰 재발급을 유지하면서 BVH 같은 텍스트 응답을 받는다. */
+export async function apiFetchText(path: string, options: RequestOptions = {}): Promise<string> {
+  const res = await apiRequest(path, options);
+  return res.text();
+}
+
+/** 인증·토큰 재발급을 유지하면서 PNG 같은 바이너리 응답을 받는다. */
+export async function apiFetchBlob(path: string, options: RequestOptions = {}): Promise<Blob> {
+  const res = await apiRequest(path, options);
+  return res.blob();
 }
