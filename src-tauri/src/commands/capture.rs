@@ -39,7 +39,7 @@ fn capture_primary() -> Result<ScreenFrame, CaptureError> {
     // 주 모니터 우선, 없으면 첫 모니터(MVP는 단일 모니터, docs/07 §12).
     let monitor = monitors
         .iter()
-        .find(|m| m.is_primary())
+        .find(|m| m.is_primary().unwrap_or(false))
         .unwrap_or(&monitors[0]);
 
     let image = monitor
