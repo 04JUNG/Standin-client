@@ -5,6 +5,7 @@ import {
   apiFetchBlob,
   ApiError,
   setAccessToken,
+  setInstallationCredentials,
   setUnauthorizedHandler,
 } from "./client";
 
@@ -44,6 +45,27 @@ describe("apiFetch", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     __resetApiClient();
+  });
+
+  it("attaches installation credentials and omits them for registration", async () => {
+    setInstallationCredentials({ installationId: "inst_1", deviceToken: "secret" });
+    fetchMock.mockImplementation(async () => jsonResponse({ ok: true }));
+
+    await apiFetch("/v1/analysis/jobs");
+    const protectedHeaders = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(protectedHeaders["X-Installation-Id"]).toBe("inst_1");
+    expect(protectedHeaders["X-Device-Token"]).toBe("secret");
+
+    await apiFetch("/v1/installations", { method: "POST", installation: false });
+    const publicHeaders = (fetchMock.mock.calls[1][1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(publicHeaders["X-Installation-Id"]).toBeUndefined();
+    expect(publicHeaders["X-Device-Token"]).toBeUndefined();
   });
 
   it("access token을 Bearer 헤더로 싣고, auth:false면 싣지 않는다", async () => {

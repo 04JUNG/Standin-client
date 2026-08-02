@@ -24,6 +24,7 @@ type JobStatusResponse = CreateJobResponse & {
 
 type BffCandidate = {
   id: string;
+  poseId: string;
   rank: number;
   view: string;
   tags: string[];
@@ -51,26 +52,39 @@ function delay(ms: number): Promise<void> {
 }
 
 async function blobToDataUrl(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return `data:${blob.type || "image/png"};base64,${btoa(binary)}`;
+  if (typeof blob.arrayBuffer === "function") {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return `data:${blob.type || "image/png"};base64,${btoa(binary)}`;
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function loadThumbnail(path: string | undefined): Promise<string> {
   if (!path) return "";
   try {
-    return await blobToDataUrl(await apiFetchBlob(path));
+    return await blobToDataUrl(await apiFetchBlob(path, { auth: false }));
   } catch {
     // 썸네일 하나가 없어도 분석 후보와 BVH 저장은 계속 제공한다.
     return "";
   }
 }
 
-async function toPoseCandidate(raw: BffCandidate): Promise<PoseCandidate> {
+async function toPoseCandidate(
+  raw: BffCandidate,
+  jobId: string,
+  personIndex: number,
+): Promise<PoseCandidate> {
   const thumbnailUrl = await loadThumbnail(raw.thumbnailUrl);
   return {
     id: raw.id,
+    poseId: raw.poseId,
     rank: raw.rank,
     title: `포즈 ${raw.id}`,
     tags: raw.tags,
@@ -79,7 +93,9 @@ async function toPoseCandidate(raw: BffCandidate): Promise<PoseCandidate> {
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
     bvhAvailable: raw.bvhAvailable,
-    bvhUrl: raw.bvhAvailable ? endpoints.poseCandidates.export(raw.id) : undefined,
+    bvhUrl: raw.bvhAvailable
+      ? endpoints.poseCandidates.export(raw.poseId, jobId, personIndex, raw.id)
+      : undefined,
   };
 }
 
@@ -87,7 +103,11 @@ async function toAnalysisResult(raw: BffAnalysisResult): Promise<AnalysisResult>
   const people: PersonResult[] = await Promise.all(
     raw.candidatesByPerson.map(async (person) => ({
       index: person.personIndex,
-      candidates: await Promise.all(person.candidates.map(toPoseCandidate)),
+      candidates: await Promise.all(
+        person.candidates.map((candidate) =>
+          toPoseCandidate(candidate, raw.jobId, person.personIndex),
+        ),
+      ),
     })),
   );
 
@@ -102,10 +122,10 @@ async function waitForResult(jobId: string): Promise<BffAnalysisResult> {
   const deadline = Date.now() + JOB_TIMEOUT_MS;
 
   while (Date.now() < deadline) {
-    const job = await apiFetch<JobStatusResponse>(endpoints.analysis.job(jobId));
+    const job = await apiFetch<JobStatusResponse>(endpoints.analysis.job(jobId), { auth: false });
 
     if (job.status === "completed") {
-      return apiFetch<BffAnalysisResult>(endpoints.analysis.result(jobId));
+      return apiFetch<BffAnalysisResult>(endpoints.analysis.result(jobId), { auth: false });
     }
     if (job.status === "failed") {
       throw new Error("포즈 분석에 실패했습니다. 다른 이미지로 다시 시도해 주세요.");
@@ -118,13 +138,17 @@ async function waitForResult(jobId: string): Promise<BffAnalysisResult> {
 }
 
 export const poseHttp: PoseResultService = {
-  async analyze({ file }): Promise<AnalysisResult> {
+  async analyze({ file, source, width, height }): Promise<AnalysisResult> {
     const formData = new FormData();
     formData.append("file", file, file.name);
+    formData.append("source", source);
+    formData.append("width", String(width));
+    formData.append("height", String(height));
 
     const job = await apiFetch<CreateJobResponse>(endpoints.analysis.jobs, {
       method: "POST",
       body: formData,
+      auth: false,
     });
     const result = await waitForResult(job.jobId);
     return await toAnalysisResult(result);

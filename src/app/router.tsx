@@ -1,6 +1,4 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import { LoginPage } from "@/features/auth/pages/LoginPage";
-import { OAuthCallbackPage } from "@/features/auth/pages/OAuthCallbackPage";
 import { HomePage } from "@/features/home/pages/HomePage";
 import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
 import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
@@ -13,7 +11,8 @@ import { BarProgressPage } from "@/features/bar/pages/BarProgressPage";
 import { BarCandidatesPage } from "@/features/bar/pages/BarCandidatesPage";
 import { BarSavePage } from "@/features/bar/pages/BarSavePage";
 import { RootLayout } from "./RootLayout";
-import { RequireAuth, RedirectIfAuthed } from "./guards";
+import { RequireInstallation } from "./guards";
+import { BetaConsentPage } from "@/features/installation/BetaConsentPage";
 
 /**
  * 기본 라우트(CLAUDE.md §7). 인증 화면과 앱 화면을 분리한다.
@@ -26,61 +25,55 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: "/", element: <Navigate to="/app/home" replace /> },
-      {
-        path: "/auth/login",
-        element: (
-          <RedirectIfAuthed>
-            <LoginPage />
-          </RedirectIfAuthed>
-        ),
-      },
-      { path: "/auth/callback", element: <OAuthCallbackPage /> },
+      { path: "/auth/login", element: <Navigate to="/app/home" replace /> },
+      { path: "/auth/callback", element: <Navigate to="/app/home" replace /> },
+      { path: "/beta-consent", element: <BetaConsentPage /> },
       {
         path: "/app/home",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <HomePage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/app/preview",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <InputPreviewPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/app/capture",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <CaptureOverlayPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/app/jobs/:jobId",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <PoseViewerPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/app/jobs/:jobId/save",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <SavePage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/app/settings",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <SettingsPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
 
@@ -88,41 +81,41 @@ export const router = createBrowserRouter([
       {
         path: "/bar",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <BarCollapsedPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/bar/actions",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <BarActionsPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/bar/progress",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <BarProgressPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/bar/candidates",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <BarCandidatesPage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
       {
         path: "/bar/save",
         element: (
-          <RequireAuth>
+          <RequireInstallation>
             <BarSavePage />
-          </RequireAuth>
+          </RequireInstallation>
         ),
       },
 

@@ -6,9 +6,16 @@ import { ApiError, networkError, type AppError, type ServerErrorBody } from "./e
  * access token은 메모리에만 둔다(docs/06 §6).
  */
 let accessToken: string | null = null;
+let installationCredentials: { installationId: string; deviceToken: string } | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
+}
+
+export function setInstallationCredentials(
+  credentials: { installationId: string; deviceToken: string } | null,
+): void {
+  installationCredentials = credentials;
 }
 
 /**
@@ -43,6 +50,7 @@ function refreshOnce(): Promise<string | null> {
 /** 테스트에서 모듈 상태를 초기화한다. */
 export function __resetApiClient(): void {
   accessToken = null;
+  installationCredentials = null;
   refreshHandler = null;
   inflightRefresh = null;
 }
@@ -52,6 +60,7 @@ type RequestOptions = {
   body?: unknown;
   signal?: AbortSignal;
   auth?: boolean;
+  installation?: boolean;
   /**
    * 401을 받아도 재발급을 시도하지 않는다. 재발급 요청 자체가 401을 받았을 때
    * 무한히 되도는 것을 막는다.
@@ -84,13 +93,24 @@ function isFormData(body: unknown): body is FormData {
 }
 
 async function apiRequest(path: string, options: RequestOptions = {}): Promise<Response> {
-  const { method = "GET", body, signal, auth = true, skipRefresh = false } = options;
+  const {
+    method = "GET",
+    body,
+    signal,
+    auth = true,
+    installation = true,
+    skipRefresh = false,
+  } = options;
 
   async function send(): Promise<Response> {
     const headers: Record<string, string> = { Accept: "application/json" };
     const multipart = isFormData(body);
     if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
     if (auth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+    if (installation && installationCredentials) {
+      headers["X-Installation-Id"] = installationCredentials.installationId;
+      headers["X-Device-Token"] = installationCredentials.deviceToken;
+    }
 
     try {
       const url =

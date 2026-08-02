@@ -16,7 +16,7 @@ import { useExportStore } from "../store/exportStore";
 async function resolveBvhContent(bvhUrl: string | undefined, candidateId: string): Promise<string> {
   if (!bvhUrl) return mockBvhContent(candidateId);
   try {
-    return await apiFetchText(bvhUrl);
+    return await apiFetchText(bvhUrl, { auth: false });
   } catch {
     throw new Error("BVH 파일을 서버에서 받아오지 못했습니다.");
   }

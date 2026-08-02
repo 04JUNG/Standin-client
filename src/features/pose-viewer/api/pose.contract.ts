@@ -7,6 +7,7 @@ export type MatchLevel = "high" | "medium" | "low";
 
 export type PoseCandidate = {
   id: string;
+  poseId: string;
   rank: number;
   title: string;
   tags: string[];
@@ -32,5 +33,11 @@ export type AnalysisResult = {
 };
 
 export interface PoseResultService {
-  analyze(input: { jobId: string; file: File }): Promise<AnalysisResult>;
+  analyze(input: {
+    jobId: string;
+    file: File;
+    source: "file" | "capture" | "clipboard";
+    width: number;
+    height: number;
+  }): Promise<AnalysisResult>;
 }

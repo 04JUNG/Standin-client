@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -17,6 +18,8 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { dragService } from "../api/drag.service";
 import { SavedFileList } from "../components/SavedFileList";
 import { useSaveFlow } from "../hooks/useSaveFlow";
+import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { submitFeedback } from "@/features/analytics/analyticsClient";
 
 /**
  * 저장 화면(docs/03 §8, ADR-009).
@@ -28,6 +31,8 @@ export function SavePage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const bindings = useShortcutStore((s) => s.bindings);
+  const serverJobId = usePoseSelectionStore((s) => s.serverJobId);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const {
     folder,
@@ -47,6 +52,12 @@ export function SavePage() {
   function handleNewScene() {
     newScene();
     navigate("/app/home", { replace: true });
+  }
+
+  async function sendFeedback(reason: string) {
+    if (!serverJobId || feedback) return;
+    await submitFeedback(serverJobId, reason);
+    setFeedback(reason);
   }
 
   useShortcuts({
@@ -121,6 +132,33 @@ export function SavePage() {
                   : "폴더를 열어 BVH를 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."}
               </p>
               <SavedFileList paths={savedPaths} onCopy={copyPath} />
+            </div>
+
+            <div className="rounded-xl border border-border p-4">
+              <p className="text-[13px] font-semibold text-text-primary">결과는 어땠나요?</p>
+              {feedback ? (
+                <p className="mt-2 text-[12px] text-text-secondary">피드백을 남겨주셔서 감사합니다.</p>
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    ["good", "좋아요"],
+                    ["person_missing", "인물 누락"],
+                    ["skeleton_wrong", "스켈레톤 오류"],
+                    ["candidates_irrelevant", "후보 불일치"],
+                    ["export_problem", "저장 문제"],
+                    ["other", "기타"],
+                  ].map(([reason, label]) => (
+                    <Button
+                      key={reason}
+                      variant="secondary"
+                      size="md"
+                      onClick={() => void sendFeedback(reason)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 border-t border-border pt-4">

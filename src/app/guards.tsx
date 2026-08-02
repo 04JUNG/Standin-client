@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/features/auth/store/authStore";
 import { env } from "@/shared/lib/env";
+import { useInstallationStore } from "@/features/installation/installationStore";
 
 /**
  * 인증 필요 라우트. unauthenticated면 로그인으로(docs/06 §7).
@@ -28,5 +29,15 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
   if (env.skipAuth || status === "authenticated") return <Navigate to="/app/home" replace />;
+  return <>{children}</>;
+}
+
+export function RequireInstallation({ children }: { children: ReactNode }) {
+  const status = useInstallationStore((state) => state.status);
+  const location = useLocation();
+  if (status === "initializing") return null;
+  if (status !== "registered") {
+    return <Navigate to="/beta-consent" replace state={{ from: location.pathname }} />;
+  }
   return <>{children}</>;
 }

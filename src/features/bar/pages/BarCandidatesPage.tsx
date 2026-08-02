@@ -11,6 +11,7 @@ import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResul
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
+import { confirmSelections } from "@/features/analytics/analyticsClient";
 
 /**
  * 바 모드의 후보 확인(ADR-008). 앱 창에 들어가지 않고 작업 화면 위에서 후보를 고른다.
@@ -26,8 +27,10 @@ export function BarCandidatesPage() {
   const bindings = useShortcutStore((s) => s.bindings);
   const [personCursor, setPersonCursor] = useState(0);
   const [rerunNotice, setRerunNotice] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const {
+    data,
     isPending,
     isError,
     error,
@@ -48,11 +51,28 @@ export function BarCandidatesPage() {
 
   usePoseViewerShortcuts({
     canConfirm: allSelected,
-    onConfirm: () => navigate("/bar/save"),
+    onConfirm: () => void confirmAndContinue(),
     onRerun: () => setRerunNotice(true),
   });
 
   if (!jobId || !draft || !sourceFile) return <Navigate to="/bar/actions" replace />;
+
+  async function confirmAndContinue() {
+    if (!data || !allSelected || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      await confirmSelections(
+        data.jobId,
+        Object.entries(selectedByPerson).map(([personIndex, candidateId]) => ({
+          personIndex: Number(personIndex),
+          candidateId,
+        })),
+      );
+      navigate("/bar/save");
+    } finally {
+      setIsConfirming(false);
+    }
+  }
 
   const person = people[personCursor];
 
@@ -138,7 +158,11 @@ export function BarCandidatesPage() {
                   </span>
                 )}
               </div>
-              <Button size="md" disabled={!allSelected} onClick={() => navigate("/bar/save")}>
+              <Button
+                size="md"
+                disabled={!allSelected || isConfirming}
+                onClick={() => void confirmAndContinue()}
+              >
                 이 포즈 사용
                 <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
               </Button>
