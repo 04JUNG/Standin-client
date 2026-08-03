@@ -14,7 +14,10 @@ use keyring::{Entry, Error as KeyringError};
 use serde::Serialize;
 
 /// 키체인 항목 식별자. 앱마다 고유해야 하므로 번들 식별자와 같은 값을 쓴다.
-const SERVICE: &str = "app.standin.desktop";
+const SERVICE: &str = match option_env!("STANDIN_KEYRING_SERVICE") {
+    Some(service) => service,
+    None => "app.standin.desktop",
+};
 /// 이 서비스 안에서 refresh token을 가리키는 이름.
 const ACCOUNT: &str = "refresh_token";
 const INSTALLATION_ACCOUNT: &str = "installation_credentials";
