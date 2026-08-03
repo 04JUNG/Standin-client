@@ -11,7 +11,7 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
-import { confirmSelections } from "@/features/analytics/analyticsClient";
+import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
@@ -46,10 +46,18 @@ export function PoseViewerPage() {
   usePoseViewerShortcuts({
     canConfirm: allSelected,
     onConfirm: () => void confirmAndContinue(),
-    onRerun: () => setRerunNotice(true),
+    onRerun: requestRerun,
   });
 
   if (!jobId) return <Navigate to="/app/home" replace />;
+
+  function requestRerun() {
+    setRerunNotice(true);
+    trackRerunRequested(data?.jobId, {
+      selectedCount,
+      peopleCount: selectablePeople.length,
+    });
+  }
 
   async function confirmAndContinue() {
     if (!data || !allSelected || isConfirming) return;
@@ -184,7 +192,7 @@ export function PoseViewerPage() {
 
         <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => setRerunNotice(true)}>
+            <Button variant="ghost" onClick={requestRerun}>
               다른 후보 찾기
               <ShortcutKey
                 accelerator={resolveAccelerator("poseViewer.rerun", bindings)!}

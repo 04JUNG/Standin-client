@@ -1,11 +1,11 @@
 import { router } from "@/app/router";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { useInstallationStore } from "@/features/installation/installationStore";
 import { idleRoute, type FlowOrigin } from "@/features/bar/lib/flowOrigin";
 import { captureService } from "../api/capture.service";
 import { CaptureError } from "../api/capture.contract";
 import { globalShortcutService } from "../api/globalShortcut.service";
 import { useCaptureStore } from "../store/captureStore";
-import { env } from "@/shared/lib/env";
+import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 
 /**
  * 캡처 시작 오케스트레이션. 홈 버튼과 전역 단축키가 같은 경로를 쓴다.
@@ -29,10 +29,9 @@ export function captureErrorMessage(err: unknown): string {
 }
 
 export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void> {
-  const auth = useAuthStore.getState();
-  // 미인증 상태에서는 캡처를 시작하지 않는다(RequireAuth 우회 금지, docs/06 §7).
+  // 데이터 수집 동의 전에는 캡처를 시작하지 않는다(RequireInstallation 우회 금지).
   // 전역 단축키로 들어온 경우를 위해 창만 앞으로 가져온다.
-  if (!env.skipAuth && auth.status !== "authenticated") {
+  if (useInstallationStore.getState().status !== "registered") {
     await globalShortcutService.focusMainWindow();
     return;
   }
@@ -61,5 +60,11 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
     const message = captureErrorMessage(err);
     useCaptureStore.getState().setError(message);
     useCaptureStore.getState().setStatus("error");
+    // 화면 기록 권한 거부는 설치했는데 캡처를 아예 못 쓰는 상태다. 온보딩 최대
+    // 실패 지점이라 코드만 남긴다(취소는 위에서 걸러져 여기 오지 않는다).
+    trackEvent("capture_failed", {
+      code: err instanceof CaptureError ? err.code : "UNKNOWN",
+      surface: currentSurface(),
+    });
   }
 }

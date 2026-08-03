@@ -52,7 +52,6 @@ jobs:
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
           VITE_APP_ENV: production
-          VITE_SKIP_AUTH: "true"
         with:
           tagName: v0.1.0-beta.1
           releaseName: Standin Desktop v0.1.0 Beta 1

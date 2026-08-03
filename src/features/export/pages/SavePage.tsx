@@ -33,6 +33,7 @@ export function SavePage() {
   const bindings = useShortcutStore((s) => s.bindings);
   const serverJobId = usePoseSelectionStore((s) => s.serverJobId);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState(false);
 
   const {
     folder,
@@ -56,8 +57,13 @@ export function SavePage() {
 
   async function sendFeedback(reason: string) {
     if (!serverJobId || feedback) return;
-    await submitFeedback(serverJobId, reason);
-    setFeedback(reason);
+    setFeedbackError(false);
+    try {
+      await submitFeedback(serverJobId, reason);
+      setFeedback(reason);
+    } catch {
+      setFeedbackError(true);
+    }
   }
 
   useShortcuts({
@@ -134,32 +140,45 @@ export function SavePage() {
               <SavedFileList paths={savedPaths} onCopy={copyPath} />
             </div>
 
-            <div className="rounded-xl border border-border p-4">
-              <p className="text-[13px] font-semibold text-text-primary">결과는 어땠나요?</p>
-              {feedback ? (
-                <p className="mt-2 text-[12px] text-text-secondary">피드백을 남겨주셔서 감사합니다.</p>
-              ) : (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[
-                    ["good", "좋아요"],
-                    ["person_missing", "인물 누락"],
-                    ["skeleton_wrong", "스켈레톤 오류"],
-                    ["candidates_irrelevant", "후보 불일치"],
-                    ["export_problem", "저장 문제"],
-                    ["other", "기타"],
-                  ].map(([reason, label]) => (
-                    <Button
-                      key={reason}
-                      variant="secondary"
-                      size="md"
-                      onClick={() => void sendFeedback(reason)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* 서버 job이 없으면(Mock 후보 등) 보낼 곳이 없다. 눌러도 아무 일이 없는
+                버튼을 두느니 섹션을 감춘다. */}
+            {serverJobId && (
+              <div className="rounded-xl border border-border p-4">
+                <p className="text-[13px] font-semibold text-text-primary">결과는 어땠나요?</p>
+                {feedback ? (
+                  <p className="mt-2 text-[12px] text-text-secondary">
+                    피드백을 남겨주셔서 감사합니다.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {[
+                        ["good", "좋아요"],
+                        ["person_missing", "인물 누락"],
+                        ["skeleton_wrong", "스켈레톤 오류"],
+                        ["candidates_irrelevant", "후보 불일치"],
+                        ["export_problem", "저장 문제"],
+                        ["other", "기타"],
+                      ].map(([reason, label]) => (
+                        <Button
+                          key={reason}
+                          variant="secondary"
+                          size="md"
+                          onClick={() => void sendFeedback(reason)}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    {feedbackError && (
+                      <p role="alert" className="mt-2 text-[12px] text-brand-coral">
+                        피드백을 보내지 못했습니다. 다시 시도해 주세요.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 border-t border-border pt-4">
               <Button variant="secondary" size="md" onClick={revealSaved}>

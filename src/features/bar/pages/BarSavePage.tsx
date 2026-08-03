@@ -36,6 +36,7 @@ export function BarSavePage() {
   const bindings = useShortcutStore((s) => s.bindings);
   const serverJobId = usePoseSelectionStore((s) => s.serverJobId);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState(false);
 
   const {
     folder,
@@ -59,8 +60,13 @@ export function BarSavePage() {
 
   async function sendFeedback(reason: string) {
     if (!serverJobId || feedback) return;
-    await submitFeedback(serverJobId, reason);
-    setFeedback(reason);
+    setFeedbackError(false);
+    try {
+      await submitFeedback(serverJobId, reason);
+      setFeedback(reason);
+    } catch {
+      setFeedbackError(true);
+    }
   }
 
   useShortcuts({
@@ -137,23 +143,32 @@ export function BarSavePage() {
               <SavedFileList paths={savedPaths} onCopy={copyPath} dense />
             </div>
 
-            <label className="flex shrink-0 items-center gap-2 text-[10px] text-text-secondary">
-              결과 피드백
-              <select
-                className="min-w-0 flex-1 rounded border border-border bg-surface-0 px-2 py-1"
-                value={feedback ?? ""}
-                disabled={Boolean(feedback)}
-                onChange={(event) => void sendFeedback(event.target.value)}
-              >
-                <option value="" disabled>선택</option>
-                <option value="good">좋아요</option>
-                <option value="person_missing">인물 누락</option>
-                <option value="skeleton_wrong">스켈레톤 오류</option>
-                <option value="candidates_irrelevant">후보 불일치</option>
-                <option value="export_problem">저장 문제</option>
-                <option value="other">기타</option>
-              </select>
-            </label>
+            {/* 서버 job이 없으면 보낼 곳이 없다(SavePage와 같은 이유). */}
+            {serverJobId && (
+              <label className="flex shrink-0 items-center gap-2 text-[10px] text-text-secondary">
+                {feedbackError ? (
+                  <span role="alert" className="shrink-0 text-brand-coral">
+                    전송 실패
+                  </span>
+                ) : (
+                  "결과 피드백"
+                )}
+                <select
+                  className="min-w-0 flex-1 rounded border border-border bg-surface-0 px-2 py-1"
+                  value={feedback ?? ""}
+                  disabled={Boolean(feedback)}
+                  onChange={(event) => void sendFeedback(event.target.value)}
+                >
+                  <option value="" disabled>선택</option>
+                  <option value="good">좋아요</option>
+                  <option value="person_missing">인물 누락</option>
+                  <option value="skeleton_wrong">스켈레톤 오류</option>
+                  <option value="candidates_irrelevant">후보 불일치</option>
+                  <option value="export_problem">저장 문제</option>
+                  <option value="other">기타</option>
+                </select>
+              </label>
+            )}
 
             {/*
               420px 안에 버튼 두 개가 들어가야 해서 바에서는 작은 크기와 compact 단축키를 쓴다.

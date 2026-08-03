@@ -32,6 +32,22 @@ export type AnalysisResult = {
   people: PersonResult[];
 };
 
+/**
+ * 분석이 실패한 사유. 사용자 문구가 아니라 분류용 코드다 — `analysis_failed` 이벤트가
+ * 이 값을 그대로 싣는다. 문구만으로는 "실패"와 "시간 초과"를 지표에서 구분할 수 없다.
+ */
+export type AnalysisErrorCode = "JOB_FAILED" | "TIMEOUT" | "NO_PEOPLE";
+
+export class AnalysisError extends Error {
+  constructor(
+    public readonly code: AnalysisErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AnalysisError";
+  }
+}
+
 export interface PoseResultService {
   analyze(input: {
     jobId: string;

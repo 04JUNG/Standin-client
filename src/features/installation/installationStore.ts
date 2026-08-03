@@ -26,23 +26,34 @@ function osName(): string {
   return "unknown";
 }
 
-interface InstallationEnvironment {
+export interface InstallationEnvironment {
   appVersion: string;
   osName: string;
   osVersion: string;
   architecture: string;
 }
 
-async function getInstallationEnvironment(): Promise<InstallationEnvironment> {
-  if (isTauri()) {
-    return invoke<InstallationEnvironment>("get_installation_environment");
-  }
+/** Tauri 밖(브라우저 dev·테스트)에서 쓸 수 있는 만큼만 채운 값. */
+function browserEnvironment(): InstallationEnvironment {
   return {
-    appVersion: import.meta.env.VITE_APP_VERSION || "0.1.0",
+    appVersion: import.meta.env.VITE_APP_VERSION,
     osName: osName(),
     osVersion: "unknown",
     architecture: "unknown",
   };
+}
+
+/**
+ * 설치 등록과 `app_started`가 같은 값을 쓰도록 한 곳에서 만든다.
+ * 두 곳에서 따로 채우면 같은 property가 서로 다른 어휘로 쌓인다.
+ */
+export async function getInstallationEnvironment(): Promise<InstallationEnvironment> {
+  if (!isTauri()) return browserEnvironment();
+  try {
+    return await invoke<InstallationEnvironment>("get_installation_environment");
+  } catch {
+    return browserEnvironment();
+  }
 }
 
 export const useInstallationStore = create<InstallationState>((set, get) => ({
@@ -89,12 +100,26 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
     }
   },
   async withdraw() {
+    set({ error: null });
     if (get().status === "registered") {
-      await apiFetch(endpoints.installations.currentData, { method: "DELETE", auth: false });
+      try {
+        await apiFetch(endpoints.installations.currentData, { method: "DELETE", auth: false });
+      } catch {
+        // 로컬 자격증명을 먼저 지우면 서버 데이터는 남은 채 삭제를 다시 요청할 방법이
+        // 사라진다. 상태를 그대로 두고 사용자가 재시도할 수 있게 한다.
+        set({ error: "데이터 삭제를 요청하지 못했습니다. 잠시 후 다시 시도해 주세요." });
+        return;
+      }
     }
-    await installationStorage.clear();
+    try {
+      await installationStorage.clear();
+    } catch {
+      // 서버 삭제는 끝났다. 보안 저장소만 남은 상태로 두면 다음 실행에서 폐기된
+      // 자격증명으로 요청하게 되므로, 메모리·큐라도 반드시 비운다.
+      set({ error: "보안 저장소를 정리하지 못했습니다. 앱을 다시 시작해 주세요." });
+    }
     resetAnalyticsQueue();
     setInstallationCredentials(null);
-    set({ status: "consent_required", credentials: null, error: null });
+    set({ status: "consent_required", credentials: null });
   },
 }));

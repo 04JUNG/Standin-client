@@ -6,6 +6,7 @@ import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
+import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 import { exportService } from "../api/export.service";
 import { ExportError } from "../api/export.contract";
 import { defaultFileName, personFileName } from "../lib/defaultFileName";
@@ -93,6 +94,13 @@ export function useSaveFlow(jobId: string | undefined) {
         );
         const results = await exportService.saveCandidates({ folder: targetFolder, files });
         setSaved(results.map((r) => r.path));
+        // 사용자 기준 성공은 BFF의 BVH 응답이 아니라 로컬 파일 저장이다.
+        // 서버 export_events만 보면 저장 단계 실패가 성공으로 집계된다.
+        trackEvent(
+          "export_completed",
+          { fileCount: results.length, surface: currentSurface() },
+          usePoseSelectionStore.getState().serverJobId ?? undefined,
+        );
       } catch (err) {
         setError(
           err instanceof ExportError
@@ -100,6 +108,14 @@ export function useSaveFlow(jobId: string | undefined) {
             : err instanceof Error
               ? err.message
               : "알 수 없는 오류로 저장하지 못했습니다.",
+        );
+        trackEvent(
+          "export_failed",
+          {
+            code: err instanceof ExportError ? err.code : "UNKNOWN",
+            surface: currentSurface(),
+          },
+          usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
       }
     },

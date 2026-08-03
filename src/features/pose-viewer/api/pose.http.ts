@@ -1,5 +1,6 @@
 import { apiFetch, apiFetchBlob } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
+import { AnalysisError } from "./pose.contract";
 import type {
   AnalysisResult,
   MatchLevel,
@@ -112,7 +113,7 @@ async function toAnalysisResult(raw: BffAnalysisResult): Promise<AnalysisResult>
   );
 
   if (people.length === 0) {
-    throw new Error("이미지에서 인물을 찾지 못했습니다.");
+    throw new AnalysisError("NO_PEOPLE", "이미지에서 인물을 찾지 못했습니다.");
   }
 
   return { jobId: raw.jobId, people };
@@ -128,13 +129,19 @@ async function waitForResult(jobId: string): Promise<BffAnalysisResult> {
       return apiFetch<BffAnalysisResult>(endpoints.analysis.result(jobId), { auth: false });
     }
     if (job.status === "failed") {
-      throw new Error("포즈 분석에 실패했습니다. 다른 이미지로 다시 시도해 주세요.");
+      throw new AnalysisError(
+        "JOB_FAILED",
+        "포즈 분석에 실패했습니다. 다른 이미지로 다시 시도해 주세요.",
+      );
     }
 
     await delay(POLL_INTERVAL_MS);
   }
 
-  throw new Error("분석 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.");
+  throw new AnalysisError(
+    "TIMEOUT",
+    "분석 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.",
+  );
 }
 
 export const poseHttp: PoseResultService = {

@@ -1,7 +1,10 @@
 import { type ReactNode, useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./queryClient";
-import { useInstallationStore } from "@/features/installation/installationStore";
+import {
+  getInstallationEnvironment,
+  useInstallationStore,
+} from "@/features/installation/installationStore";
 import { trackEvent } from "@/features/analytics/analyticsClient";
 
 let startedInstallationId: string | null = null;
@@ -26,12 +29,13 @@ function InstallationBootstrap() {
   useEffect(() => {
     if (status !== "registered" || !installationId || startedInstallationId === installationId) return;
     startedInstallationId = installationId;
-    trackEvent("app_started", {
-      appVersion: import.meta.env.VITE_APP_VERSION || "0.1.0",
-      osName: navigator.platform || "unknown",
-      osVersion: "unknown",
-      architecture: "unknown",
-      locale: navigator.language || "unknown",
+    // 설치 등록과 같은 출처에서 환경값을 받는다. 여기서 따로 채우면 같은 property가
+    // 등록 때와 다른 값("Win32" vs "windows")으로 쌓인다.
+    void getInstallationEnvironment().then((environment) => {
+      trackEvent("app_started", {
+        ...environment,
+        locale: navigator.language || "unknown",
+      });
     });
   }, [installationId, status]);
   return null;
