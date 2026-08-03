@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+  rust:
+    name: Rust checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check Rust
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+
+      - name: Test Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
+  gate:
+    name: PR checks
+    if: ${{ always() }}
+    needs: [frontend, rust]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all checks
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          RUST_RESULT: ${{ needs.rust.result }}
+        run: |
+          test "$FRONTEND_RESULT" = "success"
+          test "$RUST_RESULT" = "success"
+
+  build-develop:
+    name: Build Standin Dev (${{ matrix.target }})
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+    needs: gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            bundles: dmg
+    runs-on: ${{ matrix.platform }}
+    env:
+      STANDIN_KEYRING_SERVICE: app.standin.desktop.dev
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_WEB_BASE_URL: https://standin-seven.vercel.app
+      VITE_USE_MOCK_API: "true"
+      VITE_USE_MOCK_POSE_API: "true"
+      VITE_APP_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set develop build version
+        run: node scripts/set-version.mjs --develop-build "${{ github.run_number }}"
+
+      - name: Build Standin Dev
+        run: npm run tauri build -- --config src-tauri/tauri.dev.conf.json --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: standin-dev-${{ matrix.target }}-${{ github.run_number }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}/*
+          if-no-files-found: error
+          retention-days: 14
