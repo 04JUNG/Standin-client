@@ -7,19 +7,25 @@ import { create } from "zustand";
  */
 type PoseSelectionState = {
   jobId: string | null;
+  serverJobId: string | null;
   selectedByPerson: Record<number, string>;
   setJobId(jobId: string): void;
+  setServerJobId(jobId: string): void;
   selectCandidate(personIndex: number, candidateId: string): void;
   clearSelection(): void;
 };
 
 export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   jobId: null,
+  serverJobId: null,
   selectedByPerson: {},
   setJobId(jobId) {
     if (get().jobId !== jobId) {
-      set({ jobId, selectedByPerson: {} });
+      set({ jobId, serverJobId: null, selectedByPerson: {} });
     }
+  },
+  setServerJobId(serverJobId) {
+    set({ serverJobId });
   },
   selectCandidate(personIndex, candidateId) {
     set((state) => ({ selectedByPerson: { ...state.selectedByPerson, [personIndex]: candidateId } }));

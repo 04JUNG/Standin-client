@@ -54,6 +54,7 @@ function buildCandidates(jobId: string, personIndex: number): PoseCandidate[] {
     const thumbnailUrl = createThumbnail(rank, matchLevel);
     return {
       id: `${jobId}-p${personIndex}-candidate-${rank}`,
+      poseId: `${jobId}-p${personIndex}-pose-${rank}`,
       rank,
       title: `포즈 후보 ${rank}`,
       tags: rank % 2 === 0 ? ["전신", "정면"] : ["상반신", "측면"],

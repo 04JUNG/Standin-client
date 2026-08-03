@@ -11,6 +11,7 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
+import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
@@ -19,6 +20,8 @@ export function PoseViewerPage() {
   const draft = useUploadStore((s) => s.draft);
   const setJobId = usePoseSelectionStore((s) => s.setJobId);
   const [rerunNotice, setRerunNotice] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const bindings = useShortcutStore((s) => s.bindings);
 
   useEffect(() => {
@@ -42,11 +45,39 @@ export function PoseViewerPage() {
 
   usePoseViewerShortcuts({
     canConfirm: allSelected,
-    onConfirm: () => navigate(`/app/jobs/${jobId}/save`),
-    onRerun: () => setRerunNotice(true),
+    onConfirm: () => void confirmAndContinue(),
+    onRerun: requestRerun,
   });
 
   if (!jobId) return <Navigate to="/app/home" replace />;
+
+  function requestRerun() {
+    setRerunNotice(true);
+    trackRerunRequested(data?.jobId, {
+      selectedCount,
+      peopleCount: selectablePeople.length,
+    });
+  }
+
+  async function confirmAndContinue() {
+    if (!data || !allSelected || isConfirming) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      await confirmSelections(
+        data.jobId,
+        Object.entries(selectedByPerson).map(([personIndex, candidateId]) => ({
+          personIndex: Number(personIndex),
+          candidateId,
+        })),
+      );
+      navigate(`/app/jobs/${jobId}/save`);
+    } catch {
+      setConfirmError("선택 결과를 저장하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsConfirming(false);
+    }
+  }
 
   if (!sourceFile) {
     return (
@@ -161,7 +192,7 @@ export function PoseViewerPage() {
 
         <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => setRerunNotice(true)}>
+            <Button variant="ghost" onClick={requestRerun}>
               다른 후보 찾기
               <ShortcutKey
                 accelerator={resolveAccelerator("poseViewer.rerun", bindings)!}
@@ -177,8 +208,8 @@ export function PoseViewerPage() {
           </div>
           <Button
             size="lg"
-            disabled={!allSelected}
-            onClick={() => navigate(`/app/jobs/${jobId}/save`)}
+            disabled={!allSelected || isConfirming}
+            onClick={() => void confirmAndContinue()}
           >
             이 포즈 사용하기 ({selectedCount}/{selectablePeople.length})
             <ShortcutKey
@@ -187,6 +218,7 @@ export function PoseViewerPage() {
             />
           </Button>
         </div>
+        {confirmError && <p className="text-[12px] text-brand-coral">{confirmError}</p>}
       </div>
     </AppShell>
   );

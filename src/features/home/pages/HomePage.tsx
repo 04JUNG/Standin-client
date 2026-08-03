@@ -4,8 +4,6 @@ import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
-import { useAuthStore } from "@/features/auth/store/authStore";
-import { LogoutButton } from "@/features/auth/components/LogoutButton";
 import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 import { toggleBar } from "@/features/bar/lib/openBar";
@@ -15,7 +13,6 @@ import { toggleBar } from "@/features/bar/lib/openBar";
  * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
  */
 export function HomePage() {
-  const user = useAuthStore((s) => s.user);
   const { start: startCapture, isStarting, error: captureError } = useStartCapture();
   const bindings = useShortcutStore((s) => s.bindings);
   const globalStatus = useShortcutStore((s) => s.globalStatus);
@@ -30,15 +27,7 @@ export function HomePage() {
   });
 
   return (
-    <AppShell
-      title="홈"
-      headerRight={
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] text-text-secondary">{user?.email}</span>
-          <LogoutButton />
-        </div>
-      }
-    >
+    <AppShell title="홈">
       <div className="mx-auto max-w-[880px]">
         <h2 className="text-[22px] font-bold text-text-primary">
           어떤 장면을 3D 포즈로 바꿔볼까요?

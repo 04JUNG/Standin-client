@@ -9,6 +9,7 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { formatBytes } from "@/shared/lib/formatBytes";
 import type { UploadSource } from "@/shared/types/upload";
 import { useUploadStore } from "../store/uploadStore";
+import { trackInputConfirmed } from "@/features/analytics/analyticsClient";
 
 const SOURCE_LABEL: Record<UploadSource, string> = {
   file: "파일 업로드",
@@ -41,6 +42,7 @@ export function InputPreviewPage() {
   }
 
   function startAnalysis() {
+    trackInputConfirmed(draft!);
     // 실제 분석 Job 생성은 서버 연동 후속 브랜치. 지금은 Mock 포즈 후보 뷰어로 바로 이동한다(docs/12).
     navigate(`/app/jobs/${crypto.randomUUID()}`);
   }

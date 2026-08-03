@@ -11,6 +11,7 @@ import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResul
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
+import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
 
 /**
  * 바 모드의 후보 확인(ADR-008). 앱 창에 들어가지 않고 작업 화면 위에서 후보를 고른다.
@@ -26,8 +27,11 @@ export function BarCandidatesPage() {
   const bindings = useShortcutStore((s) => s.bindings);
   const [personCursor, setPersonCursor] = useState(0);
   const [rerunNotice, setRerunNotice] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const {
+    data,
     isPending,
     isError,
     error,
@@ -48,11 +52,39 @@ export function BarCandidatesPage() {
 
   usePoseViewerShortcuts({
     canConfirm: allSelected,
-    onConfirm: () => navigate("/bar/save"),
-    onRerun: () => setRerunNotice(true),
+    onConfirm: () => void confirmAndContinue(),
+    onRerun: requestRerun,
   });
 
   if (!jobId || !draft || !sourceFile) return <Navigate to="/bar/actions" replace />;
+
+  function requestRerun() {
+    setRerunNotice(true);
+    trackRerunRequested(data?.jobId, {
+      selectedCount,
+      peopleCount: selectablePeople.length,
+    });
+  }
+
+  async function confirmAndContinue() {
+    if (!data || !allSelected || isConfirming) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      await confirmSelections(
+        data.jobId,
+        Object.entries(selectedByPerson).map(([personIndex, candidateId]) => ({
+          personIndex: Number(personIndex),
+          candidateId,
+        })),
+      );
+      navigate("/bar/save");
+    } catch {
+      setConfirmError("선택을 저장하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsConfirming(false);
+    }
+  }
 
   const person = people[personCursor];
 
@@ -127,7 +159,7 @@ export function BarCandidatesPage() {
 
             <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border pt-2">
               <div className="flex min-w-0 items-center gap-1.5">
-                <Button variant="ghost" size="md" onClick={() => setRerunNotice(true)}>
+                <Button variant="ghost" size="md" onClick={requestRerun}>
                   다시 검색
                   <ShortcutKey accelerator={resolveAccelerator("poseViewer.rerun", bindings)!} />
                 </Button>
@@ -137,8 +169,21 @@ export function BarCandidatesPage() {
                     <span className="truncate">후속 버전에서 서버와 연동됩니다.</span>
                   </span>
                 )}
+                {confirmError && (
+                  <span
+                    role="alert"
+                    className="flex min-w-0 items-center gap-1 text-[11px] text-brand-coral"
+                  >
+                    <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+                    <span className="truncate">{confirmError}</span>
+                  </span>
+                )}
               </div>
-              <Button size="md" disabled={!allSelected} onClick={() => navigate("/bar/save")}>
+              <Button
+                size="md"
+                disabled={!allSelected || isConfirming}
+                onClick={() => void confirmAndContinue()}
+              >
                 이 포즈 사용
                 <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
               </Button>
