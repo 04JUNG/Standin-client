@@ -54,6 +54,12 @@ export function useAnalysisResult(jobId: string | undefined) {
         height: draft!.height,
       }),
     enabled: Boolean(jobId && sourceFile),
+    // queryFn이 단순 GET이 아니라 분석 Job을 생성한다. 후보→확인 화면 재마운트나
+    // 네트워크 재연결이 같은 입력의 Job을 다시 만들지 않도록 route job당 한 번만 실행한다.
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
   // hard fallback(자동 후보 없음)인 인물은 선택 대상이 아니라 안내로만 보여준다.

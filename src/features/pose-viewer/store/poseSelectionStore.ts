@@ -33,7 +33,10 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     }
   },
   setServerJobId(serverJobId) {
-    set({ serverJobId });
+    if (get().serverJobId !== serverJobId) {
+      // 같은 화면 키에서 서버 분석 결과가 바뀌더라도 이전 job의 조정본을 섞지 않는다.
+      set({ serverJobId, refineByPerson: {} });
+    }
   },
   selectCandidate(personIndex, candidateId) {
     set((state) => {
@@ -48,9 +51,18 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     });
   },
   setRefineOutcome(outcome) {
-    set((state) => ({
-      refineByPerson: { ...state.refineByPerson, [outcome.personIndex]: outcome },
-    }));
+    set((state) => {
+      // 화면을 떠난 뒤 늦게 도착한 응답은 새 job/새 후보의 저장 대상을 덮어쓰면 안 된다.
+      if (
+        state.serverJobId !== outcome.jobId ||
+        state.selectedByPerson[outcome.personIndex] !== outcome.candidateId
+      ) {
+        return state;
+      }
+      return {
+        refineByPerson: { ...state.refineByPerson, [outcome.personIndex]: outcome },
+      };
+    });
   },
   clearSelection() {
     set({ selectedByPerson: {}, refineByPerson: {} });

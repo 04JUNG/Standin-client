@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult, PersonResult } from "../api/pose.contract";
 
@@ -32,7 +32,16 @@ describe("useRefineSelection", () => {
   beforeEach(() => {
     refineSelection.mockReset();
     refineSelection.mockImplementation(
-      async ({ personIndex, candidateId }: { personIndex: number; candidateId: string }) => ({
+      async ({
+        jobId,
+        personIndex,
+        candidateId,
+      }: {
+        jobId: string;
+        personIndex: number;
+        candidateId: string;
+      }) => ({
+        jobId,
         personIndex,
         candidateId,
         refined: true,
@@ -41,11 +50,19 @@ describe("useRefineSelection", () => {
         exportUrl: `/v1/export/${personIndex}`,
       }),
     );
-    usePoseSelectionStore.setState({ selectedByPerson: {}, refineByPerson: {} });
+    usePoseSelectionStore.setState({
+      serverJobId: "server-job",
+      selectedByPerson: {},
+      refineByPerson: {},
+    });
   });
 
   afterEach(() => {
-    usePoseSelectionStore.setState({ selectedByPerson: {}, refineByPerson: {} });
+    usePoseSelectionStore.setState({
+      serverJobId: null,
+      selectedByPerson: {},
+      refineByPerson: {},
+    });
   });
 
   it("선택한 인물의 조정 결과를 저장한다", async () => {
@@ -90,6 +107,7 @@ describe("useRefineSelection", () => {
       async ({ personIndex, candidateId }: { personIndex: number; candidateId: string }) => {
         if (personIndex === 0) throw new Error("timeout");
         return {
+          jobId: "server-job",
           personIndex,
           candidateId,
           refined: false,
@@ -119,5 +137,59 @@ describe("useRefineSelection", () => {
     // 남겨 두면 저장 단계가 고르지 않은 포즈의 exportUrl을 내려받는다.
     usePoseSelectionStore.getState().selectCandidate(0, "cand-other");
     expect(usePoseSelectionStore.getState().refineByPerson[0]).toBeUndefined();
+  });
+
+  it("화면을 떠난 뒤 도착한 이전 후보의 조정 결과를 버린다", async () => {
+    let resolveOld!: (value: {
+      jobId: string;
+      personIndex: number;
+      candidateId: string;
+      refined: boolean;
+      reasonCode: string;
+      adjustedLimbs: string[];
+      exportUrl: string;
+    }) => void;
+    refineSelection.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+    );
+    usePoseSelectionStore.setState({ selectedByPerson: { 0: "old-candidate" } });
+    const { unmount } = renderHook(() => useRefineSelection(analysis([person({ index: 0 })])));
+    await waitFor(() => expect(refineSelection).toHaveBeenCalledTimes(1));
+
+    unmount();
+    usePoseSelectionStore.getState().selectCandidate(0, "new-candidate");
+    await act(async () => {
+      resolveOld({
+        jobId: "server-job",
+        personIndex: 0,
+        candidateId: "old-candidate",
+        refined: true,
+        reasonCode: "ok_partial",
+        adjustedLimbs: ["left_arm"],
+        exportUrl: "/v1/export/old-candidate",
+      });
+    });
+
+    expect(usePoseSelectionStore.getState().refineByPerson[0]).toBeUndefined();
+  });
+
+  it("다른 서버 job의 조정 결과를 버린다", async () => {
+    refineSelection.mockResolvedValue({
+      jobId: "stale-server-job",
+      personIndex: 0,
+      candidateId: "cand-0",
+      refined: true,
+      reasonCode: "ok_partial",
+      adjustedLimbs: ["left_arm"],
+      exportUrl: "/v1/export/stale",
+    });
+    usePoseSelectionStore.setState({ selectedByPerson: { 0: "cand-0" } });
+    const { result } = renderHook(() => useRefineSelection(analysis([person({ index: 0 })])));
+
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.refineByPerson[0]).toBeUndefined();
   });
 });

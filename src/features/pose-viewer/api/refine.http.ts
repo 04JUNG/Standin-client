@@ -14,11 +14,13 @@ type BffRefineResponse = {
 
 export const refineHttp: RefineService = {
   async refineSelection({ jobId, personIndex, candidateId }): Promise<RefineOutcome> {
-    const res = await apiFetch<BffRefineResponse>(
-      endpoints.analysis.refine(jobId, personIndex),
-      { method: "POST", body: { candidateId }, auth: false },
-    );
+    const res = await apiFetch<BffRefineResponse>(endpoints.analysis.refine(jobId, personIndex), {
+      method: "POST",
+      body: { candidateId },
+      auth: false,
+    });
     return {
+      jobId: res.jobId,
       personIndex: res.personIndex,
       candidateId: res.candidateId,
       refined: res.refined === true,

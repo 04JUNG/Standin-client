@@ -9,7 +9,9 @@ import type { UploadDraft } from "@/shared/types/upload";
 import { AnalysisError } from "../api/pose.contract";
 
 const analyze = vi.fn();
-vi.mock("../api/pose.service", () => ({ poseService: { analyze: (...args: unknown[]) => analyze(...args) } }));
+vi.mock("../api/pose.service", () => ({
+  poseService: { analyze: (...args: unknown[]) => analyze(...args) },
+}));
 
 const { useAnalysisResult } = await import("./useAnalysisResult");
 
@@ -46,15 +48,24 @@ function wrapper({ children }: { children: ReactNode }) {
   return createElement(QueryClientProvider, { client }, children);
 }
 
+function wrapperFor(client: QueryClient) {
+  return function SharedQueryClientWrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client }, children);
+  };
+}
+
 describe("useAnalysisResult 실패 계측", () => {
   beforeEach(() => {
     safeStorage.removeItem(QUEUE_KEY);
     safeStorage.removeItem("standin.analytics.sequence.v1");
     useUploadStore.setState({ draft: draftFixture(), origin: "app" });
     // 이벤트가 큐에 남도록 전송을 실패시킨다. 큐 내용이 곧 "무엇을 남겼는가"다.
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new TypeError("offline");
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("offline");
+      }),
+    );
     analyze.mockReset();
   });
 
@@ -185,5 +196,31 @@ describe("useAnalysisResult 실패 계측", () => {
     // hard인 인물이 있어도 나머지 인물만 고르면 저장으로 넘어갈 수 있어야 한다.
     result.current.selectCandidate(0, "cand-1");
     await waitFor(() => expect(result.current.allSelected).toBe(true));
+  });
+
+  it("확인 화면에 다시 마운트돼도 같은 분석 Job을 생성하지 않는다", async () => {
+    analyze.mockResolvedValue({
+      jobId: "server-job",
+      people: [],
+      capabilities: { refine: false },
+    });
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 0 } },
+    });
+    const sharedWrapper = wrapperFor(client);
+
+    const first = renderHook(() => useAnalysisResult("client-job-remount"), {
+      wrapper: sharedWrapper,
+    });
+    await waitFor(() => expect(first.result.current.data).toBeDefined());
+    first.unmount();
+
+    const second = renderHook(() => useAnalysisResult("client-job-remount"), {
+      wrapper: sharedWrapper,
+    });
+    await waitFor(() => expect(second.result.current.data).toBeDefined());
+    expect(analyze).toHaveBeenCalledTimes(1);
+    second.unmount();
+    client.clear();
   });
 });

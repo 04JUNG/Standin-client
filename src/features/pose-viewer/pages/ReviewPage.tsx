@@ -2,7 +2,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2, Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
-import { BvhPreview } from "../components/BvhPreview";
+import { LazyBvhPreview } from "../components/LazyBvhPreview";
 import { RefineBadge } from "../components/RefineBadge";
 import { useSelectionReview } from "../hooks/useSelectionReview";
 
@@ -41,7 +41,7 @@ export function ReviewPage() {
                 <span className="text-[12px] text-text-secondary">{item.candidate.title}</span>
               </div>
               {item.exportUrl ? (
-                <BvhPreview url={item.exportUrl} label={item.candidate.title} />
+                <LazyBvhPreview url={item.exportUrl} label={item.candidate.title} />
               ) : (
                 <div className="flex aspect-[4/3] items-center justify-center rounded-lg bg-surface-2 text-[12px] text-text-secondary">
                   미리보기를 사용할 수 없습니다.
@@ -58,7 +58,11 @@ export function ReviewPage() {
           <Button variant="ghost" onClick={() => navigate(`/app/jobs/${jobId}`)}>
             후보 다시 고르기
           </Button>
-          <Button size="lg" disabled={isRefining} onClick={() => navigate(`/app/jobs/${jobId}/save`)}>
+          <Button
+            size="lg"
+            disabled={isRefining}
+            onClick={() => navigate(`/app/jobs/${jobId}/save`)}
+          >
             {isRefining ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

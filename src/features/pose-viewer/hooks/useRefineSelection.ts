@@ -57,6 +57,8 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
             personIndex: next.personIndex,
             candidateId: next.candidateId,
           });
+          // store에서도 현재 job/candidate를 다시 확인한다. 화면을 떠난 뒤 응답이 와도
+          // 새 선택의 export URL을 이전 조정본으로 되돌릴 수 없다.
           setRefineOutcome(outcome);
         } catch {
           // 조정에 실패해도 베이스 포즈는 그대로 저장할 수 있다. 결과를 기록하지 않으면
@@ -64,9 +66,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
         }
       }
     };
-    await Promise.all(
-      Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker),
-    );
+    await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker));
     setStatus("done");
   }, [setRefineOutcome]);
 

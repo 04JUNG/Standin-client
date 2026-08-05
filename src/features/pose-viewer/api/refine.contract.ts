@@ -5,6 +5,8 @@
  * 보관해 둔 값을 쓴다 — 클라가 되돌려 보내는 구조였다면 refine 금지를 우회할 수 있다.
  */
 export type RefineOutcome = {
+  /** 응답이 어느 분석 결과에서 만들어졌는지 확인하는 stale-response guard. */
+  jobId: string;
   personIndex: number;
   candidateId: string;
   /**

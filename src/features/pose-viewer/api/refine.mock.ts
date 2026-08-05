@@ -9,6 +9,7 @@ export const refineMock: RefineService = {
     await new Promise((r) => setTimeout(r, 400));
     const refined = personIndex % 2 === 0;
     return {
+      jobId,
       personIndex,
       candidateId,
       refined,

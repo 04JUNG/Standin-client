@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Save } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
-import { BvhPreview } from "@/features/pose-viewer/components/BvhPreview";
+import { LazyBvhPreview } from "@/features/pose-viewer/components/LazyBvhPreview";
 import { RefineBadge } from "@/features/pose-viewer/components/RefineBadge";
 import { useSelectionReview } from "@/features/pose-viewer/hooks/useSelectionReview";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -56,7 +56,7 @@ export function BarReviewPage() {
 
         <div className="flex min-h-0 flex-1 flex-col gap-1.5">
           {item?.exportUrl ? (
-            <BvhPreview url={item.exportUrl} label={item.candidate.title} />
+            <LazyBvhPreview url={item.exportUrl} label={item.candidate.title} />
           ) : (
             <div className="flex flex-1 items-center justify-center text-[11px] text-text-secondary">
               미리보기를 사용할 수 없습니다.

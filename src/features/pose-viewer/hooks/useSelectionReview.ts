@@ -34,14 +34,16 @@ export function useSelectionReview(jobId: string | undefined) {
         ?.candidates.find((c) => c.id === candidateId);
       if (!candidate) return [];
       const outcome = refineByPerson[personIndex];
+      const currentOutcome =
+        outcome?.jobId === data.jobId && outcome.candidateId === candidateId ? outcome : undefined;
       return [
         {
           personIndex,
           candidate,
           // 조정 결과가 있으면 그 URL이 최종이다. 없으면 후보의 베이스 URL로 저장한다.
-          exportUrl: outcome?.exportUrl ?? candidate.bvhUrl,
-          refined: outcome?.refined === true,
-          skipped: !outcome,
+          exportUrl: currentOutcome?.exportUrl ?? candidate.bvhUrl,
+          refined: currentOutcome?.refined === true,
+          skipped: !currentOutcome,
         },
       ];
     });
