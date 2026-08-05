@@ -82,13 +82,30 @@ export function useSaveFlow(jobId: string | undefined) {
       startSaving();
       try {
         const analysisResult = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id));
+        if (!analysisResult) {
+          throw new Error("분석 결과를 찾지 못했습니다. 후보 화면에서 다시 시도해 주세요.");
+        }
+        const refineByPerson = usePoseSelectionStore.getState().refineByPerson;
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
             const candidate = analysisResult?.people
               .find((p) => p.index === personIndex)
               ?.candidates.find((c) => c.id === candidateId);
-            const content = await resolveBvhContent(candidate?.bvhUrl, candidateId);
+            if (!candidate) {
+              throw new Error("선택한 포즈를 분석 결과에서 찾지 못했습니다.");
+            }
+            // 조정 결과가 있으면 BFF가 확정한 URL이 최종이다. 확인 화면이 보여 준 것과
+            // 같은 URL이어야 "본 것과 저장된 것이 다르다"가 생기지 않는다.
+            // 어느 쪽이든 BFF 경로다 — 추론 서버의 /refined/{handle}는 그 태스크의 로컬
+            // 디스크라 태스크가 교체되면 사라진다(FE-05).
+            const outcome = refineByPerson[personIndex];
+            const currentOutcome =
+              outcome?.jobId === analysisResult.jobId && outcome.candidateId === candidateId
+                ? outcome
+                : undefined;
+            const bvhUrl = currentOutcome?.exportUrl ?? candidate.bvhUrl;
+            const content = await resolveBvhContent(bvhUrl, candidateId);
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),
         );

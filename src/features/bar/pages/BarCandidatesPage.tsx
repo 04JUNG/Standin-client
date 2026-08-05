@@ -7,6 +7,7 @@ import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { PoseCandidateCard } from "@/features/pose-viewer/components/PoseCandidateCard";
+import { PersonFallbackNotice } from "@/features/pose-viewer/components/PersonFallbackNotice";
 import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -78,7 +79,8 @@ export function BarCandidatesPage() {
           candidateId,
         })),
       );
-      navigate("/bar/save");
+      // 앱 모드와 같은 순서다(ADR-010) — 저장 전에 조정 결과를 확인한다.
+      navigate("/bar/review");
     } catch {
       setConfirmError("선택을 저장하지 못했습니다. 다시 시도해 주세요.");
     } finally {
@@ -138,22 +140,26 @@ export function BarCandidatesPage() {
               </div>
             )}
 
-            {person.candidates.length === 0 ? (
-              <p className="flex flex-1 items-center justify-center gap-1.5 px-3 text-center text-[12px] text-brand-coral">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />이 인물에 맞는 포즈
-                후보를 찾지 못했습니다.
-              </p>
+            {person.fallbackMode === "hard" ? (
+              <div className="flex flex-1 items-center justify-center px-3">
+                <PersonFallbackNotice person={person} compact />
+              </div>
             ) : (
               // 좁은 폭이라 가로 스트립으로 훑는다.
-              <div className="grid min-h-0 flex-1 grid-cols-5 gap-1.5 overflow-y-auto">
-                {person.candidates.map((candidate) => (
-                  <PoseCandidateCard
-                    key={candidate.id}
-                    candidate={candidate}
-                    isSelected={candidate.id === selectedByPerson[person.index]}
-                    onSelect={() => selectCandidate(person.index, candidate.id)}
-                  />
-                ))}
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+                {/* soft fallback 안내는 앱 모드와 같은 컴포넌트를 쓴다 — 표면마다 경고가
+                    달라지면 같은 결과를 다르게 판단하게 된다. */}
+                <PersonFallbackNotice person={person} compact />
+                <div className="grid grid-cols-5 gap-1.5">
+                  {person.candidates.map((candidate) => (
+                    <PoseCandidateCard
+                      key={candidate.id}
+                      candidate={candidate}
+                      isSelected={candidate.id === selectedByPerson[person.index]}
+                      onSelect={() => selectCandidate(person.index, candidate.id)}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 

@@ -4,11 +4,13 @@ import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
 import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { PoseViewerPage } from "@/features/pose-viewer/pages/PoseViewerPage";
+import { ReviewPage } from "@/features/pose-viewer/pages/ReviewPage";
 import { SavePage } from "@/features/export/pages/SavePage";
 import { BarCollapsedPage } from "@/features/bar/pages/BarCollapsedPage";
 import { BarActionsPage } from "@/features/bar/pages/BarActionsPage";
 import { BarProgressPage } from "@/features/bar/pages/BarProgressPage";
 import { BarCandidatesPage } from "@/features/bar/pages/BarCandidatesPage";
+import { BarReviewPage } from "@/features/bar/pages/BarReviewPage";
 import { BarSavePage } from "@/features/bar/pages/BarSavePage";
 import { RootLayout } from "./RootLayout";
 import { RequireInstallation } from "./guards";
@@ -61,6 +63,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "/app/jobs/:jobId/review",
+        element: (
+          <RequireInstallation>
+            <ReviewPage />
+          </RequireInstallation>
+        ),
+      },
+      {
         path: "/app/jobs/:jobId/save",
         element: (
           <RequireInstallation>
@@ -107,6 +117,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireInstallation>
             <BarCandidatesPage />
+          </RequireInstallation>
+        ),
+      },
+      {
+        path: "/bar/review",
+        element: (
+          <RequireInstallation>
+            <BarReviewPage />
           </RequireInstallation>
         ),
       },

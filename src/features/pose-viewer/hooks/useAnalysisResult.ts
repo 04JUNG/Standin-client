@@ -54,12 +54,19 @@ export function useAnalysisResult(jobId: string | undefined) {
         height: draft!.height,
       }),
     enabled: Boolean(jobId && sourceFile),
+    // queryFn이 단순 GET이 아니라 분석 Job을 생성한다. 후보→확인 화면 재마운트나
+    // 네트워크 재연결이 같은 입력의 Job을 다시 만들지 않도록 route job당 한 번만 실행한다.
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: false,
   });
 
-  // 후보를 하나도 못 찾은 인물은 선택 대상이 아니라 "검색 실패"로만 보여준다.
+  // hard fallback(자동 후보 없음)인 인물은 선택 대상이 아니라 안내로만 보여준다.
+  // soft fallback은 다르다 — 저신뢰지만 후보가 있으므로 계속 고르고 저장할 수 있다.
   const people = useMemo(() => query.data?.people ?? [], [query.data?.people]);
-  const selectablePeople = people.filter((p) => p.candidates.length > 0);
-  const failedPeople = people.filter((p) => p.candidates.length === 0);
+  const selectablePeople = people.filter((p) => p.fallbackMode !== "hard");
+  const failedPeople = people.filter((p) => p.fallbackMode === "hard");
   const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
   const allSelected = selectablePeople.length > 0 && selectedCount === selectablePeople.length;
 

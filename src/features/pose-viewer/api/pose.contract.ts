@@ -20,16 +20,44 @@ export type PoseCandidate = {
   bvhUrl?: string;
 };
 
+export type PersonConfidence = "high" | "low";
+export type SkeletonState = "valid" | "partial" | "suspect" | "missing" | "invalid";
+export type SkeletonSource = "full_image" | "crop_retry" | "none";
+export type CoverageClass = "full" | "reduced" | "sparse" | "insufficient";
+
+/**
+ * 인물 단위 폴백 상태(BFF `fallbackMode`).
+ *
+ * - `none` — 일반 Top-5
+ * - `soft` — 스켈레톤 인식이 불확실하다. 후보는 보여주되 참고용이라고 알리고 refine은 금지
+ * - `hard` — 이 인물에 자동 후보가 없다. 다른 인물의 흐름은 계속 진행한다
+ *
+ * soft와 hard를 하나로 뭉치면 "참고용 후보가 있다"와 "후보가 없다"를 화면이 구분할 수 없다.
+ */
+export type FallbackMode = "none" | "soft" | "hard";
+
 /** 검출된 인물 한 명과 그 인물의 포즈 후보들. index는 실 서버 people[].index를 그대로 따른다. */
 export type PersonResult = {
   index: number;
   candidates: PoseCandidate[];
+  confidence: PersonConfidence;
+  skeletonState: SkeletonState;
+  skeletonSource: SkeletonSource;
+  coverageClass: CoverageClass;
+  fallbackMode: FallbackMode;
+  refineAllowed: boolean;
+  refinableLimbs: string[];
 };
 
 export type AnalysisResult = {
   jobId: string;
   inputPreviewUrl?: string;
   people: PersonResult[];
+  /**
+   * 서버가 이 기능을 노출하는가. 추론 endpoint가 살아 있어도 BFF flag가 꺼져 있으면
+   * false가 오고, 클라이언트는 그걸 따른다(자기 판단으로 호출하지 않는다).
+   */
+  capabilities: { refine: boolean };
 };
 
 /**
