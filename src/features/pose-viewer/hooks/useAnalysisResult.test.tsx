@@ -131,4 +131,59 @@ describe("useAnalysisResult 실패 계측", () => {
     result.current.selectCandidate(0, "cand-1");
     expect(queued().filter((e) => e.name === "candidate_selected")).toHaveLength(1);
   });
+
+  // FE-02. soft는 저신뢰지만 고를 수 있고, hard만 선택 대상에서 빠진다. 둘을 후보 개수로
+  // 뭉뚱그리면 "참고용 후보가 있다"와 "후보가 없다"를 화면이 구분할 수 없다.
+  it("soft fallback은 선택 가능하고 hard만 제외한다", async () => {
+    const candidateFixture = {
+      id: "cand-1",
+      poseId: "pose-1",
+      rank: 1,
+      title: "포즈 1",
+      tags: [],
+      matchLevel: "low" as const,
+      thumbnailUrl: "",
+      previewImages: [],
+      modelUrl: null,
+      bvhAvailable: false,
+    };
+    analyze.mockResolvedValue({
+      jobId: "server-job",
+      capabilities: { refine: false },
+      people: [
+        {
+          index: 0,
+          fallbackMode: "soft",
+          confidence: "low",
+          skeletonState: "partial",
+          skeletonSource: "crop_retry",
+          coverageClass: "reduced",
+          refineAllowed: false,
+          refinableLimbs: [],
+          candidates: [candidateFixture],
+        },
+        {
+          index: 1,
+          fallbackMode: "hard",
+          confidence: "low",
+          skeletonState: "missing",
+          skeletonSource: "none",
+          coverageClass: "insufficient",
+          refineAllowed: false,
+          refinableLimbs: [],
+          candidates: [],
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useAnalysisResult("client-job-fallback"), { wrapper });
+    await waitFor(() => expect(result.current.people).toHaveLength(2));
+
+    expect(result.current.selectablePeople.map((p) => p.index)).toEqual([0]);
+    expect(result.current.failedPeople.map((p) => p.index)).toEqual([1]);
+
+    // hard인 인물이 있어도 나머지 인물만 고르면 저장으로 넘어갈 수 있어야 한다.
+    result.current.selectCandidate(0, "cand-1");
+    await waitFor(() => expect(result.current.allSelected).toBe(true));
+  });
 });

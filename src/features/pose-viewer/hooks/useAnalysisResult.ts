@@ -56,10 +56,11 @@ export function useAnalysisResult(jobId: string | undefined) {
     enabled: Boolean(jobId && sourceFile),
   });
 
-  // 후보를 하나도 못 찾은 인물은 선택 대상이 아니라 "검색 실패"로만 보여준다.
+  // hard fallback(자동 후보 없음)인 인물은 선택 대상이 아니라 안내로만 보여준다.
+  // soft fallback은 다르다 — 저신뢰지만 후보가 있으므로 계속 고르고 저장할 수 있다.
   const people = useMemo(() => query.data?.people ?? [], [query.data?.people]);
-  const selectablePeople = people.filter((p) => p.candidates.length > 0);
-  const failedPeople = people.filter((p) => p.candidates.length === 0);
+  const selectablePeople = people.filter((p) => p.fallbackMode !== "hard");
+  const failedPeople = people.filter((p) => p.fallbackMode === "hard");
   const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
   const allSelected = selectablePeople.length > 0 && selectedCount === selectablePeople.length;
 

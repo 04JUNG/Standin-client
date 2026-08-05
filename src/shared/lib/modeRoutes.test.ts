@@ -8,6 +8,9 @@ describe("appRouteForBarPath", () => {
     expect(appRouteForBarPath("/bar/candidates", { jobId: JOB, hasDraft: true })).toBe(
       `/app/jobs/${JOB}`,
     );
+    expect(appRouteForBarPath("/bar/review", { jobId: JOB, hasDraft: true })).toBe(
+      `/app/jobs/${JOB}/review`,
+    );
     expect(appRouteForBarPath("/bar/save", { jobId: JOB, hasDraft: true })).toBe(
       `/app/jobs/${JOB}/save`,
     );
@@ -33,6 +36,7 @@ describe("appRouteForBarPath", () => {
 describe("barRouteForAppPath", () => {
   it("후보·저장 단계를 같은 단계의 바로 접는다", () => {
     expect(barRouteForAppPath(`/app/jobs/${JOB}`)).toBe("/bar/candidates");
+    expect(barRouteForAppPath(`/app/jobs/${JOB}/review`)).toBe("/bar/review");
     expect(barRouteForAppPath(`/app/jobs/${JOB}/save`)).toBe("/bar/save");
   });
 
@@ -50,14 +54,19 @@ describe("barRouteForAppPath", () => {
 
 describe("왕복", () => {
   it("바 → 앱 → 바가 같은 단계로 돌아온다", () => {
-    for (const barPath of ["/bar/candidates", "/bar/save"]) {
+    for (const barPath of ["/bar/candidates", "/bar/review", "/bar/save"]) {
       const appPath = appRouteForBarPath(barPath, { jobId: JOB, hasDraft: true });
       expect(barRouteForAppPath(appPath), barPath).toBe(barPath);
     }
   });
 
   it("앱 → 바 → 앱이 같은 단계로 돌아온다", () => {
-    for (const appPath of [`/app/jobs/${JOB}`, `/app/jobs/${JOB}/save`, "/app/preview"]) {
+    for (const appPath of [
+      `/app/jobs/${JOB}`,
+      `/app/jobs/${JOB}/review`,
+      `/app/jobs/${JOB}/save`,
+      "/app/preview",
+    ]) {
       const barPath = barRouteForAppPath(appPath);
       expect(appRouteForBarPath(barPath, { jobId: JOB, hasDraft: true }), appPath).toBe(appPath);
     }
