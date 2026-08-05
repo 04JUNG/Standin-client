@@ -59,6 +59,30 @@ export function sanitizeBindings(persisted: unknown): Partial<Record<ShortcutId,
   return out;
 }
 
+/**
+ * v1까지 쓰던 전역 캡처 기본값. 클립스튜디오 "다른 이름으로 저장"과 충돌해 v2에서 버렸다.
+ */
+const V1_CAPTURE_DEFAULT = "Mod+Shift+KeyS";
+
+/**
+ * v1 → v2: 기본값을 그대로 쓰던 사용자만 새 기본값으로 옮긴다.
+ *
+ * 직접 바꾼 바인딩은 건드리지 않는다 — 사용자가 고른 키를 앱이 마음대로 되돌리면
+ * 설정이 사라진 것처럼 보인다. 기본값 항목은 아예 지워서 merge가 새 기본값을 채우게 한다.
+ */
+export function migrateShortcuts(persisted: unknown, version: number): unknown {
+  if (version >= 2) return persisted;
+
+  const bindings = (persisted as { bindings?: unknown } | null)?.bindings;
+  if (!bindings || typeof bindings !== "object") return persisted;
+
+  const next = { ...(bindings as Record<string, unknown>) };
+  if (next["capture.start"] === V1_CAPTURE_DEFAULT) {
+    delete next["capture.start"];
+  }
+  return { ...(persisted as object), bindings: next };
+}
+
 export const useShortcutStore = create<ShortcutState>()(
   persist(
     (set, get) => ({
@@ -116,10 +140,11 @@ export const useShortcutStore = create<ShortcutState>()(
     }),
     {
       name: "standin-shortcuts",
-      version: 1,
+      version: 2,
       // 프라이빗 모드·테스트 환경에서 경고 없이 메모리로 폴백한다.
       storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({ bindings: state.bindings }),
+      migrate: migrateShortcuts,
       // 레지스트리에 항목이 추가되면 영속값에는 없으므로 항상 기본값과 병합한다.
       merge: (persisted, current) => ({
         ...current,

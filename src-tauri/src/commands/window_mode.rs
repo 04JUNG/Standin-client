@@ -8,7 +8,9 @@
 // (docs/11 §3 최소 capability). 자체 command는 permission 대상이 아니다.
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewWindow};
+use tauri::{
+    AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewWindow,
+};
 
 /// 앱 모드의 최소 크기(CLAUDE.md §11 최소 권장 창 크기 960×640).
 const APP_MIN_WIDTH: f64 = 960.0;
@@ -49,6 +51,16 @@ pub fn window_control(app: AppHandle, action: String) -> Result<(), WindowError>
     Ok(())
 }
 
+/// 오버레이를 띄울 모니터의 물리 픽셀 경계. `capture.rs`의 `MonitorBounds`가 그대로 온다.
+#[derive(Deserialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorRect {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowModeRequest {
@@ -57,6 +69,8 @@ pub struct WindowModeRequest {
     /// 바 모드의 목표 크기. 크기 표는 UI 관심사라 TS가 소유한다(CLAUDE.md §9).
     width: Option<f64>,
     height: Option<f64>,
+    /// 오버레이 모드에서 덮을 모니터. 캡처한 모니터를 그대로 받는다.
+    monitor: Option<MonitorRect>,
 }
 
 #[derive(Serialize)]
@@ -138,6 +152,23 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
             let _ = window.set_min_size(None::<LogicalSize<f64>>);
             let _ = window.set_resizable(false);
             let _ = window.set_always_on_top(true);
+
+            // 캡처한 모니터로 창을 먼저 옮긴다.
+            //
+            // set_fullscreen은 "창이 지금 있는 모니터"를 덮는다. 캡처 대상은 커서가
+            // 있는 모니터인데 창은 바가 있던 자리에 그대로라, 옮기지 않으면 A 모니터
+            // 사진을 B 모니터에 띄우게 된다. 듀얼 모니터 시연이 이렇게 깨졌다.
+            //
+            // 캡처 대상과 오버레이 위치를 **한 값**에서 파생시켜 둘이 갈라질 수 없게 한다.
+            if let Some(rect) = req.monitor {
+                // 전체화면 상태에서는 이동이 먹지 않는다. 먼저 푼다.
+                let _ = window.set_fullscreen(false);
+                let _ = window.set_position(PhysicalPosition::new(rect.x, rect.y));
+                // 크기까지 맞춰야 창 전체가 목적지 모니터 안에 들어간다. 걸쳐 있으면
+                // OS가 어느 쪽을 "현재 모니터"로 볼지 보장되지 않는다.
+                let _ = window.set_size(PhysicalSize::new(rect.width, rect.height));
+            }
+
             window
                 .set_fullscreen(true)
                 .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;

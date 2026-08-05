@@ -17,8 +17,13 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     label: "캡처 바 열기",
     scope: "global",
     hint: "앱이 백그라운드여도 바가 화면 위에 뜹니다.",
-    // Windows Ctrl+Shift+S / macOS ⌘⇧S (docs/07 §7)
-    defaultAccelerator: "Mod+Shift+KeyS",
+    // Windows Ctrl+Alt+S / macOS ⌘⌥S (docs/07 §7)
+    //
+    // Ctrl+Shift+S를 쓰지 않는다. 클립스튜디오 기본 "다른 이름으로 저장"이 같은
+    // 조합이라 CSP가 먼저 떠 있으면 RegisterHotKey가 실패한다(작가 인터뷰에서 실측).
+    // 대상 사용자가 항상 CSP를 띄워 둔 채 쓰는 앱이므로 충돌하는 조합을 기본값으로
+    // 둘 수 없다.
+    defaultAccelerator: "Mod+Alt+KeyS",
     customizable: true,
   },
   {
@@ -26,7 +31,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     label: "캡처 바 열기(앱 내)",
     scope: "home",
     hint: "전역 등록에 실패했거나 브라우저 개발 모드일 때만 동작합니다.",
-    defaultAccelerator: "Mod+Shift+KeyS",
+    defaultAccelerator: "Mod+Alt+KeyS",
     customizable: false,
     mirrorOf: "capture.start",
   },

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { useCaptureStore } from "@/features/capture/store/captureStore";
 import { windowModeService } from "../api/windowMode.service";
 import { barStateForPath, windowTargetForPath } from "../lib/barSizes";
 import { useWindowModeStore } from "../stores/windowModeStore";
@@ -35,7 +36,13 @@ export function WindowModeSync() {
       }
 
       if (cancelled) return;
-      await windowModeService.setMode(target.mode, target.size);
+
+      // 오버레이는 **캡처한 모니터**를 덮어야 한다. 프레임을 잡은 쪽(capture)이 고른
+      // 모니터를 그대로 가져와, 캡처 대상과 오버레이 위치가 갈라질 수 없게 한다.
+      // startCaptureFlow가 setFrame 뒤에 navigate하므로 이 시점에 프레임이 있다.
+      const monitor =
+        target.mode === "overlay" ? useCaptureStore.getState().frame?.monitor : undefined;
+      await windowModeService.setMode(target.mode, target.size, monitor);
       if (cancelled) return;
 
       if (barState) {

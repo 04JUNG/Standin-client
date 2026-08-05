@@ -6,7 +6,12 @@ import {
   type ScreenFrame,
 } from "./capture.contract";
 
-type RawFrame = { dataUrl: string; width: number; height: number };
+type RawFrame = {
+  dataUrl: string;
+  width: number;
+  height: number;
+  monitor: { x: number; y: number; width: number; height: number };
+};
 
 const KNOWN_CODES: CaptureErrorCode[] = [
   "CANCELLED",
