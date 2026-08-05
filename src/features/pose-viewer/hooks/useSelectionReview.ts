@@ -52,7 +52,13 @@ export function useSelectionReview(jobId: string | undefined) {
   return {
     ...analysis,
     items,
-    /** refine 호출이 아직 도는 중이면 미리보기 URL이 바뀔 수 있다. */
-    isRefining: status === "running",
+    /**
+     * 조정이 끝나지 않았다 — 저장 대상 URL이 아직 바뀔 수 있다.
+     *
+     * `running`이 아니라 `!== "done"`으로 본다. 마운트 직후 한 프레임 동안 status는
+     * `idle`인데, 그걸 "끝남"으로 다루면 첫 렌더가 완료 화면을 보여주고 저장 버튼도
+     * 활성이 된다 — 그 사이에 저장하면 조정본 대신 베이스 URL이 내려간다.
+     */
+    isRefining: status !== "done",
   };
 }
