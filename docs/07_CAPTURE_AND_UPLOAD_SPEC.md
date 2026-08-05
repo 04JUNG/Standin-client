@@ -139,9 +139,11 @@ invoke<CaptureRegionResult>("capture_region");
 
 ### 전역 캡처 단축키
 
-기본값: `Ctrl+Shift+S`(Windows/Linux) / `Command+Shift+S`(macOS).
+기본값: `Ctrl+Alt+S`(Windows/Linux) / `Command+Option+S`(macOS).
 
-내부 표기는 `Mod+Shift+KeyS` 하나로 두고 `Mod`가 OS 분기를 흡수한다. 등록은 Rust command가 담당한다(ADR-007).
+내부 표기는 `Mod+Alt+KeyS` 하나로 두고 `Mod`가 OS 분기를 흡수한다. 등록은 Rust command가 담당한다(ADR-007).
+
+`Ctrl+Shift+S`를 쓰지 않는다. 클립스튜디오 기본 "다른 이름으로 저장"이 같은 조합이라 CSP가 먼저 떠 있으면 Windows `RegisterHotKey`가 실패한다. 대상 사용자는 항상 CSP를 띄워 둔 채 이 앱을 쓰므로, 충돌하는 조합은 기본값이 될 수 없다. 작가 인터뷰에서 실측된 실패다.
 
 **목적지는 플로팅 바다**(ADR-008). 즉시 캡처가 아니라 바를 열고, 캡처는 바의 버튼(또는 `C`)으로 시작한다. 이미 바가 펼쳐져 있으면 접는 토글로 동작하며, 흐름 도중(진행·후보·저장)에는 작업을 잃지 않도록 접지 않는다.
 
@@ -150,12 +152,14 @@ invoke<CaptureRegionResult>("capture_region");
 | 요구사항 | 구현 |
 |---|---|
 | 설정에서 변경 | 설정 › 단축키에서 재지정. 충돌 검사 후 저장 |
-| 충돌 시 등록 실패 안내 | 인라인 오류 + "이전 단축키로 되돌리기" |
+| 충돌 시 등록 실패 안내 | 설정에 인라인 오류 + "이전 단축키로 되돌리기". 더해 **앱 셸 배너**와 **바 경고 아이콘**으로 모든 화면에 노출 |
 | 앱 종료 시 해제 | 플러그인 teardown이 처리. `unregister_capture_shortcut`도 노출 |
 | 입력 필드 타이핑과 충돌하지 않음 | 앱 내 단축키는 포커스 가드로 차단(아래) |
 | 화면에 현재 단축키 표시 | 홈 캡처 CTA 배지 · 설정 목록 · 치트시트 |
 
 전역 등록에 실패했거나 브라우저 개발 모드이면 같은 키가 **앱이 활성일 때만** 동작하는 대체 경로로 내려간다. 이때 배지를 흐리게 표시하고 그 사실을 안내한다 — 동작하지 않는 기능을 동작하는 것처럼 보이지 않게 한다(CLAUDE.md §10).
+
+등록 실패(`failed`)는 설정 화면에만 두지 않는다. `GlobalShortcutAlert`가 앱 셸 상단에 배너로, `GlobalShortcutIndicator`가 플로팅 바 헤더에 아이콘으로 함께 띄운다. 실패가 조용하면 실패하지 않은 것처럼 보이고, 실제로 그렇게 시연이 진행된 적이 있다. `unavailable`(브라우저 개발 모드)은 사용자가 할 수 있는 일이 없으므로 경고하지 않는다.
 
 ### accelerator 표기
 

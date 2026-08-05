@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GripVertical, Minus, Maximize2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
+import { GlobalShortcutIndicator } from "@/shared/components/GlobalShortcutAlert";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { appRouteForBarPath } from "@/shared/lib/modeRoutes";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
@@ -45,6 +46,9 @@ export function BarShell({ title, hideCollapse, children }: BarShellProps) {
             <span className="truncate text-[11px] font-semibold text-text-secondary">{title}</span>
           )}
         </div>
+
+        {/* 전역 단축키가 죽어 있으면 바에서도 알린다. 바는 폭이 좁아 아이콘만 둔다. */}
+        <GlobalShortcutIndicator />
 
         {!hideCollapse && (
           <BarIconButton label="접기 (Esc)" onClick={() => navigate("/bar", { replace: true })}>

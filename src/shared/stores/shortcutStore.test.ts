@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { sanitizeBindings, useShortcutStore } from "./shortcutStore";
+import { migrateShortcuts, sanitizeBindings, useShortcutStore } from "./shortcutStore";
 import { DEFAULT_BINDINGS } from "@/shared/lib/shortcutRegistry";
 
 describe("sanitizeBindings", () => {
@@ -33,6 +33,50 @@ describe("sanitizeBindings", () => {
     expect(sanitizeBindings({})).toEqual({});
     expect(sanitizeBindings({ bindings: "not an object" })).toEqual({});
     expect(sanitizeBindings("garbage")).toEqual({});
+  });
+});
+
+describe("migrateShortcuts (v1 → v2)", () => {
+  it("v1 기본값을 쓰던 사용자는 항목을 지워 새 기본값을 받게 한다", () => {
+    const out = migrateShortcuts({ bindings: { "capture.start": "Mod+Shift+KeyS" } }, 1) as {
+      bindings: Record<string, unknown>;
+    };
+    expect(out.bindings).not.toHaveProperty("capture.start");
+  });
+
+  it("사용자가 직접 지정한 키는 그대로 둔다", () => {
+    const out = migrateShortcuts({ bindings: { "capture.start": "Mod+Shift+KeyK" } }, 1) as {
+      bindings: Record<string, unknown>;
+    };
+    expect(out.bindings["capture.start"]).toBe("Mod+Shift+KeyK");
+  });
+
+  it("다른 항목은 건드리지 않는다", () => {
+    const out = migrateShortcuts(
+      { bindings: { "capture.start": "Mod+Shift+KeyS", "app.toggleCheatSheet": "Shift+Slash" } },
+      1,
+    ) as { bindings: Record<string, unknown> };
+    expect(out.bindings["app.toggleCheatSheet"]).toBe("Shift+Slash");
+  });
+
+  it("v2 이상은 그대로 통과시킨다", () => {
+    const persisted = { bindings: { "capture.start": "Mod+Shift+KeyS" } };
+    expect(migrateShortcuts(persisted, 2)).toBe(persisted);
+  });
+
+  it("손상된 입력을 안전하게 처리한다", () => {
+    expect(migrateShortcuts(null, 1)).toBeNull();
+    expect(migrateShortcuts({ bindings: "garbage" }, 1)).toEqual({ bindings: "garbage" });
+  });
+});
+
+describe("전역 캡처 기본값", () => {
+  it("클립스튜디오 '다른 이름으로 저장'(Ctrl+Shift+S)과 충돌하지 않는다", () => {
+    expect(DEFAULT_BINDINGS["capture.start"]).not.toBe("Mod+Shift+KeyS");
+  });
+
+  it("앱 내 대체 경로가 전역 키를 그대로 따른다", () => {
+    expect(DEFAULT_BINDINGS["home.startCapture"]).toBe(DEFAULT_BINDINGS["capture.start"]);
   });
 });
 
