@@ -118,10 +118,17 @@ export function SavedFileList({ paths, onCopy, dense = false }: Props) {
                 {/* 드롭 결과는 OS 드래그 세션이 끝났다는 신호일 뿐, 대상 앱이 파일을
                     받았는지와 무관하다. 성공색(sky)으로 "전달됨"이라고 쓰면 클립스튜디오에
                     아무것도 안 들어간 경우에도 성공으로 읽힌다(작가 인터뷰에서 실제로
-                    그렇게 읽혔다). 확인은 사용자에게 넘긴다(CLAUDE.md §10). */}
+                    그렇게 읽혔다). 확인은 사용자에게 넘긴다(CLAUDE.md §10).
+
+                    "놓았다"는 사용자가 방금 한 동작이라 되뇔 필요가 없다. 모르는 것(반영
+                    여부)만 남기고 이유는 툴팁으로 내린다 — 다인 컷은 행이 여러 개라
+                    행마다 한 문장이 붙으면 목록을 압도한다. */}
                 {dropped && (
-                  <span className={cn("text-text-secondary", dense ? "text-[10px]" : "text-[12px]")}>
-                    놓았습니다. 클립스튜디오에 들어왔는지 확인해 주세요.
+                  <span
+                    className={cn("text-text-secondary", dense ? "text-[10px]" : "text-[12px]")}
+                    title="앱은 파일을 넘기는 것까지만 알 수 있습니다. 클립스튜디오가 실제로 받았는지는 확인이 필요합니다."
+                  >
+                    반영됐는지 확인해 주세요
                   </span>
                 )}
                 {failed && (
