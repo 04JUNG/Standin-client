@@ -29,6 +29,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Require main branch
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Desktop releases must run from the main branch."
+            exit 1
+          fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -43,6 +51,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Read release version
+        id: release
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          node scripts/set-version.mjs "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Build and upload release
         uses: tauri-apps/tauri-action@v1
         env:
@@ -52,10 +68,9 @@ jobs:
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
           VITE_APP_ENV: production
-          VITE_SKIP_AUTH: "true"
         with:
-          tagName: v0.1.0-beta.1
-          releaseName: Standin Desktop v0.1.0 Beta 1
+          tagName: v${{ steps.release.outputs.version }}
+          releaseName: Standin Desktop v${{ steps.release.outputs.version }}
           releaseDraft: false
           prerelease: true
           uploadWorkflowArtifacts: true

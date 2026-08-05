@@ -1,12 +1,12 @@
 import { router } from "@/app/router";
-import { useAuthStore } from "@/features/auth/store/authStore";
+import { useInstallationStore } from "@/features/installation/installationStore";
 import { globalShortcutService } from "@/features/capture/api/globalShortcut.service";
 import { barRouteForAppPath } from "@/shared/lib/modeRoutes";
 import { barStateForPath } from "./barSizes";
-import { env } from "@/shared/lib/env";
 
+/** 동의 전에는 제품 라우트가 없다. RequireInstallation과 같은 조건을 본다. */
 function canUseApp(): boolean {
-  return env.skipAuth || useAuthStore.getState().status === "authenticated";
+  return useInstallationStore.getState().status === "registered";
 }
 
 /**
@@ -37,8 +37,8 @@ export async function collapseToBar(): Promise<void> {
 }
 
 export async function toggleBar(): Promise<void> {
-  // 미인증이면 바를 열지 않는다. 로그인 폼은 56×56에 들어갈 수 없으므로
-  // 창만 앞으로 가져오고 RequireAuth가 로그인 화면으로 보낸다.
+  // 동의 전이면 바를 열지 않는다. 동의 화면은 56×56에 들어갈 수 없으므로
+  // 창만 앞으로 가져오고 RequireInstallation이 동의 화면으로 보낸다.
   if (!canUseApp()) {
     await globalShortcutService.focusMainWindow();
     return;

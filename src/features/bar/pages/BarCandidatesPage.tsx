@@ -7,10 +7,12 @@ import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { PoseCandidateCard } from "@/features/pose-viewer/components/PoseCandidateCard";
+import { PersonFallbackNotice } from "@/features/pose-viewer/components/PersonFallbackNotice";
 import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
+import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
 
 /**
  * 바 모드의 후보 확인(ADR-008). 앱 창에 들어가지 않고 작업 화면 위에서 후보를 고른다.
@@ -26,8 +28,11 @@ export function BarCandidatesPage() {
   const bindings = useShortcutStore((s) => s.bindings);
   const [personCursor, setPersonCursor] = useState(0);
   const [rerunNotice, setRerunNotice] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const {
+    data,
     isPending,
     isError,
     error,
@@ -48,11 +53,40 @@ export function BarCandidatesPage() {
 
   usePoseViewerShortcuts({
     canConfirm: allSelected,
-    onConfirm: () => navigate("/bar/save"),
-    onRerun: () => setRerunNotice(true),
+    onConfirm: () => void confirmAndContinue(),
+    onRerun: requestRerun,
   });
 
   if (!jobId || !draft || !sourceFile) return <Navigate to="/bar/actions" replace />;
+
+  function requestRerun() {
+    setRerunNotice(true);
+    trackRerunRequested(data?.jobId, {
+      selectedCount,
+      peopleCount: selectablePeople.length,
+    });
+  }
+
+  async function confirmAndContinue() {
+    if (!data || !allSelected || isConfirming) return;
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      await confirmSelections(
+        data.jobId,
+        Object.entries(selectedByPerson).map(([personIndex, candidateId]) => ({
+          personIndex: Number(personIndex),
+          candidateId,
+        })),
+      );
+      // 앱 모드와 같은 순서다(ADR-010) — 저장 전에 조정 결과를 확인한다.
+      navigate("/bar/review");
+    } catch {
+      setConfirmError("선택을 저장하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsConfirming(false);
+    }
+  }
 
   const person = people[personCursor];
 
@@ -106,28 +140,32 @@ export function BarCandidatesPage() {
               </div>
             )}
 
-            {person.candidates.length === 0 ? (
-              <p className="flex flex-1 items-center justify-center gap-1.5 px-3 text-center text-[12px] text-brand-coral">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />이 인물에 맞는 포즈
-                후보를 찾지 못했습니다.
-              </p>
+            {person.fallbackMode === "hard" ? (
+              <div className="flex flex-1 items-center justify-center px-3">
+                <PersonFallbackNotice person={person} compact />
+              </div>
             ) : (
               // 좁은 폭이라 가로 스트립으로 훑는다.
-              <div className="grid min-h-0 flex-1 grid-cols-5 gap-1.5 overflow-y-auto">
-                {person.candidates.map((candidate) => (
-                  <PoseCandidateCard
-                    key={candidate.id}
-                    candidate={candidate}
-                    isSelected={candidate.id === selectedByPerson[person.index]}
-                    onSelect={() => selectCandidate(person.index, candidate.id)}
-                  />
-                ))}
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+                {/* soft fallback 안내는 앱 모드와 같은 컴포넌트를 쓴다 — 표면마다 경고가
+                    달라지면 같은 결과를 다르게 판단하게 된다. */}
+                <PersonFallbackNotice person={person} compact />
+                <div className="grid grid-cols-5 gap-1.5">
+                  {person.candidates.map((candidate) => (
+                    <PoseCandidateCard
+                      key={candidate.id}
+                      candidate={candidate}
+                      isSelected={candidate.id === selectedByPerson[person.index]}
+                      onSelect={() => selectCandidate(person.index, candidate.id)}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
             <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border pt-2">
               <div className="flex min-w-0 items-center gap-1.5">
-                <Button variant="ghost" size="md" onClick={() => setRerunNotice(true)}>
+                <Button variant="ghost" size="md" onClick={requestRerun}>
                   다시 검색
                   <ShortcutKey accelerator={resolveAccelerator("poseViewer.rerun", bindings)!} />
                 </Button>
@@ -137,8 +175,21 @@ export function BarCandidatesPage() {
                     <span className="truncate">후속 버전에서 서버와 연동됩니다.</span>
                   </span>
                 )}
+                {confirmError && (
+                  <span
+                    role="alert"
+                    className="flex min-w-0 items-center gap-1 text-[11px] text-brand-coral"
+                  >
+                    <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+                    <span className="truncate">{confirmError}</span>
+                  </span>
+                )}
               </div>
-              <Button size="md" disabled={!allSelected} onClick={() => navigate("/bar/save")}>
+              <Button
+                size="md"
+                disabled={!allSelected || isConfirming}
+                onClick={() => void confirmAndContinue()}
+              >
                 이 포즈 사용
                 <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
               </Button>

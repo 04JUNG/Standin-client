@@ -48,12 +48,17 @@ function createThumbnail(rank: number, matchLevel: MatchLevel): string {
 
 const CANDIDATE_LEVELS: MatchLevel[] = ["high", "high", "medium", "medium", "low"];
 
-function buildCandidates(jobId: string, personIndex: number): PoseCandidate[] {
-  return CANDIDATE_LEVELS.map((matchLevel, index) => {
+function buildCandidates(
+  jobId: string,
+  personIndex: number,
+  levels: MatchLevel[] = CANDIDATE_LEVELS,
+): PoseCandidate[] {
+  return levels.map((matchLevel, index) => {
     const rank = index + 1;
     const thumbnailUrl = createThumbnail(rank, matchLevel);
     return {
       id: `${jobId}-p${personIndex}-candidate-${rank}`,
+      poseId: `${jobId}-p${personIndex}-pose-${rank}`,
       rank,
       title: `포즈 후보 ${rank}`,
       tags: rank % 2 === 0 ? ["전신", "정면"] : ["상반신", "측면"],
@@ -70,12 +75,46 @@ export const poseMock: PoseResultService = {
   async analyze({ jobId }: { jobId: string; file: File }): Promise<AnalysisResult> {
     await delay(600);
 
-    // 다인 컷 UI를 개발 중에도 확인할 수 있도록 인물 2명을 흉내낸다.
+    // 다인 컷과 **세 가지 폴백 상태를 모두** 개발 중에 확인할 수 있게 흉내낸다.
+    // 셋을 다 넣지 않으면 soft/hard 화면은 실서버에 붙기 전까지 아무도 보지 못한다.
     const people: PersonResult[] = [
-      { index: 0, candidates: buildCandidates(jobId, 0) },
-      { index: 1, candidates: buildCandidates(jobId, 1) },
+      {
+        index: 0,
+        candidates: buildCandidates(jobId, 0),
+        confidence: "high",
+        skeletonState: "valid",
+        skeletonSource: "full_image",
+        coverageClass: "full",
+        fallbackMode: "none",
+        refineAllowed: true,
+        refinableLimbs: ["left_arm", "right_arm"],
+      },
+      {
+        // soft — 후보는 있지만 스켈레톤 인식이 불확실하다. refine 금지.
+        index: 1,
+        candidates: buildCandidates(jobId, 1, ["low", "low", "low", "low", "low"]),
+        confidence: "low",
+        skeletonState: "partial",
+        skeletonSource: "crop_retry",
+        coverageClass: "reduced",
+        fallbackMode: "soft",
+        refineAllowed: false,
+        refinableLimbs: [],
+      },
+      {
+        // hard — 자동 후보가 없다. 다른 인물의 선택·저장은 계속 가능해야 한다.
+        index: 2,
+        candidates: [],
+        confidence: "low",
+        skeletonState: "missing",
+        skeletonSource: "none",
+        coverageClass: "insufficient",
+        fallbackMode: "hard",
+        refineAllowed: false,
+        refinableLimbs: [],
+      },
     ];
 
-    return { jobId, people };
+    return { jobId, people, capabilities: { refine: true } };
   },
 };

@@ -4,13 +4,29 @@ use std::io::Cursor;
 use xcap::image::ImageFormat;
 use xcap::Monitor;
 
+/// 캡처한 모니터의 가상 데스크톱 상 경계. **물리 픽셀**이다.
+///
+/// 논리 좌표를 쓰지 않는 이유는 혼합 DPI다. Tauri는 논리 좌표를 창의 **현재** scale
+/// factor로 해석하는데, 배율이 다른 모니터로 창을 옮기는 순간 그 값이 목적지와 다르다.
+/// 물리 좌표는 가상 데스크톱 전체에서 하나의 좌표계라 그런 모호함이 없다.
+#[derive(Serialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorBounds {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
 /// 프리즈 프레임 결과. 프론트로 data URL과 물리 픽셀 크기를 전달한다(ADR-003).
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScreenFrame {
-    #[serde(rename = "dataUrl")]
     data_url: String,
     width: u32,
     height: u32,
+    /// 이 프레임이 어느 모니터의 것인지. 오버레이를 같은 모니터에 띄우는 데 쓴다.
+    monitor: MonitorBounds,
 }
 
 /// 캡처 오류. 프론트 CaptureError로 매핑되도록 code/message로 직렬화한다(docs/07 §6).
@@ -29,18 +45,50 @@ impl CaptureError {
     }
 }
 
-fn capture_primary() -> Result<ScreenFrame, CaptureError> {
-    let monitors =
-        Monitor::all().map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?;
-    if monitors.is_empty() {
-        return Err(CaptureError::new("UNSUPPORTED", "사용 가능한 모니터가 없습니다."));
+/// 캡처 대상 모니터를 고른다. **커서가 있는 모니터**가 기준이다(docs/07 §12).
+///
+/// 예전에는 주 모니터를 고정으로 캡처했다. 듀얼 모니터 + 액정 타블렛 환경에서
+/// 작가가 타블렛에 그리던 화면이 아니라 반대쪽 모니터가 찍혔다(작가 인터뷰).
+/// 방금 손을 둔 화면 = 커서가 있는 화면이므로 이것을 기준으로 삼는다.
+///
+/// 커서를 못 읽거나 어느 모니터에도 속하지 않으면 주 모니터로, 그마저 없으면 첫
+/// 모니터로 내려간다. 캡처 자체가 실패하는 것보다 낫다.
+fn pick_monitor(cursor: Option<(i32, i32)>) -> Result<Monitor, CaptureError> {
+    if let Some((x, y)) = cursor {
+        if let Ok(monitor) = Monitor::from_point(x, y) {
+            return Ok(monitor);
+        }
     }
 
-    // 주 모니터 우선, 없으면 첫 모니터(MVP는 단일 모니터, docs/07 §12).
-    let monitor = monitors
+    let monitors =
+        Monitor::all().map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?;
+    monitors
         .iter()
         .find(|m| m.is_primary().unwrap_or(false))
-        .unwrap_or(&monitors[0]);
+        .or_else(|| monitors.first())
+        .cloned()
+        .ok_or_else(|| CaptureError::new("UNSUPPORTED", "사용 가능한 모니터가 없습니다."))
+}
+
+fn capture_monitor(cursor: Option<(i32, i32)>) -> Result<ScreenFrame, CaptureError> {
+    let monitor = pick_monitor(cursor)?;
+
+    // 경계를 이미지보다 먼저 읽는다. 캡처 뒤에 읽으면 그 사이 해상도가 바뀌었을 때
+    // 프레임과 경계가 어긋난 채로 프론트에 나간다.
+    let bounds = MonitorBounds {
+        x: monitor
+            .x()
+            .map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?,
+        y: monitor
+            .y()
+            .map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?,
+        width: monitor
+            .width()
+            .map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?,
+        height: monitor
+            .height()
+            .map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?,
+    };
 
     let image = monitor
         .capture_image()
@@ -57,20 +105,29 @@ fn capture_primary() -> Result<ScreenFrame, CaptureError> {
         data_url: format!("data:image/png;base64,{encoded}"),
         width,
         height,
+        monitor: bounds,
     })
 }
 
-/// 전체 화면을 캡처해 프리즈 프레임으로 반환한다.
+/// 커서가 있는 화면을 캡처해 프리즈 프레임으로 반환한다.
 /// 앱 창을 잠시 숨겨 캡처에 포함되지 않게 한다. 취소는 프론트(Escape)에서 처리한다.
 #[tauri::command]
 pub async fn grab_screen(window: tauri::Window) -> Result<ScreenFrame, CaptureError> {
+    // 창을 숨기기 전에 커서를 읽는다. 숨김이 포인터를 옮기지는 않지만, 순서를 고정해야
+    // "어느 시점의 커서인가"가 코드에서 분명하다.
+    // 읽기에 실패하면 None으로 넘겨 주 모니터 폴백을 타게 한다.
+    let cursor = window
+        .cursor_position()
+        .ok()
+        .map(|p| (p.x as i32, p.y as i32));
+
     // 창 숨김은 메인 스레드 이벤트 루프에서 처리되어야 하므로,
     // 캡처는 blocking 풀에서 짧은 지연 뒤 수행한다.
     let _ = window.hide();
 
-    let result = tauri::async_runtime::spawn_blocking(|| {
+    let result = tauri::async_runtime::spawn_blocking(move || {
         std::thread::sleep(std::time::Duration::from_millis(200));
-        capture_primary()
+        capture_monitor(cursor)
     })
     .await
     .map_err(|e| CaptureError::new("CAPTURE_FAILED", e.to_string()))?;

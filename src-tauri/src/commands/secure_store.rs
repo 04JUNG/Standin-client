@@ -11,14 +11,69 @@
 // 오류에는 토큰이 들어 있지 않지만, 그래도 원문을 그대로 프론트에 넘기지 않고 요약한다.
 
 use keyring::{Entry, Error as KeyringError};
+use serde::Serialize;
 
 /// 키체인 항목 식별자. 앱마다 고유해야 하므로 번들 식별자와 같은 값을 쓴다.
-const SERVICE: &str = "app.standin.desktop";
+const SERVICE: &str = match option_env!("STANDIN_KEYRING_SERVICE") {
+    Some(service) => service,
+    None => "app.standin.desktop",
+};
 /// 이 서비스 안에서 refresh token을 가리키는 이름.
 const ACCOUNT: &str = "refresh_token";
+const INSTALLATION_ACCOUNT: &str = "installation_credentials";
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallationEnvironment {
+    app_version: String,
+    os_name: String,
+    os_version: String,
+    architecture: String,
+}
+
+#[tauri::command]
+pub fn get_installation_environment(app: tauri::AppHandle) -> InstallationEnvironment {
+    InstallationEnvironment {
+        app_version: app.package_info().version.to_string(),
+        os_name: std::env::consts::OS.to_string(),
+        // The standard library intentionally does not expose a stable OS release API.
+        // Keep this coarse and non-fingerprinting until the client has a trusted source.
+        os_version: "unknown".to_string(),
+        architecture: std::env::consts::ARCH.to_string(),
+    }
+}
 
 fn entry() -> Result<Entry, String> {
     Entry::new(SERVICE, ACCOUNT).map_err(|_| "보안 저장소를 열 수 없습니다.".to_string())
+}
+
+fn installation_entry() -> Result<Entry, String> {
+    Entry::new(SERVICE, INSTALLATION_ACCOUNT)
+        .map_err(|_| "설치 보안 저장소를 열 수 없습니다.".to_string())
+}
+
+#[tauri::command]
+pub fn get_installation_credentials() -> Result<Option<String>, String> {
+    match installation_entry()?.get_password() {
+        Ok(value) => Ok(Some(value)),
+        Err(KeyringError::NoEntry) => Ok(None),
+        Err(_) => Err("설치 인증정보를 읽지 못했습니다.".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn set_installation_credentials(value: String) -> Result<(), String> {
+    installation_entry()?
+        .set_password(&value)
+        .map_err(|_| "설치 인증정보를 저장하지 못했습니다.".to_string())
+}
+
+#[tauri::command]
+pub fn clear_installation_credentials() -> Result<(), String> {
+    match installation_entry()?.delete_credential() {
+        Ok(()) | Err(KeyringError::NoEntry) => Ok(()),
+        Err(_) => Err("설치 인증정보를 삭제하지 못했습니다.".to_string()),
+    }
 }
 
 /// 저장된 refresh token. 항목이 없으면 오류가 아니라 `None`이다(최초 실행·로그아웃 후).

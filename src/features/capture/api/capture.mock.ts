@@ -33,6 +33,13 @@ export const captureMock: CaptureService = {
     ctx.font = "24px sans-serif";
     ctx.fillText("MOCK 화면 캡처 프레임 — 영역을 드래그하세요", 48, 64);
 
-    return { dataUrl: canvas.toDataURL("image/png"), width: w, height: h };
+    return {
+      dataUrl: canvas.toDataURL("image/png"),
+      width: w,
+      height: h,
+      // 브라우저에는 모니터 개념이 없다. 화면 하나가 원점에 있다고 본다 —
+      // 어차피 창 조작이 no-op이라 이 값은 쓰이지 않는다.
+      monitor: { x: 0, y: 0, width: w, height: h },
+    };
   },
 };

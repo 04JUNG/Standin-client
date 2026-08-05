@@ -21,6 +21,7 @@ export function appRouteForBarPath(
   const { jobId, hasDraft } = state;
 
   if (pathname === "/bar/save") return jobId ? `/app/jobs/${jobId}/save` : "/app/home";
+  if (pathname === "/bar/review") return jobId ? `/app/jobs/${jobId}/review` : "/app/home";
   if (pathname === "/bar/candidates") return jobId ? `/app/jobs/${jobId}` : "/app/home";
   // 바는 미리보기를 건너뛰고 바로 분석에 들어간다. 아직 job이 없으면 앱의 미리보기가 대응 단계다.
   if (pathname === "/bar/progress") {
@@ -42,6 +43,7 @@ export function barRouteForAppPath(
   idle: "/bar" | "/bar/actions" = "/bar",
 ): string {
   if (/^\/app\/jobs\/[^/]+\/save$/.test(pathname)) return "/bar/save";
+  if (/^\/app\/jobs\/[^/]+\/review$/.test(pathname)) return "/bar/review";
   if (/^\/app\/jobs\/[^/]+$/.test(pathname)) return "/bar/candidates";
   // 미리보기에 대응하는 바 화면은 없다. 초안은 스토어에 남아 다시 펴면 이어진다.
   if (pathname === "/app/preview") return "/bar/actions";

@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { trackInputConfirmed } from "@/features/analytics/analyticsClient";
 import { BarShell } from "../components/BarShell";
 
 /**
@@ -23,6 +24,9 @@ export function BarProgressPage() {
   useEffect(() => {
     if (!draft || started.current) return;
     started.current = true;
+    // 바는 미리보기 없이 바로 분석에 들어가므로 확정 지점이 여기다.
+    // 앱 모드의 InputPreviewPage와 같은 이벤트를 남겨야 두 표면을 같은 퍼널로 볼 수 있다.
+    trackInputConfirmed(draft);
     const jobId = crypto.randomUUID();
     setJobId(jobId);
     navigate("/bar/candidates", { replace: true });

@@ -6,6 +6,7 @@ import { env } from "@/shared/lib/env";
 import { barRouteForAppPath } from "@/shared/lib/modeRoutes";
 import { useAppShortcuts } from "@/shared/hooks/useAppShortcuts";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { GlobalShortcutAlert } from "./GlobalShortcutAlert";
 import { ShortcutCheatSheet } from "./ShortcutCheatSheet";
 
 type NavItem = { to: string; label: string; icon: typeof Home; disabled?: boolean };
@@ -116,6 +117,9 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
             {headerRight}
           </div>
         </header>
+        {/* 전역 단축키가 죽어 있으면 모든 앱 화면에서 보이게 한다. 설정 화면에만 두면
+            시연 중에 아무도 모른 채 지나간다(작가 인터뷰). */}
+        <GlobalShortcutAlert />
         <main className="flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
       </div>
 

@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { __resetApiClient, setAccessToken } from "@/shared/api/client";
+import {
+  __resetApiClient,
+  setAccessToken,
+  setInstallationCredentials,
+} from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
 import { poseHttp } from "./pose.http";
 
@@ -16,6 +20,7 @@ describe("poseHttp", () => {
   beforeEach(() => {
     __resetApiClient();
     setAccessToken("access-token");
+    setInstallationCredentials({ installationId: "inst_1", deviceToken: "device-token" });
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -51,6 +56,7 @@ describe("poseHttp", () => {
               candidates: [
                 {
                   id: "wave pose",
+                  poseId: "wave pose",
                   rank: 1,
                   view: "front",
                   tags: ["standing", "solo"],
@@ -70,16 +76,21 @@ describe("poseHttp", () => {
       );
 
     const file = new File(["image"], "rough.png", { type: "image/png" });
-    const result = await poseHttp.analyze({ jobId: "client-route-job", file });
+    const result = await poseHttp.analyze({
+      jobId: "client-route-job",
+      file,
+      source: "file",
+      width: 1,
+      height: 1,
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(fetchMock.mock.calls[0][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs`);
     const createInit = fetchMock.mock.calls[0][1] as RequestInit;
     expect(createInit.body).toBeInstanceOf(FormData);
     expect((createInit.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
-    expect((createInit.headers as Record<string, string>)["Authorization"]).toBe(
-      "Bearer access-token",
-    );
+    expect((createInit.headers as Record<string, string>)["Authorization"]).toBeUndefined();
+    expect((createInit.headers as Record<string, string>)["X-Installation-Id"]).toBe("inst_1");
     expect(fetchMock.mock.calls[1][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs/server-job`);
     expect(fetchMock.mock.calls[2][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs/server-job/result`);
     expect(fetchMock.mock.calls[3][0]).toBe(
@@ -89,15 +100,26 @@ describe("poseHttp", () => {
       ((fetchMock.mock.calls[3][1] as RequestInit).headers as Record<string, string>)[
         "Authorization"
       ],
-    ).toBe("Bearer access-token");
+    ).toBeUndefined();
+    // 이 fixture에는 품질 필드가 없다 = 구 BFF와의 순차 배포 창(E2E-12).
+    // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
       jobId: "server-job",
+      capabilities: { refine: false },
       people: [
         {
           index: 0,
+          confidence: "low",
+          skeletonState: "invalid",
+          skeletonSource: "none",
+          coverageClass: "insufficient",
+          fallbackMode: "soft",
+          refineAllowed: false,
+          refinableLimbs: [],
           candidates: [
             {
               id: "wave pose",
+              poseId: "wave pose",
               rank: 1,
               title: "포즈 wave pose",
               tags: ["standing", "solo"],
@@ -106,11 +128,155 @@ describe("poseHttp", () => {
               previewImages: [{ view: "front", url: "data:image/png;base64,iVBORw==" }],
               modelUrl: null,
               bvhAvailable: true,
-              bvhUrl: "/v1/pose-candidates/wave%20pose/export",
+              bvhUrl:
+                "/v1/pose-candidates/wave%20pose/export?jobId=server-job&personIndex=0&candidateId=wave+pose",
             },
           ],
         },
       ],
+    });
+  });
+
+  it("품질 신호와 refine capability를 그대로 읽는다", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "server-job", status: "queued", createdAt: "now" }, 202),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "server-job",
+          status: "completed",
+          createdAt: "now",
+          updatedAt: "now",
+          error: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "server-job",
+          notes: [],
+          capabilities: { refine: true },
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              box: null,
+              tags: {},
+              confidence: "high",
+              skeletonState: "valid",
+              skeletonSource: "full_image",
+              coverageClass: "full",
+              fallbackMode: "none",
+              refineAllowed: true,
+              refinableLimbs: ["left_arm"],
+              candidates: [
+                {
+                  id: "p::front",
+                  poseId: "p",
+                  rank: 1,
+                  view: "front",
+                  tags: [],
+                  matchLevel: "high",
+                  bvhAvailable: true,
+                },
+              ],
+            },
+            // hard fallback — 후보가 없는 인물. 위 인물의 흐름은 계속 진행돼야 한다.
+            {
+              personIndex: 1,
+              box: null,
+              tags: {},
+              confidence: "low",
+              skeletonState: "missing",
+              skeletonSource: "none",
+              coverageClass: "insufficient",
+              fallbackMode: "hard",
+              refineAllowed: false,
+              refinableLimbs: [],
+              candidates: [],
+            },
+          ],
+        }),
+      );
+
+    const result = await poseHttp.analyze({
+      jobId: "client-route-job",
+      file: new File(["image"], "rough.png", { type: "image/png" }),
+      source: "file",
+      width: 1,
+      height: 1,
+    });
+
+    expect(result.capabilities.refine).toBe(true);
+    expect(result.people[0]).toMatchObject({
+      confidence: "high",
+      skeletonState: "valid",
+      skeletonSource: "full_image",
+      coverageClass: "full",
+      fallbackMode: "none",
+      refineAllowed: true,
+      refinableLimbs: ["left_arm"],
+    });
+    expect(result.people[1]).toMatchObject({ fallbackMode: "hard", refineAllowed: false });
+    // 서버 personIndex를 그대로 쓴다 — 화면에서 탐지 순서로 다시 번호를 매기지 않는다.
+    expect(result.people.map((p) => p.index)).toEqual([0, 1]);
+  });
+
+  it("모르는 값은 안전한 쪽으로 좁힌다", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "server-job", status: "queued", createdAt: "now" }, 202),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "server-job",
+          status: "completed",
+          createdAt: "now",
+          updatedAt: "now",
+          error: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "server-job",
+          notes: [],
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              box: null,
+              tags: {},
+              confidence: "excellent",
+              coverageClass: "mostly",
+              // 후보가 있는데 hard라고 오면 화면이 후보를 통째로 숨긴다 → soft로 낮춘다.
+              fallbackMode: "hard",
+              candidates: [
+                {
+                  id: "p::front",
+                  poseId: "p",
+                  rank: 1,
+                  view: "front",
+                  tags: [],
+                  matchLevel: "high",
+                  bvhAvailable: true,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+    const result = await poseHttp.analyze({
+      jobId: "client-route-job",
+      file: new File(["image"], "rough.png", { type: "image/png" }),
+      source: "file",
+      width: 1,
+      height: 1,
+    });
+
+    expect(result.people[0]).toMatchObject({
+      confidence: "low",
+      coverageClass: "insufficient",
+      fallbackMode: "soft",
+      refineAllowed: false,
     });
   });
 
@@ -133,6 +299,9 @@ describe("poseHttp", () => {
       poseHttp.analyze({
         jobId: "client-route-job",
         file: new File(["image"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 1,
+        height: 1,
       }),
     ).rejects.toThrow("포즈 분석에 실패했습니다");
   });

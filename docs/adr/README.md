@@ -30,6 +30,7 @@
 | [ADR-007](ADR-007-global-shortcut-registration.md) | 전역 단축키 등록 계층 | 제안됨 |
 | [ADR-008](ADR-008-window-modes.md) | 플로팅 바의 창 구조 | 제안됨 |
 | [ADR-009](ADR-009-pose-file-delivery.md) | 포즈 파일을 클립스튜디오로 전달하는 방식 | 제안됨 |
+| [ADR-010](ADR-010-refine-review-step.md) | 저장 전 조정 결과 확인 단계 | 제안됨 (ADR-005·009 보완) |
 
 ## 템플릿
 

@@ -2,6 +2,11 @@
  * 서버 엔드포인트 정본. docs/08_API_CONTRACT.md 기준(`/v1` prefix).
  */
 export const endpoints = {
+  installations: {
+    register: "/v1/installations",
+    currentData: "/v1/installations/current/data",
+  },
+  events: { batch: "/v1/events/batch" },
   auth: {
     login: "/v1/auth/login",
     refresh: "/v1/auth/refresh",
@@ -18,8 +23,21 @@ export const endpoints = {
     result: (id: string) => `/v1/analysis/jobs/${id}/result`,
     rerun: (id: string) => `/v1/analysis/jobs/${id}/rerun`,
     cancel: (id: string) => `/v1/analysis/jobs/${id}/cancel`,
+    selections: (id: string) => `/v1/analysis/jobs/${id}/selections`,
+    feedback: (id: string) => `/v1/analysis/jobs/${id}/feedback`,
+    /** 선택 후보를 러프에 맞춰 조정한다. 본문은 candidateId 하나뿐이다. */
+    refine: (id: string, personIndex: number) =>
+      `/v1/analysis/jobs/${id}/people/${personIndex}/refine`,
   },
   poseCandidates: {
-    export: (id: string) => `/v1/pose-candidates/${encodeURIComponent(id)}/export`,
+    export: (id: string, jobId?: string, personIndex?: number, candidateId?: string) => {
+      const path = `/v1/pose-candidates/${encodeURIComponent(id)}/export`;
+      if (!jobId || personIndex === undefined || !candidateId) return path;
+      return `${path}?${new URLSearchParams({
+        jobId,
+        personIndex: String(personIndex),
+        candidateId,
+      })}`;
+    },
   },
 } as const;
