@@ -11,8 +11,19 @@ export type WindowSize = { width: number; height: number };
 
 export type WindowPosition = { x: number; y: number };
 
+/**
+ * 오버레이가 덮을 모니터의 물리 픽셀 경계. 캡처가 고른 모니터를 그대로 받는다.
+ * `features/capture`의 `MonitorBounds`와 같은 모양이지만, 기능 간 타입을 직접
+ * 끌어오지 않으려고 계약마다 따로 둔다(CLAUDE.md §8).
+ */
+export type MonitorRect = { x: number; y: number; width: number; height: number };
+
 export interface WindowModeService {
-  setMode(mode: WindowMode, size?: WindowSize): Promise<void>;
+  /**
+   * `monitor`는 오버레이 모드에서만 쓴다. 창을 그 모니터로 옮긴 뒤 전체화면으로
+   * 만들어, 캡처한 화면과 오버레이가 뜨는 화면이 갈라지지 않게 한다.
+   */
+  setMode(mode: WindowMode, size?: WindowSize, monitor?: MonitorRect): Promise<void>;
   getPosition(): Promise<WindowPosition | null>;
   setPosition(position: WindowPosition, size: WindowSize): Promise<void>;
   /**

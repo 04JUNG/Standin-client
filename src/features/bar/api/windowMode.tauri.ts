@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  MonitorRect,
   WindowControlAction,
   WindowMode,
   WindowModeService,
@@ -12,10 +13,10 @@ import type {
  * 화면 내용은 맞고 창 크기만 어긋난다 — 앱을 막지 않고 조용히 넘어간다.
  */
 export const windowModeTauri: WindowModeService = {
-  async setMode(mode: WindowMode, size?: WindowSize): Promise<void> {
+  async setMode(mode: WindowMode, size?: WindowSize, monitor?: MonitorRect): Promise<void> {
     try {
       await invoke("set_window_mode", {
-        req: { mode, width: size?.width, height: size?.height },
+        req: { mode, width: size?.width, height: size?.height, monitor },
       });
     } catch {
       // 무시.
