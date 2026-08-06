@@ -50,6 +50,45 @@ main
 - PR merge 전 최소 1명 확인
 - rebase 또는 squash 방식 하나를 합의
 
+### 릴리즈 — `develop → main` PR을 열지 않는다
+
+**릴리즈는 `main`에서 분기해 `develop`의 트리를 그대로 얹는 방식으로 한다.**
+
+```bash
+git fetch origin
+git checkout -b release/vX.Y.Z origin/main
+git read-tree --reset -u origin/develop   # develop 트리를 통째로 가져온다
+git commit -m "release: Standin Desktop vX.Y.Z"
+git push -u origin release/vX.Y.Z
+# → main 대상 PR
+```
+
+부모가 `main` 하나뿐이라 **충돌이 구조적으로 발생하지 않는다.** 트리는 `origin/develop`과
+100% 일치하므로 내용도 정확하다. 확인은 `git diff origin/develop`이 비어 있는지로 한다.
+
+#### 왜 `develop → main` PR을 열면 안 되는가
+
+`develop`과 `main` 양쪽 모두 squash로만 병합되므로 커밋 히스토리를 공유하지 않는다. 그래서
+두 브랜치에 다 있는 파일이 **공통 조상 없이 `add/add`로 충돌**한다. 내용이 같아도 충돌한다.
+
+`main`을 `develop`에 되돌려 머지해 조상 관계를 만드는 방법은 쓸 수 없다 — `develop`에
+`required_linear_history`가 켜져 있어 merge commit이 금지된다. rebase도 답이 아니다.
+릴리즈 커밋의 트리가 이미 `develop`과 같아 replay하면 빈 커밋이 되고, SHA가 바뀌므로
+머지 베이스도 여전히 맞지 않는다.
+
+> v0.1.1-beta.2에서 실제로 겪었다. `develop → main` PR(#22)이 충돌로 병합 불가가 되어
+> 폐기했고, `main`에서 분기한 #24로 우회해 릴리즈했다. 동기화 PR(#23·#25)은 각각 squash
+> 병합과 선형 히스토리 제약으로 무효화됐다.
+
+#### 릴리즈 후
+
+`main`에서 `Build desktop release` 워크플로를 **수동 실행**한다(`workflow_dispatch` 전용,
+main 브랜치에서만 동작). 태그와 릴리즈 이름은 `package.json`의 version에서 자동으로 온다.
+
+**같은 버전 태그가 이미 있으면 먼저 처리한다.** 태그는 옛 커밋에 그대로 남고 자산만 바뀌어,
+같은 버전 문자열인데 사람마다 다른 바이너리를 갖게 된다. 버전을 올리거나, 배포된 적이 없는
+것이 확실하면 기존 릴리즈와 태그를 지운 뒤 다시 빌드한다.
+
 ---
 
 ## 3. 커밋 메시지
