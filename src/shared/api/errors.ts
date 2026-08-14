@@ -74,3 +74,11 @@ export function toAppError(err: unknown): AppError {
   // 여기까지 오면 앱 내부 버그(TypeError 등)다. 원문을 노출하지 않는다.
   return { kind: "native", message: "요청을 처리하지 못했습니다.", retryable: false };
 }
+
+/**
+ * 화면에 띄울 문구 하나를 고른다. UI는 `err.message`를 직접 읽지 말고 이걸 쓴다 —
+ * `ApiError.message`는 서버 원문이라 그대로 찍으면 안 된다(docs/06 §4).
+ */
+export function messageOf(err: unknown, fallback: string): string {
+  return toAppError(err).message || fallback;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, networkError, toAppError } from "./errors";
+import { ApiError, messageOf, networkError, toAppError } from "./errors";
 import { messageForCode } from "./errorMessages";
 
 describe("toAppError", () => {
@@ -61,6 +61,25 @@ describe("messageForCode", () => {
   it("모르는 코드라도 5xx면 서버 문제로 안내한다", () => {
     expect(messageForCode("SOME_NEW_CODE", 502)).toBe(
       "서버에 문제가 있습니다. 잠시 후 다시 시도해 주세요.",
+    );
+  });
+});
+
+describe("messageOf", () => {
+  it("ApiError를 넘겨도 서버 원문이 나오지 않는다", () => {
+    // 후보 화면들이 `error instanceof Error ? error.message : …`로 서버 원문을 그대로
+    // 찍고 있었다. ApiError는 Error를 상속하므로 그 분기를 통과해 버린다.
+    const err = new ApiError(429, "DAILY_QUOTA_EXCEEDED", "daily quota exceeded for inst_x");
+
+    const shown = messageOf(err, "후보를 불러오지 못했습니다.");
+
+    expect(shown).not.toContain("inst_x");
+    expect(shown).not.toBe(err.message);
+  });
+
+  it("정규화가 문구를 못 고르면 fallback을 쓴다", () => {
+    expect(messageOf(new TypeError("x"), "후보를 불러오지 못했습니다.")).toBe(
+      "요청을 처리하지 못했습니다.",
     );
   });
 });
