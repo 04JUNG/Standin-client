@@ -210,6 +210,14 @@ async function waitForResult(jobId: string): Promise<BffAnalysisResult> {
       return apiFetch<BffAnalysisResult>(endpoints.analysis.result(jobId), { auth: false });
     }
     if (job.status === "failed") {
+      // 서버가 실패 사유를 준다(BFF docs/API.md). 여기서 갈라내지 않으면 지표에서
+      // "추론 실패"와 "배포로 유실됨"이 같은 값으로 뭉개진다.
+      if (job.error === "ABANDONED") {
+        throw new AnalysisError(
+          "ABANDONED",
+          "분석이 중단됐습니다. 다시 시도해 주세요.",
+        );
+      }
       throw new AnalysisError(
         "JOB_FAILED",
         "포즈 분석에 실패했습니다. 다른 이미지로 다시 시도해 주세요.",

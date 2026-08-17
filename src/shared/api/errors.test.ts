@@ -83,3 +83,47 @@ describe("messageOf", () => {
     );
   });
 });
+
+describe("messageOf — 사용량 제한", () => {
+  const now = new Date("2026-08-14T04:00:00Z"); // KST 8/14 13:00
+
+  it("429는 원인과 다음 사용 가능 시점을 함께 보여준다", () => {
+    const err = new ApiError(
+      429,
+      "DAILY_QUOTA_EXCEEDED",
+      "daily quota exceeded",
+      "req_1",
+      { limit: 10, retryAfterSeconds: 39600, retryAt: "2026-08-15T00:00:00.000+09:00" },
+      39600,
+    );
+
+    const shown = messageOf(err, "실패했습니다.", now);
+
+    expect(shown).toContain("모두 사용했습니다.");
+    expect(shown).toContain("한도는 10회입니다.");
+    expect(shown).toContain("다시 사용할 수 있습니다");
+  });
+
+  it("details가 없으면 Retry-After 헤더로 안내한다", () => {
+    const err = new ApiError(429, "RATE_LIMITED", "slow down", undefined, undefined, 1800);
+
+    expect(messageOf(err, "실패했습니다.", now)).toContain("약 30분 후");
+  });
+
+  it("503 kill switch에는 시점을 붙이지 않는다", () => {
+    // 운영자가 언제 풀지 알 수 없으므로 서버도 Retry-After를 주지 않는다.
+    const err = new ApiError(503, "SERVICE_PAUSED", "paused");
+
+    const shown = messageOf(err, "실패했습니다.", now);
+
+    expect(shown).toBe("지금은 분석을 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+    expect(shown).not.toContain("한도는");
+  });
+
+  it("429는 재시도 가능으로 분류한다", () => {
+    // 5xx만 재시도 가능으로 두면 "나중엔 되는" 쿼터 초과가 영구 실패가 된다.
+    expect(toAppError(new ApiError(429, "CONCURRENCY_LIMIT", "x"))).toMatchObject({
+      retryable: true,
+    });
+  });
+});

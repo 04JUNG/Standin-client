@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { apiFetch, setInstallationCredentials } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
+import { messageOf } from "@/shared/api/errors";
 import { installationStorage, type InstallationCredentials } from "./installationStorage";
 import { resetAnalyticsQueue } from "@/features/analytics/analyticsClient";
 
@@ -95,8 +96,13 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
       await installationStorage.set(credentials);
       setInstallationCredentials(credentials);
       set({ status: "registered", credentials, error: null });
-    } catch {
-      set({ status: "consent_required", error: "설치 등록에 실패했습니다. 다시 시도해 주세요." });
+    } catch (err) {
+      // IP 속도 제한(429)에 걸리면 "다시 시도"는 잘못된 안내다 — 원인과 다음 사용
+      // 가능 시점을 그대로 보여준다(BFF docs/API.md 「사용량 제한」).
+      set({
+        status: "consent_required",
+        error: messageOf(err, "설치 등록에 실패했습니다. 다시 시도해 주세요."),
+      });
     }
   },
   async withdraw() {

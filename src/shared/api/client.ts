@@ -71,21 +71,40 @@ type RequestOptions = {
 export type { ServerErrorBody };
 export { ApiError };
 
+/** `Retry-After`는 초 단위 정수다(HTTP 날짜 형식은 서버가 쓰지 않는다). */
+function parseRetryAfter(header: string | null): number | undefined {
+  if (!header) return undefined;
+  const seconds = Number(header);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : undefined;
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let code = "UNKNOWN";
   let message = res.statusText;
   let requestId: string | undefined;
+  let details: unknown;
   try {
     const data = (await res.json()) as Partial<ServerErrorBody>;
     if (data.error) {
       code = data.error.code ?? code;
       message = data.error.message ?? message;
       requestId = data.error.requestId;
+      // 사용량 제한은 여기에 재시도 시각을 담아 보낸다. 버리면 사용자에게
+      // "언제 다시 쓸 수 있는지"를 알려줄 수 없다.
+      details = data.error.details;
     }
   } catch {
     // 응답 본문이 JSON이 아니면 statusText를 유지한다.
   }
-  return new ApiError(res.status, code, message, requestId);
+  // BFF가 CORS exposeHeaders로 내보내므로 Tauri 웹뷰에서도 읽힌다.
+  return new ApiError(
+    res.status,
+    code,
+    message,
+    requestId,
+    details,
+    parseRetryAfter(res.headers.get("Retry-After")),
+  );
 }
 
 function isFormData(body: unknown): body is FormData {

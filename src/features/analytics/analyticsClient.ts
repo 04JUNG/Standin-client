@@ -38,6 +38,8 @@ const SEQUENCE_KEY = "standin.analytics.sequence.v1";
 const BATCH_SIZE = 100;
 /** 오프라인이 길어져도 저장소를 무한히 채우지 않는다. 넘치면 오래된 것부터 버린다. */
 const MAX_QUEUE = 500;
+/** 서버가 Retry-After를 주지 않은 429의 대기 시간. */
+const DEFAULT_BACKOFF_SECONDS = 60;
 let inflight: Promise<void> | null = null;
 let queueGeneration = 0;
 
@@ -79,6 +81,21 @@ function isPermanentRejection(err: unknown): boolean {
   return err instanceof ApiError && err.status >= 400 && err.status < 500 && err.status !== 429;
 }
 
+/**
+ * 429를 받으면 이 시각까지 전송을 쉰다.
+ *
+ * `trackEvent`가 이벤트마다 flush를 부르므로 backoff가 없으면 제한에 걸린 동안
+ * 이벤트 수만큼 요청을 계속 던진다 — 제한을 풀어야 할 때 오히려 더 때리는 셈이다.
+ */
+let retryAfterMs = 0;
+
+/** 서버가 준 Retry-After를 따르고, 없으면 짧은 기본값을 쓴다. */
+function pauseFrom(err: unknown): void {
+  if (!(err instanceof ApiError) || err.status !== 429) return;
+  const seconds = err.retryAfterSeconds ?? DEFAULT_BACKOFF_SECONDS;
+  retryAfterMs = Date.now() + seconds * 1000;
+}
+
 function nextSequence(): number {
   const current = Number(safeStorage.getItem(SEQUENCE_KEY) ?? "0");
   const next = Number.isSafeInteger(current) && current >= 0 ? current + 1 : 1;
@@ -106,6 +123,8 @@ export function trackEvent(
 
 export function flushEvents(): Promise<void> {
   if (inflight) return inflight;
+  // 제한에 걸린 동안은 조용히 쉰다. 큐는 그대로 남아 다음 기회에 나간다(at-least-once).
+  if (Date.now() < retryAfterMs) return Promise.resolve();
   inflight = (async () => {
     let queue = readQueue();
     while (queue.length > 0) {
@@ -121,7 +140,10 @@ export function flushEvents(): Promise<void> {
         // 동의 철회 등으로 큐가 비워졌으면 그 뒤 상태를 건드리지 않는다.
         if (generation !== queueGeneration) return;
         // 네트워크·5xx는 다음 기회에 그대로 다시 보낸다(at-least-once).
-        if (!isPermanentRejection(err)) return;
+        if (!isPermanentRejection(err)) {
+          pauseFrom(err);
+          return;
+        }
         // 영구 거절은 배치를 버려야 큐가 다시 흐른다. 어느 이벤트가 문제인지
         // 서버가 알려주지 않으므로 같이 묶인 정상 이벤트도 함께 버린다.
         queue = dropSent(batch);
@@ -138,6 +160,8 @@ export function flushEvents(): Promise<void> {
 
 export function resetAnalyticsQueue(): void {
   queueGeneration += 1;
+  // 새 설치는 새 IP 버킷·새 큐다. 이전 설치가 걸어둔 대기를 물려받지 않는다.
+  retryAfterMs = 0;
   safeStorage.removeItem(QUEUE_KEY);
   safeStorage.removeItem(SEQUENCE_KEY);
 }
