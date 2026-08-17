@@ -4,14 +4,46 @@ import { joinQuotaMessage, limitHint, retryHint } from "./quotaMessage";
 // KST 자정 = UTC 15:00. 서버는 `+09:00` 표기로 준다.
 const KST_MIDNIGHT = "2026-08-15T00:00:00.000+09:00";
 
+const HOUR = 60 * 60 * 1000;
+
+/** 실행 머신의 시간대와 무관하게 "오늘/내일"을 만들기 위해 로컬 기준으로 시각을 만든다. */
+function localMidnightTomorrow(now: Date): Date {
+  const at = new Date(now);
+  at.setHours(24, 0, 0, 0);
+  return at;
+}
+
 describe("retryHint", () => {
-  it("일일 쿼터는 다음 사용 가능 시각을 알려준다", () => {
-    const now = new Date("2026-08-14T04:00:00Z"); // KST 8/14 13:00
-    const hint = retryHint({ retryAfterSeconds: 39600, retryAt: KST_MIDNIGHT }, now);
+  it("리셋이 로컬 기준 다음 날이면 내일로 안내한다", () => {
+    // ⚠ 시간대를 고정하지 않는다 — CI는 UTC, 개발 머신은 KST라 절대 시각을 박으면
+    //   같은 값이 한쪽에서는 오늘, 다른 쪽에서는 내일이 된다. 규칙 자체를 검증한다.
+    const now = new Date("2026-08-14T04:00:00Z");
+    const resetAt = localMidnightTomorrow(now);
+    const seconds = Math.round((resetAt.getTime() - now.getTime()) / 1000);
+
+    const hint = retryHint({ retryAfterSeconds: seconds, retryAt: resetAt.toISOString() }, now);
 
     expect(hint).toContain("다시 사용할 수 있습니다");
-    // 리셋이 사용자 로컬 기준 다음 날이면 "내일"을 붙인다.
     expect(hint).toContain("내일");
+  });
+
+  it("리셋이 로컬 기준 오늘이면 시각만 안내한다", () => {
+    const now = new Date("2026-08-14T04:00:00Z");
+    const resetAt = new Date(Math.min(now.getTime() + 2 * HOUR, localMidnightTomorrow(now).getTime() - HOUR));
+    const seconds = Math.round((resetAt.getTime() - now.getTime()) / 1000);
+
+    const hint = retryHint({ retryAfterSeconds: seconds, retryAt: resetAt.toISOString() }, now);
+
+    expect(hint).toContain("다시 사용할 수 있습니다");
+    expect(hint).not.toContain("내일");
+  });
+
+  it("서버의 +09:00 표기를 그대로 받아 해석한다", () => {
+    // 서버는 KST로 준다. 화면 표기는 기기 로컬이라 여기서는 파싱이 되는지만 본다.
+    const now = new Date("2026-08-14T04:00:00Z");
+    expect(retryHint({ retryAfterSeconds: 39600, retryAt: KST_MIDNIGHT }, now)).toContain(
+      "다시 사용할 수 있습니다",
+    );
   });
 
   it("창이 짧으면 절대 시각 대신 잠시 후로 안내한다", () => {
@@ -45,9 +77,14 @@ describe("limitHint", () => {
 describe("joinQuotaMessage", () => {
   it("고정 문구 + 한도 + 시점을 한 덩어리로 잇는다", () => {
     const now = new Date("2026-08-14T04:00:00Z");
+    const resetAt = localMidnightTomorrow(now);
     const message = joinQuotaMessage(
       "오늘 사용할 수 있는 분석 횟수를 모두 사용했습니다.",
-      { limit: 10, retryAfterSeconds: 39600, retryAt: KST_MIDNIGHT },
+      {
+        limit: 10,
+        retryAfterSeconds: Math.round((resetAt.getTime() - now.getTime()) / 1000),
+        retryAt: resetAt.toISOString(),
+      },
       now,
     );
 
