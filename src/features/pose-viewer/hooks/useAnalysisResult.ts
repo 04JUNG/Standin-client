@@ -62,13 +62,14 @@ export function useAnalysisResult(jobId: string | undefined) {
 
   const query = useQuery({
     queryKey: poseQueryKeys.result(jobId ?? ""),
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       poseService.analyze({
         jobId: jobId ?? "",
         file: sourceFile!,
         source: draft!.source,
         width: draft!.width,
         height: draft!.height,
+        signal,
       }),
     enabled: Boolean(jobId && sourceFile),
     // queryFn이 단순 GET이 아니라 분석 Job을 생성한다. 후보→확인 화면 재마운트나

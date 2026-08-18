@@ -142,7 +142,10 @@ async function apiRequest(path: string, options: RequestOptions = {}): Promise<R
         body: multipart ? body : body !== undefined ? JSON.stringify(body) : undefined,
         signal,
       });
-    } catch {
+    } catch (error) {
+      // 호출자가 취소한 요청은 일반 네트워크 장애로 바꾸지 않는다. React Query가
+      // AbortError를 그대로 받아야 화면 이탈 시 취소된 요청을 실패로 기록하지 않는다.
+      if (signal?.aborted) throw error;
       // 네트워크 자체 실패는 정규화된 오류로 던진다.
       throw networkError() satisfies AppError;
     }

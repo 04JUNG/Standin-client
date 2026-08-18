@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  __resetApiClient,
-  setAccessToken,
-  setInstallationCredentials,
-} from "@/shared/api/client";
+import { __resetApiClient, setAccessToken, setInstallationCredentials } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
 import { poseHttp } from "./pose.http";
 
@@ -26,6 +22,7 @@ describe("poseHttp", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     __resetApiClient();
   });
@@ -101,6 +98,11 @@ describe("poseHttp", () => {
         "Authorization"
       ],
     ).toBeUndefined();
+    const requestSignals = fetchMock.mock.calls.map(
+      (call) => (call[1] as RequestInit).signal as AbortSignal,
+    );
+    expect(requestSignals.every((signal) => signal instanceof AbortSignal)).toBe(true);
+    expect(requestSignals.every((signal) => signal === requestSignals[0])).toBe(true);
     // 이 fixture에는 품질 필드가 없다 = 구 BFF와의 순차 배포 창(E2E-12).
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
@@ -304,6 +306,65 @@ describe("poseHttp", () => {
         height: 1,
       }),
     ).rejects.toThrow("포즈 분석에 실패했습니다");
+  });
+
+  it("응답이 없는 HTTP 요청을 전체 Job deadline에 실제로 중단한다", async () => {
+    vi.useFakeTimers();
+    let requestSignal: AbortSignal | undefined;
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      requestSignal = init?.signal as AbortSignal;
+      return new Promise<Response>((_resolve, reject) => {
+        requestSignal?.addEventListener(
+          "abort",
+          () => reject(requestSignal?.reason ?? new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+
+    const pending = poseHttp.analyze({
+      jobId: "client-route-job",
+      file: new File(["image"], "rough.png", { type: "image/png" }),
+      source: "file",
+      width: 1,
+      height: 1,
+    });
+    const assertion = expect(pending).rejects.toMatchObject({ code: "TIMEOUT" });
+
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+
+    await assertion;
+    expect(requestSignal?.aborted).toBe(true);
+  });
+
+  it("React Query가 취소하면 진행 중인 HTTP 요청도 즉시 중단한다", async () => {
+    const controller = new AbortController();
+    let requestSignal: AbortSignal | undefined;
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
+      requestSignal = init?.signal as AbortSignal;
+      return new Promise<Response>((_resolve, reject) => {
+        requestSignal?.addEventListener(
+          "abort",
+          () => reject(requestSignal?.reason ?? new DOMException("Aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+
+    const pending = poseHttp.analyze({
+      jobId: "client-route-job",
+      file: new File(["image"], "rough.png", { type: "image/png" }),
+      source: "file",
+      width: 1,
+      height: 1,
+      signal: controller.signal,
+    });
+    const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+
+    controller.abort();
+
+    await assertion;
+    expect(requestSignal?.aborted).toBe(true);
   });
 
   it("배포로 유실된 Job(ABANDONED)은 별도 사유로 갈라낸다", async () => {
