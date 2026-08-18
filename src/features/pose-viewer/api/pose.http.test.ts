@@ -366,4 +366,70 @@ describe("poseHttp", () => {
     await assertion;
     expect(requestSignal?.aborted).toBe(true);
   });
+
+  it("배포로 유실된 Job(ABANDONED)은 별도 사유로 갈라낸다", async () => {
+    // 러너가 프로세스 내 fire-and-forget이라 배포 중 Job이 유실될 수 있다. 서버가
+    // 스위퍼로 ABANDONED를 남기므로, 추론 실패와 같은 사유로 뭉개지 않는다.
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "abandoned-job", status: "queued", createdAt: "now" }, 202),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "abandoned-job",
+          status: "failed",
+          createdAt: "now",
+          updatedAt: "now",
+          error: "ABANDONED",
+        }),
+      );
+
+    await expect(
+      poseHttp.analyze({
+        jobId: "client-route-job",
+        file: new File(["image"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 1,
+        height: 1,
+      }),
+    ).rejects.toMatchObject({ code: "ABANDONED" });
+  });
+
+  it("쿼터 초과(429)는 원인과 다음 사용 가능 시점을 담은 오류로 올라간다", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "DAILY_QUOTA_EXCEEDED",
+            message: "daily quota exceeded",
+            details: {
+              limit: 10,
+              retryAfterSeconds: 39600,
+              retryAt: "2026-08-15T00:00:00.000+09:00",
+            },
+            requestId: "req_1",
+          },
+        }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": "39600" },
+        },
+      ),
+    );
+
+    await expect(
+      poseHttp.analyze({
+        jobId: "client-route-job",
+        file: new File(["image"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 1,
+        height: 1,
+      }),
+    ).rejects.toMatchObject({
+      status: 429,
+      code: "DAILY_QUOTA_EXCEEDED",
+      retryAfterSeconds: 39600,
+      details: { limit: 10 },
+    });
+  });
 });

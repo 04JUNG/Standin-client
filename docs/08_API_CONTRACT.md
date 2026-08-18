@@ -30,6 +30,42 @@
 ```
 
 앱은 서버 message를 직접 표시하지 않고 code를 사용자 메시지로 매핑한다.
+매핑은 `src/shared/api/errorMessages.ts`가 소유하고, `toAppError`/`messageOf`를 거쳐 화면에 나간다.
+
+### 사용량 제한 (`429`) · 서비스 중단 (`503`)
+
+오픈베타는 로그인 없이 설치 단위로 쓰므로 서버가 사용량을 강제한다(BFF `docs/API.md`
+「사용량 제한」). 초과 응답은 `429`와 함께 **언제 다시 쓸 수 있는지**를 `details`와
+`Retry-After` 헤더로 준다. 앱은 원인과 다음 사용 가능 시점을 함께 표시한다.
+
+```json
+{
+  "error": {
+    "code": "DAILY_QUOTA_EXCEEDED",
+    "message": "오늘 사용할 수 있는 분석 횟수를 모두 사용했습니다.",
+    "details": {
+      "retryAfterSeconds": 41230,
+      "limit": 10,
+      "retryAt": "2026-08-12T00:00:00.000+09:00"
+    },
+    "requestId": "req_..."
+  }
+}
+```
+
+| code | 상태 | 언제 | `details` |
+|---|---:|---|---|
+| `DAILY_QUOTA_EXCEEDED` | 429 | 설치별 일일 분석 한도 초과 | `retryAfterSeconds`, `limit`, `retryAt` |
+| `GLOBAL_QUOTA_EXCEEDED` | 429 | 서비스 전체 일일 한도 초과 | `retryAfterSeconds`, `retryAt` |
+| `CONCURRENCY_LIMIT` | 429 | 같은 설치에 진행 중인 분석이 있음 | `retryAfterSeconds`, `limit` |
+| `RATE_LIMITED` | 429 | 짧은 시간에 요청이 몰림(IP 단위) | `retryAfterSeconds`, `limit`, `windowSeconds` |
+| `SERVICE_PAUSED` | 503 | 운영자가 분석을 중단함(kill switch) | 없음 |
+
+- `retryAt`은 KST(`+09:00`) 표기다. 화면에는 사용자 기기의 로컬 시각으로 바꿔 보여준다.
+- **한도 숫자를 앱에 하드코딩하지 않는다.** 서버 환경변수로 조정되므로 `details.limit`을 그대로 쓴다.
+- `SERVICE_PAUSED`는 재시도 시각을 줄 수 없으므로 자동 재시도 루프를 돌리지 않는다.
+- `RATE_LIMITED`는 일일 쿼터와 별개 카운터다. 남은 일일 횟수가 있어도 잠깐 몰리면 나온다.
+  공용망·NAT에서는 같은 IP를 여러 사용자가 공유할 수 있다.
 
 ---
 
@@ -137,6 +173,18 @@ Response:
   "error": null
 }
 ```
+
+`status="failed"`일 때 `error`에 실패 사유 코드가 들어온다. 현재 BFF가 주는 값:
+
+| `error` | 의미 | 앱 처리 |
+|---|---|---|
+| `INFERENCE_FAILED` | 추론 호출 실패 | "다른 이미지로 다시 시도" |
+| `INPUT_STORAGE_FAILED` | 입력 이미지 보관 실패 | 재시도 |
+| `ABANDONED` | 배포·태스크 교체로 진행 중 Job이 유실됨 | "분석이 중단됐습니다. 다시 시도" |
+
+`ABANDONED`는 러너가 아직 프로세스 내 fire-and-forget이라 생긴다. 서버가 주기적으로
+정리해 무응답 대신 명시적 실패로 만들어 준다. 앱은 이 값을 `analysis_failed.reason`에
+그대로 실어 추론 실패와 구분한다.
 
 Status enum:
 
