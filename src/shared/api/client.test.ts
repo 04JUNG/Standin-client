@@ -165,6 +165,22 @@ describe("apiFetch", () => {
     });
   });
 
+  it("호출자가 취소한 fetch의 AbortError를 네트워크 오류로 바꾸지 않는다", async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException("Aborted", "AbortError");
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((_resolve, reject) => {
+          controller.signal.addEventListener("abort", () => reject(abortError), { once: true });
+        }),
+    );
+
+    const pending = apiFetch("/v1/users/me", { signal: controller.signal });
+    controller.abort();
+
+    await expect(pending).rejects.toBe(abortError);
+  });
+
   it("204는 본문 파싱 없이 통과한다", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(apiFetch("/v1/auth/logout", { method: "POST" })).resolves.toBeUndefined();

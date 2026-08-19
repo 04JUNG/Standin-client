@@ -13,6 +13,7 @@ import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseView
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
 import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
+import { messageOf } from "@/shared/api/errors";
 
 /**
  * 바 모드의 후보 확인(ADR-008). 앱 창에 들어가지 않고 작업 화면 위에서 후보를 고른다.
@@ -103,7 +104,7 @@ export function BarCandidatesPage() {
         {isError && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 text-center">
             <p className="text-[12px] text-text-secondary">
-              {error instanceof Error ? error.message : "후보를 불러오지 못했습니다."}
+              {messageOf(error, "후보를 불러오지 못했습니다.")}
             </p>
             <Button variant="secondary" size="md" onClick={() => navigate("/bar/actions")}>
               다시 시도
