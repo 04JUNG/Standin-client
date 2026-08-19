@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchText } from "@/shared/api/client";
+import { ApiError } from "@/shared/api/errors";
 import { copyText } from "@/shared/lib/copyText";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -18,7 +19,13 @@ async function resolveBvhContent(bvhUrl: string | undefined, candidateId: string
   if (!bvhUrl) return mockBvhContent(candidateId);
   try {
     return await apiFetchText(bvhUrl, { auth: false });
-  } catch {
+  } catch (error) {
+    // 추론이 릴리스 시점에 격리한 포즈다. 후보 목록은 분석 때 확정되므로, 격리가 늘어나면
+    // 화면에 이미 떠 있던 선택이 여기서 409로 돌아온다. **재시도로는 절대 풀리지 않으므로**
+    // 일반 실패로 뭉치면 사용자는 영원히 실패하는 재시도 버튼만 누르게 된다.
+    if (error instanceof ApiError && error.code === "POSE_UNAVAILABLE") {
+      throw new Error("이 포즈는 더 이상 제공되지 않습니다. 후보 화면에서 다른 포즈를 선택해 주세요.");
+    }
     throw new Error("BVH 파일을 서버에서 받아오지 못했습니다.");
   }
 }
