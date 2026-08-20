@@ -13,6 +13,7 @@ import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
+import { messageOf } from "@/shared/api/errors";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
@@ -110,7 +111,7 @@ export function PoseViewerPage() {
     return (
       <AppShell title="포즈 후보">
         <div className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary">
-          <p>{error instanceof Error ? error.message : "후보를 불러오지 못했습니다."}</p>
+          <p>{messageOf(error, "후보를 불러오지 못했습니다.")}</p>
           <Button variant="secondary" onClick={() => navigate("/app/home")}>
             홈으로 돌아가기
           </Button>

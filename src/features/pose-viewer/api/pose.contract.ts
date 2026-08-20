@@ -64,7 +64,7 @@ export type AnalysisResult = {
  * 분석이 실패한 사유. 사용자 문구가 아니라 분류용 코드다 — `analysis_failed` 이벤트가
  * 이 값을 그대로 싣는다. 문구만으로는 "실패"와 "시간 초과"를 지표에서 구분할 수 없다.
  */
-export type AnalysisErrorCode = "JOB_FAILED" | "TIMEOUT" | "NO_PEOPLE";
+export type AnalysisErrorCode = "JOB_FAILED" | "TIMEOUT" | "NO_PEOPLE" | "ABANDONED";
 
 export class AnalysisError extends Error {
   constructor(
@@ -83,5 +83,7 @@ export interface PoseResultService {
     source: "file" | "capture" | "clipboard";
     width: number;
     height: number;
+    /** React Query가 화면 이탈/쿼리 취소 시 진행 중인 HTTP 요청까지 중단한다. */
+    signal?: AbortSignal;
   }): Promise<AnalysisResult>;
 }

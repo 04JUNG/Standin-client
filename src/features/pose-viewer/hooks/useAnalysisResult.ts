@@ -23,10 +23,27 @@ let lastViewedKey: string | null = null;
 /** `analysis_failed`도 같은 이유로 마운트가 아니라 job 단위로 한 번만 남긴다. */
 let lastFailedKey: string | null = null;
 
+/**
+ * 사용량 제한으로 거절된 코드들. 서버가 주는 코드를 그대로 지표에 실어 쿼터 초과와
+ * 실제 장애를 구분한다 — 전부 REJECTED로 뭉개면 "베타 참여자가 한도에 자주 막히는가"를
+ * 알 수 없다.
+ */
+const LIMIT_CODES = new Set([
+  "DAILY_QUOTA_EXCEEDED",
+  "GLOBAL_QUOTA_EXCEEDED",
+  "CONCURRENCY_LIMIT",
+  "RATE_LIMITED",
+  "SERVICE_PAUSED",
+  "PAYLOAD_TOO_LARGE",
+]);
+
 /** 실패 사유를 지표용 코드로 분류한다. 사용자 문구는 화면이 따로 고른다(docs/06 §4). */
 function failureReason(err: unknown): string {
   if (err instanceof AnalysisError) return err.code;
-  if (err instanceof ApiError) return err.status >= 500 ? "SERVER_ERROR" : "REJECTED";
+  if (err instanceof ApiError) {
+    if (LIMIT_CODES.has(err.code)) return err.code;
+    return err.status >= 500 ? "SERVER_ERROR" : "REJECTED";
+  }
   if (typeof err === "object" && err !== null && "kind" in err && err.kind === "network") {
     return "NETWORK";
   }
@@ -45,13 +62,14 @@ export function useAnalysisResult(jobId: string | undefined) {
 
   const query = useQuery({
     queryKey: poseQueryKeys.result(jobId ?? ""),
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       poseService.analyze({
         jobId: jobId ?? "",
         file: sourceFile!,
         source: draft!.source,
         width: draft!.width,
         height: draft!.height,
+        signal,
       }),
     enabled: Boolean(jobId && sourceFile),
     // queryFn이 단순 GET이 아니라 분석 Job을 생성한다. 후보→확인 화면 재마운트나

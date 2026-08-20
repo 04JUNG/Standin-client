@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { setAccessToken } from "@/shared/api/client";
-import { toAppError } from "@/shared/api/errors";
+import { messageOf } from "@/shared/api/errors";
 import { authService } from "../api/auth.service";
 import { authStorage } from "../lib/authStorage";
 import type { AuthUser, LoginInput, OAuthProvider } from "../api/auth.contract";
@@ -28,12 +28,6 @@ type AuthState = {
   endSession(message?: string): void;
   setLoginError(message: string | null): void;
 };
-
-/** 서버 원문이 아니라 코드로 고른 앱 문구를 쓴다(docs/06 §4). */
-function messageOf(err: unknown, fallback: string): string {
-  const appError = toAppError(err);
-  return appError.message || fallback;
-}
 
 /** 이메일 미인증(403 EMAIL_NOT_VERIFIED)인지. 재발송 안내를 띄울지 판단한다. */
 function isUnverifiedEmailError(err: unknown): boolean {
