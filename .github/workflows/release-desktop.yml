@@ -63,7 +63,7 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VITE_API_BASE_URL: https://d1bbz5oaj92efa.cloudfront.net
+          VITE_API_BASE_URL: https://api.standinpose.com
           VITE_WEB_BASE_URL: https://standin-seven.vercel.app
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
