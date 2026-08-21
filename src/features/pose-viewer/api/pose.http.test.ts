@@ -415,6 +415,34 @@ describe("poseHttp", () => {
     ).rejects.toMatchObject({ code: "ABANDONED" });
   });
 
+  // 2026-08-21 장애: 상류(Gemini) 혼잡으로 실패한 분석이 일반 실패로 뭉개져 화면이
+  // "다른 이미지로 다시 시도해 주세요"라고 안내했다. 그 시간에는 어떤 이미지도 실패한다.
+  it("상류 혼잡(ANALYSIS_UNAVAILABLE)은 별도 사유로 갈라낸다", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "busy-job", status: "queued", createdAt: "now" }, 202),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "busy-job",
+          status: "failed",
+          createdAt: "now",
+          updatedAt: "now",
+          error: "ANALYSIS_UNAVAILABLE",
+        }),
+      );
+
+    await expect(
+      poseHttp.analyze({
+        jobId: "client-route-job",
+        file: new File(["image"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 1,
+        height: 1,
+      }),
+    ).rejects.toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
+  });
+
   it("쿼터 초과(429)는 원인과 다음 사용 가능 시점을 담은 오류로 올라간다", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
