@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetApiClient, setAccessToken, setInstallationCredentials } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
-import { poseHttp } from "./pose.http";
+import { __resetAnalysisJobs, poseHttp } from "./pose.http";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -15,6 +15,7 @@ describe("poseHttp", () => {
 
   beforeEach(() => {
     __resetApiClient();
+    __resetAnalysisJobs();
     setAccessToken("access-token");
     setInstallationCredentials({ installationId: "inst_1", deviceToken: "device-token" });
     fetchMock = vi.fn();
@@ -25,6 +26,7 @@ describe("poseHttp", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     __resetApiClient();
+    __resetAnalysisJobs();
   });
 
   it("인증된 multipart Job을 만들고 완료 결과를 클라이언트 후보로 변환한다", async () => {
@@ -102,7 +104,12 @@ describe("poseHttp", () => {
       (call) => (call[1] as RequestInit).signal as AbortSignal,
     );
     expect(requestSignals.every((signal) => signal instanceof AbortSignal)).toBe(true);
-    expect(requestSignals.every((signal) => signal === requestSignals[0])).toBe(true);
+    // 폴링·결과·썸네일은 하나의 signal을 공유한다 — deadline 하나로 전부 끊긴다.
+    const [creation, ...rest] = requestSignals;
+    expect(rest.every((signal) => signal === rest[0])).toBe(true);
+    // Job 생성만 별도 signal이다. 화면 이탈로 이 요청을 끊으면 서버가 이미 만든 Job의
+    // jobId를 영영 모르게 되고, 그 Job이 동시 분석 슬롯을 잡은 채 남는다.
+    expect(creation).not.toBe(rest[0]);
     // 이 fixture에는 품질 필드가 없다 = 구 BFF와의 순차 배포 창(E2E-12).
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
@@ -337,15 +344,25 @@ describe("poseHttp", () => {
     expect(requestSignal?.aborted).toBe(true);
   });
 
-  it("React Query가 취소하면 진행 중인 HTTP 요청도 즉시 중단한다", async () => {
+  // 취소는 폴링을 끊는다. 다만 Job 생성 요청은 끊지 않는다 — 끊으면 서버가 이미 만든
+  // Job의 jobId를 모르게 되고, 그 Job이 동시 분석 슬롯을 잡은 채 남아 다음 시도를 막는다.
+  it("React Query가 취소하면 진행 중인 폴링을 즉시 중단한다", async () => {
     const controller = new AbortController();
-    let requestSignal: AbortSignal | undefined;
+    let createSignal: AbortSignal | undefined;
+    let pollSignal: AbortSignal | undefined;
     fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => {
-      requestSignal = init?.signal as AbortSignal;
+      const signal = init?.signal as AbortSignal;
+      if (init?.method === "POST") {
+        createSignal = signal;
+        return Promise.resolve(
+          jsonResponse({ jobId: "server-job", status: "queued", createdAt: "now" }, 202),
+        );
+      }
+      pollSignal = signal;
       return new Promise<Response>((_resolve, reject) => {
-        requestSignal?.addEventListener(
+        signal?.addEventListener(
           "abort",
-          () => reject(requestSignal?.reason ?? new DOMException("Aborted", "AbortError")),
+          () => reject(signal?.reason ?? new DOMException("Aborted", "AbortError")),
           { once: true },
         );
       });
@@ -361,10 +378,13 @@ describe("poseHttp", () => {
     });
     const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" });
 
+    // 폴링이 시작될 때까지 기다린 뒤 취소한다(= 사용자가 화면을 떠난다).
+    await vi.waitFor(() => expect(pollSignal).toBeDefined());
     controller.abort();
 
     await assertion;
-    expect(requestSignal?.aborted).toBe(true);
+    expect(pollSignal?.aborted).toBe(true);
+    expect(createSignal?.aborted).toBe(false);
   });
 
   it("배포로 유실된 Job(ABANDONED)은 별도 사유로 갈라낸다", async () => {
@@ -431,5 +451,62 @@ describe("poseHttp", () => {
       retryAfterSeconds: 39600,
       details: { limit: 10 },
     });
+  });
+  // 릴리스 버그: 업로드 뒤 창을 최소화하면 "이미 진행 중인 분석이 있습니다"가 떴다.
+  // 최소화는 작업 표시줄로 숨는 대신 라우트를 앱(/app/jobs/:id)에서 바(/bar/candidates)로
+  // 바꾸고(ADR-008), 그 전환에서 React Query가 진행 중인 요청을 끊은 뒤 새 옵저버로
+  // 다시 실행한다. 그때 Job을 새로 만들면 앞선 Job이 아직 동시 분석 슬롯을 쥐고 있어
+  // 사용자가 자기 분석에 자기가 막힌다. 화면 job 하나에 서버 Job은 하나여야 한다.
+  it("취소 뒤 같은 화면 job으로 다시 요청해도 Job을 새로 만들지 않고 이어서 폴링한다", async () => {
+    const responses = [
+      () => jsonResponse({ jobId: "server-job", status: "queued", createdAt: "now" }, 202),
+      () =>
+        jsonResponse({
+          jobId: "server-job",
+          status: "completed",
+          createdAt: "now",
+          updatedAt: "now",
+          error: null,
+        }),
+      () =>
+        jsonResponse({
+          jobId: "server-job",
+          notes: [],
+          capabilities: { refine: false },
+          candidatesByPerson: [
+            { personIndex: 0, box: null, tags: {}, fallbackMode: "hard", candidates: [] },
+          ],
+        }),
+    ];
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+      // 실제 fetch처럼 취소된 요청은 보내지 않는다.
+      if (init?.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      const next = responses.shift();
+      if (!next) throw new Error("예상하지 못한 요청");
+      return next();
+    });
+
+    const input = {
+      jobId: "client-route-job",
+      file: new File(["image"], "rough.png", { type: "image/png" }),
+      source: "file" as const,
+      width: 1,
+      height: 1,
+    };
+
+    // 최소화 = 라우트 전환 = 쿼리 취소. 생성 요청은 이미 나갔고 서버는 Job을 만들었다.
+    const cancelled = new AbortController();
+    const interrupted = poseHttp.analyze({ ...input, signal: cancelled.signal });
+    cancelled.abort(new DOMException("Aborted", "AbortError"));
+    await expect(interrupted).rejects.toThrow();
+
+    // 바 화면이 마운트되며 같은 화면 job으로 다시 분석을 요청한다.
+    const result = await poseHttp.analyze({ ...input, signal: new AbortController().signal });
+
+    expect(result.jobId).toBe("server-job");
+    const created = fetchMock.mock.calls.filter(
+      (call) => (call[1] as RequestInit | undefined)?.method === "POST",
+    );
+    expect(created).toHaveLength(1);
   });
 });

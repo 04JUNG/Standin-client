@@ -119,9 +119,14 @@ function analysisTimeoutError(): AnalysisError {
 /**
  * 폴링 루프에서 시각만 확인하면 진행 중인 fetch가 응답하지 않을 때 deadline을 다시
  * 검사하지 못한다. 하나의 AbortSignal을 Job 생성부터 결과 변환까지 전부 전달한다.
+ *
+ * 단 **Job 생성 요청만은** 예외로 `createSignal`을 쓴다. 화면 이탈(쿼리 취소)로 생성
+ * 요청을 끊어도 서버는 이미 Job을 만들었을 수 있고, 그러면 우리가 jobId를 모르는 Job이
+ * 설치당 하나뿐인 동시 분석 슬롯을 잡은 채 남는다. 시간 초과에만 반응하게 둔다.
  */
 function createAnalysisDeadline(parent?: AbortSignal) {
   const controller = new AbortController();
+  const timeoutOnly = new AbortController();
   const deadline = Date.now() + JOB_TIMEOUT_MS;
   let timedOut = false;
 
@@ -131,11 +136,14 @@ function createAnalysisDeadline(parent?: AbortSignal) {
 
   const timer = setTimeout(() => {
     timedOut = true;
-    controller.abort(new DOMException("Analysis timed out", "TimeoutError"));
+    const reason = new DOMException("Analysis timed out", "TimeoutError");
+    timeoutOnly.abort(reason);
+    controller.abort(reason);
   }, JOB_TIMEOUT_MS);
 
   return {
     signal: controller.signal,
+    createSignal: timeoutOnly.signal,
     deadline,
     didTimeOut: () => timedOut,
     dispose: () => {
@@ -290,23 +298,76 @@ async function waitForResult(
   throw analysisTimeoutError();
 }
 
+type AnalyzeInput = Parameters<PoseResultService["analyze"]>[0];
+
+/**
+ * 화면 job(라우트의 jobId) → 그 입력으로 **이미 만든** 서버 Job.
+ *
+ * Job 생성은 조회가 아니라 자원 확보다 — 하루 쿼터를 깎고 설치당 하나뿐인 동시 분석
+ * 슬롯을 잡는다. 그런데 `analyze`는 같은 화면 job으로 여러 번 불릴 수 있다. 창을
+ * 최소화하면 라우트가 앱(/app/jobs/:id)에서 바(/bar/candidates)로 바뀌고(ADR-008),
+ * 그 전환에서 쿼리가 취소·재실행되기 때문이다. 그때마다 Job을 새로 만들면 앞서 만든
+ * Job이 아직 슬롯을 쥐고 있어 **사용자가 자기 분석 때문에 막힌다**(CONCURRENCY_LIMIT).
+ *
+ * 그래서 화면 job 하나에 서버 Job 하나를 고정하고, 다시 불리면 그 Job을 이어서 폴링한다.
+ * 새 분석은 새 화면 job(새 업로드·캡처)에서만 시작된다.
+ */
+const serverJobByClientJob = new Map<string, Promise<string>>();
+
+function serverJobFor(
+  clientJobId: string,
+  { file, source, width, height }: Omit<AnalyzeInput, "jobId" | "signal">,
+  signal: AbortSignal,
+): Promise<string> {
+  const known = serverJobByClientJob.get(clientJobId);
+  if (known) return known;
+
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  formData.append("source", source);
+  formData.append("width", String(width));
+  formData.append("height", String(height));
+
+  const created = apiFetch<CreateJobResponse>(endpoints.analysis.jobs, {
+    method: "POST",
+    body: formData,
+    auth: false,
+    signal,
+  })
+    .then((job) => job.jobId)
+    .catch((error) => {
+      // 만들지 못했으면 슬롯도 잡히지 않았다. 다음 시도가 다시 만들 수 있게 지운다.
+      serverJobByClientJob.delete(clientJobId);
+      throw error;
+    });
+
+  serverJobByClientJob.set(clientJobId, created);
+  return created;
+}
+
+/** 테스트에서 모듈 상태를 초기화한다. */
+export function __resetAnalysisJobs(): void {
+  serverJobByClientJob.clear();
+}
+
 export const poseHttp: PoseResultService = {
-  async analyze({ file, source, width, height, signal: parentSignal }): Promise<AnalysisResult> {
+  async analyze({
+    jobId,
+    file,
+    source,
+    width,
+    height,
+    signal: parentSignal,
+  }): Promise<AnalysisResult> {
     const timeout = createAnalysisDeadline(parentSignal);
-    const formData = new FormData();
-    formData.append("file", file, file.name);
-    formData.append("source", source);
-    formData.append("width", String(width));
-    formData.append("height", String(height));
 
     try {
-      const job = await apiFetch<CreateJobResponse>(endpoints.analysis.jobs, {
-        method: "POST",
-        body: formData,
-        auth: false,
-        signal: timeout.signal,
-      });
-      const result = await waitForResult(job.jobId, timeout.deadline, timeout.signal);
+      const serverJobId = await serverJobFor(
+        jobId,
+        { file, source, width, height },
+        timeout.createSignal,
+      );
+      const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal);
       const analysis = await toAnalysisResult(result, timeout.signal);
       if (timeout.signal.aborted) throw timeout.signal.reason;
       return analysis;
