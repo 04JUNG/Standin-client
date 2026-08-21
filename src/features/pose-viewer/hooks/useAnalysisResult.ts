@@ -78,6 +78,12 @@ export function useAnalysisResult(jobId: string | undefined) {
     refetchOnMount: false,
     refetchOnReconnect: false,
     retry: false,
+    // `refetchOnMount: false`는 **결과가 있을 때만** 재실행을 막는다. 실패해서 데이터가
+    // 없는 쿼리는 새 옵저버가 붙을 때마다 다시 실행되는 것이 기본값(retryOnMount)이고,
+    // 여기서는 그 재실행이 곧 서버 Job 생성이다. 창 최소화가 라우트를 앱→바로 바꾸며
+    // 이 훅을 다시 마운트하므로, 한 번 실패한 뒤에는 최소화·확대를 오갈 때마다 분석이
+    // 조용히 다시 시작됐다. 재시도는 사용자가 새 분석을 시작할 때만 일어난다.
+    retryOnMount: false,
   });
 
   // hard fallback(자동 후보 없음)인 인물은 선택 대상이 아니라 안내로만 보여준다.
