@@ -11,9 +11,9 @@ import { PersonFallbackNotice } from "@/features/pose-viewer/components/PersonFa
 import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { analysisFailure } from "@/features/pose-viewer/lib/analysisFailure";
 import { BarShell } from "../components/BarShell";
 import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
-import { messageOf } from "@/shared/api/errors";
 
 /**
  * 바 모드의 후보 확인(ADR-008). 앱 창에 들어가지 않고 작업 화면 위에서 후보를 고른다.
@@ -103,12 +103,21 @@ export function BarCandidatesPage() {
 
         {isError && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 text-center">
-            <p className="text-[12px] text-text-secondary">
-              {messageOf(error, "후보를 불러오지 못했습니다.")}
-            </p>
-            <Button variant="secondary" size="md" onClick={() => navigate("/bar/actions")}>
-              다시 시도
-            </Button>
+            <p className="text-[12px] text-text-secondary">{analysisFailure(error).message}</p>
+            {/* 재시도 가능한 실패는 같은 입력으로 다시 분석한다(/bar/progress가 새 화면 job을
+                만들어 후보 화면으로 넘긴다). 그렇지 않으면 입력부터 다시 받는다. */}
+            {analysisFailure(error).retryable ? (
+              <Button
+                size="md"
+                onClick={() => navigate("/bar/progress", { replace: true })}
+              >
+                다시 시도
+              </Button>
+            ) : (
+              <Button variant="secondary" size="md" onClick={() => navigate("/bar/actions")}>
+                처음으로
+              </Button>
+            )}
           </div>
         )}
 

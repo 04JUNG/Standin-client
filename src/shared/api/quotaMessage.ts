@@ -39,6 +39,21 @@ function isSameLocalDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
 }
 
+/** 자정 기준으로 며칠 뒤인가(같은 날 0, 다음 날 1). */
+function localDaysAhead(target: Date, now: Date): number {
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((startOfDay(target) - startOfDay(now)) / (24 * 60 * 60 * 1000));
+}
+
+/** "8월 24일 월요일". 주간 쿼터처럼 며칠 뒤에 풀리는 창을 안내할 때 쓴다. */
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(date);
+}
+
 /**
  * 재시도 시점 한 문장. 알 수 없으면 null(그때는 고정 문구만 보여준다).
  *
@@ -64,9 +79,11 @@ export function retryHint(details: LimitDetails | null, now = new Date()): strin
   }
 
   const clock = formatClockTime(resetAt);
-  return isSameLocalDay(resetAt, now)
-    ? `${clock}부터 다시 사용할 수 있습니다.`
-    : `내일 ${clock}부터 다시 사용할 수 있습니다.`;
+  if (isSameLocalDay(resetAt, now)) return `${clock}부터 다시 사용할 수 있습니다.`;
+  if (localDaysAhead(resetAt, now) === 1) return `내일 ${clock}부터 다시 사용할 수 있습니다.`;
+  // 주간 쿼터는 최대 7일 뒤에 풀린다. 그걸 "내일"이라고 하면 사용자는 하루 뒤에 다시 와서
+  // 또 막힌다. 며칠 뒤면 시각보다 날짜가 필요한 정보다.
+  return `${formatDate(resetAt)}부터 다시 사용할 수 있습니다.`;
 }
 
 /** 한도를 알려주는 문장. 서버가 준 값만 쓴다. */

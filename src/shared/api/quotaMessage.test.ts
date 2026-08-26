@@ -27,6 +27,27 @@ describe("retryHint", () => {
     expect(hint).toContain("내일");
   });
 
+  // 주간 쿼터(BFF WEEKLY_QUOTA_EXCEEDED)는 최대 7일 뒤에 풀린다. 그걸 "내일"이라고 하면
+  // 사용자는 하루 뒤에 다시 와서 또 막힌다.
+  it("리셋이 며칠 뒤면 내일이 아니라 날짜로 안내한다", () => {
+    const now = new Date("2026-08-22T04:00:00Z");
+    const resetAt = new Date(now);
+    resetAt.setHours(24 * 3, 0, 0, 0); // 로컬 기준 3일 뒤 자정
+
+    const hint = retryHint(
+      {
+        retryAfterSeconds: Math.round((resetAt.getTime() - now.getTime()) / 1000),
+        retryAt: resetAt.toISOString(),
+      },
+      now,
+    );
+
+    expect(hint).toContain("다시 사용할 수 있습니다");
+    expect(hint).not.toContain("내일");
+    // 날짜가 들어가야 언제 오면 되는지 알 수 있다(표기는 기기 로캘을 따른다).
+    expect(hint).toMatch(/\d/);
+  });
+
   it("리셋이 로컬 기준 오늘이면 시각만 안내한다", () => {
     const now = new Date("2026-08-14T04:00:00Z");
     const resetAt = new Date(Math.min(now.getTime() + 2 * HOUR, localMidnightTomorrow(now).getTime() - HOUR));
