@@ -1,6 +1,8 @@
 import { create } from "zustand";
+import { trackEvent } from "@/features/analytics/analyticsClient";
 import { updateService } from "../api/update.service";
 import type { UpdateAvailability } from "../api/update.contract";
+import { updateFailureReason } from "../lib/updateFailure";
 
 /**
  * 업데이트 확인 결과를 앱 전역에서 공유한다(ADR-011).
@@ -27,8 +29,13 @@ type UpdateState = {
 
   /** 버전과 피드 설정 여부를 읽는다. 이미 읽었으면 다시 부르지 않는다. */
   loadInfo(): Promise<void>;
-  /** 업데이트를 확인한다. 피드가 없으면 아무것도 하지 않는다. */
-  check(): Promise<void>;
+  /**
+   * 업데이트를 확인한다. 피드가 없으면 아무것도 하지 않는다.
+   *
+   * `trigger`는 지표에만 쓴다 — 시작 시 자동 확인이 실제로 도는지와 사용자가
+   * 직접 누른 것을 갈라야 자동 업데이트가 동작하는지 알 수 있다.
+   */
+  check(trigger: "startup" | "manual"): Promise<void>;
   dismissBanner(): void;
   reset(): void;
 };
@@ -59,9 +66,10 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
     set({ version, configured });
   },
 
-  async check() {
+  async check(trigger) {
     await get().loadInfo();
     // 피드가 없는 빌드에서는 확인 자체를 하지 않는다. 실패를 보여줄 이유가 없다.
+    // 지표도 남기지 않는다 — 브라우저 개발 모드가 집계를 오염시킨다.
     if (!get().configured) return;
     if (get().phase === "checking") return;
 
@@ -70,8 +78,11 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       const result = await updateService.check();
       // 새 결과가 오면 이전에 닫은 배너를 되살린다. 다른 버전이면 다시 알려야 한다.
       set({ phase: "done", result, bannerDismissed: false });
+      trackEvent("update_check", { trigger, result: result.kind });
     } catch (error) {
       set({ phase: "error", error: errorMessage(error) });
+      trackEvent("update_check", { trigger, result: "error" });
+      trackEvent("update_failed", { phase: "check", reason: updateFailureReason(error) });
     }
   },
 

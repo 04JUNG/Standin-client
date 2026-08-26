@@ -3,8 +3,10 @@ import { useIsFetching } from "@tanstack/react-query";
 import { AlertCircle, Check, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
+import { trackEvent } from "@/features/analytics/analyticsClient";
 import { updateService } from "../api/update.service";
 import { useUpdateStore } from "../store/updateStore";
+import { updateFailureReason } from "../lib/updateFailure";
 
 /**
  * 설정의 버전·업데이트 섹션(ADR-011).
@@ -49,13 +51,24 @@ export function AppUpdateSection() {
     void loadInfo();
   }, [loadInfo]);
 
-  async function installUpdate() {
+  async function installUpdate(toVersion: string) {
+    // 내려받기와 설치를 한 호출이 함께 하므로 어느 쪽에서 멈췄는지 갈라낼 수 없다.
+    // 진행률이 한 번이라도 왔으면 내려받기는 시작된 것으로 본다.
+    let downloadStarted = false;
     setInstall({ kind: "installing", ratio: null });
     try {
-      await updateService.install(({ ratio }) => setInstall({ kind: "installing", ratio }));
+      await updateService.install(({ ratio }) => {
+        downloadStarted = true;
+        setInstall({ kind: "installing", ratio });
+      });
       setInstall({ kind: "installed" });
+      trackEvent("update_installed", { fromVersion: version, toVersion });
     } catch (error) {
       setInstall({ kind: "error", message: errorMessage(error) });
+      trackEvent("update_failed", {
+        phase: downloadStarted ? "install" : "download",
+        reason: updateFailureReason(error),
+      });
     }
   }
 
@@ -89,7 +102,7 @@ export function AppUpdateSection() {
               size="md"
               loading={checking}
               disabled={busy}
-              onClick={() => void check()}
+              onClick={() => void check("manual")}
             >
               {checking ? "확인 중…" : "업데이트 확인"}
             </Button>
@@ -127,7 +140,7 @@ export function AppUpdateSection() {
                 variant="primary"
                 size="md"
                 disabled={analysisRunning}
-                onClick={() => void installUpdate()}
+                onClick={() => void installUpdate(available.version)}
               >
                 <Download className="h-4 w-4" aria-hidden />
                 지금 설치
