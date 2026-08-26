@@ -29,6 +29,9 @@ const MESSAGES: Record<string, string> = {
   // ⚠ 한도 숫자나 재시도 시각을 여기 넣지 않는다 — 요청마다 다르므로 서버가 준
   //   details로 quotaMessage가 뒤에 붙인다. 이 테이블은 코드→고정 문구 매핑이다.
   RATE_LIMITED: "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+  // 설치별 한도는 **주 단위**다(BFF `WEEKLY_QUOTA_EXCEEDED`, KST 월요일 리셋).
+  // 이전 서버가 보내던 일일 코드도 남겨 둔다 — 클라와 서버는 순차 배포라 둘이 섞이는 창이 생긴다.
+  WEEKLY_QUOTA_EXCEEDED: "이번 주에 사용할 수 있는 분석 횟수를 모두 사용했습니다.",
   DAILY_QUOTA_EXCEEDED: "오늘 사용할 수 있는 분석 횟수를 모두 사용했습니다.",
   GLOBAL_QUOTA_EXCEEDED: "오늘 베타 전체 분석 한도에 도달했습니다.",
   CONCURRENCY_LIMIT: "이미 진행 중인 분석이 있습니다.",

@@ -29,6 +29,8 @@ let lastFailedKey: string | null = null;
  * 알 수 없다.
  */
 const LIMIT_CODES = new Set([
+  "WEEKLY_QUOTA_EXCEEDED",
+  // 일일 코드는 서버가 주 단위로 바뀌기 전 값이다. 순차 배포 창 동안 둘 다 올 수 있다.
   "DAILY_QUOTA_EXCEEDED",
   "GLOBAL_QUOTA_EXCEEDED",
   "CONCURRENCY_LIMIT",
