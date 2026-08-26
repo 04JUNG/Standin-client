@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
+import { useUpdateStore } from "../store/updateStore";
 
 /**
  * 버전·업데이트 섹션의 계약을 고정한다(ADR-011).
@@ -55,6 +56,8 @@ function renderSection(extra?: ReactNode) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // 확인 결과가 store에 남으므로 테스트마다 지운다. 남기면 loadInfo가 조기 반환한다.
+  useUpdateStore.getState().reset();
   currentVersion.mockResolvedValue("0.1.1-beta.2");
   isConfigured.mockResolvedValue(true);
 });

@@ -4,7 +4,7 @@ import { AlertCircle, Check, Download, RefreshCw } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import { updateService } from "../api/update.service";
-import type { UpdateAvailability } from "../api/update.contract";
+import { useUpdateStore } from "../store/updateStore";
 
 /**
  * 설정의 버전·업데이트 섹션(ADR-011).
@@ -14,70 +14,54 @@ import type { UpdateAvailability } from "../api/update.contract";
  *
  * 업데이트 확인 UI는 피드가 설정된 빌드에서만 나온다. 피드가 없는 빌드에서 버튼을
  * 보여주면 누를 때마다 실패하는 기능을 있는 것처럼 보이게 한다(CLAUDE.md §10).
+ *
+ * 확인 결과는 store에서 온다 — 시작 시 자동 확인(UpdateBanner)과 같은 결과를 봐야
+ * 배너를 보고 넘어온 사용자가 같은 버튼을 다시 누르지 않는다. 설치는 여기에만 둔다.
  */
 
-type Phase =
+type InstallPhase =
   | { kind: "idle" }
-  | { kind: "checking" }
-  | { kind: "checked"; result: UpdateAvailability }
   | { kind: "installing"; ratio: number | null }
   | { kind: "installed" }
   | { kind: "error"; message: string };
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
-  return "업데이트를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  return "업데이트를 설치하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
 export function AppUpdateSection() {
-  const [version, setVersion] = useState<string | null>(null);
-  const [configured, setConfigured] = useState<boolean | null>(null);
-  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const version = useUpdateStore((s) => s.version);
+  const configured = useUpdateStore((s) => s.configured);
+  const checkPhase = useUpdateStore((s) => s.phase);
+  const result = useUpdateStore((s) => s.result);
+  const checkError = useUpdateStore((s) => s.error);
+  const loadInfo = useUpdateStore((s) => s.loadInfo);
+  const check = useUpdateStore((s) => s.check);
+
+  const [install, setInstall] = useState<InstallPhase>({ kind: "idle" });
 
   // 분석은 서버에서 오래 도는 작업이라 재시작하면 사용자가 기다린 시간이 날아간다.
   // 처리 중인 작업을 알 수 있어야 한다는 원칙(docs/11 §1)을 재시작에도 적용한다.
   const analysisRunning = useIsFetching({ queryKey: poseQueryKeys.all }) > 0;
 
   useEffect(() => {
-    let alive = true;
-
-    async function load() {
-      const [current, enabled] = await Promise.all([
-        updateService.currentVersion().catch(() => null),
-        updateService.isConfigured().catch(() => false),
-      ]);
-      if (!alive) return;
-      setVersion(current);
-      setConfigured(enabled);
-    }
-
-    void load();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  async function checkForUpdate() {
-    setPhase({ kind: "checking" });
-    try {
-      const result = await updateService.check();
-      setPhase({ kind: "checked", result });
-    } catch (error) {
-      setPhase({ kind: "error", message: errorMessage(error) });
-    }
-  }
+    void loadInfo();
+  }, [loadInfo]);
 
   async function installUpdate() {
-    setPhase({ kind: "installing", ratio: null });
+    setInstall({ kind: "installing", ratio: null });
     try {
-      await updateService.install(({ ratio }) => setPhase({ kind: "installing", ratio }));
-      setPhase({ kind: "installed" });
+      await updateService.install(({ ratio }) => setInstall({ kind: "installing", ratio }));
+      setInstall({ kind: "installed" });
     } catch (error) {
-      setPhase({ kind: "error", message: errorMessage(error) });
+      setInstall({ kind: "error", message: errorMessage(error) });
     }
   }
 
-  const busy = phase.kind === "checking" || phase.kind === "installing";
+  const checking = checkPhase === "checking";
+  const busy = checking || install.kind === "installing";
+  const available = checkPhase === "done" && result?.kind === "available" ? result : null;
 
   return (
     <section className="flex flex-col gap-3">
@@ -103,40 +87,40 @@ export function AppUpdateSection() {
             <Button
               variant="secondary"
               size="md"
-              loading={phase.kind === "checking"}
+              loading={checking}
               disabled={busy}
-              onClick={() => void checkForUpdate()}
+              onClick={() => void check()}
             >
-              {phase.kind === "checking" ? "확인 중…" : "업데이트 확인"}
+              {checking ? "확인 중…" : "업데이트 확인"}
             </Button>
           )}
         </div>
 
-        {phase.kind === "checked" && phase.result.kind === "up-to-date" && (
+        {checkPhase === "done" && result?.kind === "up-to-date" && (
           <p className="flex items-center gap-1.5 text-[12px] text-text-secondary">
             <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
             최신 버전입니다.
           </p>
         )}
 
-        {phase.kind === "checked" && phase.result.kind === "available" && (
+        {available && install.kind === "idle" && (
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <p className="text-[13px] font-semibold text-text-primary">
-              새 버전 {phase.result.version}이(가) 있습니다.
+              새 버전 {available.version}이(가) 있습니다.
             </p>
-            {phase.result.notes && (
+            {available.notes && (
               <p className="whitespace-pre-line text-[12px] text-text-secondary">
-                {phase.result.notes}
+                {available.notes}
               </p>
             )}
 
-            {analysisRunning ? (
+            {analysisRunning && (
               // 막지 않고 이유를 말한다. 분석이 끝나면 그대로 누를 수 있다.
               <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 분석이 진행 중입니다. 끝난 뒤에 설치하면 결과를 잃지 않습니다.
               </p>
-            ) : null}
+            )}
 
             <div>
               <Button
@@ -152,19 +136,19 @@ export function AppUpdateSection() {
           </div>
         )}
 
-        {phase.kind === "installing" && (
+        {install.kind === "installing" && (
           <div className="flex flex-col gap-1.5 border-t border-border pt-3">
             <p className="flex items-center gap-1.5 text-[12px] text-text-secondary">
               <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-              {phase.ratio === null
+              {install.ratio === null
                 ? "내려받는 중…"
-                : `내려받는 중… ${Math.round(phase.ratio * 100)}%`}
+                : `내려받는 중… ${Math.round(install.ratio * 100)}%`}
             </p>
             <p className="text-[12px] text-text-secondary">설치가 끝날 때까지 앱을 닫지 마세요.</p>
           </div>
         )}
 
-        {phase.kind === "installed" && (
+        {install.kind === "installed" && (
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <p className="text-[13px] text-text-primary">
               설치했습니다. 다시 시작하면 새 버전으로 열립니다.
@@ -177,10 +161,10 @@ export function AppUpdateSection() {
           </div>
         )}
 
-        {phase.kind === "error" && (
+        {(checkPhase === "error" || install.kind === "error") && (
           <p role="alert" className="flex items-start gap-1.5 text-[12px] text-brand-coral">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            {phase.message}
+            {install.kind === "error" ? install.message : checkError}
           </p>
         )}
       </div>
