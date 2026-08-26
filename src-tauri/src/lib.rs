@@ -27,6 +27,14 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_drag::init());
 
+    // 자동 업데이트(ADR-011). 플러그인은 항상 등록한다 — `plugins.updater` 설정이
+    // 있어야 부팅하므로 설정과 등록을 분기시켜 봤자 얻는 게 없다. 실제로 확인을
+    // 할지는 프론트가 commands::updates::updates_configured로 판단한다.
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init());
+
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -70,6 +78,7 @@ pub fn run() {
             commands::shortcuts::register_capture_shortcut,
             commands::shortcuts::unregister_capture_shortcut,
             commands::shortcuts::focus_main_window,
+            commands::updates::updates_configured,
             commands::window_mode::set_window_mode,
             commands::window_mode::get_window_position,
             commands::window_mode::set_window_position,

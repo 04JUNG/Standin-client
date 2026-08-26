@@ -7,6 +7,9 @@
       "desktop": {
         "schemes": ["standin-dev"]
       }
+    },
+    "updater": {
+      "endpoints": []
     }
   },
   "bundle": {

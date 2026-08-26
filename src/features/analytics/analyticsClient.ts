@@ -14,7 +14,13 @@ type EventName =
   | "rerun_requested"
   | "export_completed"
   | "export_failed"
-  | "capture_failed";
+  | "capture_failed"
+  // 자동 업데이트 계열(ADR-011). BFF의 허용 목록에 먼저 올라가 있어야 한다 —
+  // 모르는 이름이 섞이면 서버가 배치 전체를 400으로 거절하고, 아래 4xx 처리가
+  // 그 배치를 버려 같이 실린 이벤트까지 사라진다.
+  | "update_check"
+  | "update_installed"
+  | "update_failed";
 
 /** 앱 창인지 플로팅 바인지(ADR-008). 두 표면의 사용 비율이 핵심 지표라 모든 흐름 이벤트에 붙인다. */
 export type Surface = "app" | "bar";

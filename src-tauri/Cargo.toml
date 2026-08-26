@@ -31,3 +31,8 @@ tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 # 저장된 포즈 파일을 앱에서 클립스튜디오로 바로 끌어놓기 위한 네이티브 드래그(ADR-009).
 # 데스크톱 전용이라 모바일 타깃에서는 제외한다.
 tauri-plugin-drag = "2"
+# 자동 업데이트(ADR-011). 릴리스 빌드만 실제 피드를 갖고, dev·mock 빌드는
+# endpoints가 비어 있어 확인 자체를 하지 않는다.
+tauri-plugin-updater = "2"
+# 업데이트 설치 후 재시작에만 쓴다. capability는 allow-restart 하나만 연다.
+tauri-plugin-process = "2"

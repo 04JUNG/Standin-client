@@ -180,10 +180,15 @@ MVP에서도 “자동으로 학습에 사용”한다고 가정하지 않는다
 - debug 메뉴 비활성
 - 아이콘
 - 앱 이름
-- signing 설정
+- 서명·공증(ADR-011)
+  - macOS: Developer ID 서명과 공증. 릴리스 워크플로의 서명 검증 스텝이 통과해야 한다
+  - macOS dmg는 universal 하나다. 다운로드 안내에 칩별 선택을 쓰지 않는다
+  - Windows: 미적용. SSL.com eSigner 배선 전까지 SmartScreen 경고와 진행 방법을 다운로드 안내에 적는다
+  - Apple Developer ID·SSL.com 인증서 만료일 확인
 - 설치·삭제 확인
+  - macOS는 빌드하지 않은 다른 기계에서 브라우저로 내려받아 더블클릭으로 연다. 우클릭 열기로 확인하면 Gatekeeper를 우회해 검증이 무효가 된다
 - 자동 업데이트는 준비되기 전 비활성
-- Windows SmartScreen 및 macOS notarization 계획
+  - 업데이터 키와 엔드포인트가 설정되기 전에는 업데이트 확인 UI를 노출하지 않는다
 - 다운로드 웹페이지 버전과 일치
 
 ---
