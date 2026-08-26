@@ -16,7 +16,7 @@ export function useStartupUpdateCheck() {
   useEffect(() => {
     if (started) return;
     started = true;
-    void check();
+    void check("startup");
   }, [check]);
 }
 
