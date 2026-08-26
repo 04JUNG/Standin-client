@@ -2,6 +2,11 @@ name: Build desktop release
 
 on:
   workflow_dispatch:
+    inputs:
+      draft:
+        description: "Publish as a draft release (verify signatures before it goes public)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -14,15 +19,16 @@ jobs:
         include:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
+            rustTargets: x86_64-pc-windows-msvc
             args: --target x86_64-pc-windows-msvc --bundles nsis
 
           - platform: macos-latest
-            target: aarch64-apple-darwin
-            args: --target aarch64-apple-darwin --bundles dmg
-
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            args: --target x86_64-apple-darwin --bundles dmg
+            target: universal-apple-darwin
+            rustTargets: aarch64-apple-darwin,x86_64-apple-darwin
+            # `app` is listed alongside `dmg` because the macOS updater asset
+            # (.app.tar.gz) is produced from the .app bundle, not from the dmg.
+            # With dmg alone the auto-update entry for macOS goes missing silently.
+            args: --target universal-apple-darwin --bundles app,dmg
 
     runs-on: ${{ matrix.platform }}
 
@@ -46,7 +52,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rustTargets }}
 
       - name: Install dependencies
         run: npm ci
@@ -59,6 +65,59 @@ jobs:
           node scripts/set-version.mjs "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # Updater artifacts are signed with a minisign keypair, which is separate from
+      # OS code signing (ADR-011). The public key lives in tauri.conf.json; the private
+      # key is a secret. Build without updater assets while the pair is missing.
+      - name: Resolve updater signing
+        id: updater
+        shell: bash
+        env:
+          UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          PUBKEY="$(node -p "require('./src-tauri/tauri.conf.json').plugins.updater.pubkey")"
+
+          # Half a keypair always fails at verification time. Stop before shipping assets.
+          if [ -n "${UPDATER_KEY:-}" ] && [ -z "$PUBKEY" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY is set but plugins.updater.pubkey is empty."
+            echo "Commit the matching public key to tauri.conf.json, then re-run."
+            exit 1
+          fi
+          if [ -z "${UPDATER_KEY:-}" ] && [ -n "$PUBKEY" ]; then
+            echo "plugins.updater.pubkey is set but TAURI_SIGNING_PRIVATE_KEY is missing."
+            echo "Existing installs cannot receive a release built without the private key."
+            exit 1
+          fi
+
+          if [ -n "${UPDATER_KEY:-}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "extraArgs=--config src-tauri/tauri.release.conf.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "extraArgs=" >> "$GITHUB_OUTPUT"
+            echo "::warning::No updater signing key; building without auto-update assets (ADR-011)."
+          fi
+
+      # App Store Connect API key is the preferred notarization credential.
+      # Falls back to APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID when this secret is absent.
+      - name: Prepare Apple notarization key
+        id: apple-key
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_API_KEY_CONTENT:-}" ]; then
+            echo "No APPLE_API_KEY_CONTENT secret; will use Apple ID credentials if they are set."
+            exit 0
+          fi
+          KEY_DIR="$RUNNER_TEMP/apple-api-key"
+          mkdir -p "$KEY_DIR"
+          printf '%s' "$APPLE_API_KEY_CONTENT" | base64 --decode > "$KEY_DIR/AuthKey.p8"
+          chmod 600 "$KEY_DIR/AuthKey.p8"
+          echo "path=$KEY_DIR/AuthKey.p8" >> "$GITHUB_OUTPUT"
+
       - name: Build and upload release
         uses: tauri-apps/tauri-action@v1
         env:
@@ -68,10 +127,89 @@ jobs:
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
           VITE_APP_ENV: production
+          # Updater package signing (minisign). Unrelated to OS code signing (ADR-011).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS code signing (ADR-011). Empty on Windows runners by design.
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          # macOS notarization - API key first, Apple ID as fallback.
+          APPLE_API_KEY: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_KEY || '' }}
+          APPLE_API_ISSUER: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_ISSUER || '' }}
+          APPLE_API_KEY_PATH: ${{ steps.apple-key.outputs.path }}
+          APPLE_ID: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_TEAM_ID || '' }}
         with:
           tagName: v${{ steps.release.outputs.version }}
           releaseName: Standin Desktop v${{ steps.release.outputs.version }}
-          releaseDraft: false
-          prerelease: true
+          releaseDraft: ${{ inputs.draft }}
+          # GitHub's releases/latest path skips prereleases, and the updater feed points
+          # at it. Marking releases as prerelease means the update never appears (ADR-011).
+          # The -beta.N in the version string carries the beta signal instead; publish the
+          # draft once the signature checks below have passed.
+          prerelease: false
           uploadWorkflowArtifacts: true
-          args: ${{ matrix.args }}
+          includeUpdaterJson: ${{ steps.updater.outputs.enabled }}
+          args: ${{ matrix.args }} ${{ steps.updater.outputs.extraArgs }}
+
+      - name: Verify macOS signature
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
+
+          APP="$(find "$BUNDLE/macos" -maxdepth 1 -name '*.app' -print -quit)"
+          if [ -z "$APP" ]; then
+            echo "No .app bundle found under $BUNDLE/macos"
+            exit 1
+          fi
+          echo "Bundle: $APP"
+
+          # ADR-011 decision E: one universal binary instead of per-architecture dmgs.
+          BIN="$(find "$APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit)"
+          ARCHS="$(lipo -archs "$BIN")"
+          echo "Architectures: $ARCHS"
+          for arch in arm64 x86_64; do
+            case " $ARCHS " in
+              *" $arch "*) ;;
+              *) echo "Universal build is missing $arch."; exit 1 ;;
+            esac
+          done
+
+          if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            echo
+            echo "APPLE_SIGNING_IDENTITY is not set, so this build is UNSIGNED."
+            echo "Gatekeeper will block it. Do not hand this release to testers."
+            echo "Register the Apple signing secrets, then re-run this workflow."
+            exit 0
+          fi
+
+          echo "--- codesign ---"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dv --verbose=4 "$APP" 2>&1 | grep -E 'Authority|TeamIdentifier|flags' || true
+
+          if ! codesign -d --verbose=4 "$APP" 2>&1 | grep -q 'flags=.*runtime'; then
+            echo "Hardened Runtime is missing; notarization cannot succeed."
+            exit 1
+          fi
+
+          echo "--- notarization ---"
+          xcrun stapler validate "$APP"
+
+          echo "--- Gatekeeper ---"
+          spctl --assess --type execute --verbose=4 "$APP"
+
+          DMG="$(find "$BUNDLE/dmg" -maxdepth 1 -name '*.dmg' -print -quit)"
+          if [ -n "$DMG" ]; then
+            echo "--- dmg ---"
+            codesign --verify --verbose=2 "$DMG" || echo "note: dmg is not code signed"
+            xcrun stapler validate "$DMG" \
+              || echo "note: dmg is not stapled; Gatekeeper checks the stapled .app inside on first launch"
+          fi
+
+          echo "macOS signing and notarization verified."
