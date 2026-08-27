@@ -54,6 +54,15 @@ jobs:
         with:
           targets: ${{ matrix.rustTargets }}
 
+      # beta.4에서 공증 자격을 맞추느라 이 워크플로를 네 번 돌렸다. 캐시가 없어
+      # 매번 의존성 전체를 아키텍처 두 개에 대해 다시 컴파일했고, 실패한 시도마다
+      # 빌드에만 10분이 들었다.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+
       - name: Install dependencies
         run: npm ci
 
@@ -229,7 +238,10 @@ jobs:
           # draft once the signature checks below have passed.
           prerelease: false
           uploadWorkflowArtifacts: true
-          includeUpdaterJson: ${{ steps.updater.outputs.enabled }}
+          # The input is uploadUpdaterJson, not includeUpdaterJson — the action warned
+          # "Unexpected input(s) 'includeUpdaterJson'" and fell back to its default of
+          # true, so latest.json shipped by luck rather than through the updater gate.
+          uploadUpdaterJson: ${{ steps.updater.outputs.enabled }}
           args: ${{ matrix.args }} ${{ steps.updater.outputs.extraArgs }}
 
       - name: Verify macOS signature
