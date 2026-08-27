@@ -16,9 +16,9 @@ use serde::Serialize;
 
 /// 화면 기록 권한 상태. 프론트가 온보딩 단계에서 안내를 고르는 데 쓴다.
 ///
-/// Windows는 `NotRequired`만 나오고 macOS는 나머지 둘만 나온다. 어느 쪽이든 쓰이지 않는
-/// variant가 생기므로 비-macOS에서만 dead_code를 끈다 — 계약은 플랫폼 공통이다.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+/// 어느 플랫폼에서 컴파일하든 일부 variant는 생성되지 않는다 — Windows는 `NotRequired`만,
+/// macOS는 나머지 둘만 쓴다. 계약 자체는 플랫폼 공통이므로 dead_code를 끈다.
+#[allow(dead_code)]
 #[derive(Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ScreenPermissionStatus {
