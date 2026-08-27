@@ -98,8 +98,7 @@ jobs:
             echo "::warning::No updater signing key; building without auto-update assets (ADR-011)."
           fi
 
-      # App Store Connect API key is the preferred notarization credential.
-      # Falls back to APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID when this secret is absent.
+      # App Store Connect API key is the notarization credential.
       - name: Prepare Apple notarization key
         id: apple-key
         if: runner.os == 'macOS'
@@ -185,12 +184,19 @@ jobs:
           APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
           APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && secrets.APPLE_SIGNING_IDENTITY || '' }}
-          # macOS notarization - API key first, Apple ID as fallback.
+          # macOS notarization with an App Store Connect API key.
+          #
+          # APPLE_ID and APPLE_PASSWORD are deliberately absent. An expression that
+          # evaluates to '' still DEFINES the variable, and Rust's env::var returns
+          # Ok("") for a defined-but-empty variable — so Tauri took the Apple ID path
+          # with empty credentials and Apple answered 401 three releases in a row,
+          # while the API key credentials were valid the whole time.
+          #
+          # If the Apple ID fallback is ever needed, put it in a separate step whose
+          # `if` skips it entirely rather than blanking the values here.
           APPLE_API_KEY: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_KEY || '' }}
           APPLE_API_ISSUER: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_ISSUER || '' }}
           APPLE_API_KEY_PATH: ${{ steps.apple-key.outputs.path }}
-          APPLE_ID: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_ID || '' }}
-          APPLE_PASSWORD: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_PASSWORD || '' }}
           # Tauri needs the Team ID for notarization with either credential, not just
           # the Apple ID fallback. Gating it on the API key being absent left it empty
           # and notarization failed with "Team ID must be at least 3 characters".
