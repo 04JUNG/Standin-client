@@ -106,8 +106,19 @@ jobs:
         shell: bash
         env:
           APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+
+          # Signing succeeds without a Team ID; notarization does not. Catch it here
+          # instead of after the (slow) universal build.
+          if [ -n "${APPLE_CERTIFICATE:-}" ] && [ -z "${APPLE_TEAM_ID:-}" ]; then
+            echo "APPLE_CERTIFICATE is set but APPLE_TEAM_ID is missing."
+            echo "Notarization will fail. The Team ID is the 10-character code in the"
+            echo "signing identity: Developer ID Application: NAME (TEAMID)."
+            exit 1
+          fi
           if [ -z "${APPLE_API_KEY_CONTENT:-}" ]; then
             echo "No APPLE_API_KEY_CONTENT secret; will use Apple ID credentials if they are set."
             exit 0
@@ -140,7 +151,10 @@ jobs:
           APPLE_API_KEY_PATH: ${{ steps.apple-key.outputs.path }}
           APPLE_ID: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_ID || '' }}
           APPLE_PASSWORD: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ (runner.os == 'macOS' && !steps.apple-key.outputs.path) && secrets.APPLE_TEAM_ID || '' }}
+          # Tauri needs the Team ID for notarization with either credential, not just
+          # the Apple ID fallback. Gating it on the API key being absent left it empty
+          # and notarization failed with "Team ID must be at least 3 characters".
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
         with:
           tagName: v${{ steps.release.outputs.version }}
           releaseName: Standin Desktop v${{ steps.release.outputs.version }}
