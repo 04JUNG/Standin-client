@@ -306,9 +306,16 @@ Rust 문자열 오류를 그대로 사용자에게 보여주지 않는다.
 
 `docs/adr/`에 기록한다. 현재 모두 초안(제안됨) 상태이며 팀 합의 후 승인으로 전환한다.
 
+상태와 보완 관계는 [`docs/adr/README.md`](adr/README.md)의 표가 기준이다. 이 목록은 진입점일 뿐이므로 ADR을 추가하면 양쪽을 함께 갱신한다 — 실제로 007~010이 이 목록에만 빠져 있었다.
+
 - [ADR-001 스타일링 방식](adr/ADR-001-styling.md)
 - [ADR-002 인증 토큰 저장 방식](adr/ADR-002-auth-token-storage.md)
 - [ADR-003 캡처 구현 방식](adr/ADR-003-capture-implementation.md)
 - [ADR-004 분석 상태 전달 방식](adr/ADR-004-analysis-status-delivery.md)
 - [ADR-005 3D 뷰어 도입 시점](adr/ADR-005-3d-viewer-timing.md)
 - [ADR-006 BVH 다운로드 방식](adr/ADR-006-bvh-download.md)
+- [ADR-007 전역 단축키 등록 계층](adr/ADR-007-global-shortcut-registration.md)
+- [ADR-008 플로팅 바의 창 구조](adr/ADR-008-window-modes.md)
+- [ADR-009 포즈 파일을 클립스튜디오로 전달하는 방식](adr/ADR-009-pose-file-delivery.md)
+- [ADR-010 저장 전 조정 결과 확인 단계](adr/ADR-010-refine-review-step.md)
+- [ADR-011 앱 서명과 자동 업데이트 배포 방식](adr/ADR-011-signing-and-update-delivery.md)

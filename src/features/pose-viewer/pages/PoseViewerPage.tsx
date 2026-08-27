@@ -12,8 +12,8 @@ import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
+import { analysisFailure } from "../lib/analysisFailure";
 import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
-import { messageOf } from "@/shared/api/errors";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
@@ -108,13 +108,23 @@ export function PoseViewerPage() {
   }
 
   if (isError || !data) {
+    const failure = analysisFailure(error);
     return (
       <AppShell title="포즈 후보">
         <div className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary">
-          <p>{messageOf(error, "후보를 불러오지 못했습니다.")}</p>
-          <Button variant="secondary" onClick={() => navigate("/app/home")}>
-            홈으로 돌아가기
-          </Button>
+          <p>{failure.message}</p>
+          <div className="flex items-center gap-2">
+            {/* 같은 입력으로 다시 분석한다. 새 화면 job이라 서버 Job도 새로 만들어진다 —
+                앞선 Job은 이미 끝났으므로 동시 분석 한도에 걸리지 않는다. */}
+            {failure.retryable && (
+              <Button onClick={() => navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true })}>
+                다시 시도
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => navigate("/app/home")}>
+              홈으로 돌아가기
+            </Button>
+          </div>
         </div>
       </AppShell>
     );
