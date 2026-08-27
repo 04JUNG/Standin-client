@@ -1,3 +1,4 @@
+use super::screen_permission;
 use base64::{engine::general_purpose, Engine as _};
 use serde::Serialize;
 use std::io::Cursor;
@@ -113,6 +114,20 @@ fn capture_monitor(cursor: Option<(i32, i32)>) -> Result<ScreenFrame, CaptureErr
 /// 앱 창을 잠시 숨겨 캡처에 포함되지 않게 한다. 취소는 프론트(Escape)에서 처리한다.
 #[tauri::command]
 pub async fn grab_screen(window: tauri::Window) -> Result<ScreenFrame, CaptureError> {
+    // 권한 확인은 창을 숨기기 전에 한다. 권한이 없으면 시스템 프롬프트가 앱 위로 떠야
+    // 하는데, 창이 숨은 채로 오류만 돌려주면 사용자 눈에는 아무 일도 일어나지 않은
+    // 것이 된다. 확인을 건너뛰면 캡처는 "성공"하고 배경화면만 담긴 프레임이 나간다
+    // (screen_permission 모듈 주석).
+    let granted = tauri::async_runtime::spawn_blocking(screen_permission::ensure_screen_access)
+        .await
+        .unwrap_or(false);
+    if !granted {
+        return Err(CaptureError::new(
+            "PERMISSION_DENIED",
+            "화면 기록 권한이 없어 다른 앱 창을 캡처할 수 없습니다.",
+        ));
+    }
+
     // 창을 숨기기 전에 커서를 읽는다. 숨김이 포인터를 옮기지는 않지만, 순서를 고정해야
     // "어느 시점의 커서인가"가 코드에서 분명하다.
     // 읽기에 실패하면 None으로 넘겨 주 모니터 폴백을 타게 한다.

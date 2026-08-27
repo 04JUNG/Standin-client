@@ -42,8 +42,14 @@ jobs:
         run: npm run build
 
   rust:
-    name: Rust checks
-    runs-on: windows-latest
+    name: Rust checks (${{ matrix.platform }})
+    # macOS 전용 코드(화면 기록 권한)는 Windows 러너에서 컴파일조차 되지 않는다.
+    # 릴리스 워크플로가 처음으로 그 코드를 빌드하는 구조라 실패가 늦게 발견된다.
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
@@ -57,7 +63,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: checks
+          key: checks-${{ matrix.platform }}
 
       - name: Check Rust
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings

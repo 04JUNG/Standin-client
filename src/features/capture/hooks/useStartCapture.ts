@@ -10,8 +10,9 @@ import { startCaptureFlow } from "../lib/startCaptureFlow";
 export function useStartCapture() {
   const status = useCaptureStore((s) => s.status);
   const error = useCaptureStore((s) => s.error);
+  const errorCode = useCaptureStore((s) => s.errorCode);
 
   const start = useCallback(() => startCaptureFlow(), []);
 
-  return { start, isStarting: status === "grabbing", error };
+  return { start, isStarting: status === "grabbing", error, errorCode };
 }

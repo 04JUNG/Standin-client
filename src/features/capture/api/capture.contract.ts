@@ -42,4 +42,9 @@ export class CaptureError extends Error {
 export interface CaptureService {
   /** 커서가 있는 화면을 캡처해 프리즈 프레임으로 반환. 앱 창은 캡처에서 제외한다. */
   grabScreen(): Promise<ScreenFrame>;
+  /**
+   * macOS 화면 기록 설정 화면을 연다(docs/07 §4). 다른 OS에서는 아무 일도 하지 않는다.
+   * 권한을 한 번 거부하면 시스템 프롬프트가 다시 뜨지 않으므로 이 경로가 유일한 복구 수단이다.
+   */
+  openScreenRecordingSettings(): Promise<void>;
 }

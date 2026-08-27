@@ -42,4 +42,7 @@ export const captureMock: CaptureService = {
       monitor: { x: 0, y: 0, width: w, height: h },
     };
   },
+
+  // 브라우저에는 열 시스템 설정이 없다.
+  async openScreenRecordingSettings(): Promise<void> {},
 };

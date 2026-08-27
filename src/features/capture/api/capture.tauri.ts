@@ -40,4 +40,14 @@ export const captureTauri: CaptureService = {
       throw toCaptureError(err);
     }
   },
+
+  async openScreenRecordingSettings(): Promise<void> {
+    // 실패해도 사용자가 할 수 있는 일이 없다. 안내 문구에 설정 경로가 이미 적혀 있으므로
+    // 오류를 다시 띄우기보다 조용히 넘긴다.
+    try {
+      await invoke("open_screen_recording_settings");
+    } catch {
+      /* noop */
+    }
+  },
 };
