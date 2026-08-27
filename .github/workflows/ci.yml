@@ -81,12 +81,13 @@ jobs:
         include:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
+            rustTargets: x86_64-pc-windows-msvc
             bundles: nsis
+          # macOS는 릴리스와 같은 universal 단일 빌드다(ADR-011). dev 빌드만 아키텍처별로
+          # 갈라두면 테스터가 받는 것과 릴리스로 나가는 것이 다른 구성이 된다.
           - platform: macos-latest
-            target: aarch64-apple-darwin
-            bundles: dmg
-          - platform: macos-latest
-            target: x86_64-apple-darwin
+            target: universal-apple-darwin
+            rustTargets: aarch64-apple-darwin,x86_64-apple-darwin
             bundles: dmg
     runs-on: ${{ matrix.platform }}
     env:
@@ -106,7 +107,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rustTargets }}
 
       - name: Install dependencies
         run: npm ci

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useInstallationStore } from "@/features/installation/installationStore";
+import { AppUpdateSection } from "@/features/updates/components/AppUpdateSection";
 import { SaveFolderSection } from "../components/SaveFolderSection";
 import { ShortcutSettingsSection } from "../components/ShortcutSettingsSection";
 
@@ -28,6 +29,7 @@ export function SettingsPage() {
       <div className="mx-auto flex max-w-[640px] flex-col gap-8">
         <SaveFolderSection />
         <ShortcutSettingsSection />
+        <AppUpdateSection />
 
         <section>
           <h2 className="text-[15px] font-bold text-text-primary">베타 데이터</h2>

@@ -198,6 +198,32 @@ describe("useAnalysisResult 실패 계측", () => {
     await waitFor(() => expect(result.current.allSelected).toBe(true));
   });
 
+  // 최소화는 라우트를 앱(/app/jobs/:id)에서 바(/bar/candidates)로 바꾸므로 이 훅이 다시
+  // 마운트된다. 실패해서 데이터가 없는 쿼리는 `refetchOnMount: false`가 막아 주지 못하고
+  // 새 옵저버마다 queryFn이 다시 도는 것이 React Query 기본값(retryOnMount)이다.
+  // 여기서 그 재실행은 곧 서버 Job 생성이라, 실패한 뒤 창을 오갈 때마다 분석이 조용히
+  // 다시 시작되고 하루 쿼터가 깎였다.
+  it("분석이 실패한 뒤 다시 마운트돼도 분석을 다시 시작하지 않는다", async () => {
+    analyze.mockRejectedValue(new AnalysisError("NO_PEOPLE", "인물을 찾지 못했습니다"));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const sharedWrapper = wrapperFor(client);
+
+    const first = renderHook(() => useAnalysisResult("client-job-failed"), {
+      wrapper: sharedWrapper,
+    });
+    await waitFor(() => expect(first.result.current.isError).toBe(true));
+    first.unmount();
+
+    const second = renderHook(() => useAnalysisResult("client-job-failed"), {
+      wrapper: sharedWrapper,
+    });
+    // 실패는 그대로 보여 준다 — 조용히 다시 시작하지 않을 뿐이다.
+    await waitFor(() => expect(second.result.current.isError).toBe(true));
+    expect(analyze).toHaveBeenCalledTimes(1);
+    second.unmount();
+    client.clear();
+  });
+
   it("확인 화면에 다시 마운트돼도 같은 분석 Job을 생성하지 않는다", async () => {
     analyze.mockResolvedValue({
       jobId: "server-job",

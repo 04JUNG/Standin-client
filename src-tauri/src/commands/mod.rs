@@ -3,4 +3,5 @@ pub mod capture;
 pub mod export;
 pub mod secure_store;
 pub mod shortcuts;
+pub mod updates;
 pub mod window_mode;

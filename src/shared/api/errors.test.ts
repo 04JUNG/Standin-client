@@ -87,6 +87,25 @@ describe("messageOf", () => {
 describe("messageOf — 사용량 제한", () => {
   const now = new Date("2026-08-14T04:00:00Z"); // KST 8/14 13:00
 
+  // 설치별 한도가 주 단위로 바뀌었다(BFF `WEEKLY_QUOTA_EXCEEDED`, KST 월요일 리셋).
+  // 모르는 코드면 "요청을 처리하지 못했습니다."로 떨어져 원인이 사라진다.
+  it("주간 한도 초과는 이번 주라고 안내한다", () => {
+    const err = new ApiError(
+      429,
+      "WEEKLY_QUOTA_EXCEEDED",
+      "weekly quota exceeded for inst_x",
+      "req_1",
+      { limit: 100, retryAfterSeconds: 213000, retryAt: "2026-08-17T00:00:00.000+09:00" },
+      213000,
+    );
+
+    const shown = messageOf(err, "실패했습니다.", now);
+
+    expect(shown).toContain("이번 주");
+    expect(shown).toContain("한도는 100회입니다.");
+    expect(shown).not.toContain("inst_x");
+  });
+
   it("429는 원인과 다음 사용 가능 시점을 함께 보여준다", () => {
     const err = new ApiError(
       429,
