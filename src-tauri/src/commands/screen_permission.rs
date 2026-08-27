@@ -12,6 +12,58 @@
 //!
 //! 결론: 캡처 전에 권한을 직접 확인하고, 없으면 캡처를 시도하지 않고 오류로 알린다.
 
+use serde::Serialize;
+
+/// 화면 기록 권한 상태. 프론트가 온보딩 단계에서 안내를 고르는 데 쓴다.
+///
+/// Windows는 `NotRequired`만 나오고 macOS는 나머지 둘만 나온다. 어느 쪽이든 쓰이지 않는
+/// variant가 생기므로 비-macOS에서만 dead_code를 끈다 — 계약은 플랫폼 공통이다.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[derive(Serialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ScreenPermissionStatus {
+    Granted,
+    Denied,
+    /// 권한 개념이 없는 플랫폼(Windows). "거부됨"과 섞으면 없는 설정 화면을 안내하게 된다.
+    NotRequired,
+}
+
+/// 프롬프트 없이 현재 상태만 읽는다.
+///
+/// 요청과 조회를 분리하는 이유는 온보딩이다. 화면을 열자마자 프롬프트가 뜨면 사용자는
+/// 무엇을 허용하는지 모른 채 결정하게 된다. 먼저 이유를 읽고, 버튼을 눌렀을 때만 뜬다.
+#[tauri::command]
+pub fn screen_recording_status() -> ScreenPermissionStatus {
+    status()
+}
+
+/// 시스템 프롬프트를 띄우고 그 뒤의 상태를 돌려준다.
+///
+/// 프롬프트가 떠도 사용자가 아직 응답하지 않았으므로 보통 `Denied`가 나온다. 호출부는
+/// 이것을 실패가 아니라 "허용 후 앱 재실행" 안내로 이어가야 한다.
+#[tauri::command]
+pub fn request_screen_recording() -> ScreenPermissionStatus {
+    if ensure_screen_access() {
+        ScreenPermissionStatus::Granted
+    } else {
+        status()
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn status() -> ScreenPermissionStatus {
+    if objc2_core_graphics::CGPreflightScreenCaptureAccess() {
+        ScreenPermissionStatus::Granted
+    } else {
+        ScreenPermissionStatus::Denied
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn status() -> ScreenPermissionStatus {
+    ScreenPermissionStatus::NotRequired
+}
+
 /// 화면 기록 권한이 있는지 확인하고, 없으면 시스템 프롬프트를 띄운다.
 ///
 /// 반환값은 **지금 이 순간** 캡처가 가능한지다. 프롬프트를 띄운 직후에는 사용자가

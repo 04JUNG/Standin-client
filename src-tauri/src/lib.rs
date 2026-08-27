@@ -69,6 +69,8 @@ pub fn run() {
             commands::export::save_pose_file,
             commands::export::reveal_in_folder,
             commands::screen_permission::open_screen_recording_settings,
+            commands::screen_permission::screen_recording_status,
+            commands::screen_permission::request_screen_recording,
             commands::secure_store::get_secure_token,
             commands::secure_store::set_secure_token,
             commands::secure_store::clear_secure_token,
