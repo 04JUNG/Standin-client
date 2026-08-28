@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { findTourAnchor } from "@/shared/lib/tourAnchor";
+import type { TourAnchorId } from "@/shared/types/tour";
 import { hasSeenTour, useTourStore } from "@/shared/stores/tourStore";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { TOUR_STEPS } from "../lib/tourSteps";
@@ -16,6 +17,8 @@ import { useTourContext } from "../hooks/useTourContext";
 import { TourSpotlight, type SpotlightRect } from "./TourSpotlight";
 import { TourTooltip } from "./TourTooltip";
 import { TourResumePill } from "./TourResumePill";
+
+const EMPTY_ANCHORS: readonly TourAnchorId[] = [];
 
 /** 강조할 곳이 화면 밖으로 밀려 있으면 null. 그때는 가운데 카드로 그린다. */
 function spotlightRect(step: TourStep, snapshot: AnchorSnapshot): SpotlightRect | null {
@@ -60,9 +63,17 @@ export function TourLayer() {
   const dismiss = useTourStore((s) => s.dismiss);
   const installationStatus = useInstallationStore((s) => s.status);
 
-  const snapshot = useAnchorSnapshot(active);
+  // 위치를 잴 앵커는 활성 스텝의 것만이다. 활성 스텝은 직전 스냅샷에서 나오므로
+  // 한 주기 늦게 반영된다 — 매 프레임 전부 재다가 렌더러가 포화되는 것을 막는다.
+  const [measure, setMeasure] = useState<readonly TourAnchorId[]>(EMPTY_ANCHORS);
+  const snapshot = useAnchorSnapshot(active, measure);
   const ctx = useTourContext(snapshot);
   const step = active ? resolveActiveStep(TOUR_STEPS, ctx, acknowledged) : null;
+
+  const measureKey = step?.anchors.join(",") ?? "";
+  useEffect(() => {
+    setMeasure(measureKey ? (measureKey.split(",") as TourAnchorId[]) : EMPTY_ANCHORS);
+  }, [measureKey]);
 
   /**
    * 첫 실행 자동 시작.
