@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { findTourAnchor } from "@/shared/lib/tourAnchor";
 import { hasSeenTour, useTourStore } from "@/shared/stores/tourStore";
 import { useInstallationStore } from "@/features/installation/installationStore";
@@ -9,29 +9,31 @@ import {
   previousAcknowledgedStep,
   resolveActiveStep,
   stepProgress,
+  type TourStep,
 } from "../lib/resolveActiveStep";
 import { useAnchorSnapshot, type AnchorSnapshot } from "../hooks/useAnchorSnapshot";
 import { useTourContext } from "../hooks/useTourContext";
 import { TourSpotlight, type SpotlightRect } from "./TourSpotlight";
 import { TourTooltip } from "./TourTooltip";
-import type { TourStep } from "../lib/resolveActiveStep";
+import { TourResumePill } from "./TourResumePill";
 
-/** 여러 앵커를 하나로 묶어 강조한다. 하나도 못 찾으면 화면 가운데 카드로 떨어진다. */
-function unionRect(step: TourStep, snapshot: AnchorSnapshot): SpotlightRect | null {
-  const rects = step.anchors.map((id) => snapshot.get(id)?.rect).filter((r) => r !== undefined);
-  if (rects.length === 0) return null;
+/** 강조할 곳이 화면 밖으로 밀려 있으면 null. 그때는 가운데 카드로 그린다. */
+function spotlightRect(step: TourStep, snapshot: AnchorSnapshot): SpotlightRect | null {
+  const boxes = step.anchors.map((id) => snapshot.get(id)?.visible).filter((b) => b != null);
+  if (boxes.length === 0) return null;
 
-  const top = Math.min(...rects.map((r) => r.top));
-  const left = Math.min(...rects.map((r) => r.left));
-  const bottom = Math.max(...rects.map((r) => r.top + r.height));
-  const right = Math.max(...rects.map((r) => r.left + r.width));
+  const top = Math.min(...boxes.map((b) => b.top));
+  const left = Math.min(...boxes.map((b) => b.left));
+  const bottom = Math.max(...boxes.map((b) => b.top + b.height));
+  const right = Math.max(...boxes.map((b) => b.left + b.width));
+
+  // 여백 8px. 단, 잘라낸 경계 밖으로 다시 나가지 않도록 화면 안에 가둔다.
   const pad = 8;
-  return {
-    top: top - pad,
-    left: left - pad,
-    width: right - left + pad * 2,
-    height: bottom - top + pad * 2,
-  };
+  const t = Math.max(0, top - pad);
+  const l = Math.max(0, left - pad);
+  const b = Math.min(window.innerHeight, bottom + pad);
+  const r = Math.min(window.innerWidth, right + pad);
+  return { top: t, left: l, width: r - l, height: b - t };
 }
 
 /**
@@ -46,6 +48,7 @@ function unionRect(step: TourStep, snapshot: AnchorSnapshot): SpotlightRect | nu
  */
 export function TourLayer() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const active = useTourStore((s) => s.active);
   const acknowledged = useTourStore((s) => s.acknowledged);
   const completedAt = useTourStore((s) => s.completedAt);
@@ -82,9 +85,33 @@ export function TourLayer() {
     findTourAnchor(firstAnchor)?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [stepId, firstAnchor]);
 
-  if (!active || !step) return null;
+  /**
+   * 투어는 켜져 있는데 이 화면에 해당하는 스텝이 없을 때(설정 화면 등) 알린다.
+   * 화면 전환 중에 깜빡이지 않도록 잠시 기다렸다 띄운다.
+   */
+  const [strayed, setStrayed] = useState(false);
+  const hasStep = step !== null;
+  useEffect(() => {
+    if (!active || hasStep) {
+      setStrayed(false);
+      return;
+    }
+    const timer = setTimeout(() => setStrayed(true), 1200);
+    return () => clearTimeout(timer);
+  }, [active, hasStep, pathname]);
 
-  const rect = unionRect(step, snapshot);
+  if (!active) return null;
+
+  if (!step) {
+    return strayed
+      ? createPortal(
+          <TourResumePill onResume={() => navigate("/app/home")} onDismiss={dismiss} />,
+          document.body,
+        )
+      : null;
+  }
+
+  const rect = spotlightRect(step, snapshot);
   const previous = previousAcknowledgedStep(TOUR_STEPS, step, acknowledged);
   const isLast = step.id === TOUR_STEPS[TOUR_STEPS.length - 1].id;
 
