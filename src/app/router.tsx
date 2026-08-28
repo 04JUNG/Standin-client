@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { HomePage } from "@/features/home/pages/HomePage";
 import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
 import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
+import { ScreenPermissionPage } from "@/features/capture/pages/ScreenPermissionPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { PoseViewerPage } from "@/features/pose-viewer/pages/PoseViewerPage";
 import { ReviewPage } from "@/features/pose-viewer/pages/ReviewPage";
@@ -51,6 +52,15 @@ export const router = createBrowserRouter([
         element: (
           <RequireInstallation>
             <CaptureOverlayPage />
+          </RequireInstallation>
+        ),
+      },
+      // 온보딩의 권한 단계. 동의 직후 macOS에서 권한이 없을 때만 지나간다.
+      {
+        path: "/app/screen-permission",
+        element: (
+          <RequireInstallation>
+            <ScreenPermissionPage />
           </RequireInstallation>
         ),
       },

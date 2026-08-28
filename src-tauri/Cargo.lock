@@ -4294,6 +4294,7 @@ version = "0.1.1-beta.2"
 dependencies = [
  "base64 0.22.1",
  "keyring",
+ "objc2-core-graphics",
  "serde",
  "serde_json",
  "tauri",

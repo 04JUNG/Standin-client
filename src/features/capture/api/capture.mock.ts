@@ -1,4 +1,8 @@
-import type { CaptureService, ScreenFrame } from "./capture.contract";
+import type {
+  CaptureService,
+  ScreenFrame,
+  ScreenPermissionStatus,
+} from "./capture.contract";
 
 /**
  * 브라우저(Vite) 개발용 Mock. Tauri가 없을 때 사용한다.
@@ -41,5 +45,17 @@ export const captureMock: CaptureService = {
       // 어차피 창 조작이 no-op이라 이 값은 쓰이지 않는다.
       monitor: { x: 0, y: 0, width: w, height: h },
     };
+  },
+
+  // 브라우저에는 열 시스템 설정이 없다.
+  async openScreenRecordingSettings(): Promise<void> {},
+
+  // 브라우저에는 화면 기록 권한 개념이 없다. 온보딩 단계도 건너뛴다.
+  async screenPermissionStatus(): Promise<ScreenPermissionStatus> {
+    return "not_required";
+  },
+
+  async requestScreenPermission(): Promise<ScreenPermissionStatus> {
+    return "not_required";
   },
 };

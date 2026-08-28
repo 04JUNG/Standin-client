@@ -9,6 +9,7 @@ import { ACCEPT_ATTR } from "@/features/upload/constants";
 import { useImageInput } from "@/features/upload/hooks/useImageInput";
 import { useCaptureStore } from "@/features/capture/store/captureStore";
 import { startCaptureFlow } from "@/features/capture/lib/startCaptureFlow";
+import { captureService } from "@/features/capture/api/capture.service";
 import { BarShell } from "../components/BarShell";
 
 /**
@@ -22,6 +23,7 @@ export function BarActionsPage() {
   const { acceptFile, error, isProcessing } = useImageInput({ origin: "bar" });
   const captureStatus = useCaptureStore((s) => s.status);
   const captureError = useCaptureStore((s) => s.error);
+  const captureErrorCode = useCaptureStore((s) => s.errorCode);
   const bindings = useShortcutStore((s) => s.bindings);
 
   const isGrabbing = captureStatus === "grabbing";
@@ -58,10 +60,27 @@ export function BarActionsPage() {
         </div>
 
         {message && (
-          <p role="alert" className="flex items-start gap-1 px-1 text-[11px] text-brand-coral">
+          <div role="alert" className="flex items-start gap-1 px-1 text-[11px] text-brand-coral">
             <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-            {message}
-          </p>
+            <div>
+              <p>{message}</p>
+              {/* 바에서 캡처하다 권한에 막혀도 여기서 바로 설정으로 갈 수 있어야 한다.
+                  앱 창을 다시 띄우게 만들면 복구 경로가 한 단계 늘어난다. */}
+              {captureError && captureErrorCode === "PERMISSION_DENIED" && (
+                <button
+                  type="button"
+                  onClick={() => void captureService.openScreenRecordingSettings()}
+                  className={cn(
+                    "mt-0.5 rounded border border-brand-coral/40 px-1.5 py-0.5 font-semibold",
+                    "transition-colors hover:bg-brand-coral/10",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+                  )}
+                >
+                  시스템 설정 열기
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         <input

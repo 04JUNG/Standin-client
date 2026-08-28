@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/shared/components/Button";
 import { windowModeService } from "@/features/bar/api/windowMode.service";
+import { captureService } from "@/features/capture/api/capture.service";
 import { useInstallationStore } from "./installationStore";
 
 export function BetaConsentPage() {
@@ -15,8 +16,13 @@ export function BetaConsentPage() {
 
   async function submit() {
     await register();
-    if (useInstallationStore.getState().status === "registered")
-      navigate("/app/home", { replace: true });
+    if (useInstallationStore.getState().status !== "registered") return;
+
+    // macOS 화면 기록 권한은 켠 뒤 앱을 다시 실행해야 반영된다. 첫 캡처 시점에 요구하면
+    // 작가가 캡처하려는 순간에 앱을 껐다 켜게 만드므로, 잃을 작업이 없는 지금 물어본다
+    // (ADR-003 2026-08-28 정정). 권한이 있거나 Windows면 이 단계는 건너뛴다.
+    const permission = await captureService.screenPermissionStatus();
+    navigate(permission === "denied" ? "/app/screen-permission" : "/app/home", { replace: true });
   }
 
   /**
