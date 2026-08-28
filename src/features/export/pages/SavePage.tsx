@@ -20,6 +20,7 @@ import { SavedFileList } from "../components/SavedFileList";
 import { useSaveFlow } from "../hooks/useSaveFlow";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { submitFeedback } from "@/features/analytics/analyticsClient";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 
 /**
  * 저장 화면(docs/03 §8, ADR-009).
@@ -90,7 +91,7 @@ export function SavePage() {
         )}
 
         {status === "error" && (
-          <div className="flex flex-col gap-3">
+          <div {...tourAnchor("save.error")} className="flex flex-col gap-3">
             <div className="flex items-start gap-2 rounded-lg bg-brand-coral/10 p-3 text-[13px] text-brand-coral">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <p role="alert">{error}</p>
@@ -131,7 +132,7 @@ export function SavePage() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div {...tourAnchor("save.files")} className="flex flex-col gap-2">
               <p className="text-[13px] text-text-secondary">
                 {dragService.isSupported
                   ? "아래 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
@@ -197,7 +198,12 @@ export function SavePage() {
                   className="ml-1"
                 />
               </Button>
-              <Button variant="ghost" size="md" onClick={handleNewScene}>
+              <Button
+                {...tourAnchor("save.newScene")}
+                variant="ghost"
+                size="md"
+                onClick={handleNewScene}
+              >
                 <Sparkles className="h-4 w-4" aria-hidden />새 장면 분석
                 <ShortcutKey
                   accelerator={resolveAccelerator("save.newScene", bindings)!}

@@ -8,6 +8,7 @@ import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 import { toggleBar } from "@/features/bar/lib/openBar";
 import { cn } from "@/shared/lib/cn";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { captureService } from "@/features/capture/api/capture.service";
 
 /**
@@ -56,6 +57,7 @@ export function HomePage() {
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <button
+            {...tourAnchor("home.capture")}
             type="button"
             onClick={() => void startCapture()}
             disabled={isStarting}

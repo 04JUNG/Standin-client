@@ -3,6 +3,7 @@ import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { AppUpdateSection } from "@/features/updates/components/AppUpdateSection";
+import { TourSettingsSection } from "@/features/tour/components/TourSettingsSection";
 import { SaveFolderSection } from "../components/SaveFolderSection";
 import { ShortcutSettingsSection } from "../components/ShortcutSettingsSection";
 import { ScreenPermissionSection } from "../components/ScreenPermissionSection";
@@ -32,6 +33,7 @@ export function SettingsPage() {
         <SaveFolderSection />
         <ShortcutSettingsSection />
         <AppUpdateSection />
+        <TourSettingsSection />
 
         <section>
           <h2 className="text-[15px] font-bold text-text-primary">베타 데이터</h2>

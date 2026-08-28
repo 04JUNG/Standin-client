@@ -8,6 +8,7 @@ import { useAnalysisResult } from "../hooks/useAnalysisResult";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
@@ -99,7 +100,10 @@ export function PoseViewerPage() {
   if (isPending) {
     return (
       <AppShell title="포즈 후보">
-        <div className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary">
+        <div
+          {...tourAnchor("jobs.pending")}
+          className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary"
+        >
           <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
           <p>가까운 포즈 후보를 찾고 있습니다...</p>
         </div>
@@ -111,13 +115,18 @@ export function PoseViewerPage() {
     const failure = analysisFailure(error);
     return (
       <AppShell title="포즈 후보">
-        <div className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary">
+        <div
+          {...tourAnchor("jobs.error")}
+          className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary"
+        >
           <p>{failure.message}</p>
           <div className="flex items-center gap-2">
             {/* 같은 입력으로 다시 분석한다. 새 화면 job이라 서버 Job도 새로 만들어진다 —
                 앞선 Job은 이미 끝났으므로 동시 분석 한도에 걸리지 않는다. */}
             {failure.retryable && (
-              <Button onClick={() => navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true })}>
+              <Button
+                onClick={() => navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true })}
+              >
                 다시 시도
               </Button>
             )}
@@ -183,7 +192,10 @@ export function PoseViewerPage() {
               </div>
               {/* soft fallback — 후보는 계속 보여주되 참고용임을 알린다. */}
               <PersonFallbackNotice person={person} />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <div
+                {...tourAnchor("jobs.candidates")}
+                className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+              >
                 {person.candidates.map((candidate) => (
                   <PoseCandidateCard
                     key={candidate.id}
@@ -221,6 +233,7 @@ export function PoseViewerPage() {
             )}
           </div>
           <Button
+            {...tourAnchor("jobs.confirm")}
             size="lg"
             disabled={!allSelected || isConfirming}
             onClick={() => void confirmAndContinue()}

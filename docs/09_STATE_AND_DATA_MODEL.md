@@ -179,6 +179,27 @@ type ShortcutState = {
 
 ---
 
+## 4-1-1. 투어 상태 (`shared/stores/tourStore.ts`)
+
+앱 사용법 투어도 같은 이유로 `shared/stores`에 둔다 — 상단 앱 바(`shared/components/AppShell`)의 다시 보기 버튼이 읽어야 한다.
+
+```ts
+type TourState = {
+  active: boolean;              // 지금 떠 있는가
+  acknowledged: TourStepId[];   // '다음'으로 넘긴 설명 스텝
+  completedAt: string | null;   // 끝까지 본 시각(ISO)
+  dismissedAt: string | null;   // 중간에 그만둔 시각(ISO)
+};
+```
+
+`completedAt`·`dismissedAt`만 영속화한다(`standin-tour`, version 1). 진행 중 상태는 영속하지 않는다 — 투어를 다시 켜면 언제나 처음부터다.
+
+**활성 스텝은 store에 두지 않는다.** 현재 라우트와 앱 상태에서 파생한다(`features/tour/lib/resolveActiveStep.ts`). 순번을 들고 있으면 캡처 취소·'다시 선택'·분석 실패처럼 흐름을 거스르는 경우마다 복구 코드가 따로 필요해진다. 사용자가 직접 해야 하는 스텝은 "지금 끝났는가"를 매번 화면 상태로 판정하므로, 조건이 풀리면 그 스텝이 저절로 다시 할 일이 된다.
+
+화면 하위 상태(분석 중·실패·저장 완료)는 각 화면의 내부 state를 store로 끌어올리지 않고 `data-tour` 앵커가 지금 떠 있는지로 판정한다.
+
+---
+
 ## 4-2. 창 모드와 흐름 시작점 (ADR-008)
 
 **창 모드는 store에 두지 않는다.** 라우트에서 파생하므로 store에 두면 진실 공급원이 둘이 되고 "창은 56×56인데 화면은 홈" 같은 불일치가 가능해진다. `WindowModeSync`가 `useLocation`으로 모드와 크기를 계산해 네이티브에 반영한다.
