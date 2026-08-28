@@ -18,7 +18,9 @@ export function captureErrorMessage(err: unknown): string {
   if (err instanceof CaptureError) {
     switch (err.code) {
       case "PERMISSION_DENIED":
-        return "화면 기록 권한이 필요합니다. 시스템 설정에서 권한을 허용해 주세요.";
+        // 권한을 켜도 macOS는 앱을 다시 실행해야 반영한다. 그 안내가 빠지면 사용자는
+        // 허용해 놓고도 같은 증상을 다시 겪는다(docs/07 §4).
+        return "화면 기록 권한이 필요합니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 Standin을 켠 뒤 앱을 다시 실행해 주세요.";
       case "UNSUPPORTED":
         return "이 환경에서는 화면 캡처를 사용할 수 없습니다.";
       default:
@@ -58,12 +60,13 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
       return;
     }
     const message = captureErrorMessage(err);
-    useCaptureStore.getState().setError(message);
+    const code = err instanceof CaptureError ? err.code : null;
+    useCaptureStore.getState().setError(message, code);
     useCaptureStore.getState().setStatus("error");
     // 화면 기록 권한 거부는 설치했는데 캡처를 아예 못 쓰는 상태다. 온보딩 최대
     // 실패 지점이라 코드만 남긴다(취소는 위에서 걸러져 여기 오지 않는다).
     trackEvent("capture_failed", {
-      code: err instanceof CaptureError ? err.code : "UNKNOWN",
+      code: code ?? "UNKNOWN",
       surface: currentSurface(),
     });
   }

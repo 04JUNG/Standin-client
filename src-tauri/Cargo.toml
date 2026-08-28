@@ -1,6 +1,6 @@
 [package]
 name = "standin-desktop"
-version = "0.1.1-beta.4"
+version = "0.1.1-beta.5"
 description = "Standin Desktop"
 edition = "2021"
 
@@ -36,3 +36,9 @@ tauri-plugin-drag = "2"
 tauri-plugin-updater = "2"
 # 업데이트 설치 후 재시작에만 쓴다. capability는 allow-restart 하나만 연다.
 tauri-plugin-process = "2"
+
+# 화면 기록 권한(TCC) 확인용. xcap이 쓰는 CGWindowListCreateImage는 권한이 없어도
+# 실패하지 않고 바탕화면만 담긴 이미지를 돌려주므로, 캡처 전에 직접 물어봐야 한다.
+# xcap이 이미 같은 crate를 끌어오므로 빌드에 새로 추가되는 비용은 없다.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-graphics = { version = "0.3", default-features = false, features = ["std", "CGWindow"] }

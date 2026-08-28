@@ -5,6 +5,7 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import { AppUpdateSection } from "@/features/updates/components/AppUpdateSection";
 import { SaveFolderSection } from "../components/SaveFolderSection";
 import { ShortcutSettingsSection } from "../components/ShortcutSettingsSection";
+import { ScreenPermissionSection } from "../components/ScreenPermissionSection";
 
 export function SettingsPage() {
   const installationId = useInstallationStore((state) => state.credentials?.installationId);
@@ -27,6 +28,7 @@ export function SettingsPage() {
   return (
     <AppShell title="설정">
       <div className="mx-auto flex max-w-[640px] flex-col gap-8">
+        <ScreenPermissionSection />
         <SaveFolderSection />
         <ShortcutSettingsSection />
         <AppUpdateSection />

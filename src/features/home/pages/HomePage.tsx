@@ -7,13 +7,19 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 import { toggleBar } from "@/features/bar/lib/openBar";
+import { captureService } from "@/features/capture/api/capture.service";
 
 /**
  * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
  * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
  */
 export function HomePage() {
-  const { start: startCapture, isStarting, error: captureError } = useStartCapture();
+  const {
+    start: startCapture,
+    isStarting,
+    error: captureError,
+    errorCode: captureErrorCode,
+  } = useStartCapture();
   const bindings = useShortcutStore((s) => s.bindings);
   const globalStatus = useShortcutStore((s) => s.globalStatus);
 
@@ -77,10 +83,27 @@ export function HomePage() {
         </div>
 
         {captureError && (
-          <p role="alert" className="mt-3 flex items-center gap-2 text-[13px] text-brand-coral">
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
-            {captureError}
-          </p>
+          <div role="alert" className="mt-3 flex items-start gap-2 text-[13px] text-brand-coral">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <div>
+              <p>{captureError}</p>
+              {/* 권한을 한 번 거부하면 시스템 프롬프트가 다시 뜨지 않는다. 설정까지
+                  가는 길을 앱이 열어준다(docs/07 §4). */}
+              {captureErrorCode === "PERMISSION_DENIED" && (
+                <button
+                  type="button"
+                  onClick={() => void captureService.openScreenRecordingSettings()}
+                  className={[
+                    "mt-1 rounded-md border border-brand-coral/40 px-2 py-1 text-[12px] font-semibold",
+                    "transition-colors hover:bg-brand-coral/10",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+                  ].join(" ")}
+                >
+                  시스템 설정 열기
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         <p className="mt-6 text-[13px] text-text-secondary">
