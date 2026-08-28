@@ -16,11 +16,18 @@ import { useWindowModeStore } from "../stores/windowModeStore";
  */
 export function WindowModeSync() {
   const { pathname } = useLocation();
+  // 바 내용이 표보다 크면 창을 키운다. 측정은 BarShell이 하고, 창에 적용하는 곳은
+  // 여기 하나로 유지한다 — 크기를 쓰는 곳이 둘이 되면 서로 덮어쓴다.
+  const contentHeight = useWindowModeStore((s) => s.barContentHeight);
   const previousBarState = useRef<string | null>(null);
 
   useEffect(() => {
-    const target = windowTargetForPath(pathname);
+    const base = windowTargetForPath(pathname);
     const barState = barStateForPath(pathname);
+    const target =
+      barState && contentHeight
+        ? { ...base, size: { ...base.size, height: Math.max(base.size.height, contentHeight) } }
+        : base;
     const wasBar = previousBarState.current !== null;
 
     // 바에서는 창 배경을 비워 둥근 모서리 밖이 흰 네모로 보이지 않게 한다(index.css).
@@ -58,7 +65,7 @@ export function WindowModeSync() {
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [pathname, contentHeight]);
 
   return null;
 }
