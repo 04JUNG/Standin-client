@@ -105,9 +105,7 @@ describe("TourLayer", () => {
   }
 
   const dims = (doc: Document) =>
-    Array.from(doc.querySelectorAll("div")).filter((el) =>
-      el.className.includes("bg-brand-ink/50"),
-    );
+    Array.from(doc.querySelectorAll("div")).filter((el) => el.className.includes("bg-brand-ink"));
   const ring = (doc: Document) =>
     Array.from(doc.querySelectorAll("div")).find((el) => el.className.includes("ring-brand-sky"));
 

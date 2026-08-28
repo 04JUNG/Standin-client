@@ -119,7 +119,13 @@ export function TourTooltip({
       </div>
 
       {step.action && (
-        <p className="rounded-lg bg-brand-sky/15 px-3 py-2 text-[12px] font-semibold text-text-primary">
+        // 알파 수식자(bg-brand-sky/15)는 브랜드색에서 클래스가 생성되지 않는다.
+        <p
+          className={cn(
+            "rounded-lg border-l-2 border-brand-sky bg-surface-2 px-3 py-2",
+            "text-[12px] font-semibold text-text-primary",
+          )}
+        >
           {step.action}
         </p>
       )}

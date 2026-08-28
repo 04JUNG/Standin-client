@@ -10,7 +10,12 @@ export type SpotlightRect = { top: number; left: number; width: number; height: 
  * 고정 오버레이가 휠 이벤트까지 먹어 main 스크롤도 멈췄다. 투어는 실제 앱을 따라가는
  * 안내이므로 앱 조작을 막지 않는다. 그만두기는 말풍선에 항상 있다.
  */
-const DIM = "pointer-events-none fixed z-[90] bg-brand-ink/50";
+/**
+ * 색/불투명도를 bg-brand-ink/50로 쓰지 않는다. 브랜드색이 tailwind.config에서
+ * var(--brand-ink)로만 잡혀 있어 알파 수식자를 붙이면 Tailwind가 클래스를 아예 만들지
+ * 않는다 — 화면에서는 딤이 통째로 사라진다(실측). 요소 자체의 opacity를 쓴다.
+ */
+const DIM = "pointer-events-none fixed z-[90] bg-brand-ink opacity-50";
 
 /**
  * 강조 영역만 남기고 화면을 덮는다.
