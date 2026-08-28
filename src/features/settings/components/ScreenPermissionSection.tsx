@@ -9,7 +9,7 @@ import { useScreenPermission } from "@/features/capture/hooks/useScreenPermissio
  * 실패하는 순간 말고는 권한을 켤 경로가 없으므로, 오류를 겪기 전에 여기서 고칠 수 있게 한다.
  */
 export function ScreenPermissionSection() {
-  const { status, requested, busy, request, openSettings } = useScreenPermission();
+  const { status, requested, busy, request, openSettings, relaunchApp } = useScreenPermission();
 
   // 조회 전이거나 권한 개념이 없는 플랫폼(Windows)에서는 섹션 자체를 만들지 않는다.
   if (status === "checking" || status === "not_required") return null;
@@ -32,20 +32,27 @@ export function ScreenPermissionSection() {
           <p className="mt-1 text-[12px] text-text-secondary">
             {granted
               ? "화면 캡처를 사용할 수 있습니다."
-              : "허용하지 않으면 캡처 결과에 작업 중인 창이 담기지 않습니다. 허용한 뒤 앱을 다시 실행해 주세요."}
+              : "허용하지 않으면 캡처 결과에 작업 중인 창이 담기지 않습니다. 켰는데도 배경화면만 찍히면 앱을 다시 시작해 주세요."}
           </p>
         </div>
-        {!granted &&
-          // 프롬프트는 한 번만 뜬다. 이미 요청했으면 설정 창이 유일한 복구 경로다.
-          (requested ? (
-            <Button variant="secondary" size="md" onClick={() => void openSettings()}>
-              시스템 설정 열기
-            </Button>
-          ) : (
-            <Button variant="secondary" size="md" loading={busy} onClick={() => void request()}>
-              권한 허용하기
-            </Button>
-          ))}
+        <div className="flex shrink-0 flex-col gap-2">
+          {!granted &&
+            // 프롬프트는 한 번만 뜬다. 이미 요청했으면 설정 창이 유일한 복구 경로다.
+            (requested ? (
+              <Button variant="secondary" size="md" onClick={() => void openSettings()}>
+                시스템 설정 열기
+              </Button>
+            ) : (
+              <Button variant="secondary" size="md" loading={busy} onClick={() => void request()}>
+                권한 허용하기
+              </Button>
+            ))}
+          {/* 켠 직후 프로세스가 예전 판정을 들고 있을 때의 복구. 직접 껐다 켜라고 하는
+              대신 버튼으로 준다. */}
+          <Button variant="ghost" size="md" onClick={() => void relaunchApp()}>
+            앱 다시 시작
+          </Button>
+        </div>
       </div>
     </section>
   );

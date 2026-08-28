@@ -22,11 +22,19 @@ export function useScreenPermission() {
 
   useEffect(() => {
     let alive = true;
-    void captureService.screenPermissionStatus().then((next) => {
-      if (alive) setStatus(next);
-    });
+    const read = () => {
+      void captureService.screenPermissionStatus().then((next) => {
+        if (alive) setStatus(next);
+      });
+    };
+
+    read();
+    // 사용자는 시스템 설정 창으로 나갔다가 돌아온다. 그때 다시 읽지 않으면 이미 허용한
+    // 사람에게 "권한이 필요합니다"가 계속 떠 있고, 방금 한 일이 반영되지 않은 것처럼 보인다.
+    window.addEventListener("focus", read);
     return () => {
       alive = false;
+      window.removeEventListener("focus", read);
     };
   }, []);
 
@@ -46,6 +54,8 @@ export function useScreenPermission() {
 
   const openSettings = useCallback(() => captureService.openScreenRecordingSettings(), []);
 
+  const relaunchApp = useCallback(() => captureService.relaunchApp(), []);
+
   return {
     status,
     /** 이 플랫폼에서 안내가 필요한가. Windows·브라우저에서는 항상 false다. */
@@ -55,5 +65,6 @@ export function useScreenPermission() {
     request,
     refresh,
     openSettings,
+    relaunchApp,
   };
 }

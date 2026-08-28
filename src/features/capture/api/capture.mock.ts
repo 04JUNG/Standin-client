@@ -58,4 +58,7 @@ export const captureMock: CaptureService = {
   async requestScreenPermission(): Promise<ScreenPermissionStatus> {
     return "not_required";
   },
+
+  // 브라우저에서는 다시 시작할 프로세스가 없다.
+  async relaunchApp(): Promise<void> {},
 };

@@ -36,8 +36,8 @@ export function ScreenPermissionPage() {
             필요합니다. 권한이 없으면 캡처 결과에 작업 중인 창이 담기지 않습니다.
           </p>
           <p className="rounded-xl border border-border bg-surface-2 p-4 text-[13px]">
-            허용한 뒤에는 <strong>앱을 다시 실행</strong>해야 반영됩니다. 지금 해두면 나중에
-            캡처하려는 순간에 앱을 껐다 켜지 않아도 됩니다.
+            지금 허용해 두면 나중에 캡처하려는 순간에 흐름이 끊기지 않습니다. 권한이 바로
+            반영되지 않는 경우가 있어, 그때는 앱을 한 번 다시 시작하면 됩니다.
           </p>
           {requested && (
             <p className="text-[13px] text-text-primary">
