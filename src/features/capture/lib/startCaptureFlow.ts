@@ -18,9 +18,10 @@ export function captureErrorMessage(err: unknown): string {
   if (err instanceof CaptureError) {
     switch (err.code) {
       case "PERMISSION_DENIED":
-        // 권한을 켜도 macOS는 앱을 다시 실행해야 반영한다. 그 안내가 빠지면 사용자는
-        // 허용해 놓고도 같은 증상을 다시 겪는다(docs/07 §4).
-        return "화면 기록 권한이 필요합니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 Standin을 켠 뒤 앱을 다시 실행해 주세요.";
+        // 켠 다음 무엇을 할지까지 적는다. 여기서 끝나면 사용자는 허용해 놓고도 같은
+        // 증상을 다시 겪는다(docs/07 §4). 재시작은 화면이 버튼으로 제공하므로 문구에서
+        // 앞세우지 않는다 — 대개는 다시 캡처하는 것으로 충분하다.
+        return "화면 기록 권한이 필요합니다. 시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 Standin을 켠 뒤 다시 캡처해 주세요.";
       case "UNSUPPORTED":
         return "이 환경에서는 화면 캡처를 사용할 수 없습니다.";
       default:
