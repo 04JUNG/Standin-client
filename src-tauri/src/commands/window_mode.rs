@@ -121,6 +121,21 @@ fn clamp_into_monitor(window: &WebviewWindow, width: f64, height: f64) {
     }
 }
 
+/// 창을 지금 있는 모니터 전체에 맞춘다. macOS에서 네이티브 전체화면 대신 쓰는 경로다.
+///
+/// 오버레이가 덮을 모니터는 보통 캡처한 쪽이 알려주므로(`req.monitor`) 이 함수는 그 값이
+/// 없을 때의 폴백이다.
+#[cfg(target_os = "macos")]
+fn cover_current_monitor(window: &WebviewWindow) {
+    let Ok(Some(monitor)) = window.current_monitor() else {
+        return;
+    };
+    let origin = monitor.position();
+    let size = monitor.size();
+    let _ = window.set_position(PhysicalPosition::new(origin.x, origin.y));
+    let _ = window.set_size(PhysicalSize::new(size.width, size.height));
+}
+
 /// 창 모드를 원자적으로 전환한다.
 ///
 /// 전환 순서가 중요하다. 바·오버레이로 갈 때는 최소 크기 제약을 먼저 풀어야 한다 —
@@ -169,6 +184,24 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
                 let _ = window.set_size(PhysicalSize::new(rect.width, rect.height));
             }
 
+            // macOS에서는 네이티브 전체화면을 쓰지 않는다. 위에서 맞춘 크기가 곧 오버레이다.
+            //
+            // macOS의 전체화면 전환은 **비동기**다(tao가 `toggleFullScreen:`을 async로
+            // 부른다). 그래서 오버레이를 빠져나올 때 set_fullscreen(false) 직후의
+            // set_size가 전환 애니메이션에 덮여 없던 일이 된다. 스타일 마스크 복원도
+            // 전환이 끝난 뒤로 미뤄져 무장식 창에 제목 표시줄이 되살아난다.
+            //
+            // 결과는 "캡처 후 앱이 화면 전체를 검게 덮고 그 안에 바가 떠 있는" 상태다
+            // (0.1.1-beta.4에서 실측). 모니터 좌표로 직접 맞추면 전부 동기라 이 창이 없다.
+            //
+            // 잃는 것: 메뉴 막대와 Dock이 오버레이 위에 남는다. 전체화면일 때도 메뉴
+            // 막대는 이미 보였고, 바가 깨지는 것보다 낫다.
+            #[cfg(target_os = "macos")]
+            if req.monitor.is_none() {
+                cover_current_monitor(&window);
+            }
+
+            #[cfg(not(target_os = "macos"))]
             window
                 .set_fullscreen(true)
                 .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;

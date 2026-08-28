@@ -39,7 +39,27 @@ export class CaptureError extends Error {
   }
 }
 
+/**
+ * 화면 기록 권한 상태(macOS). `notRequired`는 권한 개념이 없는 플랫폼이다 —
+ * `denied`와 섞으면 Windows에서 존재하지 않는 설정 화면을 안내하게 된다.
+ */
+export type ScreenPermissionStatus = "granted" | "denied" | "not_required";
+
 export interface CaptureService {
   /** 커서가 있는 화면을 캡처해 프리즈 프레임으로 반환. 앱 창은 캡처에서 제외한다. */
   grabScreen(): Promise<ScreenFrame>;
+  /**
+   * macOS 화면 기록 설정 화면을 연다(docs/07 §4). 다른 OS에서는 아무 일도 하지 않는다.
+   * 권한을 한 번 거부하면 시스템 프롬프트가 다시 뜨지 않으므로 이 경로가 유일한 복구 수단이다.
+   */
+  openScreenRecordingSettings(): Promise<void>;
+  /** 프롬프트 없이 현재 권한 상태만 읽는다. 온보딩 화면이 안내를 고르는 데 쓴다. */
+  screenPermissionStatus(): Promise<ScreenPermissionStatus>;
+  /** 시스템 프롬프트를 띄우고 그 뒤의 상태를 반환한다. 사용자가 버튼을 눌렀을 때만 호출한다. */
+  requestScreenPermission(): Promise<ScreenPermissionStatus>;
+  /**
+   * 앱을 다시 시작한다. 권한을 켠 프로세스가 여전히 예전 판정을 들고 있을 때의 복구다.
+   * "직접 껐다 켜세요"를 버튼 하나로 줄인다.
+   */
+  relaunchApp(): Promise<void>;
 }
