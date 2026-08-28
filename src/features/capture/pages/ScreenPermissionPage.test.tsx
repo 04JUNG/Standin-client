@@ -13,6 +13,7 @@ const capture = vi.hoisted(() => ({
   screenPermissionStatus: vi.fn(),
   requestScreenPermission: vi.fn(),
   openScreenRecordingSettings: vi.fn(async () => {}),
+  relaunchApp: vi.fn(async () => {}),
 }));
 
 vi.mock("../api/capture.service", () => ({ captureService: capture }));
@@ -82,6 +83,18 @@ describe("ScreenPermissionPage", () => {
     await userEvent.click(await screen.findByRole("button", { name: "권한 허용하기" }));
 
     await waitFor(() => expect(screen.getByText("홈")).toBeInTheDocument());
+  });
+
+  it("시스템 설정에서 허용하고 돌아오면 다시 읽는다", async () => {
+    // 설정 창으로 나갔다가 돌아왔을 때 다시 읽지 않으면, 이미 허용한 사람에게
+    // "권한이 필요합니다"가 그대로 남아 방금 한 일이 반영되지 않은 것처럼 보인다.
+    capture.screenPermissionStatus.mockResolvedValueOnce("denied").mockResolvedValue("granted");
+    renderPage();
+    await screen.findByRole("button", { name: "권한 허용하기" });
+
+    window.dispatchEvent(new Event("focus"));
+
+    expect(await screen.findByText("홈")).toBeInTheDocument();
   });
 
   it("나중에 하기로 홈에 갈 수 있다", async () => {

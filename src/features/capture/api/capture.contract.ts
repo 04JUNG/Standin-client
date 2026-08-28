@@ -57,4 +57,9 @@ export interface CaptureService {
   screenPermissionStatus(): Promise<ScreenPermissionStatus>;
   /** 시스템 프롬프트를 띄우고 그 뒤의 상태를 반환한다. 사용자가 버튼을 눌렀을 때만 호출한다. */
   requestScreenPermission(): Promise<ScreenPermissionStatus>;
+  /**
+   * 앱을 다시 시작한다. 권한을 켠 프로세스가 여전히 예전 판정을 들고 있을 때의 복구다.
+   * "직접 껐다 켜세요"를 버튼 하나로 줄인다.
+   */
+  relaunchApp(): Promise<void>;
 }

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { relaunch } from "@tauri-apps/plugin-process";
 import {
   CaptureError,
   type CaptureErrorCode,
@@ -68,5 +69,9 @@ export const captureTauri: CaptureService = {
     } catch {
       return "denied";
     }
+  },
+
+  relaunchApp(): Promise<void> {
+    return relaunch();
   },
 };

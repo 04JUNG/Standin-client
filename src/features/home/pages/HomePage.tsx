@@ -13,6 +13,13 @@ import { captureService } from "@/features/capture/api/capture.service";
  * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
  * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
  */
+/** 권한 오류에서만 쓰는 작은 복구 버튼. 두 개가 나란히 서므로 스타일을 한 곳에 둔다. */
+const RECOVERY_BUTTON = [
+  "rounded-md border border-brand-coral/40 px-2 py-1 text-[12px] font-semibold",
+  "transition-colors hover:bg-brand-coral/10",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+].join(" ");
+
 export function HomePage() {
   const {
     start: startCapture,
@@ -88,19 +95,21 @@ export function HomePage() {
             <div>
               <p>{captureError}</p>
               {/* 권한을 한 번 거부하면 시스템 프롬프트가 다시 뜨지 않는다. 설정까지
-                  가는 길을 앱이 열어준다(docs/07 §4). */}
+                  가는 길을 앱이 열어준다(docs/07 §4). 켠 뒤에도 같은 증상이면 프로세스가
+                  예전 판정을 들고 있는 경우라 재시작이 답인데, 직접 껐다 켜라고 하는
+                  대신 버튼으로 준다. */}
               {captureErrorCode === "PERMISSION_DENIED" && (
-                <button
-                  type="button"
-                  onClick={() => void captureService.openScreenRecordingSettings()}
-                  className={[
-                    "mt-1 rounded-md border border-brand-coral/40 px-2 py-1 text-[12px] font-semibold",
-                    "transition-colors hover:bg-brand-coral/10",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
-                  ].join(" ")}
-                >
-                  시스템 설정 열기
-                </button>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => void captureService.openScreenRecordingSettings()} className={RECOVERY_BUTTON}>
+                    시스템 설정 열기
+                  </button>
+                  <button type="button" onClick={() => void captureService.relaunchApp()} className={RECOVERY_BUTTON}>
+                    앱 다시 시작
+                  </button>
+                  <span className="text-[12px] text-text-secondary">
+                    켰는데도 배경화면만 찍히면 다시 시작해 주세요.
+                  </span>
+                </div>
               )}
             </div>
           </div>

@@ -49,8 +49,8 @@ describe("startCaptureFlow", () => {
     expect(state.status).toBe("error");
     expect(state.errorCode).toBe("PERMISSION_DENIED");
     expect(state.error).toContain("화면 기록");
-    // 켜 놓고도 같은 증상을 다시 겪지 않도록 재실행 안내가 포함되어야 한다.
-    expect(state.error).toContain("다시 실행");
+    // 권한을 켠 다음 무엇을 할지까지 없으면 켜 놓고도 같은 증상을 다시 겪는다.
+    expect(state.error).toContain("다시 캡처");
   });
 
   it("다른 실패에는 권한 코드가 붙지 않는다", async () => {
