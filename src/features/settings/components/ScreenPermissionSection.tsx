@@ -32,7 +32,7 @@ export function ScreenPermissionSection() {
           <p className="mt-1 text-[12px] text-text-secondary">
             {granted
               ? "화면 캡처를 사용할 수 있습니다."
-              : "허용하지 않으면 캡처 결과에 작업 중인 창이 담기지 않습니다. 켰는데도 배경화면만 찍히면 앱을 다시 시작해 주세요."}
+              : "허용하지 않으면 캡처 결과에 작업 중인 창이 담기지 않습니다. 허용하면 macOS가 Standin을 다시 시작할지 물어봅니다."}
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2">
@@ -47,8 +47,12 @@ export function ScreenPermissionSection() {
                 권한 허용하기
               </Button>
             ))}
-          {/* 켠 직후 프로세스가 예전 판정을 들고 있을 때의 복구. 직접 껐다 켜라고 하는
-              대신 버튼으로 준다. */}
+          {/*
+            막다른 길 하나를 위한 탈출구다. macOS가 띄우는 재시작 확인에서 "나중에"를
+            고르면 권한은 켜졌는데(=우리 확인은 통과) 실행 중인 프로세스는 여전히 못
+            찍는다. 그 상태에서는 캡처가 오류 없이 배경화면을 돌려주므로 앱이 알아낼
+            방법이 없다. 캡처 흐름에는 두지 않는다 — 거기서는 macOS가 이미 묻는다.
+          */}
           <Button variant="ghost" size="md" onClick={() => void relaunchApp()}>
             앱 다시 시작
           </Button>

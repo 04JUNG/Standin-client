@@ -7,13 +7,14 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 import { toggleBar } from "@/features/bar/lib/openBar";
+import { cn } from "@/shared/lib/cn";
 import { captureService } from "@/features/capture/api/capture.service";
 
 /**
  * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
  * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
  */
-/** 권한 오류에서만 쓰는 작은 복구 버튼. 두 개가 나란히 서므로 스타일을 한 곳에 둔다. */
+/** 권한 오류에서만 쓰는 작은 복구 버튼. */
 const RECOVERY_BUTTON = [
   "rounded-md border border-brand-coral/40 px-2 py-1 text-[12px] font-semibold",
   "transition-colors hover:bg-brand-coral/10",
@@ -95,21 +96,16 @@ export function HomePage() {
             <div>
               <p>{captureError}</p>
               {/* 권한을 한 번 거부하면 시스템 프롬프트가 다시 뜨지 않는다. 설정까지
-                  가는 길을 앱이 열어준다(docs/07 §4). 켠 뒤에도 같은 증상이면 프로세스가
-                  예전 판정을 들고 있는 경우라 재시작이 답인데, 직접 껐다 켜라고 하는
-                  대신 버튼으로 준다. */}
+                  가는 길을 앱이 열어준다(docs/07 §4). 재시작은 여기서 다루지 않는다 —
+                  설정에서 허용하는 순간 macOS가 직접 묻는다. */}
               {captureErrorCode === "PERMISSION_DENIED" && (
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={() => void captureService.openScreenRecordingSettings()} className={RECOVERY_BUTTON}>
-                    시스템 설정 열기
-                  </button>
-                  <button type="button" onClick={() => void captureService.relaunchApp()} className={RECOVERY_BUTTON}>
-                    앱 다시 시작
-                  </button>
-                  <span className="text-[12px] text-text-secondary">
-                    켰는데도 배경화면만 찍히면 다시 시작해 주세요.
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => void captureService.openScreenRecordingSettings()}
+                  className={cn(RECOVERY_BUTTON, "mt-1")}
+                >
+                  시스템 설정 열기
+                </button>
               )}
             </div>
           </div>
