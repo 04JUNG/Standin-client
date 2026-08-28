@@ -21,6 +21,7 @@ vi.mock("../api/windowMode.service", () => ({ windowModeService: service }));
 
 const { WindowModeSync } = await import("./WindowModeSync");
 const { useCaptureStore } = await import("@/features/capture/store/captureStore");
+const { useWindowModeStore } = await import("../stores/windowModeStore");
 
 const MONITOR = { x: 1920, y: 0, width: 2560, height: 1440 };
 
@@ -35,6 +36,7 @@ function renderAt(path: string) {
 beforeEach(() => {
   service.setMode.mockClear();
   useCaptureStore.getState().reset();
+  useWindowModeStore.getState().setBarContentHeight(null);
 });
 
 afterEach(() => {
@@ -80,5 +82,33 @@ describe("WindowModeSync", () => {
     await waitFor(() => {
       expect(service.setMode).toHaveBeenCalledWith("bar", expect.anything(), undefined);
     });
+  });
+
+  it("바 내용이 표보다 크면 창을 그만큼 키운다", async () => {
+    // 창이 고정 크기라 오류 안내가 창 밖으로 잘려 아예 보이지 않았다(0.1.1-beta.5).
+    // 사용자에게는 "버튼을 눌러도 아무 반응이 없는" 것으로 보인다.
+    useWindowModeStore.getState().setBarContentHeight(200);
+    renderAt("/bar/actions");
+
+    await waitFor(() =>
+      expect(service.setMode).toHaveBeenCalledWith(
+        "bar",
+        expect.objectContaining({ height: 200 }),
+        undefined,
+      ),
+    );
+  });
+
+  it("내용이 표보다 작으면 표 높이를 지킨다", async () => {
+    useWindowModeStore.getState().setBarContentHeight(10);
+    renderAt("/bar/actions");
+
+    await waitFor(() =>
+      expect(service.setMode).toHaveBeenCalledWith(
+        "bar",
+        expect.objectContaining({ height: 88 }),
+        undefined,
+      ),
+    );
   });
 });

@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GripVertical, Minus, Maximize2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -7,6 +7,7 @@ import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { appRouteForBarPath } from "@/shared/lib/modeRoutes";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { useWindowModeStore } from "../stores/windowModeStore";
 
 type BarShellProps = {
   title?: string;
@@ -26,14 +27,52 @@ export function BarShell({ title, hideCollapse, children }: BarShellProps) {
   const { pathname } = useLocation();
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const hasDraft = useUploadStore((s) => s.draft !== null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useShortcuts({
     // 바에서 Esc는 접기(앱 모드로 나가지 않는다).
     "bar.collapse": hideCollapse ? undefined : () => navigate("/bar", { replace: true }),
   });
 
+  /**
+   * 내용이 창보다 커지면 창을 키운다.
+   *
+   * 바 창은 상태별 고정 크기다(BAR_SIZES). 그래서 그때만 생기는 줄 — 권한 오류 안내,
+   * 업로드 실패 문구 — 이 창 밖으로 잘려 **아예 보이지 않았다**. 0.1.1-beta.5에서
+   * "바의 캡처 버튼을 눌러도 아무 반응이 없다"로 보고된 것이 이것이다. 오류는 정상적으로
+   * 렌더됐지만 88px 창 아래에 있었다.
+   *
+   * 측정은 창 크기와 무관한 값이어야 한다. 창 높이에서 파생하면 키움 → 다시 측정 →
+   * 줄임이 반복된다. 그래서 스크롤 영역이 아니라 **내용 자체**의 높이를 잰다.
+   */
+  useEffect(() => {
+    const content = contentRef.current;
+    const shell = shellRef.current;
+    if (!content || !shell) return;
+
+    const setHeight = useWindowModeStore.getState().setBarContentHeight;
+    const measure = () => {
+      // 헤더와 테두리는 내용 밖이므로 셸에서 스크롤 영역을 뺀 만큼을 더한다.
+      const chrome = shell.offsetHeight - (content.parentElement?.clientHeight ?? 0);
+      setHeight(Math.ceil(content.scrollHeight + chrome));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    return () => {
+      observer.disconnect();
+      // 다음 화면이 자기 높이를 올릴 때까지 표 기본값으로 돌아간다.
+      setHeight(null);
+    };
+  }, [pathname]);
+
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-surface-0 shadow-lg">
+    <div
+      ref={shellRef}
+      className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-surface-0 shadow-lg"
+    >
       <div className="flex items-center gap-1 border-b border-border px-1.5 py-1">
         {/* 드래그 핸들. 이 영역을 잡고 바를 옮긴다. */}
         <div
@@ -64,7 +103,10 @@ export function BarShell({ title, hideCollapse, children }: BarShellProps) {
         </BarIconButton>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {/* 내용 높이를 재기 위한 래퍼. 스크롤 영역 자체는 창 크기를 따라가므로 잴 수 없다. */}
+        <div ref={contentRef}>{children}</div>
+      </div>
     </div>
   );
 }

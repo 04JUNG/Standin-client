@@ -13,6 +13,15 @@ type WindowModeState = {
   /** 사용자가 마지막으로 옮긴 바 위치. 없으면 OS 기본 위치. */
   barPosition: WindowPosition | null;
   setBarPosition(position: WindowPosition): void;
+  /**
+   * 바 내용이 실제로 차지하는 높이(px). 화면이 측정해 올린다.
+   *
+   * 크기 표(BAR_SIZES)는 평상시 높이만 담는다. 오류 안내처럼 그때만 생기는 줄까지
+   * 표에 넣을 수는 없으므로, 표보다 내용이 크면 이 값으로 창을 키운다. 창을 키우는
+   * 것은 여전히 WindowModeSync 하나뿐이다 — 크기를 쓰는 곳이 둘이 되면 서로 덮어쓴다.
+   */
+  barContentHeight: number | null;
+  setBarContentHeight(height: number | null): void;
   reset(): void;
 };
 
@@ -20,8 +29,10 @@ export const useWindowModeStore = create<WindowModeState>()(
   persist(
     (set) => ({
       barPosition: null,
+      barContentHeight: null,
       setBarPosition: (barPosition) => set({ barPosition }),
-      reset: () => set({ barPosition: null }),
+      setBarContentHeight: (barContentHeight) => set({ barContentHeight }),
+      reset: () => set({ barPosition: null, barContentHeight: null }),
     }),
     {
       name: "standin-window",
