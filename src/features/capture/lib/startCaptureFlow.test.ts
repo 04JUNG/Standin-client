@@ -61,6 +61,20 @@ describe("startCaptureFlow", () => {
     expect(useCaptureStore.getState().errorCode).toBe("CAPTURE_FAILED");
   });
 
+  it("네이티브가 응답하지 않아도 진행 중에 묶이지 않는다", async () => {
+    // grabbing에 묶이면 재진입 방지가 이후 클릭을 전부 삼켜 버튼이 죽은 것처럼 된다.
+    // 그 상태에서는 오류도 안 뜨므로 사용자는 무엇이 잘못됐는지 알 길이 없다.
+    vi.useFakeTimers();
+    capture.grabScreen.mockReturnValue(new Promise(() => {}));
+
+    const flow = startCaptureFlow();
+    await vi.advanceTimersByTimeAsync(20_000);
+    await flow;
+
+    expect(useCaptureStore.getState().status).toBe("error");
+    vi.useRealTimers();
+  });
+
   it("성공하면 오류 상태가 남지 않는다", async () => {
     capture.grabScreen.mockResolvedValue({
       dataUrl: "data:image/png;base64,AA",

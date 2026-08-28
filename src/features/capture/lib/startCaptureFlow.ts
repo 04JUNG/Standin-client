@@ -14,6 +14,28 @@ import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient
  * router.navigate를 직접 쓴다. deepLinkAuth.ts가 딥링크 수신에 쓰는 것과 같은 방식이다.
  */
 
+/**
+ * 네이티브 캡처를 기다리는 한계 시간.
+ *
+ * 값 자체보다 "무한정 기다리지 않는다"가 요점이다. 응답이 오지 않으면 흐름이
+ * `grabbing`에 묶이고, 재진입 방지가 이후 클릭을 전부 삼켜 버튼이 죽은 것처럼 된다
+ * (0.1.1-beta.5 드래프트에서 실측 — 권한 프롬프트가 응답을 돌려주지 않았다).
+ * 원인을 하나 고쳤어도 다음 원인에 같은 증상이 나오지 않게 여기서 끊는다.
+ *
+ * 캡처는 보통 1초 안에 끝난다. 큰 화면·느린 기기를 넉넉히 감안한 값이다.
+ */
+const GRAB_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new CaptureError("CAPTURE_FAILED", "화면 캡처가 응답하지 않았습니다.")),
+      ms,
+    );
+    work.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
 export function captureErrorMessage(err: unknown): string {
   if (err instanceof CaptureError) {
     switch (err.code) {
@@ -48,7 +70,7 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
   capture.setError(null);
   capture.setStatus("grabbing");
   try {
-    const frame = await captureService.grabScreen();
+    const frame = await withTimeout(captureService.grabScreen(), GRAB_TIMEOUT_MS);
     useCaptureStore.getState().setFrame(frame);
     useCaptureStore.getState().setStatus("selecting");
     await router.navigate("/app/capture");

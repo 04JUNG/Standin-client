@@ -114,14 +114,13 @@ fn capture_monitor(cursor: Option<(i32, i32)>) -> Result<ScreenFrame, CaptureErr
 /// 앱 창을 잠시 숨겨 캡처에 포함되지 않게 한다. 취소는 프론트(Escape)에서 처리한다.
 #[tauri::command]
 pub async fn grab_screen(window: tauri::Window) -> Result<ScreenFrame, CaptureError> {
-    // 권한 확인은 창을 숨기기 전에 한다. 권한이 없으면 시스템 프롬프트가 앱 위로 떠야
-    // 하는데, 창이 숨은 채로 오류만 돌려주면 사용자 눈에는 아무 일도 일어나지 않은
-    // 것이 된다. 확인을 건너뛰면 캡처는 "성공"하고 배경화면만 담긴 프레임이 나간다
-    // (screen_permission 모듈 주석).
-    let granted = tauri::async_runtime::spawn_blocking(screen_permission::ensure_screen_access)
-        .await
-        .unwrap_or(false);
-    if !granted {
+    // 권한 확인은 창을 숨기기 전에, 그리고 **기다리지 않고** 한다. 확인을 건너뛰면
+    // 캡처는 "성공"하고 배경화면만 담긴 프레임이 나간다(screen_permission 모듈 주석).
+    //
+    // 여기서 프롬프트를 띄우고 응답을 기다리면 안 된다. 그동안 이 command가 돌아오지
+    // 않아 흐름이 "진행 중"에 묶이고, 재진입 방지에 걸려 이후 클릭이 전부 무시된다.
+    // 사용자에게는 버튼이 아무 반응도 하지 않는 것으로 보인다(0.1.1-beta.5 실측).
+    if !screen_permission::has_screen_access() {
         return Err(CaptureError::new(
             "PERMISSION_DENIED",
             "화면 기록 권한이 없어 다른 앱 창을 캡처할 수 없습니다.",
