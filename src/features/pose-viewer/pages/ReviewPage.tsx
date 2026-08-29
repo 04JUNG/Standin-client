@@ -3,6 +3,7 @@ import { Loader2, Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useSelectionReview } from "../hooks/useSelectionReview";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 
 /**
  * 저장 직전 확인 화면(ADR-010).
@@ -36,10 +37,7 @@ export function ReviewPage() {
             <p className="text-[13px] text-text-secondary">아래 포즈가 저장됩니다.</p>
             <ul className="flex flex-col divide-y divide-border">
               {items.map((item) => (
-                <li
-                  key={item.personIndex}
-                  className="flex items-center justify-between gap-3 py-2"
-                >
+                <li key={item.personIndex} className="flex items-center justify-between gap-3 py-2">
                   <span className="text-[13px] font-semibold text-text-primary">
                     인물 {item.personIndex + 1}
                   </span>
@@ -57,6 +55,7 @@ export function ReviewPage() {
             후보 다시 고르기
           </Button>
           <Button
+            {...tourAnchor("review.confirm")}
             size="lg"
             disabled={isRefining}
             onClick={() => navigate(`/app/jobs/${jobId}/save`)}

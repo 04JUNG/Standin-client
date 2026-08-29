@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { WindowModeSync } from "@/features/bar/components/WindowModeSync";
 import { windowTargetForPath } from "@/features/bar/lib/barSizes";
 import { UpdateBanner } from "@/features/updates/components/UpdateBanner";
+import { TourLayer } from "@/features/tour/components/TourLayer";
 import { AppTitleBar } from "./AppTitleBar";
 
 /**
@@ -12,6 +13,9 @@ import { AppTitleBar } from "./AppTitleBar";
  *
  * 앱 모드에서는 제목 표시줄도 여기서 그린다. 창이 항상 무장식이라 OS 제목 표시줄이
  * 없기 때문이다. 바·오버레이 모드는 각자 셸이 있어 제외한다.
+ *
+ * 앱 사용법 투어도 같은 이유로 여기 있다. 화면마다 마운트되는 AppShell에 두면 화면을
+ * 옮길 때마다 오버레이가 깜빡인다. 바·오버레이 모드에서는 그리지 않는다.
  *
  * 업데이트 배너도 같은 이유로 여기 있다. AppShell은 shared/라 features를 import할 수
  * 없고(CLAUDE.md §8), 앱 모드 화면 전체에 한 번만 걸리는 지점이 여기다. 폭이 좁은
@@ -31,6 +35,7 @@ export function RootLayout() {
           <div className="min-h-0 flex-1">
             <Outlet />
           </div>
+          <TourLayer />
         </div>
       ) : (
         <Outlet />
