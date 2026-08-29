@@ -69,6 +69,8 @@ export type AnalysisErrorCode =
   | "TIMEOUT"
   | "NO_PEOPLE"
   | "ABANDONED"
+  /** 기록에서 열었는데 아직 끝나지 않았거나 결과가 없는 Job이다(BFF `NOT_READY`). */
+  | "NOT_READY"
   /** 상류 VLM 혼잡. 같은 이미지로 잠시 후 다시 하면 된다(BFF `ANALYSIS_UNAVAILABLE`). */
   | "UPSTREAM_UNAVAILABLE";
 
@@ -83,6 +85,14 @@ export class AnalysisError extends Error {
 }
 
 export interface PoseResultService {
+  /**
+   * 이미 끝난 Job의 저장된 결과를 그대로 읽는다. 작업 기록에서 상세로 들어올 때 쓴다.
+   *
+   * `analyze`와 달리 업로드도 폴링도 하지 않는다 — 원본 파일이 없어도 되고, 쿼터를
+   * 깎거나 동시 분석 슬롯을 잡지도 않는다.
+   */
+  loadResult(input: { jobId: string; signal?: AbortSignal }): Promise<AnalysisResult>;
+
   analyze(input: {
     jobId: string;
     file: File;

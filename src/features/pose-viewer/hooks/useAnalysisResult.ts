@@ -5,6 +5,7 @@ import { ApiError } from "@/shared/api/errors";
 import { poseService } from "../api/pose.service";
 import { AnalysisError } from "../api/pose.contract";
 import { poseQueryKeys } from "../queryKeys";
+import { isServerJobId } from "../lib/serverJobId";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 
@@ -62,18 +63,31 @@ export function useAnalysisResult(jobId: string | undefined) {
 
   const sourceFile = draft?.file ?? null;
 
+  /**
+   * 작업 기록에서 들어온 화면인가. 저장된 결과를 읽기만 하고 분석하지 않는다.
+   *
+   * ⚠ 이 판정은 **`sourceFile`보다 반드시 우선한다.** 이미지 A를 분석해 draft가 살아 있는
+   * 상태에서 기록의 Job B를 열면, 파일 유무를 먼저 보는 분기는 A의 파일로 B의 쿼리 키
+   * 아래 새 분석 Job을 만든다 — 쿼터 1회를 깎고 동시 분석 슬롯까지 잡는다.
+   * 라이브 흐름의 라우트 jobId는 `crypto.randomUUID()`라 절대 `job_` 접두를 갖지 않으므로,
+   * 이 우선순위가 라이브 경로를 가로채는 일은 없다(ADR-012).
+   */
+  const restoreOnly = isServerJobId(jobId);
+
   const query = useQuery({
     queryKey: poseQueryKeys.result(jobId ?? ""),
     queryFn: ({ signal }) =>
-      poseService.analyze({
-        jobId: jobId ?? "",
-        file: sourceFile!,
-        source: draft!.source,
-        width: draft!.width,
-        height: draft!.height,
-        signal,
-      }),
-    enabled: Boolean(jobId && sourceFile),
+      restoreOnly
+        ? poseService.loadResult({ jobId: jobId ?? "", signal })
+        : poseService.analyze({
+            jobId: jobId ?? "",
+            file: sourceFile!,
+            source: draft!.source,
+            width: draft!.width,
+            height: draft!.height,
+            signal,
+          }),
+    enabled: Boolean(jobId) && (restoreOnly || Boolean(sourceFile)),
     // queryFn이 단순 GET이 아니라 분석 Job을 생성한다. 후보→확인 화면 재마운트나
     // 네트워크 재연결이 같은 입력의 Job을 다시 만들지 않도록 route job당 한 번만 실행한다.
     staleTime: Infinity,
@@ -104,6 +118,8 @@ export function useAnalysisResult(jobId: string | undefined) {
   // 클라에만 있다. 서버 jobId를 아직 모르므로 job에 연결하지 않고 설치 단위로만 남긴다.
   useEffect(() => {
     if (!query.isError || !jobId) return;
+    // 기록 조회 실패는 분석 실패가 아니다. 같이 세면 분석 실패율이 부풀려진다.
+    if (restoreOnly) return;
     if (lastFailedKey === jobId) return;
     lastFailedKey = jobId;
     trackEvent("analysis_failed", {
@@ -111,10 +127,16 @@ export function useAnalysisResult(jobId: string | undefined) {
       surface: currentSurface(),
       elapsedMs: startedAt.current ? Date.now() - startedAt.current : 0,
     });
-  }, [query.isError, query.error, jobId]);
+  }, [query.isError, query.error, jobId, restoreOnly]);
 
   useEffect(() => {
     if (!query.data) return;
+    // 기록에서 다시 열어본 것은 분석 퍼널의 "결과 조회"가 아니다. 같이 세면 같은 Job이
+    // 볼 때마다 집계돼 후보 노출 대비 선택률이 실제보다 낮게 보인다.
+    if (restoreOnly) {
+      setServerJobId(query.data.jobId);
+      return;
+    }
     const surface = currentSurface();
     const viewKey = `${query.data.jobId}:${surface}`;
     if (lastViewedKey === viewKey) return;
@@ -129,7 +151,7 @@ export function useAnalysisResult(jobId: string | undefined) {
       },
       query.data.jobId,
     );
-  }, [query.data, people, setServerJobId]);
+  }, [query.data, people, setServerJobId, restoreOnly]);
 
   function selectAndTrack(personIndex: number, candidateId: string) {
     const previousCandidateId = selectedByPerson[personIndex] ?? null;
@@ -155,6 +177,8 @@ export function useAnalysisResult(jobId: string | undefined) {
 
   return {
     ...query,
+    /** 기록에서 열어 저장된 결과를 보고 있는가. 화면이 안내 문구를 고를 때 쓴다. */
+    restoreOnly,
     draft,
     sourceFile,
     people,

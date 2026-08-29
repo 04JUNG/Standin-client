@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchBlob } from "@/shared/api/client";
+import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
 import { AnalysisError } from "./pose.contract";
 import type {
@@ -42,6 +43,8 @@ type BffCandidate = {
 type BffAnalysisResult = {
   jobId: string;
   notes: string[];
+  /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
+  inputUrl?: string | null;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: { refine?: boolean };
   candidatesByPerson: Array<{
@@ -258,6 +261,8 @@ async function toAnalysisResult(
 
   return {
     jobId: raw.jobId,
+    // 라이브 분석에서도 원본 미리보기가 draft의 blob URL에 의존하지 않게 된다.
+    inputPreviewUrl: raw.inputUrl ?? undefined,
     people,
     capabilities: { refine: raw.capabilities?.refine === true },
   };
@@ -360,6 +365,28 @@ export function __resetAnalysisJobs(): void {
 }
 
 export const poseHttp: PoseResultService = {
+  /**
+   * 저장된 결과만 읽는다. Job을 만들지 않으므로 `serverJobByClientJob` 맵도, 쿼터도,
+   * 동시 분석 슬롯도 건드리지 않는다 — 기록을 열어보는 일이 분석 한도를 깎으면 안 된다.
+   */
+  async loadResult({ jobId, signal }): Promise<AnalysisResult> {
+    let raw: BffAnalysisResult;
+    try {
+      raw = await apiFetch<BffAnalysisResult>(endpoints.analysis.result(jobId), {
+        auth: false,
+        signal,
+      });
+    } catch (error) {
+      // 아직 끝나지 않았거나 결과가 비어 있는 Job. 목록이 완료 항목만 열어주므로
+      // 보통은 오지 않지만, 목록을 받은 뒤 상태가 바뀌면 도달할 수 있다.
+      if (error instanceof ApiError && error.code === "NOT_READY") {
+        throw new AnalysisError("NOT_READY", "아직 결과가 준비되지 않은 작업입니다.");
+      }
+      throw error;
+    }
+    return toAnalysisResult(raw, signal ?? new AbortController().signal);
+  },
+
   async analyze({
     jobId,
     file,
