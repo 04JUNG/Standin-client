@@ -32,6 +32,7 @@
 | [ADR-009](ADR-009-pose-file-delivery.md) | 포즈 파일을 클립스튜디오로 전달하는 방식 | 제안됨 |
 | [ADR-010](ADR-010-refine-review-step.md) | 저장 전 조정 결과 확인 단계 | 제안됨 (ADR-005·009 보완) |
 | [ADR-011](ADR-011-signing-and-update-delivery.md) | 앱 서명과 자동 업데이트 배포 방식 | 제안됨 |
+| [ADR-012](ADR-012-job-history-reentry.md) | 작업 기록에서 지난 분석으로 다시 들어가는 방식 | 제안됨 |
 
 ## 템플릿
 
