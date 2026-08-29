@@ -11,11 +11,19 @@ import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { GlobalShortcutAlert } from "./GlobalShortcutAlert";
 import { ShortcutCheatSheet } from "./ShortcutCheatSheet";
 
-type NavItem = { to: string; label: string; icon: typeof Home; disabled?: boolean };
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof Home;
+  disabled?: boolean;
+  /** 하위 경로에서도 활성으로 볼 것인가. NavLink 기본값(end: false)을 끌 때 쓴다. */
+  end?: boolean;
+};
 
 const navItems: NavItem[] = [
   { to: "/app/home", label: "홈", icon: Home },
-  { to: "/app/jobs", label: "작업 기록", icon: History, disabled: true },
+  // end를 켜지 않으면 라이브 분석 중(/app/jobs/<uuid>)에도 "작업 기록"이 활성으로 보인다.
+  { to: "/app/jobs", label: "작업 기록", icon: History, end: true },
   { to: "/app/settings", label: "설정", icon: Settings },
 ];
 
@@ -49,7 +57,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
       >
         <div className="flex h-topbar items-center px-4 text-[18px] font-bold">Standin</div>
         <nav className="flex flex-1 flex-col gap-1 px-2">
-          {navItems.map(({ to, label, icon: Icon, disabled }) =>
+          {navItems.map(({ to, label, icon: Icon, disabled, end }) =>
             disabled ? (
               <span
                 key={to}
@@ -63,6 +71,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
               <NavLink
                 key={to}
                 to={to}
+                end={end}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-2 rounded-lg px-3 py-2 text-[14px] transition-colors",

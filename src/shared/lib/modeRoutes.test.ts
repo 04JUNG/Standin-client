@@ -45,6 +45,16 @@ describe("barRouteForAppPath", () => {
     expect(barRouteForAppPath("/app/preview", "/bar/actions")).toBe("/bar/actions");
   });
 
+  it("기록 목록은 대응 단계가 없고, 기록 상세는 후보 화면으로 접힌다", () => {
+    // /app/jobs(목록)에는 대응하는 바 화면이 없다. 상세와 달리 후행 세그먼트가 없어
+    // 단계 매칭에 걸리지 않는 것이 올바른 동작이다.
+    expect(barRouteForAppPath("/app/jobs")).toBe("/bar");
+    // 기록에서 연 상세는 서버 jobId를 라우트에 그대로 쓰므로 라이브 분석과 똑같이 접힌다.
+    expect(barRouteForAppPath("/app/jobs/job_0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e")).toBe(
+      "/bar/candidates",
+    );
+  });
+
   it("대응 단계가 없으면 idle로 간다", () => {
     expect(barRouteForAppPath("/app/home")).toBe("/bar");
     expect(barRouteForAppPath("/app/settings")).toBe("/bar");
