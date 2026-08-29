@@ -178,10 +178,26 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
             if let Some(rect) = req.monitor {
                 // 전체화면 상태에서는 이동이 먹지 않는다. 먼저 푼다.
                 let _ = window.set_fullscreen(false);
-                let _ = window.set_position(PhysicalPosition::new(rect.x, rect.y));
+
                 // 크기까지 맞춰야 창 전체가 목적지 모니터 안에 들어간다. 걸쳐 있으면
                 // OS가 어느 쪽을 "현재 모니터"로 볼지 보장되지 않는다.
-                let _ = window.set_size(PhysicalSize::new(rect.width, rect.height));
+                //
+                // ⚠ 단위가 OS마다 다르다. xcap이 주는 값은 그 OS의 전역 창 좌표계
+                // 그대로다 — Windows는 물리 픽셀, macOS는 points다(CGDisplayBounds).
+                // macOS 값을 PhysicalSize로 넘기면 tao가 배율로 한 번 더 나눠, Retina
+                // 에서 창이 화면의 절반 크기로 뜬다(0.1.1-beta.6에서 실측). 전체화면을
+                // 쓸 때는 OS가 크기를 덮어써서 이 오류가 가려져 있었다.
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = window.set_position(LogicalPosition::new(rect.x as f64, rect.y as f64));
+                    let _ = window
+                        .set_size(LogicalSize::new(rect.width as f64, rect.height as f64));
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    let _ = window.set_position(PhysicalPosition::new(rect.x, rect.y));
+                    let _ = window.set_size(PhysicalSize::new(rect.width, rect.height));
+                }
             }
 
             // macOS에서는 네이티브 전체화면을 쓰지 않는다. 위에서 맞춘 크기가 곧 오버레이다.
