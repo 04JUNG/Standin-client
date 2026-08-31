@@ -58,10 +58,17 @@ export function useSaveFlow(jobId: string | undefined) {
   const setError = useExportStore((s) => s.setError);
   const clearError = useExportStore((s) => s.clearError);
   const reset = useExportStore((s) => s.reset);
+  const beginJob = useExportStore((s) => s.beginJob);
 
   const selections = Object.entries(selectedByPerson);
   const selectionCount = selections.length;
   const isSaved = status === "saved" && savedPaths.length > 0;
+
+  // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
+  // 실행되어야 한다 — 순서가 뒤집히면 방금 채운 이름을 곧바로 지운다.
+  useEffect(() => {
+    if (jobId) beginJob(jobId);
+  }, [jobId, beginJob]);
 
   useEffect(() => {
     if (!folder) {
@@ -70,12 +77,14 @@ export function useSaveFlow(jobId: string | undefined) {
         .then(setFolder)
         .catch(() => {});
     }
-    if (!fileName) {
-      setFileName(defaultFileName(draft?.originalName));
-    }
-    // 마운트 시 1회만 기본값을 채운다.
+    // 폴더는 영속값이라 마운트 1회로 충분하다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 파일 이름은 beginJob이 비울 수 있으므로 마운트 1회가 아니라 비어 있을 때마다 채운다.
+  useEffect(() => {
+    if (!fileName) setFileName(defaultFileName(draft?.originalName));
+  }, [fileName, draft, setFileName]);
 
   // 최신 값을 자동 저장 effect에서 읽되, effect가 값 변화마다 재실행되지는 않게 한다.
   const latest = useRef({ jobId, fileName, selections, queryClient });
