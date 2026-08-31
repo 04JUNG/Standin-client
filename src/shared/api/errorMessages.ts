@@ -38,6 +38,10 @@ const MESSAGES: Record<string, string> = {
   SERVICE_PAUSED: "지금은 분석을 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   PAYLOAD_TOO_LARGE: "이미지가 너무 큽니다. 20MB 이하로 줄여서 다시 시도해 주세요.",
 
+  // 작업 기록
+  JOB_IN_PROGRESS: "진행 중인 분석은 삭제할 수 없습니다. 끝난 뒤에 다시 시도해 주세요.",
+  NOT_READY: "아직 결과가 준비되지 않은 작업입니다.",
+
   // 기타
   NOT_FOUND: "요청한 정보를 찾을 수 없습니다.",
 };
