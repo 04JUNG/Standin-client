@@ -7,6 +7,11 @@ on:
         description: "Publish as a draft release (verify signatures before it goes public)"
         type: boolean
         default: true
+      environment:
+        description: "어느 백엔드를 보는 빌드인가"
+        type: choice
+        options: [production, staging]
+        default: production
 
 permissions:
   contents: write
@@ -84,6 +89,17 @@ jobs:
           UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+
+          # staging 빌드는 자동 업데이트를 켜지 않는다. 켜면 latest.json을 보고
+          # **스스로 프로덕션 빌드로 갈아타** 검증하던 환경이 사라진다.
+          # tauri.staging.conf.json이 endpoints를 비우고, 여기서 서명 자산도 만들지 않는다.
+          if [ "${{ inputs.environment }}" = "staging" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "extraArgs=--config src-tauri/tauri.staging.conf.json" >> "$GITHUB_OUTPUT"
+            echo "staging build: updater disabled, separate app identifier."
+            exit 0
+          fi
+
           PUBKEY="$(node -p "require('./src-tauri/tauri.conf.json').plugins.updater.pubkey")"
 
           # Half a keypair always fails at verification time. Stop before shipping assets.
@@ -181,11 +197,14 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VITE_API_BASE_URL: https://api.standinpose.com
+          # 백엔드 주소는 빌드 시점에 굳는다. 런타임 스위치를 두지 않는 이유는
+          # 딥링크 스킴이 설치 시점에 OS에 등록되어 런타임에 못 바꾸기 때문이다 —
+          # 주소만 바꾸면 OAuth 콜백이 반대쪽 앱으로 간다.
+          VITE_API_BASE_URL: ${{ inputs.environment == 'staging' && 'https://api-staging.standinpose.com' || 'https://api.standinpose.com' }}
           VITE_WEB_BASE_URL: https://standin-seven.vercel.app
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
-          VITE_APP_ENV: production
+          VITE_APP_ENV: ${{ inputs.environment }}
           # Updater package signing (minisign). Unrelated to OS code signing (ADR-011).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -211,8 +230,10 @@ jobs:
           # and notarization failed with "Team ID must be at least 3 characters".
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
         with:
-          tagName: v${{ steps.release.outputs.version }}
-          releaseName: Standin Desktop v${{ steps.release.outputs.version }}
+          # staging 태그를 분리한다. 같은 태그를 쓰면 staging 빌드가 프로덕션
+          # 릴리스에 자산을 얹고, 사용자가 그걸 내려받을 수 있다.
+          tagName: v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && '-staging' || '' }}
+          releaseName: Standin Desktop v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && ' (staging)' || '' }}
           # Starting template. Releases are drafts by default, so add the
           # per-release changes on top before publishing.
           releaseBody: |
@@ -239,7 +260,8 @@ jobs:
             ## 이번 버전의 변경
 
             <!-- 배포 전에 채워 주세요 -->
-          releaseDraft: ${{ inputs.draft }}
+          # staging 빌드는 공개 릴리스로 나가지 않는다.
+          releaseDraft: ${{ inputs.environment == 'staging' || inputs.draft }}
           # GitHub's releases/latest path skips prereleases, and the updater feed points
           # at it. Marking releases as prerelease means the update never appears (ADR-011).
           # The -beta.N in the version string carries the beta signal instead; publish the
