@@ -42,6 +42,7 @@ type ExportState = {
   setFileName(fileName: string): void;
   startSaving(): void;
   setSaved(paths: string[]): void;
+  addSaved(paths: string[]): void;
   setError(message: string): void;
   clearError(): void;
   reset(): void;
@@ -81,6 +82,20 @@ export const useExportStore = create<ExportState>()(
       setFileName: (fileName) => set({ fileName }),
       startSaving: () => set({ status: "saving", error: null }),
       setSaved: (paths) => set({ status: "saved", savedPaths: paths, error: null }),
+      /**
+       * 이미 저장한 목록에 이어 붙인다. 앞선 저장이 **유효한 채로** 파일이 더 생기는
+       * 경우에만 쓴다 — 지금은 "다른 포맷으로도 저장" 하나다.
+       *
+       * setSaved로 교체하면 먼저 저장한 파일이 디스크에는 남는데 목록에서만 사라져,
+       * 저장이 취소된 것처럼 보인다. 반대로 재시도·다른 폴더 저장은 앞선 결과를 대체하는
+       * 것이 맞으므로 그쪽은 계속 setSaved를 쓴다.
+       */
+      addSaved: (paths) =>
+        set((state) => ({
+          status: "saved",
+          savedPaths: [...state.savedPaths, ...paths],
+          error: null,
+        })),
       setError: (message) => set({ status: "error", error: message }),
       clearError: () => set({ status: "idle", error: null }),
       reset: () => set({ jobId: null, fileName: "", status: "idle", savedPaths: [], error: null }),

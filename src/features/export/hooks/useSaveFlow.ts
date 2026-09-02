@@ -68,6 +68,7 @@ export function useSaveFlow(jobId: string | undefined) {
   const setFileName = useExportStore((s) => s.setFileName);
   const startSaving = useExportStore((s) => s.startSaving);
   const setSaved = useExportStore((s) => s.setSaved);
+  const addSaved = useExportStore((s) => s.addSaved);
   const setError = useExportStore((s) => s.setError);
   const clearError = useExportStore((s) => s.clearError);
   const reset = useExportStore((s) => s.reset);
@@ -118,7 +119,11 @@ export function useSaveFlow(jobId: string | undefined) {
   latest.current = { jobId, fileName, selections, queryClient };
 
   const runSave = useCallback(
-    async (targetFolder: string, format: ExportFormat) => {
+    /**
+     * `append`는 앞선 저장 결과를 **남긴 채** 목록에 더한다. 같은 포즈를 다른 포맷으로 한
+     * 번 더 저장하는 경우만 해당한다 — 재시도와 다른 폴더 저장은 앞선 결과를 대체한다.
+     */
+    async (targetFolder: string, format: ExportFormat, options: { append?: boolean } = {}) => {
       const { jobId: id, fileName: rawName, selections: picks, queryClient: qc } = latest.current;
       if (!targetFolder || !rawName || !id || picks.length === 0) return;
       // 이름의 확장자와 실제 내용이 어긋나면 클립스튜디오는 열지 못하면서 이유는 알려 주지
@@ -156,7 +161,9 @@ export function useSaveFlow(jobId: string | undefined) {
           }),
         );
         const results = await exportService.saveCandidates({ folder: targetFolder, files });
-        setSaved(results.map((r) => r.path));
+        const paths = results.map((r) => r.path);
+        if (options.append) addSaved(paths);
+        else setSaved(paths);
         // 사용자 기준 성공은 BFF의 BVH 응답이 아니라 로컬 파일 저장이다.
         // 서버 export_events만 보면 저장 단계 실패가 성공으로 집계된다.
         trackEvent(
@@ -183,7 +190,7 @@ export function useSaveFlow(jobId: string | undefined) {
         );
       }
     },
-    [startSaving, setSaved, setError],
+    [startSaving, setSaved, addSaved, setError],
   );
 
   /**
@@ -213,7 +220,7 @@ export function useSaveFlow(jobId: string | undefined) {
    * 3.1.0 이상에서만 열린다. 그것 때문에 같은 컷을 다시 분석하게 만들 이유가 없다.
    */
   async function saveAlsoAs(format: ExportFormat) {
-    if (folder) await runSave(folder, format);
+    if (folder) await runSave(folder, format, { append: true });
   }
 
   /**

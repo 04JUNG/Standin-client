@@ -39,6 +39,20 @@ describe("exportStore.beginJob", () => {
     expect(useExportStore.getState().savedPaths).toEqual(["/downloads/rough_a.bvh"]);
   });
 
+  it("다른 포맷으로 더 저장하면 앞선 목록에 이어 붙인다", () => {
+    // 교체하면 먼저 저장한 파일이 디스크에는 남는데 목록에서만 사라져, 저장이 취소된
+    // 것처럼 보인다. "…로도 저장"이라는 문구와도 어긋난다.
+    const store = useExportStore.getState();
+    store.beginJob("job_a");
+    store.setSaved(["/downloads/rough.fbx"]);
+
+    useExportStore.getState().addSaved(["/downloads/rough.bvh"]);
+
+    const next = useExportStore.getState();
+    expect(next.savedPaths).toEqual(["/downloads/rough.fbx", "/downloads/rough.bvh"]);
+    expect(next.status).toBe("saved");
+  });
+
   it("job이 바뀌어도 저장 포맷은 유지한다", () => {
     // 포맷은 폴더와 같은 사용자 설정값이다. job이 바뀐다고 기본값으로 돌아가면 작가가
     // 설정에서 고른 포맷이 작업을 옮길 때마다 조용히 풀린다.
