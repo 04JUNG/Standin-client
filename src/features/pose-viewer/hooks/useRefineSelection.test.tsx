@@ -25,7 +25,7 @@ function person(overrides: Partial<PersonResult> & { index: number }): PersonRes
 }
 
 function analysis(people: PersonResult[], refine = true): AnalysisResult {
-  return { jobId: "server-job", people, capabilities: { refine } };
+  return { jobId: "server-job", people, capabilities: { refine, fbxExport: false } };
 }
 
 describe("useRefineSelection", () => {

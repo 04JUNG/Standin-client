@@ -40,6 +40,7 @@ export function BarSavePage() {
 
   const {
     folder,
+    format,
     status,
     savedPaths,
     error,
@@ -136,8 +137,13 @@ export function BarSavePage() {
             <p className="shrink-0 text-[10px] text-text-secondary">
               {dragService.isSupported
                 ? "파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
-                : "폴더를 열고 BVH를 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."}
+                : `폴더를 열고 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`}
             </p>
+            {format === "bvh" && (
+              <p className="shrink-0 text-[10px] text-text-secondary">
+                BVH는 클립스튜디오 3.1.0 이상에서 열 수 있습니다.
+              </p>
+            )}
 
             <div className="min-h-0 flex-1 overflow-auto">
               <SavedFileList paths={savedPaths} onCopy={copyPath} dense />
