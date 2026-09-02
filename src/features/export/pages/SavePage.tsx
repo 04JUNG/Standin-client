@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   CheckCircle2,
+  FileDown,
   FolderOpen,
   Loader2,
   RotateCcw,
@@ -38,6 +39,10 @@ export function SavePage() {
 
   const {
     folder,
+    format,
+    formatDowngraded,
+    serverSupportsFbx,
+    saveAlsoAs,
     status,
     savedPaths,
     error,
@@ -50,6 +55,11 @@ export function SavePage() {
     revealSaved,
     copyPath,
   } = useSaveFlow(jobId);
+
+  // 이미 저장한 포맷의 반대. FBX를 못 주는 서버에서는 FBX를 권하지 않는다 — 눌러도
+  // 실패할 버튼을 보여주는 건 안내가 아니라 함정이다.
+  const alternateFormat = format === "fbx" ? "bvh" : "fbx";
+  const canSaveAlternate = alternateFormat === "bvh" || serverSupportsFbx;
 
   function handleNewScene() {
     newScene();
@@ -84,7 +94,7 @@ export function SavePage() {
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
             <p className="text-[14px] text-text-secondary">
-              포즈 {selections.length}개를 저장하고 있습니다…
+              포즈 {selections.length}개를 {format.toUpperCase()}로 저장하고 있습니다…
             </p>
             <p className="break-all text-[12px] text-text-secondary">{folder}</p>
           </div>
@@ -116,6 +126,18 @@ export function SavePage() {
                   className="ml-1"
                 />
               </Button>
+              {/* FBX 변환 실패는 재시도로 풀리지 않는 경우가 있다(후보 거부·lineage 불일치).
+                  그때 사용자가 할 수 있는 유일한 일이 다른 포맷으로 저장하는 것이다. */}
+              {canSaveAlternate && (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => void saveAlsoAs(alternateFormat)}
+                >
+                  <FileDown className="h-4 w-4" aria-hidden />
+                  {alternateFormat.toUpperCase()}로 대신 저장
+                </Button>
+              )}
               <Button variant="ghost" size="md" onClick={() => void resetToDownloads()}>
                 다운로드 폴더로 재설정하고 저장
               </Button>
@@ -135,9 +157,20 @@ export function SavePage() {
             <div {...tourAnchor("save.files")} className="flex flex-col gap-2">
               <p className="text-[13px] text-text-secondary">
                 {dragService.isSupported
-                  ? "아래 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
-                  : "폴더를 열어 BVH를 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."}
+                  ? `아래 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`
+                  : `폴더를 열어 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`}
               </p>
+              {format === "bvh" && (
+                <p className="text-[12px] text-text-secondary">
+                  BVH는 클립스튜디오 3.1.0 이상에서 열 수 있습니다.
+                </p>
+              )}
+              {formatDowngraded && (
+                <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  지금 연결된 서버는 FBX 저장을 아직 제공하지 않아 BVH로 저장했습니다.
+                </p>
+              )}
               <SavedFileList paths={savedPaths} onCopy={copyPath} />
             </div>
 
@@ -198,6 +231,17 @@ export function SavePage() {
                   className="ml-1"
                 />
               </Button>
+              {/* 이번 한 번만 다른 포맷으로도 저장한다. 설정의 기본 포맷은 그대로 둔다. */}
+              {canSaveAlternate && (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => void saveAlsoAs(alternateFormat)}
+                >
+                  <FileDown className="h-4 w-4" aria-hidden />
+                  {alternateFormat.toUpperCase()}로도 저장
+                </Button>
+              )}
               <Button
                 {...tourAnchor("save.newScene")}
                 variant="ghost"

@@ -1,5 +1,26 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ExportError, type ExportErrorCode, type ExportService, type SavedFile } from "./export.contract";
+import {
+  ExportError,
+  type ExportErrorCode,
+  type ExportService,
+  type SaveCandidateInput,
+  type SavedFile,
+} from "./export.contract";
+
+/**
+ * 바이트 → base64. Rust command가 base64 문자열을 받는다(export.rs 참고).
+ *
+ * `String.fromCharCode(...bytes)`를 한 번에 쓰지 않는 이유는 스프레드가 인자 개수 상한에
+ * 걸려 수 MB FBX에서 RangeError로 죽기 때문이다. 청크로 나눠 이어 붙인다.
+ */
+function toBase64(bytes: Uint8Array): string {
+  const CHUNK = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
 
 const KNOWN_CODES: ExportErrorCode[] = ["CANCELLED", "INVALID_FOLDER", "WRITE_FAILED", "UNSUPPORTED"];
 
@@ -39,7 +60,7 @@ export const exportTauri: ExportService = {
     }
   },
 
-  async saveCandidates(input: { folder: string; files: { fileName: string; content: string }[] }): Promise<SavedFile[]> {
+  async saveCandidates(input: { folder: string; files: SaveCandidateInput[] }): Promise<SavedFile[]> {
     // 네이티브 fs 쓰기는 브라우저 다운로드 매니저를 거치지 않으므로 여러 파일을 그대로 각각 저장한다.
     const results: SavedFile[] = [];
     for (const file of input.files) {
@@ -47,7 +68,7 @@ export const exportTauri: ExportService = {
         const saved = await invoke<SavedFile>("save_pose_file", {
           folder: input.folder,
           fileName: file.fileName,
-          content: file.content,
+          contentBase64: toBase64(file.content),
         });
         results.push(saved);
       } catch (err) {

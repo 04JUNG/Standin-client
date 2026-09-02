@@ -46,7 +46,7 @@ type BffAnalysisResult = {
   /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
   inputUrl?: string | null;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
-  capabilities?: { refine?: boolean };
+  capabilities?: { refine?: boolean; fbxExport?: boolean };
   candidatesByPerson: Array<{
     personIndex: number;
     box: number[] | null;
@@ -264,7 +264,11 @@ async function toAnalysisResult(
     // 라이브 분석에서도 원본 미리보기가 draft의 blob URL에 의존하지 않게 된다.
     inputPreviewUrl: raw.inputUrl ?? undefined,
     people,
-    capabilities: { refine: raw.capabilities?.refine === true },
+    capabilities: {
+      refine: raw.capabilities?.refine === true,
+      // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
+      fbxExport: raw.capabilities?.fbxExport === true,
+    },
   };
 }
 

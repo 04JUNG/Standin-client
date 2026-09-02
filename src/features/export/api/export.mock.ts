@@ -1,4 +1,4 @@
-import { ExportError, type ExportService, type SavedFile } from "./export.contract";
+import { ExportError, type ExportService, type SaveCandidateInput, type SavedFile } from "./export.contract";
 import { buildZip } from "../lib/zip";
 
 /**
@@ -33,10 +33,23 @@ async function pickDirectory(): Promise<FileSystemDirectoryHandle> {
   }
 }
 
-async function writeFile(dir: FileSystemDirectoryHandle, fileName: string, content: string): Promise<void> {
+/**
+ * 바이트를 자기 소유의 ArrayBuffer로 복사한다.
+ *
+ * TS 5.7부터 `Uint8Array`가 backing buffer 종류를 제네릭으로 들고 다녀서, SharedArrayBuffer
+ * 기반일 수 있는 뷰는 Blob·FileSystemWritable이 그대로 받지 않는다. 캐스팅으로 덮으면
+ * 런타임에 진짜 SharedArrayBuffer가 들어왔을 때 조용히 깨진다.
+ */
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(copy).set(bytes);
+  return copy;
+}
+
+async function writeFile(dir: FileSystemDirectoryHandle, fileName: string, content: Uint8Array): Promise<void> {
   const fileHandle = await dir.getFileHandle(fileName, { create: true });
   const writable = await fileHandle.createWritable();
-  await writable.write(content);
+  await writable.write(toArrayBuffer(content));
   await writable.close();
 }
 
@@ -83,7 +96,7 @@ export const exportMock: ExportService = {
     return true;
   },
 
-  async saveCandidates(input: { folder: string; files: { fileName: string; content: string }[] }): Promise<SavedFile[]> {
+  async saveCandidates(input: { folder: string; files: SaveCandidateInput[] }): Promise<SavedFile[]> {
     if (input.files.length === 0) return [];
 
     // 이미 폴더 핸들을 받아둔 경우에만 실제 폴더에 쓴다.
@@ -106,7 +119,7 @@ export const exportMock: ExportService = {
     await delay(500);
     if (input.files.length === 1) {
       const file = input.files[0];
-      triggerBlobDownload(file.fileName, new Blob([file.content], { type: "text/plain" }));
+      triggerBlobDownload(file.fileName, new Blob([toArrayBuffer(file.content)], { type: "application/octet-stream" }));
       return [{ path: `${input.folder}\\${file.fileName}` }];
     }
     const zipName = `standin_poses_${Date.now()}.zip`;

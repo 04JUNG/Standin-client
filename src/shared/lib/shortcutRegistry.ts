@@ -110,7 +110,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     id: "save.revealFolder",
     label: "폴더 열기",
     scope: "save",
-    hint: "여기서 BVH를 클립스튜디오 캔버스로 끌어놓습니다.",
+    hint: "여기서 포즈 파일을 클립스튜디오 캔버스로 끌어놓습니다.",
     // home.openFilePicker와 같은 Mod+KeyO는 scope가 겹치지 않지만, 의미가 달라 혼동을
     // 피하려고 별도 키를 쓴다.
     defaultAccelerator: "Mod+KeyE",

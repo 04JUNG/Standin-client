@@ -57,7 +57,14 @@ export type AnalysisResult = {
    * 서버가 이 기능을 노출하는가. 추론 endpoint가 살아 있어도 BFF flag가 꺼져 있으면
    * false가 오고, 클라이언트는 그걸 따른다(자기 판단으로 호출하지 않는다).
    */
-  capabilities: { refine: boolean };
+  capabilities: {
+    refine: boolean;
+    /**
+     * 서버가 FBX 저장을 노출하는가. converter는 추론 서버와 **별개로** 배포되므로 refine과
+     * 함께 켜지지 않는다. false면 저장 포맷 선택에서 FBX를 고를 수 없다.
+     */
+    fbxExport: boolean;
+  };
 };
 
 /**

@@ -1,6 +1,8 @@
 /**
  * 저장(export) 계약. docs/12 §3~4, ADR-006.
- * 실제 서버 signed URL 다운로드는 아직 없음 — content는 프론트에서 만든 placeholder(§6).
+ *
+ * 본문은 문자열이 아니라 바이트다. FBX가 바이너리이기 때문이고, BVH도 같은 경로를 타야
+ * 포맷에 따라 저장 코드가 갈리지 않는다.
  */
 export type ExportErrorCode = "CANCELLED" | "INVALID_FOLDER" | "WRITE_FAILED" | "UNSUPPORTED";
 
@@ -16,7 +18,8 @@ export class ExportError extends Error {
 
 export type SavedFile = { path: string };
 
-export type SaveCandidateInput = { fileName: string; content: string };
+/** 저장할 포즈 파일 하나. `fileName`의 확장자가 곧 포맷이다(.bvh 또는 .fbx). */
+export type SaveCandidateInput = { fileName: string; content: Uint8Array };
 
 export interface ExportService {
   /** OS 다운로드 폴더 경로(docs/12 §4 기본값). */
