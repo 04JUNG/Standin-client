@@ -266,7 +266,12 @@ jobs:
           # at it. Marking releases as prerelease means the update never appears (ADR-011).
           # The -beta.N in the version string carries the beta signal instead; publish the
           # draft once the signature checks below have passed.
-          prerelease: false
+          #
+          # staging은 반대로 **반드시** prerelease여야 한다. draft로 고정해 두긴 했지만,
+          # 누군가 "테스터에게 주자"며 그 draft를 publish하는 순간 그것이 releases/latest가
+          # 되고 **모든 프로덕션 사용자의 앱이 staging 빌드로 자동 업데이트된다.**
+          # prerelease는 releases/latest에서 제외되므로 그 경로를 원천 차단한다.
+          prerelease: ${{ inputs.environment == 'staging' }}
           uploadWorkflowArtifacts: true
           # The input is uploadUpdaterJson, not includeUpdaterJson — the action warned
           # "Unexpected input(s) 'includeUpdaterJson'" and fell back to its default of
