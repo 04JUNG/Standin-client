@@ -40,10 +40,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Require main branch
+      # 환경마다 나갈 수 있는 브랜치를 고정한다. 가드를 푸는 것이 아니라 staging용
+      # 짝을 만드는 것이다 — 프로덕션은 여전히 main에서만 나간다.
+      - name: Require the branch that matches the environment
         shell: bash
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
         run: |
-          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+          if [ "$TARGET_ENV" = "staging" ]; then
+            if [ "$GITHUB_REF" != "refs/heads/develop" ]; then
+              echo "staging builds must run from the develop branch."
+              exit 1
+            fi
+          elif [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "Desktop releases must run from the main branch."
             exit 1
           fi
