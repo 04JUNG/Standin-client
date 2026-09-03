@@ -214,6 +214,15 @@ jobs:
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
           VITE_APP_ENV: ${{ inputs.environment }}
+          # ⚠ OS 키체인 서비스 이름. 번들 identifier와 **자동으로 연동되지 않는다**
+          #   (secure_store.rs의 SERVICE 상수가 컴파일 타임에 굳는다).
+          #
+          #   설정하지 않으면 staging 빌드가 프로덕션과 같은 키체인 항목을 쓴다.
+          #   그러면 staging 앱이 프로덕션 설치 자격증명을 읽어 staging 서버에 보내
+          #   401을 받고(그 installationId는 staging DB에 없다), 자격증명이 있다고
+          #   판단해 등록조차 시도하지 않는다. 반대로 staging이 등록에 성공하면 그
+          #   항목을 덮어써 **프로덕션 앱이 망가진다.**
+          STANDIN_KEYRING_SERVICE: ${{ inputs.environment == 'staging' && 'app.standin.desktop.staging' || 'app.standin.desktop' }}
           # Updater package signing (minisign). Unrelated to OS code signing (ADR-011).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
