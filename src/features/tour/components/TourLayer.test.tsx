@@ -105,11 +105,13 @@ describe("TourLayer", () => {
   }
 
   const dims = (doc: Document) =>
-    Array.from(doc.querySelectorAll("div")).filter((el) => el.className.includes("bg-brand-ink"));
+    Array.from(doc.querySelectorAll("div")).filter((el) =>
+      el.className.includes("shadow-[0_0_0_9999px_var(--brand-ink)]"),
+    );
   const ring = (doc: Document) =>
     Array.from(doc.querySelectorAll("div")).find((el) => el.className.includes("ring-brand-sky"));
 
-  it("강조할 요소가 있으면 그 둘레만 남기고 네 장으로 덮는다", async () => {
+  it("강조할 요소 둘레만 남기고 덮는다", async () => {
     mockRects();
     useTourStore.setState({ active: true, acknowledged: ["welcome"] });
     const { container } = renderTour(
@@ -121,15 +123,37 @@ describe("TourLayer", () => {
 
     await screen.findByText("여기서 화면을 옮깁니다");
     const doc = container.ownerDocument;
-    await waitFor(() => {
-      // 구멍 뚫린 한 장이 아니라 네 장이어야 강조된 요소만 밝게 남는다.
-      expect(dims(doc)).toHaveLength(4);
-    });
-    // 강조 테두리는 앵커에 8px 여백을 두른 자리에 온다.
-    expect(ring(doc)?.getAttribute("style")).toContain("top: 92px");
-    expect(ring(doc)?.getAttribute("style")).toContain("left: 192px");
-    expect(ring(doc)?.getAttribute("style")).toContain("width: 316px");
-    expect(ring(doc)?.getAttribute("style")).toContain("height: 66px");
+    await waitFor(() => expect(dims(doc)).toHaveLength(1));
+
+    // 구멍은 앵커에 8px 여백을 두른 자리다.
+    const style = dims(doc)[0].getAttribute("style")!;
+    expect(style).toContain("top: 92px");
+    expect(style).toContain("left: 192px");
+    expect(style).toContain("width: 316px");
+    expect(style).toContain("height: 66px");
+  });
+
+  it("모서리 반경을 요소보다 여백만큼 키워 곡률을 맞춘다", async () => {
+    // 요소와 같은 반경을 쓰면 8px 바깥에 그려진 테두리가 요소 모서리를 가로질러
+    // 어긋나 보인다(스테이징에서 발견).
+    mockRects();
+    useTourStore.setState({ active: true, acknowledged: ["welcome"] });
+    const { container } = renderTour(
+      "/app/home",
+      <aside
+        {...tourAnchor("shell.sidebar")}
+        data-rect="100,200,300,50"
+        style={{ borderRadius: "12px" }}
+      >
+        바
+      </aside>,
+    );
+
+    await screen.findByText("여기서 화면을 옮깁니다");
+    const doc = container.ownerDocument;
+    await waitFor(() => expect(ring(doc)).toBeDefined());
+    expect(ring(doc)!.getAttribute("style")).toContain("border-radius: 20px");
+    expect(dims(doc)[0].getAttribute("style")).toContain("border-radius: 20px");
   });
 
   it("딤은 입력을 가로채지 않는다", async () => {
@@ -144,11 +168,10 @@ describe("TourLayer", () => {
 
     await screen.findByText("여기서 화면을 옮깁니다");
     const doc = container.ownerDocument;
-    await waitFor(() => expect(dims(doc)).toHaveLength(4));
+    await waitFor(() => expect(dims(doc)).toHaveLength(1));
     // 딤이 클릭을 먹으면 강조되지 않은 후보를 고를 수 없고 main 스크롤도 멈춘다.
-    for (const dim of dims(doc)) {
-      expect(dim.className).toContain("pointer-events-none");
-    }
+    for (const dim of dims(doc)) expect(dim.className).toContain("pointer-events-none");
+    expect(ring(doc)!.className).toContain("pointer-events-none");
   });
 
   it("같은 앵커가 여럿이면 모두 묶어 강조한다", async () => {

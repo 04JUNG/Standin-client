@@ -12,6 +12,8 @@ export type AnchorInfo = {
   visible: Box | null;
   /** 지금 누를 수 있는 상태인가. 같은 id가 여럿이면 하나라도 누를 수 있으면 true. */
   enabled: boolean;
+  /** 요소의 모서리 반경(px). 강조 테두리를 같은 곡률로 그리기 위해 읽는다. */
+  radius: number;
 };
 
 export type AnchorSnapshot = Map<TourAnchorId, AnchorInfo>;
@@ -37,6 +39,26 @@ type Edges = { top: number; left: number; right: number; bottom: number };
  * 그려질 때 새 노드가 되므로 캐시가 낡을 일이 없다(WeakMap이라 같이 사라진다).
  */
 const clipAncestors = new WeakMap<HTMLElement, HTMLElement[]>();
+
+/** 모서리 반경도 요소마다 한 번만 읽는다. getComputedStyle은 비싸다. */
+const cornerRadius = new WeakMap<HTMLElement, number>();
+
+function radiusOf(el: HTMLElement): number {
+  const cached = cornerRadius.get(el);
+  if (cached !== undefined) return cached;
+  // 네 모서리가 다를 수 있지만 강조는 하나의 사각형이라 가장 큰 값을 쓴다.
+  // border-radius 단축 속성도 함께 본다 — 모서리별로 펼쳐 주지 않는 환경이 있다.
+  const style = getComputedStyle(el);
+  const value = Math.max(
+    parseFloat(style.borderRadius) || 0,
+    parseFloat(style.borderTopLeftRadius) || 0,
+    parseFloat(style.borderTopRightRadius) || 0,
+    parseFloat(style.borderBottomLeftRadius) || 0,
+    parseFloat(style.borderBottomRightRadius) || 0,
+  );
+  cornerRadius.set(el, value);
+  return value;
+}
 
 function scrollAncestorsOf(el: HTMLElement): HTMLElement[] {
   const cached = clipAncestors.get(el);
@@ -112,10 +134,14 @@ function readAnchors(measure: ReadonlySet<TourAnchorId>): AnchorSnapshot {
 
     // 위치는 지금 강조 중인 앵커만 잰다. 나머지는 "있는지"만 알면 스텝을 고를 수 있다.
     let visible: Box | null = null;
+    let radius = 0;
     if (measure.has(id)) {
-      for (const el of els) visible = merge(visible, visibleBox(el));
+      for (const el of els) {
+        visible = merge(visible, visibleBox(el));
+        radius = Math.max(radius, radiusOf(el));
+      }
     }
-    snapshot.set(id, { visible, enabled });
+    snapshot.set(id, { visible, enabled, radius });
   }
   return snapshot;
 }
@@ -128,7 +154,7 @@ function signature(snapshot: AnchorSnapshot): string {
     out += b
       ? `${id}:${Math.round(b.top)},${Math.round(b.left)},${Math.round(b.width)},${Math.round(
           b.height,
-        )},${info.enabled ? 1 : 0}|`
+        )},${Math.round(info.radius)},${info.enabled ? 1 : 0}|`
       : `${id}:-,${info.enabled ? 1 : 0}|`;
   }
   return out;
