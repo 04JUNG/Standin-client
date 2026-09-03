@@ -48,6 +48,7 @@ describe("useRefineSelection", () => {
         reasonCode: "ok_partial",
         adjustedLimbs: ["left_arm"],
         exportUrl: `/v1/export/${personIndex}`,
+        previewUrl: `data:image/png;base64,PERSON${personIndex}`,
       }),
     );
     usePoseSelectionStore.setState({
