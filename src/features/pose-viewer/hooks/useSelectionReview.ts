@@ -8,6 +8,14 @@ export type ReviewItem = {
   candidate: PoseCandidate;
   /** 저장과 미리보기가 함께 쓰는 최종 다운로드 경로. */
   exportUrl: string | undefined;
+  /**
+   * 저장될 포즈의 미리보기 이미지.
+   *
+   * 조정 결과의 그림이 있으면 그것이고, 없으면 사용자가 고른 후보 썸네일이다. 둘 다
+   * 서버가 **같은 렌더러**로 그린 그림이라 나란히 놓아도 시각 언어가 갈리지 않는다.
+   * 비어 있을 수도 있다 — 그때 화면은 자리표시자를 그린다.
+   */
+  previewUrl: string;
   /** 조정본이 만들어졌는가. false면 베이스 포즈가 그대로 저장된다. */
   refined: boolean;
   /** refine을 아예 시도하지 않은 선택(저신뢰 인물, 기능 off 등). */
@@ -42,6 +50,9 @@ export function useSelectionReview(jobId: string | undefined) {
           candidate,
           // 조정 결과가 있으면 그 URL이 최종이다. 없으면 후보의 베이스 URL로 저장한다.
           exportUrl: currentOutcome?.exportUrl ?? candidate.bvhUrl,
+          // 조정본 그림이 없을 때 후보 썸네일을 쓰는 것은 "비슷한 그림"이 아니다.
+          // 그 경우 저장되는 것이 실제로 그 후보의 베이스 포즈다.
+          previewUrl: currentOutcome?.previewUrl || candidate.thumbnailUrl,
           refined: currentOutcome?.refined === true,
           skipped: !currentOutcome,
         },

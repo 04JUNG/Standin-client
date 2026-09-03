@@ -1,7 +1,8 @@
-import { apiFetch, apiFetchBlob } from "@/shared/api/client";
+import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
 import { AnalysisError } from "./pose.contract";
+import { loadThumbnail } from "./thumbnails";
 import type {
   AnalysisResult,
   CoverageClass,
@@ -171,33 +172,6 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
     }, ms);
     signal.addEventListener("abort", onAbort, { once: true });
   });
-}
-
-async function blobToDataUrl(blob: Blob): Promise<string> {
-  if (typeof blob.arrayBuffer === "function") {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return `data:${blob.type || "image/png"};base64,${btoa(binary)}`;
-  }
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function loadThumbnail(path: string | undefined, signal: AbortSignal): Promise<string> {
-  if (!path) return "";
-  try {
-    return await blobToDataUrl(await apiFetchBlob(path, { auth: false, signal }));
-  } catch (error) {
-    // deadline/화면 이탈 취소는 빈 썸네일로 삼키지 않고 상위 요청까지 종료한다.
-    if (signal.aborted) throw error;
-    // 썸네일 하나가 없어도 분석 후보와 BVH 저장은 계속 제공한다.
-    return "";
-  }
 }
 
 async function toPoseCandidate(
