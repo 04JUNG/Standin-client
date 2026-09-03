@@ -178,7 +178,7 @@ invoke<CaptureRegionResult>("capture_region");
 | 홈 | `Ctrl+O` | 파일 선택 열기 |
 | 캡처 영역 선택 | `Esc` | 취소(정상 복귀) |
 | 입력 미리보기 | `Ctrl+Enter` / `Esc` | 분석 시작 / 입력 취소 |
-| 포즈 후보 | `R` / `Ctrl+Enter` | 다시 검색 / 이 포즈 사용하기 |
+| 포즈 후보 | `Ctrl+Enter` | 이 포즈 사용하기 |
 | 저장 | `Ctrl+S` / `Ctrl+Shift+O` / `Ctrl+N` | 저장 / 폴더 선택 / 새 장면 |
 
 후보 순차 탐색(방향키)과 후보 번호 선택(1~5)은 포즈 뷰어 워크스트림 소관이라 이 목록에 없다.

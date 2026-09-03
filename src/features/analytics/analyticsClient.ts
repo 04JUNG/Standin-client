@@ -11,7 +11,6 @@ type EventName =
   | "candidate_selected"
   | "selection_confirmed"
   | "analysis_failed"
-  | "rerun_requested"
   | "export_completed"
   | "export_failed"
   | "capture_failed"
@@ -188,18 +187,6 @@ export function trackInputConfirmed(draft: UploadDraft): void {
     mime: draft.file?.type ?? draft.mimeType,
     surface: currentSurface(),
   });
-}
-
-/**
- * "다시 검색"을 누른 시점. 서버 연동은 후속이지만 **누르려 했다는 사실 자체**가
- * 후보 불만족의 신호다. 저장까지 가지 않은 사용자에게서 얻을 수 있는 거의 유일한
- * 품질 신호라 서버 rerun 구현과 무관하게 지금 남긴다.
- */
-export function trackRerunRequested(
-  jobId: string | undefined,
-  counts: { selectedCount: number; peopleCount: number },
-): void {
-  trackEvent("rerun_requested", { ...counts, surface: currentSurface() }, jobId);
 }
 
 export async function confirmSelections(

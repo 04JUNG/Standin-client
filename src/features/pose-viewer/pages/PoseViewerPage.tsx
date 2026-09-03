@@ -14,7 +14,7 @@ import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
-import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
+import { confirmSelections } from "@/features/analytics/analyticsClient";
 import { useJobSelections } from "@/features/history/hooks/useJobSelections";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
@@ -24,7 +24,6 @@ export function PoseViewerPage() {
   const draft = useUploadStore((s) => s.draft);
   const setJobId = usePoseSelectionStore((s) => s.setJobId);
   const restoreSelections = usePoseSelectionStore((s) => s.restoreSelections);
-  const [rerunNotice, setRerunNotice] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const bindings = useShortcutStore((s) => s.bindings);
@@ -68,18 +67,9 @@ export function PoseViewerPage() {
   usePoseViewerShortcuts({
     canConfirm: allSelected,
     onConfirm: () => void confirmAndContinue(),
-    onRerun: requestRerun,
   });
 
   if (!jobId) return <Navigate to="/app/home" replace />;
-
-  function requestRerun() {
-    setRerunNotice(true);
-    trackRerunRequested(data?.jobId, {
-      selectedCount,
-      peopleCount: selectablePeople.length,
-    });
-  }
 
   async function confirmAndContinue() {
     if (!data || !allSelected || isConfirming) return;
@@ -126,6 +116,11 @@ export function PoseViewerPage() {
         >
           <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
           <p>가까운 포즈 후보를 찾고 있습니다...</p>
+          {/* 분석은 서버에서 계속 진행되고 결과는 작업 기록에서 다시 열 수 있다.
+              기다리는 것 말고 할 수 있는 일이 없는 화면을 만들지 않는다. */}
+          <Button variant="secondary" onClick={() => navigate("/app/home")}>
+            홈으로 돌아가기
+          </Button>
         </div>
       </AppShell>
     );
@@ -254,21 +249,12 @@ export function PoseViewerPage() {
         )}
 
         <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={requestRerun}>
-              다른 후보 찾기
-              <ShortcutKey
-                accelerator={resolveAccelerator("poseViewer.rerun", bindings)!}
-                className="ml-1"
-              />
-            </Button>
-            {rerunNotice && (
-              <p className="flex items-center gap-2 text-[12px] text-text-secondary">
-                <Info className="h-4 w-4 shrink-0" aria-hidden />
-                지금은 다시 검색을 지원하지 않습니다.
-              </p>
-            )}
-          </div>
+          {/* "다른 후보 찾기"가 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
+              안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
+              대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
+          <Button variant="ghost" onClick={() => navigate("/app/home")}>
+            홈으로 돌아가기
+          </Button>
           <Button
             {...tourAnchor("jobs.confirm")}
             size="lg"
