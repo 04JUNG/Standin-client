@@ -20,8 +20,11 @@ export type MonitorRect = { x: number; y: number; width: number; height: number 
 
 export interface WindowModeService {
   /**
-   * `monitor`는 오버레이 모드에서만 쓴다. 창을 그 모니터로 옮긴 뒤 전체화면으로
-   * 만들어, 캡처한 화면과 오버레이가 뜨는 화면이 갈라지지 않게 한다.
+   * `monitor`는 오버레이 모드에서만 쓴다. 창을 그 모니터에 맞춰, 캡처한 화면과
+   * 오버레이가 뜨는 화면이 갈라지지 않게 한다.
+   *
+   * 덮는 방식은 OS마다 다르다 — Windows는 전체화면, macOS는 모니터 크기에 맞춘
+   * 일반 창이다(ADR-008: macOS 전체화면 전환이 비동기라 바로 돌아올 때 창이 깨진다).
    */
   setMode(mode: WindowMode, size?: WindowSize, monitor?: MonitorRect): Promise<void>;
   getPosition(): Promise<WindowPosition | null>;

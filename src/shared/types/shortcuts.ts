@@ -26,7 +26,6 @@ export type ShortcutId =
   | "captureOverlay.cancel"
   | "inputPreview.startAnalysis"
   | "inputPreview.discard"
-  | "poseViewer.rerun"
   | "poseViewer.confirm"
   | "save.save"
   | "save.revealFolder"

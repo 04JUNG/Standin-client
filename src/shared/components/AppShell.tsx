@@ -1,19 +1,29 @@
 import { type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, History, Settings, Keyboard, PictureInPicture2 } from "lucide-react";
+import { Home, History, Settings, Keyboard, PictureInPicture2, HelpCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { env } from "@/shared/lib/env";
 import { barRouteForAppPath } from "@/shared/lib/modeRoutes";
 import { useAppShortcuts } from "@/shared/hooks/useAppShortcuts";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { useTourStore } from "@/shared/stores/tourStore";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { GlobalShortcutAlert } from "./GlobalShortcutAlert";
 import { ShortcutCheatSheet } from "./ShortcutCheatSheet";
 
-type NavItem = { to: string; label: string; icon: typeof Home; disabled?: boolean };
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof Home;
+  disabled?: boolean;
+  /** 하위 경로에서도 활성으로 볼 것인가. NavLink 기본값(end: false)을 끌 때 쓴다. */
+  end?: boolean;
+};
 
 const navItems: NavItem[] = [
   { to: "/app/home", label: "홈", icon: Home },
-  { to: "/app/jobs", label: "작업 기록", icon: History, disabled: true },
+  // end를 켜지 않으면 라이브 분석 중(/app/jobs/<uuid>)에도 "작업 기록"이 활성으로 보인다.
+  { to: "/app/jobs", label: "작업 기록", icon: History, end: true },
   { to: "/app/settings", label: "설정", icon: Settings },
 ];
 
@@ -33,6 +43,7 @@ type AppShellProps = {
 export function AppShell({ title, headerRight, children }: AppShellProps) {
   useAppShortcuts();
   const openCheatSheet = useShortcutStore((s) => s.openCheatSheet);
+  const startTour = useTourStore((s) => s.start);
   // 바 전환은 경로 이동이면 충분하다. shared에서 features를 import하지 않기 위해
   // navigate만 쓴다(인증 가드는 /bar 라우트의 RequireAuth가 담당).
   const navigate = useNavigate();
@@ -40,10 +51,13 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-sidebar flex-col bg-brand-ink text-white/90">
+      <aside
+        {...tourAnchor("shell.sidebar")}
+        className="flex w-sidebar flex-col bg-brand-ink text-white/90"
+      >
         <div className="flex h-topbar items-center px-4 text-[18px] font-bold">Standin</div>
         <nav className="flex flex-1 flex-col gap-1 px-2">
-          {navItems.map(({ to, label, icon: Icon, disabled }) =>
+          {navItems.map(({ to, label, icon: Icon, disabled, end }) =>
             disabled ? (
               <span
                 key={to}
@@ -57,6 +71,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
               <NavLink
                 key={to}
                 to={to}
+                end={end}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-2 rounded-lg px-3 py-2 text-[14px] transition-colors",
@@ -100,6 +115,23 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
             >
               <PictureInPicture2 className="h-4 w-4" aria-hidden />
               플로팅 바
+            </button>
+            <button
+              type="button"
+              // 투어는 홈에서 시작한다. 어느 화면에서 눌렀든 첫 스텝부터 보여준다.
+              onClick={() => {
+                startTour();
+                navigate("/app/home");
+              }}
+              aria-label="앱 사용법 튜토리얼 다시 보기"
+              title="앱 사용법 튜토리얼 — 처음부터 다시 봅니다"
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-lg transition-colors",
+                "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+              )}
+            >
+              <HelpCircle className="h-4 w-4" aria-hidden />
             </button>
             <button
               type="button"

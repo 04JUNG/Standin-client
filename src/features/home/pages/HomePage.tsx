@@ -1,4 +1,4 @@
-import { Camera, Video, AlertCircle } from "lucide-react";
+import { Camera, MessageSquare, AlertCircle, ExternalLink } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
@@ -7,13 +7,17 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { DropZone } from "@/features/upload/components/DropZone";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 import { toggleBar } from "@/features/bar/lib/openBar";
+import { cn } from "@/shared/lib/cn";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { captureService } from "@/features/capture/api/capture.service";
+import { openExternal } from "@/shared/lib/openExternal";
+import { env } from "@/shared/lib/env";
 
 /**
- * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
- * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
+ * 홈 화면(docs/03 §4, docs/04 §7). 입력 수단은 파일(DropZone)과 화면 캡처 둘이다.
+ * 나머지 한 칸은 랜딩 설문으로 보내, 지금 없는 기능의 수요를 사용자에게서 직접 받는다.
  */
-/** 권한 오류에서만 쓰는 작은 복구 버튼. 두 개가 나란히 서므로 스타일을 한 곳에 둔다. */
+/** 권한 오류에서만 쓰는 작은 복구 버튼. */
 const RECOVERY_BUTTON = [
   "rounded-md border border-brand-coral/40 px-2 py-1 text-[12px] font-semibold",
   "transition-colors hover:bg-brand-coral/10",
@@ -55,6 +59,7 @@ export function HomePage() {
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <button
+            {...tourAnchor("home.capture")}
             type="button"
             onClick={() => void startCapture()}
             disabled={isStarting}
@@ -86,7 +91,25 @@ export function HomePage() {
             />
           </button>
 
-          <SecondaryCard icon={Video} title="화면 녹화" desc="준비 중" />
+          {/* 앱 밖(브라우저)으로 나가는 링크라, 라벨과 아이콘으로 그 사실을 먼저 알린다. */}
+          <button
+            type="button"
+            onClick={() => void openExternal(`${env.webBaseUrl}/feedback/`)}
+            className={[
+              "flex items-center gap-3 rounded-xl border p-4 text-left transition-colors",
+              "border-border bg-surface-0 hover:border-brand-sky hover:bg-brand-sky/5",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+            ].join(" ")}
+          >
+            <MessageSquare className="h-5 w-5 text-brand-ink" aria-hidden />
+            <div>
+              <div className="text-[14px] font-semibold text-text-primary">의견 보내기</div>
+              <div className="text-[12px] text-text-secondary">
+                필요한 기능과 불편한 점을 설문으로 알려주세요.
+              </div>
+            </div>
+            <ExternalLink className="ml-auto h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
+          </button>
         </div>
 
         {captureError && (
@@ -95,58 +118,21 @@ export function HomePage() {
             <div>
               <p>{captureError}</p>
               {/* 권한을 한 번 거부하면 시스템 프롬프트가 다시 뜨지 않는다. 설정까지
-                  가는 길을 앱이 열어준다(docs/07 §4). 켠 뒤에도 같은 증상이면 프로세스가
-                  예전 판정을 들고 있는 경우라 재시작이 답인데, 직접 껐다 켜라고 하는
-                  대신 버튼으로 준다. */}
+                  가는 길을 앱이 열어준다(docs/07 §4). 재시작은 여기서 다루지 않는다 —
+                  설정에서 허용하는 순간 macOS가 직접 묻는다. */}
               {captureErrorCode === "PERMISSION_DENIED" && (
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={() => void captureService.openScreenRecordingSettings()} className={RECOVERY_BUTTON}>
-                    시스템 설정 열기
-                  </button>
-                  <button type="button" onClick={() => void captureService.relaunchApp()} className={RECOVERY_BUTTON}>
-                    앱 다시 시작
-                  </button>
-                  <span className="text-[12px] text-text-secondary">
-                    켰는데도 배경화면만 찍히면 다시 시작해 주세요.
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => void captureService.openScreenRecordingSettings()}
+                  className={cn(RECOVERY_BUTTON, "mt-1")}
+                >
+                  시스템 설정 열기
+                </button>
               )}
             </div>
           </div>
         )}
-
-        <p className="mt-6 text-[13px] text-text-secondary">
-          화면 녹화는 후속 스프린트에서 연결됩니다.
-        </p>
       </div>
     </AppShell>
-  );
-}
-
-type SecondaryCardProps = {
-  icon: typeof Camera;
-  title: string;
-  desc: string;
-  highlight?: boolean;
-};
-
-function SecondaryCard({ icon: Icon, title, desc, highlight }: SecondaryCardProps) {
-  return (
-    <div
-      aria-disabled
-      className={[
-        "flex items-center gap-3 rounded-xl border p-4 opacity-60",
-        highlight ? "border-brand-coral/40 bg-brand-coral/5" : "border-border bg-surface-0",
-      ].join(" ")}
-    >
-      <Icon
-        className={highlight ? "h-5 w-5 text-brand-coral" : "h-5 w-5 text-brand-ink"}
-        aria-hidden
-      />
-      <div>
-        <div className="text-[14px] font-semibold text-text-primary">{title}</div>
-        <div className="text-[12px] text-text-secondary">{desc}</div>
-      </div>
-    </div>
   );
 }

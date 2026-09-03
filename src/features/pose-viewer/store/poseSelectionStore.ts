@@ -19,6 +19,7 @@ type PoseSelectionState = {
   setServerJobId(jobId: string): void;
   selectCandidate(personIndex: number, candidateId: string): void;
   setRefineOutcome(outcome: RefineOutcome): void;
+  restoreSelections(jobId: string, selectedByPerson: Record<number, string>): void;
   clearSelection(): void;
 };
 
@@ -48,6 +49,20 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
         selectedByPerson: { ...state.selectedByPerson, [personIndex]: candidateId },
         refineByPerson,
       };
+    });
+  },
+  /**
+   * 작업 기록에서 연 작업의 지난 선택을 되살린다.
+   *
+   * `setRefineOutcome`과 같은 이유로 job을 확인한다 — 화면을 떠난 뒤 늦게 도착한 응답이
+   * 다음 job의 선택을 덮어쓰면 안 된다. 이미 고른 것이 있으면 손대지 않는다: 사용자가
+   * 응답을 기다리는 사이에 후보를 바꿨다면 그 선택이 우선이다.
+   */
+  restoreSelections(jobId, selectedByPerson) {
+    set((state) => {
+      if (state.jobId !== jobId) return state;
+      if (Object.keys(state.selectedByPerson).length > 0) return state;
+      return { selectedByPerson };
     });
   },
   setRefineOutcome(outcome) {

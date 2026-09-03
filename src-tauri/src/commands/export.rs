@@ -1,3 +1,5 @@
+use base64::engine::general_purpose::STANDARD as BASE64;
+use base64::Engine as _;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -29,13 +31,20 @@ impl ExportError {
 
 const INVALID_CHARS: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
 
-/// 파일명에서 경로 구분자·예약 문자를 제거하고 확장자를 .bvh로 강제한다(ADR-006).
+/// 저장을 허용하는 확장자. 이 목록 밖의 이름은 .bvh로 강제한다.
+///
+/// 확장자를 프론트가 정하되 아무 값이나 받지는 않는다. 여기가 열려 있으면 파일명 문자열
+/// 하나로 임의 확장자를 쓸 수 있게 되고, 그건 저장 폴더에 무엇이든 만들 수 있다는 뜻이다.
+const ALLOWED_EXTENSIONS: &[&str] = &[".bvh", ".fbx"];
+
+/// 파일명에서 경로 구분자·예약 문자를 제거하고 허용 확장자를 강제한다(ADR-006).
 fn sanitize_file_name(raw: &str) -> String {
     let cleaned: String = raw.chars().filter(|c| !INVALID_CHARS.contains(c)).collect();
     let trimmed = cleaned.trim();
     let base = if trimmed.is_empty() { "standin_pose" } else { trimmed };
 
-    if base.to_lowercase().ends_with(".bvh") {
+    let lower = base.to_lowercase();
+    if ALLOWED_EXTENSIONS.iter().any(|ext| lower.ends_with(ext)) {
         base.to_string()
     } else {
         format!("{base}.bvh")
@@ -137,13 +146,25 @@ pub async fn choose_save_folder(
     Ok(picked.map(|p| p.to_string()))
 }
 
-/// 선택된 폴더에 placeholder 포즈 파일을 쓴다. 실제 서버 다운로드는 서버 준비 후 추가(ADR-006).
+/// 선택된 폴더에 포즈 파일을 쓴다(BVH 또는 FBX).
+///
+/// 본문을 base64로 받는 이유는 FBX가 **텍스트가 아니기** 때문이다. String으로 받으면
+/// Rust가 UTF-8을 강제하므로 FBX 바이너리는 애초에 전달되지 않고, Vec<u8>로 받으면
+/// IPC가 바이트당 숫자 하나짜리 JSON 배열이 되어 수 MB 파일에서 눈에 띄게 느려진다.
 #[tauri::command]
-pub fn save_pose_file(folder: String, file_name: String, content: String) -> Result<SavedFile, ExportError> {
+pub fn save_pose_file(
+    folder: String,
+    file_name: String,
+    content_base64: String,
+) -> Result<SavedFile, ExportError> {
     let folder_path = Path::new(&folder);
     if !folder_path.is_dir() {
         return Err(ExportError::new("INVALID_FOLDER", "선택한 폴더를 찾을 수 없습니다."));
     }
+
+    let bytes = BASE64
+        .decode(content_base64.as_bytes())
+        .map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
 
     let safe_name = sanitize_file_name(&file_name);
     let final_path: PathBuf = unique_path(folder_path, &safe_name);
@@ -153,7 +174,7 @@ pub fn save_pose_file(folder: String, file_name: String, content: String) -> Res
         return Err(ExportError::new("INVALID_FOLDER", "잘못된 파일 경로입니다."));
     }
 
-    fs::write(&final_path, content)
+    fs::write(&final_path, bytes)
         .map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
 
     Ok(SavedFile {

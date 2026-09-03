@@ -1,6 +1,7 @@
 import { useRef, useState, type DragEvent } from "react";
 import { Upload, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { Button } from "@/shared/components/Button";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
@@ -35,6 +36,7 @@ export function DropZone() {
   return (
     <div>
       <div
+        {...tourAnchor("home.dropzone")}
         role="button"
         tabIndex={0}
         aria-label="이미지 파일을 놓거나 선택"

@@ -5,11 +5,16 @@ use std::io::Cursor;
 use xcap::image::ImageFormat;
 use xcap::Monitor;
 
-/// 캡처한 모니터의 가상 데스크톱 상 경계. **물리 픽셀**이다.
+/// 캡처한 모니터의 가상 데스크톱 상 경계.
 ///
-/// 논리 좌표를 쓰지 않는 이유는 혼합 DPI다. Tauri는 논리 좌표를 창의 **현재** scale
-/// factor로 해석하는데, 배율이 다른 모니터로 창을 옮기는 순간 그 값이 목적지와 다르다.
-/// 물리 좌표는 가상 데스크톱 전체에서 하나의 좌표계라 그런 모호함이 없다.
+/// ⚠ **단위는 OS의 전역 창 좌표계를 그대로 따른다** — Windows는 물리 픽셀,
+/// macOS는 points다(`CGDisplayBounds`). xcap이 주는 값을 변환 없이 싣는다.
+///
+/// 한쪽으로 통일하지 않는 이유는 혼합 DPI다. 환산하려면 "어느 모니터의 배율로"를
+/// 정해야 하는데, 창이 지금 있는 모니터와 목적지 모니터의 배율이 다르면 그 답이
+/// 없다. 각 OS가 자기 전역 좌표계로 주는 값을 그대로 그 OS의 API에 되돌려주면
+/// 환산 자체가 일어나지 않는다. 대신 **쓰는 쪽이 단위를 맞춰야 한다**
+/// (`window_mode.rs`의 overlay 분기).
 #[derive(Serialize, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorBounds {

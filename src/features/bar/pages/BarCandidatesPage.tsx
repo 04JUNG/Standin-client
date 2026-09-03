@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
@@ -13,7 +13,7 @@ import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseView
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { analysisFailure } from "@/features/pose-viewer/lib/analysisFailure";
 import { BarShell } from "../components/BarShell";
-import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
+import { confirmSelections } from "@/features/analytics/analyticsClient";
 
 /**
  * 바 모드의 후보 확인(ADR-008). 앱 창에 들어가지 않고 작업 화면 위에서 후보를 고른다.
@@ -28,7 +28,6 @@ export function BarCandidatesPage() {
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const bindings = useShortcutStore((s) => s.bindings);
   const [personCursor, setPersonCursor] = useState(0);
-  const [rerunNotice, setRerunNotice] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
@@ -55,18 +54,9 @@ export function BarCandidatesPage() {
   usePoseViewerShortcuts({
     canConfirm: allSelected,
     onConfirm: () => void confirmAndContinue(),
-    onRerun: requestRerun,
   });
 
   if (!jobId || !draft || !sourceFile) return <Navigate to="/bar/actions" replace />;
-
-  function requestRerun() {
-    setRerunNotice(true);
-    trackRerunRequested(data?.jobId, {
-      selectedCount,
-      peopleCount: selectablePeople.length,
-    });
-  }
 
   async function confirmAndContinue() {
     if (!data || !allSelected || isConfirming) return;
@@ -95,10 +85,19 @@ export function BarCandidatesPage() {
     <BarShell title={`포즈 후보 ${selectedCount}/${selectablePeople.length}`}>
       <div className="flex h-full flex-col gap-2 p-2">
         {isPending && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
-            <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
-            <p className="text-[12px]">가까운 포즈 후보를 찾고 있습니다…</p>
-          </div>
+          <>
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
+              <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+              <p className="text-[12px]">가까운 포즈 후보를 찾고 있습니다…</p>
+            </div>
+            {/* 바에는 사이드바가 없다. 여기에 출구가 없으면 검색이 끝날 때까지 갇힌다.
+                분석은 서버에서 계속되고 결과는 작업 기록에 남는다. */}
+            <div className="flex shrink-0 items-center border-t border-border pt-2">
+              <Button variant="ghost" size="md" onClick={() => navigate("/bar/actions")}>
+                처음으로
+              </Button>
+            </div>
+          </>
         )}
 
         {isError && (
@@ -107,10 +106,7 @@ export function BarCandidatesPage() {
             {/* 재시도 가능한 실패는 같은 입력으로 다시 분석한다(/bar/progress가 새 화면 job을
                 만들어 후보 화면으로 넘긴다). 그렇지 않으면 입력부터 다시 받는다. */}
             {analysisFailure(error).retryable ? (
-              <Button
-                size="md"
-                onClick={() => navigate("/bar/progress", { replace: true })}
-              >
+              <Button size="md" onClick={() => navigate("/bar/progress", { replace: true })}>
                 다시 시도
               </Button>
             ) : (
@@ -175,16 +171,17 @@ export function BarCandidatesPage() {
 
             <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border pt-2">
               <div className="flex min-w-0 items-center gap-1.5">
-                <Button variant="ghost" size="md" onClick={requestRerun}>
-                  다시 검색
-                  <ShortcutKey accelerator={resolveAccelerator("poseViewer.rerun", bindings)!} />
+                {/* "다시 검색"이 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
+                    안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
+                    대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className="shrink-0"
+                  onClick={() => navigate("/bar/actions")}
+                >
+                  처음으로
                 </Button>
-                {rerunNotice && (
-                  <span className="flex min-w-0 items-center gap-1 text-[11px] text-text-secondary">
-                    <Info className="h-3 w-3 shrink-0" aria-hidden />
-                    <span className="truncate">후속 버전에서 서버와 연동됩니다.</span>
-                  </span>
-                )}
                 {confirmError && (
                   <span
                     role="alert"

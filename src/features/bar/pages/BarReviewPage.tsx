@@ -1,5 +1,5 @@
 import { Navigate, useNavigate } from "react-router-dom";
-import { Loader2, Save } from "lucide-react";
+import { ImageOff, Loader2, Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { useSelectionReview } from "@/features/pose-viewer/hooks/useSelectionReview";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -8,8 +8,8 @@ import { BarShell } from "../components/BarShell";
 /**
  * 바 모드의 저장 전 확인(ADR-010). 앱 모드 ReviewPage와 같은 훅을 쓰고 레이아웃만 다르다.
  *
- * 미리보기를 뺀 뒤로는 인물별로 볼 것이 없어 스테퍼도 없앴다. 조정이 도는 동안 진행
- * 상태만 알리고 저장으로 넘긴다.
+ * 바는 높이가 좁아 카드도 설명도 못 넣는다. 대신 그림만 한 줄로 늘어놓는다 — 확인 화면이
+ * 답해야 하는 질문은 "무엇이 저장되는가" 하나이고, 거기에는 그림이면 충분하다.
  */
 export function BarReviewPage() {
   const navigate = useNavigate();
@@ -29,7 +29,24 @@ export function BarReviewPage() {
               <span className="text-[12px]">포즈를 조정하는 중…</span>
             </>
           ) : (
-            <span className="text-[12px]">포즈 {items.length}개를 저장합니다.</span>
+            <ul className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+              {items.map((item) => (
+                <li key={item.personIndex} className="shrink-0">
+                  {item.previewUrl ? (
+                    <img
+                      src={item.previewUrl}
+                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈`}
+                      title={`인물 ${item.personIndex + 1} · ${item.candidate.title}`}
+                      className="h-12 w-12 rounded border border-border bg-surface-2 object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded border border-border bg-surface-2">
+                      <ImageOff className="h-4 w-4" aria-hidden />
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 

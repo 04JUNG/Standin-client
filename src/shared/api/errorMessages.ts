@@ -38,6 +38,22 @@ const MESSAGES: Record<string, string> = {
   SERVICE_PAUSED: "지금은 분석을 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   PAYLOAD_TOO_LARGE: "이미지가 너무 큽니다. 20MB 이하로 줄여서 다시 시도해 주세요.",
 
+  // 저장(export)
+  POSE_UNAVAILABLE: "이 포즈는 더 이상 제공되지 않습니다. 다른 후보를 선택해 주세요.",
+  INVALID_EXPORT: "이 작업에서 선택한 후보가 아닙니다. 후보 화면에서 다시 선택해 주세요.",
+  EXPORT_FAILED: "포즈 파일을 서버에서 받아오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+  // FBX 변환(BFF docs/API.md 「format=fbx」). 재시도가 통하는 실패와 아닌 실패를 나눈다.
+  FBX_UNAVAILABLE: "지금은 FBX 저장을 사용할 수 없습니다. BVH로 저장해 주세요.",
+  CONVERTER_UNAVAILABLE: "지금은 FBX 변환 서버를 사용할 수 없습니다. 잠시 후 다시 시도하거나 BVH로 저장해 주세요.",
+  CONVERTER_TIMEOUT: "FBX 변환이 시간 안에 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.",
+  CONVERTER_REJECTED: "이 포즈는 FBX로 변환할 수 없습니다. 다른 후보를 선택하거나 BVH로 저장해 주세요.",
+  CONVERTER_INTEGRITY: "변환 결과를 검증하지 못했습니다. 문제가 계속되면 문의해 주세요.",
+  CONVERTER_FAILED: "FBX 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+
+  // 작업 기록
+  JOB_IN_PROGRESS: "진행 중인 분석은 삭제할 수 없습니다. 끝난 뒤에 다시 시도해 주세요.",
+  NOT_READY: "아직 결과가 준비되지 않은 작업입니다.",
+
   // 기타
   NOT_FOUND: "요청한 정보를 찾을 수 없습니다.",
 };

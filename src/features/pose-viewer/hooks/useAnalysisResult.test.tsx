@@ -9,8 +9,12 @@ import type { UploadDraft } from "@/shared/types/upload";
 import { AnalysisError } from "../api/pose.contract";
 
 const analyze = vi.fn();
+const loadResult = vi.fn();
 vi.mock("../api/pose.service", () => ({
-  poseService: { analyze: (...args: unknown[]) => analyze(...args) },
+  poseService: {
+    analyze: (...args: unknown[]) => analyze(...args),
+    loadResult: (...args: unknown[]) => loadResult(...args),
+  },
 }));
 
 const { useAnalysisResult } = await import("./useAnalysisResult");
@@ -248,5 +252,99 @@ describe("useAnalysisResult 실패 계측", () => {
     expect(analyze).toHaveBeenCalledTimes(1);
     second.unmount();
     client.clear();
+  });
+});
+
+describe("작업 기록 재진입", () => {
+  beforeEach(() => {
+    safeStorage.removeItem(QUEUE_KEY);
+    safeStorage.removeItem("standin.analytics.sequence.v1");
+    analyze.mockReset();
+    loadResult.mockReset();
+    useUploadStore.getState().clearDraft();
+  });
+
+  afterEach(() => {
+    useUploadStore.getState().clearDraft();
+  });
+
+  const SERVER_JOB_ID = "job_0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e";
+
+  function storedResult() {
+    return {
+      jobId: SERVER_JOB_ID,
+      people: [
+        {
+          index: 0,
+          candidates: [],
+          confidence: "high" as const,
+          skeletonState: "valid" as const,
+          skeletonSource: "full_image" as const,
+          coverageClass: "full" as const,
+          fallbackMode: "none" as const,
+          refineAllowed: false,
+          refinableLimbs: [],
+        },
+      ],
+      capabilities: { refine: false },
+    };
+  }
+
+  it("서버 jobId면 원본 파일 없이도 저장된 결과를 읽는다", async () => {
+    loadResult.mockResolvedValue(storedResult());
+
+    const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toBeTruthy());
+    expect(loadResult).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: SERVER_JOB_ID }),
+    );
+    expect(analyze).not.toHaveBeenCalled();
+    expect(result.current.restoreOnly).toBe(true);
+  });
+
+  it("draft가 남아 있어도 서버 jobId면 새 분석을 만들지 않는다", async () => {
+    // 이 우선순위가 뒤집히면 이전 이미지의 파일로 기록 Job의 키 아래 분석이 시작돼
+    // 쿼터를 깎고 동시 분석 슬롯까지 잡는다.
+    useUploadStore.getState().setDraft(draftFixture());
+    loadResult.mockResolvedValue(storedResult());
+
+    const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toBeTruthy());
+    expect(analyze).not.toHaveBeenCalled();
+  });
+
+  it("기록 조회 실패는 analysis_failed로 세지 않는다", async () => {
+    loadResult.mockRejectedValue(new AnalysisError("NOT_READY", "아직 준비되지 않았습니다."));
+
+    const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(queued().some((event) => event.name === "analysis_failed")).toBe(false);
+  });
+
+  it("기록에서 다시 본 결과는 results_viewed로 세지 않는다", async () => {
+    loadResult.mockResolvedValue(storedResult());
+
+    const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toBeTruthy());
+    expect(queued().some((event) => event.name === "results_viewed")).toBe(false);
+  });
+
+  it("라이브 분석의 클라이언트 jobId는 그대로 analyze를 탄다", async () => {
+    useUploadStore.getState().setDraft(draftFixture());
+    analyze.mockResolvedValue({ ...storedResult(), jobId: "server-side-id" });
+
+    const { result } = renderHook(
+      () => useAnalysisResult("0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.data).toBeTruthy());
+    expect(analyze).toHaveBeenCalledTimes(1);
+    expect(loadResult).not.toHaveBeenCalled();
+    expect(result.current.restoreOnly).toBe(false);
   });
 });

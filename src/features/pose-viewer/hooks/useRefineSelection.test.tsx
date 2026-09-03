@@ -25,7 +25,7 @@ function person(overrides: Partial<PersonResult> & { index: number }): PersonRes
 }
 
 function analysis(people: PersonResult[], refine = true): AnalysisResult {
-  return { jobId: "server-job", people, capabilities: { refine } };
+  return { jobId: "server-job", people, capabilities: { refine, fbxExport: false } };
 }
 
 describe("useRefineSelection", () => {
@@ -48,6 +48,7 @@ describe("useRefineSelection", () => {
         reasonCode: "ok_partial",
         adjustedLimbs: ["left_arm"],
         exportUrl: `/v1/export/${personIndex}`,
+        previewUrl: `data:image/png;base64,PERSON${personIndex}`,
       }),
     );
     usePoseSelectionStore.setState({
