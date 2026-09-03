@@ -97,7 +97,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     id: "confirm",
     anchors: ["jobs.confirm"],
     title: "고른 포즈로 넘어갑니다",
-    body: "마음에 드는 후보가 없으면 '다른 후보 찾기'로 다시 검색할 수 있습니다.",
+    body: "마음에 드는 후보가 없으면 왼쪽 버튼으로 홈에 돌아가 다른 러프로 다시 시작할 수 있습니다.",
     action: "'이 포즈 사용하기'를 눌러 주세요.",
     match: (ctx) => ctx.hasAnchor("jobs.candidates"),
     done: (ctx) => isReview(ctx.pathname) || isSave(ctx.pathname),

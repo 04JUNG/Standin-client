@@ -93,13 +93,6 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     customizable: false,
   },
   {
-    id: "poseViewer.rerun",
-    label: "다른 후보 찾기",
-    scope: "poseViewer",
-    defaultAccelerator: "KeyR",
-    customizable: false,
-  },
-  {
     id: "poseViewer.confirm",
     label: "이 포즈 사용하기",
     scope: "poseViewer",

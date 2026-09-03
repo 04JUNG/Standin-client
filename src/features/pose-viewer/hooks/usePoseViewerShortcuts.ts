@@ -11,12 +11,10 @@ export function usePoseViewerShortcuts(params: {
   /** 후보를 모두 선택했는가. 아니면 확정 키를 비활성한다. */
   canConfirm: boolean;
   onConfirm: () => void;
-  onRerun: () => void;
 }): void {
-  const { canConfirm, onConfirm, onRerun } = params;
+  const { canConfirm, onConfirm } = params;
 
   useShortcuts({
-    "poseViewer.rerun": () => onRerun(),
     // 화면의 버튼과 같은 조건으로 막는다 — 단축키가 disabled 버튼을 우회하지 않게.
     "poseViewer.confirm": canConfirm ? () => onConfirm() : undefined,
   });
