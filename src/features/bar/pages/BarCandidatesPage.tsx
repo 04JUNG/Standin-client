@@ -107,10 +107,7 @@ export function BarCandidatesPage() {
             {/* 재시도 가능한 실패는 같은 입력으로 다시 분석한다(/bar/progress가 새 화면 job을
                 만들어 후보 화면으로 넘긴다). 그렇지 않으면 입력부터 다시 받는다. */}
             {analysisFailure(error).retryable ? (
-              <Button
-                size="md"
-                onClick={() => navigate("/bar/progress", { replace: true })}
-              >
+              <Button size="md" onClick={() => navigate("/bar/progress", { replace: true })}>
                 다시 시도
               </Button>
             ) : (
@@ -182,7 +179,7 @@ export function BarCandidatesPage() {
                 {rerunNotice && (
                   <span className="flex min-w-0 items-center gap-1 text-[11px] text-text-secondary">
                     <Info className="h-3 w-3 shrink-0" aria-hidden />
-                    <span className="truncate">후속 버전에서 서버와 연동됩니다.</span>
+                    <span className="truncate">지금은 다시 검색을 지원하지 않습니다.</span>
                   </span>
                 )}
                 {confirmError && (

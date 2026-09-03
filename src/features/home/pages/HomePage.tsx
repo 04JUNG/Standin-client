@@ -1,4 +1,4 @@
-import { Camera, Video, AlertCircle } from "lucide-react";
+import { Camera, Video, AlertCircle, ExternalLink } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
@@ -10,10 +10,12 @@ import { toggleBar } from "@/features/bar/lib/openBar";
 import { cn } from "@/shared/lib/cn";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { captureService } from "@/features/capture/api/capture.service";
+import { openExternal } from "@/shared/lib/openExternal";
+import { env } from "@/shared/lib/env";
 
 /**
- * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)이 동작한다.
- * 화면 캡처/녹화는 후속 브랜치(feat/region-capture)에서 연결.
+ * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)과 화면 캡처가 동작한다.
+ * 화면 녹화는 지원 범위 밖이라, 카드를 눌러도 녹화가 시작되지 않고 랜딩의 설문이 열린다.
  */
 /** 권한 오류에서만 쓰는 작은 복구 버튼. */
 const RECOVERY_BUTTON = [
@@ -89,7 +91,26 @@ export function HomePage() {
             />
           </button>
 
-          <SecondaryCard icon={Video} title="화면 녹화" desc="준비 중" />
+          {/* 녹화는 지원하지 않는다. 카드가 녹화를 시작하는 것처럼 보이면 안 되므로(CLAUDE.md §10)
+              라벨과 아이콘으로 "설문이 열린다"를 먼저 알린다. */}
+          <button
+            type="button"
+            onClick={() => void openExternal(`${env.webBaseUrl}/feedback/`)}
+            className={[
+              "flex items-center gap-3 rounded-xl border p-4 text-left transition-colors",
+              "border-border bg-surface-0 hover:border-brand-sky hover:bg-brand-sky/5",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+            ].join(" ")}
+          >
+            <Video className="h-5 w-5 text-brand-ink" aria-hidden />
+            <div>
+              <div className="text-[14px] font-semibold text-text-primary">화면 녹화</div>
+              <div className="text-[12px] text-text-secondary">
+                현재 지원 범위 밖입니다. 설문으로 의견을 남겨주세요.
+              </div>
+            </div>
+            <ExternalLink className="ml-auto h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
+          </button>
         </div>
 
         {captureError && (
@@ -112,39 +133,7 @@ export function HomePage() {
             </div>
           </div>
         )}
-
-        <p className="mt-6 text-[13px] text-text-secondary">
-          화면 녹화는 후속 스프린트에서 연결됩니다.
-        </p>
       </div>
     </AppShell>
-  );
-}
-
-type SecondaryCardProps = {
-  icon: typeof Camera;
-  title: string;
-  desc: string;
-  highlight?: boolean;
-};
-
-function SecondaryCard({ icon: Icon, title, desc, highlight }: SecondaryCardProps) {
-  return (
-    <div
-      aria-disabled
-      className={[
-        "flex items-center gap-3 rounded-xl border p-4 opacity-60",
-        highlight ? "border-brand-coral/40 bg-brand-coral/5" : "border-border bg-surface-0",
-      ].join(" ")}
-    >
-      <Icon
-        className={highlight ? "h-5 w-5 text-brand-coral" : "h-5 w-5 text-brand-ink"}
-        aria-hidden
-      />
-      <div>
-        <div className="text-[14px] font-semibold text-text-primary">{title}</div>
-        <div className="text-[12px] text-text-secondary">{desc}</div>
-      </div>
-    </div>
   );
 }

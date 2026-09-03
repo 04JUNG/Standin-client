@@ -265,7 +265,7 @@ export function PoseViewerPage() {
             {rerunNotice && (
               <p className="flex items-center gap-2 text-[12px] text-text-secondary">
                 <Info className="h-4 w-4 shrink-0" aria-hidden />
-                다시 검색은 후속 버전에서 서버와 연동됩니다.
+                지금은 다시 검색을 지원하지 않습니다.
               </p>
             )}
           </div>
