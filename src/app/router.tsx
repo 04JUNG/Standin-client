@@ -16,6 +16,7 @@ import { BarSavePage } from "@/features/bar/pages/BarSavePage";
 import { RootLayout } from "./RootLayout";
 import { RequireInstallation } from "./guards";
 import { BetaConsentPage } from "@/features/installation/BetaConsentPage";
+import { JobHistoryPage } from "@/features/history/pages/JobHistoryPage";
 
 /**
  * 기본 라우트(CLAUDE.md §7). 인증 화면과 앱 화면을 분리한다.
@@ -64,6 +65,16 @@ export const router = createBrowserRouter([
           </RequireInstallation>
         ),
       },
+      {
+        path: "/app/jobs",
+        element: (
+          <RequireInstallation>
+            <JobHistoryPage />
+          </RequireInstallation>
+        ),
+      },
+      // 라우트의 :jobId는 라이브 분석의 클라이언트 id이거나 기록에서 넘어온 서버 id다.
+      // 두 흐름이 같은 화면을 쓰고 `job_` 접두로 갈린다(ADR-012).
       {
         path: "/app/jobs/:jobId",
         element: (

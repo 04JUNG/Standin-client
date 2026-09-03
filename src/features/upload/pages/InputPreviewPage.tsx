@@ -7,6 +7,7 @@ import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { formatBytes } from "@/shared/lib/formatBytes";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 import type { UploadSource } from "@/shared/types/upload";
 import { useUploadStore } from "../store/uploadStore";
 import { trackInputConfirmed } from "@/features/analytics/analyticsClient";
@@ -71,7 +72,7 @@ export function InputPreviewPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Button size="lg" onClick={startAnalysis}>
+            <Button {...tourAnchor("preview.analyze")} size="lg" onClick={startAnalysis}>
               분석 시작
               <ShortcutKey
                 accelerator={resolveAccelerator("inputPreview.startAnalysis", bindings)!}

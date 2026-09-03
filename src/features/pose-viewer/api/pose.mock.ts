@@ -72,6 +72,17 @@ function buildCandidates(
 }
 
 export const poseMock: PoseResultService = {
+  /** Mock에는 저장소가 없다. 기록에서 열어도 analyze와 같은 결과를 보여준다. */
+  async loadResult({ jobId }: { jobId: string }): Promise<AnalysisResult> {
+    return poseMock.analyze({
+      jobId,
+      file: new File([], "mock.png", { type: "image/png" }),
+      source: "file",
+      width: 0,
+      height: 0,
+    });
+  },
+
   async analyze({ jobId }: { jobId: string; file: File }): Promise<AnalysisResult> {
     await delay(600);
 
@@ -115,6 +126,6 @@ export const poseMock: PoseResultService = {
       },
     ];
 
-    return { jobId, people, capabilities: { refine: true } };
+    return { jobId, people, capabilities: { refine: true, fbxExport: true } };
   },
 };

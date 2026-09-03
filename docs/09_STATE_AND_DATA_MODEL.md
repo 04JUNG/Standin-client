@@ -57,16 +57,20 @@ type UploadDraft = {
   createdAt: string;
 };
 
-type AnalysisStage =
-  | "queued"
+/**
+ * ⚠ 실제 계약은 아래 4개뿐이다. BFF가 동기 추론을 감싸므로 세분 단계를 알 수 없다.
+ * 나머지는 서버가 단계 정보를 주게 되면 열릴 목표값이다(docs/08 §5).
+ */
+type AnalysisStage = "queued" | "running" | "completed" | "failed";
+
+/** 미구현. 서버가 세분 단계를 제공하면 위 타입에 합류한다. */
+type PlannedAnalysisStage =
   | "uploading"
   | "preprocessing"
   | "detecting"
   | "skeleton"
   | "pose_search"
   | "rendering"
-  | "completed"
-  | "failed"
   | "cancelled";
 
 type AnalysisJob = {
@@ -101,13 +105,19 @@ type PoseCandidate = {
   bvhAvailable: boolean;
 };
 
+/**
+ * ⚠ 아래는 **단인 컷을 전제한 초기 형태**다. 실제 구현은 다인 컷을 지원하도록
+ * `people: PersonResult[]` 구조이며, 인물마다 스켈레톤 품질·폴백 상태를 함께 갖는다.
+ * 정본은 `features/pose-viewer/api/pose.contract.ts`다.
+ *
+ * `inputPreviewUrl`은 optional이다 — 라이브 분석에서는 draft의 blob URL을, 작업 기록에서
+ * 열었을 때는 서버가 준 presigned URL을 쓰고, 보관 기간이 지났으면 없다(ADR-012).
+ */
 type AnalysisResult = {
   jobId: string;
-  inputPreviewUrl: string;
-  overlayImageUrl?: string;
-  shotType?: "full" | "half" | "bust" | "face" | "unknown";
-  personCount?: number;
-  candidates: PoseCandidate[];
+  inputPreviewUrl?: string;
+  people: PersonResult[];
+  capabilities: { refine: boolean };
 };
 
 type ExportDraft = {
@@ -179,6 +189,27 @@ type ShortcutState = {
 
 ---
 
+## 4-1-1. 투어 상태 (`shared/stores/tourStore.ts`)
+
+앱 사용법 투어도 같은 이유로 `shared/stores`에 둔다 — 상단 앱 바(`shared/components/AppShell`)의 다시 보기 버튼이 읽어야 한다.
+
+```ts
+type TourState = {
+  active: boolean;              // 지금 떠 있는가
+  acknowledged: TourStepId[];   // '다음'으로 넘긴 설명 스텝
+  completedAt: string | null;   // 끝까지 본 시각(ISO)
+  dismissedAt: string | null;   // 중간에 그만둔 시각(ISO)
+};
+```
+
+`completedAt`·`dismissedAt`만 영속화한다(`standin-tour`, version 1). 진행 중 상태는 영속하지 않는다 — 투어를 다시 켜면 언제나 처음부터다.
+
+**활성 스텝은 store에 두지 않는다.** 현재 라우트와 앱 상태에서 파생한다(`features/tour/lib/resolveActiveStep.ts`). 순번을 들고 있으면 캡처 취소·'다시 선택'·분석 실패처럼 흐름을 거스르는 경우마다 복구 코드가 따로 필요해진다. 사용자가 직접 해야 하는 스텝은 "지금 끝났는가"를 매번 화면 상태로 판정하므로, 조건이 풀리면 그 스텝이 저절로 다시 할 일이 된다.
+
+화면 하위 상태(분석 중·실패·저장 완료)는 각 화면의 내부 state를 store로 끌어올리지 않고 `data-tour` 앵커가 지금 떠 있는지로 판정한다.
+
+---
+
 ## 4-2. 창 모드와 흐름 시작점 (ADR-008)
 
 **창 모드는 store에 두지 않는다.** 라우트에서 파생하므로 store에 두면 진실 공급원이 둘이 되고 "창은 56×56인데 화면은 홈" 같은 불일치가 가능해진다. `WindowModeSync`가 `useLocation`으로 모드와 크기를 계산해 네이티브에 반영한다.
@@ -199,29 +230,35 @@ type WindowModeState = {
 
 ---
 
-## 5. 최근 작업
+## 5. 작업 기록
 
-MVP 선택지:
+**서버가 단일 진실 공급원이다. 로컬 캐시를 두지 않는다.**
 
-### 로컬만
+`GET /v1/analysis/jobs`(커서 페이지네이션)로 목록을, `GET /v1/analysis/jobs/{jobId}/result`로 저장된 결과를, `GET /v1/analysis/jobs/{jobId}/selections`로 그때의 확정 선택을 읽는다. 삭제는 `DELETE /v1/analysis/jobs/{jobId}`다(docs/08 §4-1~4-3).
 
 ```ts
-type RecentJobSummary = {
+type JobHistoryItem = {
   jobId: string;
-  inputThumbnailPath?: string;
-  status: AnalysisStage;
-  selectedCandidateId?: string;
+  status: "queued" | "running" | "completed" | "failed";
   createdAt: string;
+  completedAt: string | null;
+  errorCode: string | null;
+  source: string | null;
+  personCount: number;
+  selectionCount: number;
+  hasSelection: boolean;
+  /** 매칭된 포즈 후보의 썸네일 경로. 입력 러프가 아니다. */
+  thumbnailUrl: string | null;
+  /** 원본이 아직 서버에 있는가(90일 보관). */
+  inputAvailable: boolean;
+  inputWidth: number | null;
+  inputHeight: number | null;
 };
 ```
 
-앱 데이터 디렉터리에 작은 JSON 또는 SQLite.
+로컬 캐시를 두지 않은 것은 동기화·정합성 코드를 늘리지 않기 위해서다. 대신 오프라인에서는 **목록을 비워 두지 않고 오류와 재시도를 보여준다** — 빈 목록은 "작업이 지워졌다"로 읽힌다.
 
-### 서버 기반
-
-`GET /analysis/jobs`
-
-초기에는 서버가 제공하지 않으면 최근 작업 섹션을 비워 두는 것이 안전하다.
+상세 재진입 설계는 ADR-012에 있다. 요점은 기록에서 상세로 갈 때 **서버 jobId를 라우트 jobId로 그대로 쓰고**, 두 흐름을 `job_` 접두사로 가른다는 것이다.
 
 ---
 
@@ -236,10 +273,17 @@ const queryKeys = {
     job: (id: string) => ["analysis", "job", id] as const,
     result: (id: string) => ["analysis", "result", id] as const,
   },
+  // ⚠ 작업 기록은 ["analysis"] 밖이다. 아래 이유 참고.
+  jobHistory: {
+    list: () => ["jobHistory", "list"] as const,
+    selections: (id: string) => ["jobHistory", "selections", id] as const,
+  },
 };
 ```
 
 문자열 query key를 화면마다 임의로 만들지 않는다.
+
+**작업 기록의 루트 키를 `["analysis"]`와 분리하는 이유:** `AppUpdateSection`이 `useIsFetching({ queryKey: poseQueryKeys.all })`로 "분석이 도는 중"을 판정해 앱 업데이트 설치를 미룬다(ADR-011). 기록 조회를 `["analysis", ...]` 아래 두면 목록을 불러올 때마다 분석 중으로 오인돼 업데이트 버튼이 계속 비활성이 된다. 즉 `["analysis"]` prefix는 단순한 이름이 아니라 **"지금 분석이 돈다"는 신호**다.
 
 ---
 

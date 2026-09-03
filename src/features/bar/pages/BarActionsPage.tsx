@@ -18,7 +18,7 @@ import { BarShell } from "../components/BarShell";
  * 업로드는 useImageInput을 그대로 재사용한다 — 검증·초안 생성 로직이 앱 모드와 같다.
  * 드래그 앤 드롭은 바가 좁아 실용성이 낮으므로 버튼만 제공한다.
  */
-/** 바는 폭이 좁아 버튼 두 개가 줄바꿈된다. 스타일을 한 곳에 두고 둘 다 같게 유지한다. */
+/** 권한 오류에서만 쓰는 작은 복구 버튼. */
 const RECOVERY_BUTTON = cn(
   "rounded border border-brand-coral/40 px-1.5 py-0.5 font-semibold",
   "transition-colors hover:bg-brand-coral/10",
@@ -74,22 +74,13 @@ export function BarActionsPage() {
               {/* 바에서 캡처하다 권한에 막혀도 여기서 바로 설정으로 갈 수 있어야 한다.
                   앱 창을 다시 띄우게 만들면 복구 경로가 한 단계 늘어난다. */}
               {captureError && captureErrorCode === "PERMISSION_DENIED" && (
-                <span className="mt-0.5 flex flex-wrap gap-1">
-                  <button
-                    type="button"
-                    onClick={() => void captureService.openScreenRecordingSettings()}
-                    className={RECOVERY_BUTTON}
-                  >
-                    시스템 설정 열기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void captureService.relaunchApp()}
-                    className={RECOVERY_BUTTON}
-                  >
-                    앱 다시 시작
-                  </button>
-                </span>
+                <button
+                  type="button"
+                  onClick={() => void captureService.openScreenRecordingSettings()}
+                  className={cn(RECOVERY_BUTTON, "mt-0.5")}
+                >
+                  시스템 설정 열기
+                </button>
               )}
             </div>
           </div>

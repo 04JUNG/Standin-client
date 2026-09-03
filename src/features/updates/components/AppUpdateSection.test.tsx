@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
+import { historyQueryKeys } from "@/features/history/queryKeys";
 import { useUpdateStore } from "../store/updateStore";
 
 /**
@@ -36,6 +37,15 @@ const { AppUpdateSection } = await import("./AppUpdateSection");
 function RunningAnalysis() {
   useQuery({
     queryKey: poseQueryKeys.result("job-1"),
+    queryFn: () => new Promise(() => {}),
+  });
+  return null;
+}
+
+/** 작업 기록을 불러오는 상황. 분석과 달리 설치를 막으면 안 된다. */
+function LoadingJobHistory() {
+  useQuery({
+    queryKey: historyQueryKeys.list(),
     queryFn: () => new Promise(() => {}),
   });
   return null;
@@ -107,6 +117,18 @@ describe("AppUpdateSection", () => {
 
     expect(await screen.findByText(/분석이 진행 중입니다/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /지금 설치/ })).toBeDisabled();
+  });
+
+  it("작업 기록 조회는 설치를 막지 않는다", async () => {
+    // 기록 쿼리 키가 ["analysis"] 아래로 들어가면 목록을 볼 때마다 업데이트가 막힌다.
+    check.mockResolvedValue({ kind: "available", version: "0.1.2" });
+    renderSection(createElement(LoadingJobHistory));
+
+    await userEvent.click(await screen.findByRole("button", { name: "업데이트 확인" }));
+
+    expect(await screen.findByText(/새 버전 0\.1\.2/)).toBeInTheDocument();
+    expect(screen.queryByText(/분석이 진행 중입니다/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /지금 설치/ })).toBeEnabled();
   });
 
   it("설치가 끝나면 재시작을 사용자가 고르게 한다", async () => {

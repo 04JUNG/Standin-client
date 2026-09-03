@@ -49,8 +49,8 @@ describe("startCaptureFlow", () => {
     expect(state.status).toBe("error");
     expect(state.errorCode).toBe("PERMISSION_DENIED");
     expect(state.error).toContain("화면 기록");
-    // 권한을 켠 다음 무엇을 할지까지 없으면 켜 놓고도 같은 증상을 다시 겪는다.
-    expect(state.error).toContain("다시 캡처");
+    // 어디서 켜는지가 없으면 안내가 아니라 통보다. 재시작은 macOS가 직접 묻는다.
+    expect(state.error).toContain("시스템 설정");
   });
 
   it("다른 실패에는 권한 코드가 붙지 않는다", async () => {

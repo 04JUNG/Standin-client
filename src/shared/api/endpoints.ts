@@ -19,6 +19,15 @@ export const endpoints = {
   },
   analysis: {
     jobs: "/v1/analysis/jobs",
+    /** 작업 기록 목록. 커서 페이지네이션(`limit`/`cursor`/`status`). */
+    jobList: (params: { limit?: number; cursor?: string | null; status?: string | null }) => {
+      const query = new URLSearchParams();
+      if (params.limit !== undefined) query.set("limit", String(params.limit));
+      if (params.cursor) query.set("cursor", params.cursor);
+      if (params.status) query.set("status", params.status);
+      const suffix = query.toString();
+      return suffix ? `/v1/analysis/jobs?${suffix}` : "/v1/analysis/jobs";
+    },
     job: (id: string) => `/v1/analysis/jobs/${id}`,
     result: (id: string) => `/v1/analysis/jobs/${id}/result`,
     rerun: (id: string) => `/v1/analysis/jobs/${id}/rerun`,

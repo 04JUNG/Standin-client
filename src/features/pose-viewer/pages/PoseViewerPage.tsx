@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, Info, Loader2 } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
@@ -8,12 +8,14 @@ import { useAnalysisResult } from "../hooks/useAnalysisResult";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
+import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
-import { confirmSelections, trackRerunRequested } from "@/features/analytics/analyticsClient";
+import { confirmSelections } from "@/features/analytics/analyticsClient";
+import { useJobSelections } from "@/features/history/hooks/useJobSelections";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
@@ -21,7 +23,7 @@ export function PoseViewerPage() {
   const navigate = useNavigate();
   const draft = useUploadStore((s) => s.draft);
   const setJobId = usePoseSelectionStore((s) => s.setJobId);
-  const [rerunNotice, setRerunNotice] = useState(false);
+  const restoreSelections = usePoseSelectionStore((s) => s.restoreSelections);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const bindings = useShortcutStore((s) => s.bindings);
@@ -36,6 +38,7 @@ export function PoseViewerPage() {
     isPending,
     isError,
     error,
+    restoreOnly,
     sourceFile,
     selectablePeople,
     failedPeople,
@@ -45,21 +48,28 @@ export function PoseViewerPage() {
     selectCandidate,
   } = useAnalysisResult(jobId);
 
+  // 기록에서 열었으면 그때 확정했던 선택을 되살린다.
+  //
+  // 결과가 도착한 **뒤에** 실행해야 한다. setJobId와 setServerJobId가 각각 선택을
+  // 초기화하므로, 그 전에 넣으면 곧바로 지워진다. 한 번만 적용해서 사용자가 복원 뒤에
+  // 바꾼 선택을 재마운트가 되돌리지 않게 한다.
+  const { data: savedSelections } = useJobSelections(restoreOnly ? jobId : undefined);
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!data || !jobId || !savedSelections?.length || restored.current) return;
+    restored.current = true;
+    restoreSelections(
+      jobId,
+      Object.fromEntries(savedSelections.map((s) => [s.personIndex, s.candidateId])),
+    );
+  }, [data, jobId, savedSelections, restoreSelections]);
+
   usePoseViewerShortcuts({
     canConfirm: allSelected,
     onConfirm: () => void confirmAndContinue(),
-    onRerun: requestRerun,
   });
 
   if (!jobId) return <Navigate to="/app/home" replace />;
-
-  function requestRerun() {
-    setRerunNotice(true);
-    trackRerunRequested(data?.jobId, {
-      selectedCount,
-      peopleCount: selectablePeople.length,
-    });
-  }
 
   async function confirmAndContinue() {
     if (!data || !allSelected || isConfirming) return;
@@ -83,7 +93,8 @@ export function PoseViewerPage() {
     }
   }
 
-  if (!sourceFile) {
+  // 기록에서 연 작업은 원본 파일이 없는 것이 정상이다 — 서버에 저장된 결과를 읽는다.
+  if (!sourceFile && !restoreOnly) {
     return (
       <AppShell title="포즈 후보">
         <div className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary">
@@ -99,9 +110,17 @@ export function PoseViewerPage() {
   if (isPending) {
     return (
       <AppShell title="포즈 후보">
-        <div className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary">
+        <div
+          {...tourAnchor("jobs.pending")}
+          className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary"
+        >
           <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
           <p>가까운 포즈 후보를 찾고 있습니다...</p>
+          {/* 분석은 서버에서 계속 진행되고 결과는 작업 기록에서 다시 열 수 있다.
+              기다리는 것 말고 할 수 있는 일이 없는 화면을 만들지 않는다. */}
+          <Button variant="secondary" onClick={() => navigate("/app/home")}>
+            홈으로 돌아가기
+          </Button>
         </div>
       </AppShell>
     );
@@ -111,13 +130,18 @@ export function PoseViewerPage() {
     const failure = analysisFailure(error);
     return (
       <AppShell title="포즈 후보">
-        <div className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary">
+        <div
+          {...tourAnchor("jobs.error")}
+          className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary"
+        >
           <p>{failure.message}</p>
           <div className="flex items-center gap-2">
             {/* 같은 입력으로 다시 분석한다. 새 화면 job이라 서버 Job도 새로 만들어진다 —
                 앞선 Job은 이미 끝났으므로 동시 분석 한도에 걸리지 않는다. */}
             {failure.retryable && (
-              <Button onClick={() => navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true })}>
+              <Button
+                onClick={() => navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true })}
+              >
                 다시 시도
               </Button>
             )}
@@ -133,6 +157,14 @@ export function PoseViewerPage() {
   return (
     <AppShell title="포즈 후보">
       <div className="flex h-full flex-col gap-4">
+        {restoreOnly && (
+          <div className="flex items-start gap-2 rounded-xl border border-brand-sky/40 bg-brand-sky/10 p-3">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-sky" aria-hidden />
+            <p className="text-[13px] text-text-primary">
+              이전 분석 결과입니다. 다른 후보를 고르면 포즈 파일을 다시 저장할 수 있습니다.
+            </p>
+          </div>
+        )}
         <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-0 p-4">
           <span className="text-[12px] font-semibold text-text-secondary">원본</span>
           <div className="flex max-h-[240px] items-center justify-center overflow-hidden rounded-lg bg-brand-paper">
@@ -142,9 +174,18 @@ export function PoseViewerPage() {
                 alt={draft.originalName}
                 className="max-h-[240px] max-w-full object-contain"
               />
+            ) : data.inputPreviewUrl ? (
+              // 기록에서 열었을 때의 원본. 서버가 준 presigned URL이라 인증 헤더가 필요 없다.
+              <img
+                src={data.inputPreviewUrl}
+                alt="분석에 사용한 원본"
+                className="max-h-[240px] max-w-full object-contain"
+              />
             ) : (
               <p className="p-4 text-center text-[13px] text-text-secondary">
-                원본 미리보기가 없습니다.
+                {restoreOnly
+                  ? "원본 이미지는 보관 기간(90일)이 지나 제공되지 않습니다."
+                  : "원본 미리보기가 없습니다."}
               </p>
             )}
           </div>
@@ -183,7 +224,10 @@ export function PoseViewerPage() {
               </div>
               {/* soft fallback — 후보는 계속 보여주되 참고용임을 알린다. */}
               <PersonFallbackNotice person={person} />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <div
+                {...tourAnchor("jobs.candidates")}
+                className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+              >
                 {person.candidates.map((candidate) => (
                   <PoseCandidateCard
                     key={candidate.id}
@@ -205,22 +249,14 @@ export function PoseViewerPage() {
         )}
 
         <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={requestRerun}>
-              다른 후보 찾기
-              <ShortcutKey
-                accelerator={resolveAccelerator("poseViewer.rerun", bindings)!}
-                className="ml-1"
-              />
-            </Button>
-            {rerunNotice && (
-              <p className="flex items-center gap-2 text-[12px] text-text-secondary">
-                <Info className="h-4 w-4 shrink-0" aria-hidden />
-                다시 검색은 후속 버전에서 서버와 연동됩니다.
-              </p>
-            )}
-          </div>
+          {/* "다른 후보 찾기"가 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
+              안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
+              대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
+          <Button variant="ghost" onClick={() => navigate("/app/home")}>
+            홈으로 돌아가기
+          </Button>
           <Button
+            {...tourAnchor("jobs.confirm")}
             size="lg"
             disabled={!allSelected || isConfirming}
             onClick={() => void confirmAndContinue()}

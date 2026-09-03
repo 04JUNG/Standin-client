@@ -21,6 +21,14 @@ export type RefineOutcome = {
   adjustedLimbs: string[];
   /** BFF가 확정한 최종 다운로드 경로. 미리보기와 저장이 같은 URL을 쓴다. */
   exportUrl: string;
+  /**
+   * 저장될 포즈를 그린 미리보기 이미지(`<img src>`에 그대로 넣을 수 있는 값).
+   *
+   * 비어 있으면 그림이 없는 것이고, 화면은 후보 썸네일로 폴백한다 — **오류가 아니다.**
+   * `refined`와 독립이다: 베이스를 쓰기로 한 결과에도 그림은 있고(서버가 실제로 저장될
+   * 베이스를 같은 렌더러로 그려 준다), 조정에 성공했는데 그림만 없을 수도 있다.
+   */
+  previewUrl: string;
 };
 
 export interface RefineService {

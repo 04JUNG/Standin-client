@@ -183,3 +183,18 @@ export async function apiFetchBlob(path: string, options: RequestOptions = {}): 
   const res = await apiRequest(path, options);
   return res.blob();
 }
+
+/**
+ * 인증·토큰 재발급을 유지하면서 FBX 같은 바이너리 응답을 바이트로 받는다.
+ *
+ * FBX는 텍스트가 아니다. apiFetchText로 받으면 UTF-8 디코딩이 잘못된 바이트를 U+FFFD로
+ * 바꿔 놓고, 그렇게 저장된 파일은 클립스튜디오에서 열리지 않는다 — 다운로드는 성공한 것처럼
+ * 보이기 때문에 원인을 찾기 어렵다.
+ */
+export async function apiFetchBytes(
+  path: string,
+  options: RequestOptions = {},
+): Promise<Uint8Array> {
+  const res = await apiRequest(path, options);
+  return new Uint8Array(await res.arrayBuffer());
+}

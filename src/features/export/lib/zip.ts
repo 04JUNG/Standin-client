@@ -3,7 +3,7 @@
  * 하나의 다운로드로 묶기 위한 용도(export.mock.ts). 실제 파일 시스템 쓰기는
  * 아니므로 회전/재현이 아닌 표준 ZIP 구조만 보장한다.
  */
-export type ZipFile = { name: string; content: string };
+export type ZipFile = { name: string; content: Uint8Array };
 
 class ByteWriter {
   private chunks: Uint8Array[] = [];
@@ -68,7 +68,7 @@ export function buildZip(files: ZipFile[]): Blob {
 
   for (const file of files) {
     const nameBytes = encoder.encode(file.name);
-    const data = encoder.encode(file.content);
+    const data = file.content;
     const crc = crc32(data);
     const offset = writer.length;
 

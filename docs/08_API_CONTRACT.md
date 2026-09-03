@@ -150,6 +150,79 @@ Response:
 
 ---
 
+## 4-1. 작업 기록 목록
+
+```http
+GET /v1/analysis/jobs?limit=20&cursor=...&status=completed
+```
+
+최신순 커서 페이지네이션. `limit`은 1~50(기본 20)이고 범위 밖이거나 손상된 `cursor`는 `400 INVALID_INPUT`이다 — 조용히 첫 페이지로 폴백하면 "더 보기"가 같은 페이지를 무한 반복한다.
+
+```json
+{
+  "items": [
+    {
+      "jobId": "job_123",
+      "status": "completed",
+      "createdAt": "...",
+      "completedAt": "...",
+      "errorCode": null,
+      "source": "capture",
+      "personCount": 2,
+      "selectionCount": 2,
+      "hasSelection": true,
+      "thumbnailUrl": "/v1/pose-candidates/{poseId}/thumbnail?view=front",
+      "inputAvailable": true,
+      "inputWidth": 1920,
+      "inputHeight": 1080
+    }
+  ],
+  "nextCursor": "eyJ..."
+}
+```
+
+`nextCursor`가 `null`이면 마지막 페이지다.
+
+`thumbnailUrl`은 **입력 러프가 아니라 매칭된 포즈 후보**의 썸네일 경로다(확정 선택한 후보 우선, 없으면 첫 인물의 1순위). 원본을 20건 내려보내면 수십 MB지만 후보 썸네일은 이미 하루 캐시되는 작은 PNG다. 인증 헤더가 필요한 상대 경로이므로 `<img src>`에 그대로 넣지 않고 blob으로 받는다.
+
+`inputAvailable`은 입력 원본이 아직 서버에 있는지다. **원본은 90일, 작업 기록은 1년 보관**이므로 그 사이 구간의 작업은 목록에 나오지만 원본 미리보기는 제공되지 않는다.
+
+---
+
+## 4-2. 작업 기록 삭제
+
+```http
+DELETE /v1/analysis/jobs/{jobId}
+```
+
+```json
+{ "deleted": true }
+```
+
+작업과 분석 결과, 원본 이미지를 함께 지운다. 되돌릴 수 없으므로 앱은 확인 대화상자를 거친다.
+
+진행 중(`queued`/`running`)이면 `409 JOB_IN_PROGRESS`다. 앱은 "진행 중인 분석은 삭제할 수 없습니다"로 안내한다. 계정(설치) 전체 삭제는 `DELETE /v1/installations/current/data`가 담당한다.
+
+---
+
+## 4-3. 확정 선택 조회
+
+```http
+GET /v1/analysis/jobs/{jobId}/selections
+```
+
+```json
+{
+  "selections": [
+    { "personIndex": 0, "candidateId": "pose-1::front", "rank": 1, "confirmedAt": "..." }
+  ]
+}
+```
+
+작업 기록에서 지난 작업을 열 때 그때의 선택을 화면에 되살리는 데 쓴다(ADR-012). Job 상태 폴링 응답에 얹지 않은 것은 그 경로가 분석 중 반복 호출되기 때문이다.
+
+---
+
 ## 5. Job 상태
 
 ```http
@@ -190,16 +263,14 @@ Status enum:
 
 ```text
 queued
-uploading
-preprocessing
-detecting
-skeleton
-pose_search
-rendering
+running
 completed
 failed
-cancelled
 ```
+
+> ⚠ 위 예시의 `stage`와 아래 10단계는 **아직 구현되지 않았다.** BFF가 동기 추론을 감싸므로 세분 단계를 알 수 없고, 실제 계약은 위 4개 상태뿐이다(app-server `docs/API.md`). 앱은 4개 상태 기준으로 만들고, 서버가 주지 않는 진행률을 지어내지 않는다.
+>
+> 향후 목표 단계: `uploading` · `preprocessing` · `detecting` · `skeleton` · `pose_search` · `rendering` · `cancelled`.
 
 `current/total`은 실제 단계 정보가 있을 때만 제공한다.
 
@@ -210,6 +281,10 @@ cancelled
 ```http
 GET /v1/analysis/jobs/{jobId}/result
 ```
+
+> ⚠ 아래 예시는 **단인 컷을 전제한 초기 형태**다. 실제 BFF 응답은 다인 컷을 지원하는 `candidatesByPerson[]` 구조이고, 앱은 그것을 `people: PersonResult[]`로 옮긴다(`features/pose-viewer/api/pose.contract.ts`). 정본은 app-server `docs/API.md`다.
+
+응답에는 입력 원본의 presigned URL `inputUrl`(900초)과 `inputUrlExpiresInSeconds`가 함께 온다. 원본 보관 기간(90일)이 지났으면 둘 다 `null`이고, 앱은 "보관 기간이 지나 제공되지 않습니다"로 안내한다. 작업 기록에서 지난 작업을 열 때의 원본 미리보기가 이 값을 쓴다(ADR-012).
 
 Response:
 
