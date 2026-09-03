@@ -36,7 +36,11 @@ function spotlightRect(step: TourStep, snapshot: AnchorSnapshot): SpotlightRect 
   const l = Math.max(0, left - pad);
   const b = Math.min(window.innerHeight, bottom + pad);
   const r = Math.min(window.innerWidth, right + pad);
-  return { top: t, left: l, width: r - l, height: b - t };
+
+  // 요소보다 pad만큼 바깥에 그리므로 반경도 그만큼 키워야 곡률이 겹친다. 같은 반경을
+  // 쓰면 모서리가 요소를 가로질러 어긋나 보인다(스테이징에서 실측).
+  const elementRadius = Math.max(0, ...step.anchors.map((id) => snapshot.get(id)?.radius ?? 0));
+  return { top: t, left: l, width: r - l, height: b - t, radius: elementRadius + pad };
 }
 
 /**
