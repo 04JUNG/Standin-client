@@ -1,4 +1,4 @@
-import { Camera, Video, AlertCircle, ExternalLink } from "lucide-react";
+import { Camera, MessageSquare, AlertCircle, ExternalLink } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
@@ -14,8 +14,8 @@ import { openExternal } from "@/shared/lib/openExternal";
 import { env } from "@/shared/lib/env";
 
 /**
- * 홈 화면(docs/03 §4, docs/04 §7). 파일 입력(DropZone)과 화면 캡처가 동작한다.
- * 화면 녹화는 지원 범위 밖이라, 카드를 눌러도 녹화가 시작되지 않고 랜딩의 설문이 열린다.
+ * 홈 화면(docs/03 §4, docs/04 §7). 입력 수단은 파일(DropZone)과 화면 캡처 둘이다.
+ * 나머지 한 칸은 랜딩 설문으로 보내, 지금 없는 기능의 수요를 사용자에게서 직접 받는다.
  */
 /** 권한 오류에서만 쓰는 작은 복구 버튼. */
 const RECOVERY_BUTTON = [
@@ -91,8 +91,7 @@ export function HomePage() {
             />
           </button>
 
-          {/* 녹화는 지원하지 않는다. 카드가 녹화를 시작하는 것처럼 보이면 안 되므로(CLAUDE.md §10)
-              라벨과 아이콘으로 "설문이 열린다"를 먼저 알린다. */}
+          {/* 앱 밖(브라우저)으로 나가는 링크라, 라벨과 아이콘으로 그 사실을 먼저 알린다. */}
           <button
             type="button"
             onClick={() => void openExternal(`${env.webBaseUrl}/feedback/`)}
@@ -102,11 +101,11 @@ export function HomePage() {
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
             ].join(" ")}
           >
-            <Video className="h-5 w-5 text-brand-ink" aria-hidden />
+            <MessageSquare className="h-5 w-5 text-brand-ink" aria-hidden />
             <div>
-              <div className="text-[14px] font-semibold text-text-primary">화면 녹화</div>
+              <div className="text-[14px] font-semibold text-text-primary">의견 보내기</div>
               <div className="text-[12px] text-text-secondary">
-                현재 지원 범위 밖입니다. 설문으로 의견을 남겨주세요.
+                필요한 기능과 불편한 점을 설문으로 알려주세요.
               </div>
             </div>
             <ExternalLink className="ml-auto h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
