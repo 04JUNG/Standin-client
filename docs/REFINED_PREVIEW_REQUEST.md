@@ -4,6 +4,17 @@
 > 받는 쪽: Standin-server(추론, 도원)
 > 관련: `docs/adr/ADR-010-refine-review-step.md`, `Standin-server/docs/REFINE_DESIGN.md`
 
+> **상태: 처리됨 (2026-09-04).** 추론이 §3의 **(a) 인라인 data**로 구현했다
+> (Standin-server `feat(refine): return front thumbnail preview`, develop). 요청과 다른 점 둘:
+> `view`는 front 고정이 아니라 **선택한 후보의 view를 유지**하고, `refined=false`일 때도
+> 썸네일을 준다 — 기존 베이스 썸네일 파일이 아니라 **실제로 저장될 베이스 BVH를 같은
+> 렌더러로 새로 렌더한 것**이라 §3 요건("refined=false면 썸네일도 없어야 한다")보다 낫다.
+> BFF·클라이언트 대응은 ADR-010 개정 2를 본다. 아래 §5는 더 이상 유효하지 않다.
+>
+> ⚠ 남은 어긋남: 렌더 실패가 `409 refine_thumbnail_failed`로 `/refine` **전체를 실패시킨다.**
+> §3 요건("렌더 실패는 오류가 아니다")과 반대다. BFF가 이 409를 `upstream_unavailable` 스킵으로
+> 흡수하므로 저장은 막히지 않지만, 그림을 못 그렸다는 이유로 조정 결과까지 버려진다.
+
 ## 1. 무엇이 없는가
 
 저장 전 확인 화면(ADR-010)은 "무엇이 저장되는지"를 보여줘야 한다. 지금은 인물·후보 이름만
