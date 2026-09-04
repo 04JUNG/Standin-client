@@ -47,7 +47,7 @@ type BffAnalysisResult = {
   /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
   inputUrl?: string | null;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
-  capabilities?: { refine?: boolean; fbxExport?: boolean };
+  capabilities?: { refine?: boolean; fbxExport?: boolean; characterSelection?: boolean };
   candidatesByPerson: Array<{
     personIndex: number;
     box: number[] | null;
@@ -242,6 +242,9 @@ async function toAnalysisResult(
       refine: raw.capabilities?.refine === true,
       // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
       fbxExport: raw.capabilities?.fbxExport === true,
+      // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
+      // 않아 이 기능이 없던 때와 바이트까지 같은 파일이 나온다.
+      characterSelection: raw.capabilities?.characterSelection === true,
     },
   };
 }

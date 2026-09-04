@@ -9,6 +9,9 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { formatBytes } from "@/shared/lib/formatBytes";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
 import type { UploadSource } from "@/shared/types/upload";
+import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { ModelSelect } from "@/features/models/components/ModelSelect";
+import { useSelectedModel } from "@/features/models/hooks/useSelectedModel";
 import { useUploadStore } from "../store/uploadStore";
 import { trackInputConfirmed } from "@/features/analytics/analyticsClient";
 
@@ -27,6 +30,8 @@ export function InputPreviewPage() {
   const draft = useUploadStore((s) => s.draft);
   const clearDraft = useUploadStore((s) => s.clearDraft);
   const bindings = useShortcutStore((s) => s.bindings);
+  const startJob = usePoseSelectionStore((s) => s.startJob);
+  const { selectedId } = useSelectedModel();
 
   // 가드보다 먼저 호출해 hook 순서를 고정한다(초안 없음 → 조기 반환).
   useShortcuts({
@@ -43,9 +48,12 @@ export function InputPreviewPage() {
   }
 
   function startAnalysis() {
-    trackInputConfirmed(draft!);
-    // 실제 분석 Job 생성은 서버 연동 후속 브랜치. 지금은 Mock 포즈 후보 뷰어로 바로 이동한다(docs/12).
-    navigate(`/app/jobs/${crypto.randomUUID()}`);
+    trackInputConfirmed(draft!, selectedId);
+    const jobId = crypto.randomUUID();
+    // 지금 고른 모델을 이 작업에 고정한다(ADR-013). 저장은 화면에 들어오면 자동으로
+    // 시작하므로(ADR-009), 분석이 도는 동안 설정을 바꿔도 이 컷은 여기서 고른 대로 나간다.
+    startJob(jobId, selectedId);
+    navigate(`/app/jobs/${jobId}`);
   }
 
   return (
@@ -69,6 +77,13 @@ export function InputPreviewPage() {
                 <Row label="용량" value={formatBytes(draft.sizeBytes)} />
               )}
             </dl>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface-0 p-4">
+            <h2 className="text-[13px] font-semibold text-text-secondary">저장할 모델</h2>
+            <div className="mt-2">
+              <ModelSelect variant="stacked" />
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">

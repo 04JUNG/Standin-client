@@ -126,6 +126,10 @@ export const poseMock: PoseResultService = {
       },
     ];
 
-    return { jobId, people, capabilities: { refine: true, fbxExport: true } };
+    return {
+      jobId,
+      people,
+      capabilities: { refine: true, fbxExport: true, characterSelection: true },
+    };
   },
 };

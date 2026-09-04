@@ -7,6 +7,8 @@ export const endpoints = {
     currentData: "/v1/installations/current/data",
   },
   events: { batch: "/v1/events/batch" },
+  /** 저장할 FBX의 체형 목록. converter `GET /characters`의 BFF 프록시(docs/08 §8-1). */
+  models: { list: "/v1/models" },
   auth: {
     login: "/v1/auth/login",
     refresh: "/v1/auth/refresh",

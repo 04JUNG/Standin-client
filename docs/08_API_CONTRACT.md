@@ -467,6 +467,110 @@ candidate가 붙은 형태다). 조정본과 베이스 중 무엇을 내보낼�
 
 ---
 
+## 8-1. 모델(체형) 선택 — **서버 팀 구현 필요**
+
+저장되는 FBX의 체형이다. 앱은 FBX를 만들지 않으므로 이 값은 BFF가 converter에 넘기는
+`character_id`가 된다. 계약과 클라이언트 게이트는 `docs/adr/ADR-013-model-selection.md`에 있다.
+
+### 카탈로그
+
+```http
+GET /v1/models
+X-Installation-Id, X-Device-Token   (다른 분석 라우트와 같다. Bearer 없음)
+```
+
+```json
+{
+  "characters": [
+    {
+      "characterId": "standin-master-v2",
+      "displayName": "기본 남성",
+      "gender": "male",
+      "availability": "available",
+      "source": "builtin",
+      "isDefault": true,
+      "rigProfile": "mixamo",
+      "revision": "v2",
+      "previewUrl": null,
+      "description": "표준 남성 체형입니다."
+    },
+    {
+      "characterId": "standin-female-v2-lbs",
+      "displayName": "기본 여성",
+      "gender": "female",
+      "availability": "coming_soon",
+      "source": "builtin",
+      "isDefault": false,
+      "rigProfile": "mixamo",
+      "revision": "v2",
+      "previewUrl": null,
+      "description": null
+    }
+  ],
+  "defaultCharacterId": "standin-master-v2"
+}
+```
+
+1. converter의 `GET /characters`를 프록시해 구현한다. app-server `src/config.ts`의
+   `converterCharacterId` 주석이 예고한 그 확장이다. 필드 이름만 camelCase로 바꾼다
+   (`character_id → characterId`, `display_name → displayName`, `rig_profile → rigProfile`).
+2. ⚠ **converter에 등록돼 있지만 지금 못 만드는 캐릭터(artifact URI env 미설정, 예:
+   `STANDIN_FEMALE_V2_LBS_URI`)는 목록에서 빼지 말고 `availability: "coming_soon"`으로 준다.**
+   앱이 회색 "준비 중" 카드로 보여준다. 빼 버리면 기능 자체가 없는 것처럼 보인다.
+   converter의 `list_public(available_only=True)`를 그대로 쓰면 안 되는 이유다 —
+   목록은 전체를, `availability`가 준비 여부를 나타내야 한다.
+3. `gender` ∈ `male | female | unspecified`, `availability` ∈ `available | coming_soon`,
+   `source` ∈ `builtin | store | user`(지금은 `builtin`뿐). 모르는 값은 앱이 보수적으로 좁힌다.
+4. `defaultCharacterId`는 `CONVERTER_CHARACTER_ID`와 같아야 한다. `isDefault: true`는 정확히
+   하나이고 반드시 `available`이어야 한다.
+5. `previewUrl`은 optional(지금은 `null`). 주려면 인증이 필요한 상대 경로
+   (`/v1/models/{characterId}/preview?view=front`, PNG). 앱은 자기가 커밋한 이미지를 우선
+   쓰므로 이 필드는 나중에 붙여도 앱 배포가 필요 없다.
+6. `Cache-Control: public, max-age=300`.
+7. converter가 불통이면 `503 CONVERTER_UNAVAILABLE`. 앱은 **404 · 501 · 503**을
+   "이 배포에는 모델 선택이 없다"로 보고 하드코딩 목록으로 폴백한다(여성은 `coming_soon`).
+   그 외 상태는 모델 화면에 오류와 재시도로 나온다.
+
+### 내보내기 파라미터
+
+```http
+GET /v1/pose-candidates/{poseId}/export?jobId=&personIndex=&candidateId=&format=fbx&characterId=
+```
+
+- `characterId`는 **optional**. 없으면 지금과 같이 `config.converterCharacterId`를 쓴다.
+- `format=bvh`에 `characterId`가 오면 **무시한다**(400 아님). BVH는 동작만 담아 체형이 들어갈
+  자리가 없고, 앱과 서버는 따로 배포되므로 400은 이득 없이 저장을 깬다. 앱은 보내지 않는다.
+- 모르는 id → `400 INVALID_CHARACTER`. 등록됐지만 지금 못 만듦 → `409 CHARACTER_UNAVAILABLE`.
+  둘 다 재시도로 풀리지 않는 실패다.
+- ⚠ **조용히 기본 캐릭터로 대체하지 않는다.** 고른 체형과 파일이 일치하는 것이 이 기능의
+  전부다. 대체하면 사용자는 다른 체형을 받고도 알 수 없다.
+- 구현 지점: `src/converter/client.ts`의 `ConvertInput.characterId`는 이미 optional로 열려 있고,
+  `src/pose/routes.ts`가 항상 `config.converterCharacterId`만 넘기고 있다. 검증 후 그 값을
+  넘기면 된다. 변환 로그의 `characterId: config.converterCharacterId`도 실제 사용값으로 고친다.
+
+### capability 플래그
+
+`GET /v1/analysis/jobs/{jobId}/result`의 `capabilities`에 추가한다.
+
+```json
+"capabilities": { "refine": true, "fbxExport": true, "characterSelection": true }
+```
+
+`characterSelection: true`는 **export가 `characterId`를 존중하고 동시에 기본이 아닌 캐릭터가
+하나 이상 `available`일 때만**이다. 카탈로그와 export는 따로 배포될 수 있으므로 플래그를
+따로 둔다 — 카탈로그만 먼저 나가면 앱이 고른 체형과 다른 FBX가 저장된다. 없거나 false가
+안전한 상태이고 앱이 false로 좁힌다.
+
+### 확인 요청
+
+- `/v1/events/batch`가 이벤트 **이름만** 검증하는가? 앱이 기존 `input_confirmed`·
+  `export_completed`에 `characterId` 속성을 더한다. 속성 키까지 allowlist라면 그 하나 때문에
+  배치 전체가 400이 되고, 앱이 무관한 이벤트까지 함께 버린다.
+- converter 배포 환경에 `STANDIN_FEMALE_V2_LBS_URI`가 설정돼 있는가? 없으면 여성은
+  `/characters`에 뜨지 않는다. 앱 배포 전 스테이징에서 `GET /characters`가 2개를 주는지 확인.
+
+---
+
 ## 9. Job 취소
 
 ```http
@@ -505,6 +609,20 @@ type PoseCandidate = {
   }>;
   modelUrl?: string | null;
   bvhAvailable: boolean;
+};
+
+/** 저장할 체형(§8-1). `characterId`는 converter의 값 그대로이고 앱은 해석하지 않는다. */
+type ModelCharacter = {
+  characterId: string;
+  displayName: string;
+  gender: "male" | "female" | "unspecified";
+  availability: "available" | "coming_soon";
+  source: "builtin" | "store" | "user";
+  isDefault: boolean;
+  rigProfile: string | null;
+  revision: string | null;
+  previewUrl: string | null;
+  description: string | null;
 };
 ```
 

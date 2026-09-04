@@ -1,6 +1,14 @@
 import { type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, History, Settings, Keyboard, PictureInPicture2, HelpCircle } from "lucide-react";
+import {
+  Home,
+  History,
+  PersonStanding,
+  Settings,
+  Keyboard,
+  PictureInPicture2,
+  HelpCircle,
+} from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { env } from "@/shared/lib/env";
 import { barRouteForAppPath } from "@/shared/lib/modeRoutes";
@@ -22,6 +30,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: "/app/home", label: "홈", icon: Home },
+  // end를 켜지 않는다. /app/models/<id>(에셋 스토어 상세)는 모델의 하위 화면이라
+  // 활성으로 보이는 것이 맞다 — 작업 기록과 사정이 다르다.
+  { to: "/app/models", label: "모델", icon: PersonStanding },
   // end를 켜지 않으면 라이브 분석 중(/app/jobs/<uuid>)에도 "작업 기록"이 활성으로 보인다.
   { to: "/app/jobs", label: "작업 기록", icon: History, end: true },
   { to: "/app/settings", label: "설정", icon: Settings },

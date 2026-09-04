@@ -5,6 +5,7 @@ import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { DropZone } from "@/features/upload/components/DropZone";
+import { ModelSelect } from "@/features/models/components/ModelSelect";
 import { useStartCapture } from "@/features/capture/hooks/useStartCapture";
 import { toggleBar } from "@/features/bar/lib/openBar";
 import { cn } from "@/shared/lib/cn";
@@ -55,6 +56,15 @@ export function HomePage() {
 
         <div className="mt-6">
           <DropZone />
+        </div>
+
+        {/* 캡처와 업로드 **양쪽**에 걸리는 설정이라 두 입력 수단 사이에 둔다.
+            캡처·업로드가 가장 강해야 하므로(CLAUDE.md §11) 타일은 작고 보조적으로. */}
+        <div className="mt-4">
+          <h3 className="text-[13px] font-semibold text-text-secondary">저장할 모델</h3>
+          <div className="mt-2">
+            <ModelSelect />
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
