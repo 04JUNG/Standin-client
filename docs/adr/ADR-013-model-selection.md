@@ -61,6 +61,11 @@ E는 셋이 걸린다. `newScene()`이 `clearDraft()`를 부르고, 작업 기�
 없으며(`useAnalysisResult`의 `restoreOnly`), export가 주소로 쓰는 단위는 draft가 아니라
 `jobId/personIndex/candidateId`다.
 
+작업 기록에서 지난 작업을 열면(ADR-012) 고정값이 없다. 그때는 `resolveCharacter`가
+`pinned ?? preferred ?? 기본값` 순으로 내려가 **오늘 설정값**을 쓴다. 체형이 export
+파라미터이므로 지난 작업을 오늘 체형으로 다시 저장하는 것이 맞는 동작이고,
+`format`이 이미 그렇게 동작한다. 저장 화면이 어떤 체형을 썼는지 말하므로 조용하지 않다.
+
 고정값을 `usePoseSelectionStore`에 둔다. 수명이 정확히 맞기 때문이다 — 라우트 `jobId`로 키가
 잡히고, `setJobId`가 새 job에서 비우고, 앱과 바가 공유하고, persist하지 않고,
 `useSaveFlow`가 이미 `getState()`로 이 스토어를 읽는다. 설정값은 `modelStore`에 두고
