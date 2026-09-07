@@ -87,6 +87,7 @@ export function useSaveFlow(jobId: string | undefined) {
   const beginJob = useExportStore((s) => s.beginJob);
 
   const pinnedCharacterId = usePoseSelectionStore((s) => s.characterId);
+  const characterByPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const preferredCharacterId = useModelStore((s) => s.preferredCharacterId);
   const { data: modelCatalog } = useModelCatalog();
 
@@ -117,31 +118,47 @@ export function useSaveFlow(jobId: string | undefined) {
   const serverSupportsCharacter =
     queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
       .characterSelection === true;
-  const resolvedCharacter = resolveCharacter({
-    pinned: pinnedCharacterId,
-    preferred: preferredCharacterId,
-    catalog: modelCatalog,
-    format: effectiveFormat,
-    serverSupportsCharacterSelection: serverSupportsCharacter,
-  });
-  /** 저장에 실제로 쓰인 체형 이름. 기본 모델로 내려갔으면 그 이름이 된다. */
-  const characterName =
-    (resolvedCharacter.characterId
-      ? resolvedCharacter.chosen?.displayName
-      : modelCatalog?.characters.find(
-          (item) => item.characterId === modelCatalog.defaultCharacterId,
-        )?.displayName) ?? null;
+  /**
+   * 인물마다 따로 푼다 — 한 컷에서 인물별로 다른 체형을 고를 수 있다(ADR-013 개정).
+   * 고르지 않은 인물은 이 작업의 기본 체형을 쓴다.
+   */
+  const resolveFor = (personIndex: number) =>
+    resolveCharacter({
+      pinned: characterByPerson[personIndex] ?? pinnedCharacterId,
+      preferred: preferredCharacterId,
+      catalog: modelCatalog,
+      format: effectiveFormat,
+      serverSupportsCharacterSelection: serverSupportsCharacter,
+    });
+
+  const defaultCharacterName =
+    modelCatalog?.characters.find((item) => item.characterId === modelCatalog.defaultCharacterId)
+      ?.displayName ?? null;
+  const resolutions = selections.map(([personIndex]) => resolveFor(Number(personIndex)));
+  /** 실제로 쓰인 체형 이름들(중복 제거). 인물마다 다르면 둘 이상이 된다. */
+  const usedCharacterNames = [
+    ...new Set(
+      resolutions.map(
+        (r) => (r.characterId ? r.chosen?.displayName : defaultCharacterName) ?? null,
+      ),
+    ),
+  ].filter((name): name is string => name !== null);
+  /** 저장에 실제로 쓰인 체형 이름. 인물마다 다르면 null이고 화면이 다른 문구를 고른다. */
+  const characterName = usedCharacterNames.length === 1 ? usedCharacterNames[0]! : null;
+  /** 인물마다 다른 체형으로 저장했는가. */
+  const mixedCharacters = usedCharacterNames.length > 1;
+  const firstDowngraded = resolutions.find((r) => r.downgradeReason !== null);
   /** 고른 체형을 못 쓴 이유. 화면이 그대로 문구를 고른다. */
-  const characterDowngradeReason = resolvedCharacter.downgradeReason;
+  const characterDowngradeReason = firstDowngraded?.downgradeReason ?? null;
   /** 고르긴 했지만 저장에는 반영되지 않은 체형 이름. 다운그레이드 안내에 쓴다. */
-  const requestedCharacterName = resolvedCharacter.chosen?.displayName ?? null;
+  const requestedCharacterName = firstDowngraded?.chosen?.displayName ?? null;
   /**
    * 기본 모델이 아닌 체형으로 저장을 시도하고 있는가. 저장이 실패했을 때 "기본 모델로
    * 저장" 복구 버튼을 띄울지 결정한다 — 어차피 기본 모델이면 그 버튼은 재시도와 같다.
    */
-  const usesCustomCharacter =
-    resolvedCharacter.characterId !== null &&
-    resolvedCharacter.characterId !== modelCatalog?.defaultCharacterId;
+  const usesCustomCharacter = resolutions.some(
+    (r) => r.characterId !== null && r.characterId !== modelCatalog?.defaultCharacterId,
+  );
 
   // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
   // 실행되어야 한다 — 순서가 뒤집히면 방금 채운 이름을 곧바로 지운다.
@@ -213,19 +230,23 @@ export function useSaveFlow(jobId: string | undefined) {
         if (!analysisResult) {
           throw new Error("분석 결과를 찾지 못했습니다. 후보 화면에서 다시 시도해 주세요.");
         }
-        const refineByPerson = usePoseSelectionStore.getState().refineByPerson;
-        // 체형은 저장 배치마다 **한 번** 정한다. 인물마다 다시 풀면 다인 컷이 반은 남성,
-        // 반은 여성으로 나올 수 있다. 포맷은 인자를 따르므로 "다른 포맷으로도 저장"이
-        // BVH를 고르면 여기서 자동으로 파라미터가 빠진다.
-        const character = options.forceDefaultCharacter
-          ? null
-          : resolveCharacter({
-              pinned: usePoseSelectionStore.getState().characterId,
-              preferred,
-              catalog,
-              format,
-              serverSupportsCharacterSelection: analysisResult.capabilities.characterSelection,
-            }).characterId;
+        const selectionState = usePoseSelectionStore.getState();
+        const refineByPerson = selectionState.refineByPerson;
+        /**
+         * 체형은 **인물마다** 푼다(ADR-013 개정). 고르지 않은 인물은 이 작업의 기본
+         * 체형으로 떨어진다. 포맷은 인자를 따르므로 "다른 포맷으로도 저장"이 BVH를
+         * 고르면 여기서 자동으로 파라미터가 빠진다.
+         */
+        const characterFor = (personIndex: number) =>
+          options.forceDefaultCharacter
+            ? null
+            : resolveCharacter({
+                pinned: selectionState.characterByPerson[personIndex] ?? selectionState.characterId,
+                preferred,
+                catalog,
+                format,
+                serverSupportsCharacterSelection: analysisResult.capabilities.characterSelection,
+              }).characterId;
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
@@ -245,7 +266,12 @@ export function useSaveFlow(jobId: string | undefined) {
                 ? outcome
                 : undefined;
             const exportUrl = currentOutcome?.exportUrl ?? candidate.bvhUrl;
-            const content = await resolvePoseBytes(exportUrl, candidateId, format, character);
+            const content = await resolvePoseBytes(
+              exportUrl,
+              candidateId,
+              format,
+              characterFor(personIndex),
+            );
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),
         );
@@ -260,9 +286,12 @@ export function useSaveFlow(jobId: string | undefined) {
           {
             fileCount: results.length,
             format,
-            // 붙지 않은 경우(기본 모델)는 "default"로 남긴다. 빈 값과 구분해야
-            // 모델 선택이 실제로 쓰이는지 지표에서 볼 수 있다.
-            characterId: character ?? "default",
+            // 인물마다 다를 수 있으므로 쓰인 값들을 모아 남긴다. 붙지 않은 경우
+            // (기본 모델)는 "default"로 남긴다 — 빈 값과 구분해야 모델 선택이 실제로
+            // 쓰이는지 지표에서 볼 수 있다.
+            characterId: [
+              ...new Set(picks.map(([i]) => characterFor(Number(i)) ?? "default")),
+            ].join(","),
             surface: currentSurface(),
           },
           usePoseSelectionStore.getState().serverJobId ?? undefined,
@@ -375,6 +404,8 @@ export function useSaveFlow(jobId: string | undefined) {
     requestedCharacterName,
     /** 고른 체형을 못 쓴 이유. null이면 고른 대로 저장됐다. */
     characterDowngradeReason,
+    /** 인물마다 다른 체형으로 저장했는가. 저장 화면이 문구를 고를 때 쓴다. */
+    mixedCharacters,
     usesCustomCharacter,
     saveWithDefaultCharacter,
     saveAlsoAs,

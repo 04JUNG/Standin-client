@@ -16,7 +16,7 @@ type PoseSelectionState = {
    */
   refineByPerson: Record<number, RefineOutcome>;
   /**
-   * 이 작업을 어떤 모델(체형)로 저장할지. 흐름을 시작할 때 설정값을 여기 고정한다.
+   * 이 작업의 **기본** 체형. 흐름을 시작할 때 설정값을 여기 고정한다.
    *
    * 설정값(`useModelStore.preferredCharacterId`)을 저장 시점에 그냥 읽으면, 분석이 도는
    * 3분 동안 사용자가 모델 화면에서 다른 모델을 눌러 보기만 해도 그 작업이 조용히 다른
@@ -24,10 +24,16 @@ type PoseSelectionState = {
    * 버튼이 없다. 선택·조정본과 같은 수명을 갖는다(새 job에서 비워진다).
    */
   characterId: string | null;
+  /**
+   * 인물별 체형 덮어쓰기(ADR-013 개정). 한 컷에 여러 인물이 있으면 각자 다른 체형이
+   * 필요할 수 있다 — 후보 화면에서 인물마다 고른다. 여기 없는 인물은 `characterId`를 쓴다.
+   */
+  characterByPerson: Record<number, string>;
   setJobId(jobId: string): void;
-  /** 새 흐름을 시작하면서 그 job의 모델을 고정한다. 같은 job이면 아무것도 하지 않는다. */
+  /** 새 흐름을 시작하면서 그 job의 기본 체형을 고정한다. 같은 job이면 아무것도 하지 않는다. */
   startJob(jobId: string, characterId: string | null): void;
   setCharacterId(characterId: string | null): void;
+  setPersonCharacter(personIndex: number, characterId: string): void;
   setServerJobId(jobId: string): void;
   selectCandidate(personIndex: number, candidateId: string): void;
   setRefineOutcome(outcome: RefineOutcome): void;
@@ -41,6 +47,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   selectedByPerson: {},
   refineByPerson: {},
   characterId: null,
+  characterByPerson: {},
   setJobId(jobId) {
     if (get().jobId !== jobId) {
       set({
@@ -50,6 +57,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
         refineByPerson: {},
         // 앞 job의 모델이 새 job으로 새면 안 된다. 고정은 startJob이 다시 한다.
         characterId: null,
+        characterByPerson: {},
       });
     }
   },
@@ -61,10 +69,16 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
       selectedByPerson: {},
       refineByPerson: {},
       characterId,
+      characterByPerson: {},
     });
   },
   setCharacterId(characterId) {
     set({ characterId });
+  },
+  setPersonCharacter(personIndex, characterId) {
+    set((state) => ({
+      characterByPerson: { ...state.characterByPerson, [personIndex]: characterId },
+    }));
   },
   setServerJobId(serverJobId) {
     if (get().serverJobId !== serverJobId) {
