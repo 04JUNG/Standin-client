@@ -10,7 +10,6 @@ import { useImageInput } from "@/features/upload/hooks/useImageInput";
 import { useCaptureStore } from "@/features/capture/store/captureStore";
 import { startCaptureFlow } from "@/features/capture/lib/startCaptureFlow";
 import { captureService } from "@/features/capture/api/capture.service";
-import { BarModelSelect } from "@/features/models/components/BarModelSelect";
 import { BarShell } from "../components/BarShell";
 
 /**
@@ -66,8 +65,6 @@ export function BarActionsPage() {
             onClick={() => inputRef.current?.click()}
           />
         </div>
-
-        <BarModelSelect />
 
         {message && (
           <div role="alert" className="flex items-start gap-1 px-1 text-[11px] text-brand-coral">
