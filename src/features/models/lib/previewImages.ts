@@ -1,3 +1,6 @@
+import maleV2 from "../assets/standin-master-v2.png";
+import femaleV2Lbs from "../assets/standin-female-v2-lbs.png";
+
 /**
  * 커밋된 모델 미리보기 이미지.
  *
@@ -11,9 +14,8 @@
  * 여기 없는 id는 서버 `previewUrl`이나 플레이스홀더로 넘어간다.
  */
 export const PREVIEW_BY_CHARACTER: Record<string, string | undefined> = {
-  // FBX 원본을 받으면 렌더한 PNG를 assets/에 넣고 아래 두 줄을 되살린다.
-  // "standin-master-v2": maleV2,
-  // "standin-female-v2-lbs": femaleV2Lbs,
+  "standin-master-v2": maleV2,
+  "standin-female-v2-lbs": femaleV2Lbs,
 };
 
 export function previewFor(characterId: string): string | undefined {

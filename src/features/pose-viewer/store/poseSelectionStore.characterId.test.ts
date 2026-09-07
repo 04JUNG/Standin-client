@@ -13,6 +13,7 @@ describe("poseSelectionStore의 characterId", () => {
       selectedByPerson: {},
       refineByPerson: {},
       characterId: null,
+      characterByPerson: {},
     });
   });
 
@@ -35,6 +36,25 @@ describe("poseSelectionStore의 characterId", () => {
     usePoseSelectionStore.getState().startJob("job-a", "female");
     usePoseSelectionStore.getState().setJobId("job-b");
     expect(usePoseSelectionStore.getState().characterId).toBeNull();
+  });
+
+  it("인물별 선택이 작업 기본값을 덮어쓴다", () => {
+    // 한 컷에 여러 인물이 있으면 각자 다른 체형이 필요할 수 있다.
+    usePoseSelectionStore.getState().startJob("job-a", "male");
+    usePoseSelectionStore.getState().setPersonCharacter(1, "female");
+
+    const state = usePoseSelectionStore.getState();
+    expect(state.characterId).toBe("male");
+    expect(state.characterByPerson).toEqual({ 1: "female" });
+    // 고르지 않은 인물 0은 맵에 없으므로 저장 단계가 기본값으로 떨어뜨린다.
+    expect(state.characterByPerson[0]).toBeUndefined();
+  });
+
+  it("새 job이면 인물별 선택도 비운다", () => {
+    usePoseSelectionStore.getState().startJob("job-a", "male");
+    usePoseSelectionStore.getState().setPersonCharacter(0, "female");
+    usePoseSelectionStore.getState().setJobId("job-b");
+    expect(usePoseSelectionStore.getState().characterByPerson).toEqual({});
   });
 
   it("setCharacterId는 현재 작업의 고정값을 채운다 — 기록에서 연 작업의 안전망이다", () => {

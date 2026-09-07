@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   History,
-  PersonStanding,
+  UserRound,
   Settings,
   Keyboard,
   PictureInPicture2,
@@ -32,7 +32,11 @@ const navItems: NavItem[] = [
   { to: "/app/home", label: "홈", icon: Home },
   // end를 켜지 않는다. /app/models/<id>(에셋 스토어 상세)는 모델의 하위 화면이라
   // 활성으로 보이는 것이 맞다 — 작업 기록과 사정이 다르다.
-  { to: "/app/models", label: "모델", icon: PersonStanding },
+  //
+  // 아이콘은 PersonStanding이 아니라 UserRound다. 사이드바의 나머지(집·시계·톱니)가
+  // 상자를 채우는 둥근 도형인데 PersonStanding은 획이 가늘고 여백이 많아 혼자 떠 보였다.
+  // 전신 실루엣이 필요한 자리는 미리보기 플레이스홀더이고, 거기는 PersonStanding 그대로다.
+  { to: "/app/models", label: "모델", icon: UserRound },
   // end를 켜지 않으면 라이브 분석 중(/app/jobs/<uuid>)에도 "작업 기록"이 활성으로 보인다.
   { to: "/app/jobs", label: "작업 기록", icon: History, end: true },
   { to: "/app/settings", label: "설정", icon: Settings },

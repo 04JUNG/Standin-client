@@ -50,6 +50,7 @@ export function BarSavePage() {
     characterName,
     requestedCharacterName,
     characterDowngradeReason,
+    mixedCharacters,
     retry,
     saveToAnotherFolder,
     resetToDownloads,
@@ -62,6 +63,7 @@ export function BarSavePage() {
     characterName,
     requestedCharacterName,
     downgradeReason: characterDowngradeReason,
+    mixedCharacters,
   });
 
   function handleNewScene() {

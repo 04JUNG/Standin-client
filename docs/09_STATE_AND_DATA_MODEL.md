@@ -168,8 +168,10 @@ type PoseSelectionState = {
 이 스토어는 **그 Job에 고정된 모델(체형)**도 갖는다(ADR-013).
 
 ```ts
-characterId: string | null;                       // 이 Job을 어떤 체형으로 저장할지
+characterId: string | null;                 // 이 Job의 기본 체형
+characterByPerson: Record<number, string>;  // 인물별 덮어쓰기(후보 화면에서 고른다)
 startJob(jobId: string, characterId: string | null): void;
+setPersonCharacter(personIndex: number, characterId: string): void;
 ```
 
 설정값(`modelStore.preferredCharacterId`)을 저장 시점에 그냥 읽으면, 분석이 도는 동안

@@ -11,10 +11,16 @@ export function characterNotice(input: {
   characterName: string | null;
   requestedCharacterName: string | null;
   downgradeReason: CharacterDowngradeReason | null;
+  /** 인물마다 다른 체형으로 저장했는가. 그러면 이름 하나로 뭉뚱그릴 수 없다. */
+  mixedCharacters?: boolean;
 }): { text: string; isDowngrade: boolean } | null {
-  const { characterName, requestedCharacterName, downgradeReason } = input;
+  const { characterName, requestedCharacterName, downgradeReason, mixedCharacters } = input;
 
   if (downgradeReason === null) {
+    // 인물마다 다른 체형을 골랐으면 이름 하나를 대는 것이 곧 거짓말이 된다.
+    if (mixedCharacters) {
+      return { text: "인물마다 고른 모델로 저장했습니다.", isDowngrade: false };
+    }
     return characterName
       ? { text: `${characterName} 모델로 저장했습니다.`, isDowngrade: false }
       : null;

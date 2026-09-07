@@ -61,7 +61,12 @@ export function ModelsPage() {
           </div>
         ) : (
           SECTION_ORDER.map((source) => {
-            const items = characters.filter((item) => item.source === source);
+            // 만들 수 없는 체형은 아예 보여주지 않는다. 고를 수 없는 카드는 화면만
+            // 복잡하게 만든다 — 서버가 모델 선택 자체를 제공하지 않는 경우는 위 배너가
+            // 따로 설명한다.
+            const items = characters.filter(
+              (item) => item.source === source && item.availability === "available",
+            );
             if (items.length === 0) return null;
             return (
               <ModelSection
@@ -74,10 +79,6 @@ export function ModelsPage() {
             );
           })
         )}
-
-        <p className="mt-8 text-[13px] text-text-secondary">
-          에셋 스토어, 모델 불러오기, 체형 수정은 후속 스프린트에서 연결됩니다.
-        </p>
       </div>
     </AppShell>
   );

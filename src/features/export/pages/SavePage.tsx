@@ -46,6 +46,7 @@ export function SavePage() {
     characterName,
     requestedCharacterName,
     characterDowngradeReason,
+    mixedCharacters,
     usesCustomCharacter,
     saveWithDefaultCharacter,
     serverSupportsFbx,
@@ -67,6 +68,7 @@ export function SavePage() {
     characterName,
     requestedCharacterName,
     downgradeReason: characterDowngradeReason,
+    mixedCharacters,
   });
 
   // 이미 저장한 포맷의 반대. FBX를 못 주는 서버에서는 FBX를 권하지 않는다 — 눌러도

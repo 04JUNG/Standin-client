@@ -12,6 +12,17 @@ describe("characterNotice", () => {
     ).toEqual({ text: "기본 여성 모델로 저장했습니다.", isDowngrade: false });
   });
 
+  it("인물마다 다른 체형이면 이름 하나로 뭉뚱그리지 않는다", () => {
+    expect(
+      characterNotice({
+        characterName: null,
+        requestedCharacterName: null,
+        downgradeReason: null,
+        mixedCharacters: true,
+      }),
+    ).toEqual({ text: "인물마다 고른 모델로 저장했습니다.", isDowngrade: false });
+  });
+
   it("이름을 모르면 아무 말도 하지 않는다 — 확인되지 않은 것을 단정하지 않는다", () => {
     expect(
       characterNotice({

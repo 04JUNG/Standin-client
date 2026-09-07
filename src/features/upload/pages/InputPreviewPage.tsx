@@ -10,7 +10,6 @@ import { formatBytes } from "@/shared/lib/formatBytes";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
 import type { UploadSource } from "@/shared/types/upload";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
-import { ModelSelect } from "@/features/models/components/ModelSelect";
 import { useSelectedModel } from "@/features/models/hooks/useSelectedModel";
 import { useUploadStore } from "../store/uploadStore";
 import { trackInputConfirmed } from "@/features/analytics/analyticsClient";
@@ -77,13 +76,6 @@ export function InputPreviewPage() {
                 <Row label="용량" value={formatBytes(draft.sizeBytes)} />
               )}
             </dl>
-          </div>
-
-          <div className="rounded-xl border border-border bg-surface-0 p-4">
-            <h2 className="text-[13px] font-semibold text-text-secondary">저장할 모델</h2>
-            <div className="mt-2">
-              <ModelSelect variant="stacked" />
-            </div>
           </div>
 
           <div className="flex flex-col gap-2">
