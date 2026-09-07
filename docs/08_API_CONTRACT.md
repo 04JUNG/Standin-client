@@ -467,7 +467,7 @@ candidate가 붙은 형태다). 조정본과 베이스 중 무엇을 내보낼�
 
 ---
 
-## 8-1. 모델(체형) 선택 — **서버 팀 구현 필요**
+## 8-1. 모델(체형) 선택 — **BFF 구현됨**(`Standin-app-server` `feat/character-selection`)
 
 저장되는 FBX의 체형이다. 앱은 FBX를 만들지 않으므로 이 값은 BFF가 converter에 넘기는
 `character_id`가 된다. 계약과 클라이언트 게이트는 `docs/adr/ADR-013-model-selection.md`에 있다.
@@ -511,14 +511,17 @@ X-Installation-Id, X-Device-Token   (다른 분석 라우트와 같다. Bearer �
 }
 ```
 
-1. converter의 `GET /characters`를 프록시해 구현한다. app-server `src/config.ts`의
-   `converterCharacterId` 주석이 예고한 그 확장이다. 필드 이름만 camelCase로 바꾼다
-   (`character_id → characterId`, `display_name → displayName`, `rig_profile → rigProfile`).
-2. ⚠ **converter에 등록돼 있지만 지금 못 만드는 캐릭터(artifact URI env 미설정, 예:
-   `STANDIN_FEMALE_V2_LBS_URI`)는 목록에서 빼지 말고 `availability: "coming_soon"`으로 준다.**
+1. **가용 여부는 converter가, 표현은 BFF가 정한다.** converter `GET /characters`는 artifact를
+   실제로 resolve 해 본 것만 돌려주므로(`list_public(available_only=True)`) 그것이
+   `availability`의 유일한 근거다. 반면 converter의 `display_name`은 "Standin Master V2" 같은
+   내부 코드명이고 성별·설명은 아예 없다 — 한국어 이름과 성별은 BFF의
+   `src/characters/catalog.ts`가 소유한다. 순수 프록시가 아닌 이유다.
+2. ⚠ **converter가 지금 못 만드는 캐릭터(artifact URI env 미설정, 예:
+   `STANDIN_FEMALE_V2_LBS_URI`)도 목록에서 빼지 않고 `availability: "coming_soon"`으로 준다.**
    앱이 회색 "준비 중" 카드로 보여준다. 빼 버리면 기능 자체가 없는 것처럼 보인다.
-   converter의 `list_public(available_only=True)`를 그대로 쓰면 안 되는 이유다 —
-   목록은 전체를, `availability`가 준비 여부를 나타내야 한다.
+   "전체 목록"은 converter가 아니라 BFF의 표에서 온다 — converter는 만들 수 있는 것만 알려
+   주므로 "등록됐지만 못 만듦"을 물어볼 방법이 없다. 반대로 converter에만 있고 BFF 표에 없는
+   캐릭터도 코드명 그대로 내보낸다 — 등록된 줄도 모르는 것보다 낫다.
 3. `gender` ∈ `male | female | unspecified`, `availability` ∈ `available | coming_soon`,
    `source` ∈ `builtin | store | user`(지금은 `builtin`뿐). 모르는 값은 앱이 보수적으로 좁힌다.
 4. `defaultCharacterId`는 `CONVERTER_CHARACTER_ID`와 같아야 한다. `isDefault: true`는 정확히
@@ -561,13 +564,17 @@ GET /v1/pose-candidates/{poseId}/export?jobId=&personIndex=&candidateId=&format=
 따로 둔다 — 카탈로그만 먼저 나가면 앱이 고른 체형과 다른 FBX가 저장된다. 없거나 false가
 안전한 상태이고 앱이 false로 좁힌다.
 
-### 확인 요청
+### 확인 결과
 
-- `/v1/events/batch`가 이벤트 **이름만** 검증하는가? 앱이 기존 `input_confirmed`·
-  `export_completed`에 `characterId` 속성을 더한다. 속성 키까지 allowlist라면 그 하나 때문에
-  배치 전체가 400이 되고, 앱이 무관한 이벤트까지 함께 버린다.
-- converter 배포 환경에 `STANDIN_FEMALE_V2_LBS_URI`가 설정돼 있는가? 없으면 여성은
-  `/characters`에 뜨지 않는다. 앱 배포 전 스테이징에서 `GET /characters`가 2개를 주는지 확인.
+- **분석 이벤트 — 해결됨.** `/v1/events/batch`는 이벤트 **이름만** 400으로 거절한다. 속성 키는
+  `sanitizeEventProperties`가 allowlist에 없으면 **조용히 버린다** — 배치는 안 깨지지만 지표에서
+  사라진다. `input_confirmed`·`export_completed` allowlist에 `characterId`를 넣었고, 같은
+  이유로 그동안 조용히 버려지던 `export_completed.format`도 함께 넣었다.
+- **여성 artifact — 남은 항목.** `STANDIN_FEMALE_V2_LBS_URI` 자체는 인프라(`Standin-infra`
+  `lib/app-stack.ts`)에 이미 `s3://<assets>/characters/standin-female-v2-lbs.fbx`로 설정돼 있다.
+  남은 것은 **그 S3 객체가 실제로 올라가 있고 registry의 SHA256과 일치하는가**다 — converter의
+  `registry.resolve`가 SHA를 대조하므로 불일치면 목록에 뜨지 않는다. 배포 환경에서
+  `GET /v1/models`가 여성을 `available`로 주는지 확인하면 끝난다.
 
 ---
 

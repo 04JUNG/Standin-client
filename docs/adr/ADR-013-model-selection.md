@@ -97,9 +97,11 @@ persist한다(`useExportStore.format`과 같은 역할).
 
 ## 결과
 
-- 서버 팀이 `docs/08_API_CONTRACT.md` §8-1을 구현해야 여성이 실제로 나온다. 그때까지 앱은
-  여성 카드를 "준비 중"으로 잠근다.
-- converter 배포에 `STANDIN_FEMALE_V2_LBS_URI`가 설정돼 있어야 한다.
+- BFF 구현은 `Standin-app-server` `feat/character-selection`에 있다(`GET /v1/models`,
+  export `characterId`, `capabilities.characterSelection`). 그 배포 전까지 앱은 여성 카드를
+  "준비 중"으로 잠근다.
+- converter 배포에 `STANDIN_FEMALE_V2_LBS_URI`가 설정돼 있어야 한다(인프라에는 이미 있다).
+  남은 확인은 그 S3 객체가 실제로 올라가 있고 registry SHA256과 맞는지다.
 - `ModelCharacter.source`(`builtin | store | user`)와 섹션 구조가 에셋 스토어·모델 불러오기·
   체형 수정이 들어올 자리다. 흐름 코드가 `characterId`를 해석하지 않는 한 그 확장은 데이터
   추가로 끝난다.
