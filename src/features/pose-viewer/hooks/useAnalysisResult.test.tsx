@@ -19,6 +19,15 @@ vi.mock("../api/pose.service", () => ({
 
 const { useAnalysisResult } = await import("./useAnalysisResult");
 
+/**
+ * 전송 계층을 HTTP로 고정한다. 이 테스트는 "이벤트가 큐에 남았다"로 기록을 확인하는데,
+ * Mock 전송은 즉시 성공해 큐를 비워 버린다(테스트 환경은 useMockPoseApi 기본값이 true다).
+ * fetch가 없는 jsdom에서 flush가 실패해 큐가 남는 것이 이 단언들의 전제다.
+ */
+vi.mock("@/features/analytics/api/analytics.service", async () => ({
+  analyticsService: (await import("@/features/analytics/api/analytics.http")).analyticsHttp,
+}));
+
 const QUEUE_KEY = "standin.analytics.queue.v1";
 
 type QueuedEvent = {

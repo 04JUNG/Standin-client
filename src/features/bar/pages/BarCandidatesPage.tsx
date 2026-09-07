@@ -12,6 +12,7 @@ import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResul
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { analysisFailure } from "@/features/pose-viewer/lib/analysisFailure";
+import { ModelSelect } from "@/features/models/components/ModelSelect";
 import { BarShell } from "../components/BarShell";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
 
@@ -26,6 +27,9 @@ import { confirmSelections } from "@/features/analytics/analyticsClient";
 export function BarCandidatesPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
+  const jobCharacterId = usePoseSelectionStore((s) => s.characterId);
+  const characterByPerson = usePoseSelectionStore((s) => s.characterByPerson);
+  const setPersonCharacter = usePoseSelectionStore((s) => s.setPersonCharacter);
   const bindings = useShortcutStore((s) => s.bindings);
   const [personCursor, setPersonCursor] = useState(0);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -119,32 +123,52 @@ export function BarCandidatesPage() {
 
         {!isPending && !isError && person && (
           <>
-            {people.length > 1 && (
-              <div className="flex shrink-0 items-center justify-between px-1">
-                <button
-                  type="button"
-                  aria-label="이전 인물"
-                  disabled={personCursor === 0}
-                  onClick={() => setPersonCursor((i) => Math.max(0, i - 1))}
-                  className={stepperClass}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-                </button>
+            {/* 인물 줄. 스테퍼는 여러 명일 때만 필요하지만 체형 선택은 한 명이어도
+                있어야 하므로 줄 자체는 늘 그린다. */}
+            <div className="flex shrink-0 items-center justify-between gap-2 px-1">
+              {people.length > 1 ? (
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    aria-label="이전 인물"
+                    disabled={personCursor === 0}
+                    onClick={() => setPersonCursor((i) => Math.max(0, i - 1))}
+                    className={stepperClass}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  <span className="text-[11px] font-semibold text-text-secondary">
+                    인물 {personCursor + 1} / {people.length}
+                    {selectedByPerson[person.index] && " · 선택됨"}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="다음 인물"
+                    disabled={personCursor >= people.length - 1}
+                    onClick={() => setPersonCursor((i) => Math.min(people.length - 1, i + 1))}
+                    className={stepperClass}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ) : (
                 <span className="text-[11px] font-semibold text-text-secondary">
-                  인물 {personCursor + 1} / {people.length}
-                  {selectedByPerson[person.index] && " · 선택됨"}
+                  {selectedByPerson[person.index] ? "선택됨" : "후보를 선택하세요"}
                 </span>
-                <button
-                  type="button"
-                  aria-label="다음 인물"
-                  disabled={personCursor >= people.length - 1}
-                  onClick={() => setPersonCursor((i) => Math.min(people.length - 1, i + 1))}
-                  className={stepperClass}
-                >
-                  <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-                </button>
-              </div>
-            )}
+              )}
+              {/* 인물마다 다른 체형이 필요할 수 있다(ADR-013 개정). 앱 모드와 같은
+                  컴포넌트를 쓰고 제어 값만 이 인물의 것으로 준다.
+                  ⚠ 후보가 없는 인물(hard fallback)에는 띄우지 않는다 — 저장될 포즈가
+                  없는데 체형을 고르게 하면 고른 것이 어디에도 쓰이지 않는다. */}
+              {person.fallbackMode !== "hard" && (
+                <ModelSelect
+                  variant="compact"
+                  label={`인물 ${person.index + 1}의 모델`}
+                  value={characterByPerson[person.index] ?? jobCharacterId}
+                  onChange={(characterId) => setPersonCharacter(person.index, characterId)}
+                />
+              )}
+            </div>
 
             {person.fallbackMode === "hard" ? (
               <div className="flex flex-1 items-center justify-center px-3">

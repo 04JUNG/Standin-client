@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
+import { env } from "@/shared/lib/env";
 import { ApiError, toAppError } from "@/shared/api/errors";
 import { copyText } from "@/shared/lib/copyText";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
@@ -12,11 +13,22 @@ import { exportService } from "../api/export.service";
 import { ExportError } from "../api/export.contract";
 import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
 import { mockBvhContent } from "../lib/mockBvhContent";
+import { useModelStore } from "@/features/models/store/modelStore";
+import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
+import { resolveCharacter } from "@/features/models/lib/resolveCharacter";
 import { useExportStore, type ExportFormat } from "../store/exportStore";
 
-/** 저장할 포맷을 export URL에 싣는다. URL에는 이미 jobId·personIndex·candidateId가 있다. */
-function withFormatQuery(url: string, format: ExportFormat): string {
-  return `${url}${url.includes("?") ? "&" : "?"}format=${format}`;
+/** 저장 파라미터를 export URL에 싣는다. URL에는 이미 jobId·personIndex·candidateId가 있다. */
+export function withExportParams(
+  url: string,
+  format: ExportFormat,
+  characterId: string | null,
+): string {
+  const params = new URLSearchParams({ format });
+  // BVH는 동작만 담는다 — 체형이 들어갈 자리가 없다. 그래도 붙이면 서버 로그가
+  // "이 체형으로 만들었다"고 거짓말을 한다.
+  if (characterId && format === "fbx") params.set("characterId", characterId);
+  return `${url}${url.includes("?") ? "&" : "?"}${params}`;
 }
 
 /**
@@ -29,10 +41,17 @@ async function resolvePoseBytes(
   exportUrl: string | undefined,
   candidateId: string,
   format: ExportFormat,
+  characterId: string | null,
 ): Promise<Uint8Array> {
-  if (!exportUrl) return mockBvhContent(candidateId);
+  // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
+  // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
+  // exportUrl을 optional로 낮추는 대신 여기서 갈라낸다: "미리보기와 저장이 같은 URL"은
+  // 낮추면 안 되는 production 계약이다(refine.contract.ts).
+  if (!exportUrl || (env.useMockPoseApi && !env.isProduction)) {
+    return mockBvhContent(candidateId);
+  }
   try {
-    return await apiFetchBytes(withFormatQuery(exportUrl, format), { auth: false });
+    return await apiFetchBytes(withExportParams(exportUrl, format, characterId), { auth: false });
   } catch (error) {
     // 격리된 포즈, converter 거부, lineage 불일치는 모두 **재시도로 풀리지 않는다.** 일반
     // 실패로 뭉치면 사용자는 영원히 실패하는 재시도 버튼만 누르게 된다. 코드별 문구는
@@ -74,6 +93,11 @@ export function useSaveFlow(jobId: string | undefined) {
   const reset = useExportStore((s) => s.reset);
   const beginJob = useExportStore((s) => s.beginJob);
 
+  const pinnedCharacterId = usePoseSelectionStore((s) => s.characterId);
+  const characterByPerson = usePoseSelectionStore((s) => s.characterByPerson);
+  const preferredCharacterId = useModelStore((s) => s.preferredCharacterId);
+  const { data: modelCatalog } = useModelCatalog();
+
   const selections = Object.entries(selectedByPerson);
   const selectionCount = selections.length;
   const isSaved = status === "saved" && savedPaths.length > 0;
@@ -90,6 +114,58 @@ export function useSaveFlow(jobId: string | undefined) {
     preferredFormat === "fbx" && !serverSupportsFbx ? "bvh" : preferredFormat;
   /** 사용자가 FBX를 골랐는데 서버가 못 주는 상태. 저장 화면이 이유를 알려 줘야 한다. */
   const formatDowngraded = preferredFormat === "fbx" && effectiveFormat === "bvh";
+
+  /**
+   * 이 작업을 어떤 체형으로 저장하는가(ADR-013).
+   *
+   * ⚠ capability는 훅이 아니라 쿼리 캐시에서 직접 읽는다(위 `serverSupportsFbx`와 같은
+   * 자리). 세션이 끝나면 캐시가 비워지므로(`sessionCacheReset`) "모름"이 될 수 있고,
+   * 그때는 파라미터를 붙이지 않아 기본 모델로 저장된다 — 화면 문구도 그렇게 읽혀야 한다.
+   */
+  const serverSupportsCharacter =
+    queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
+      .characterSelection === true;
+  /**
+   * 인물마다 따로 푼다 — 한 컷에서 인물별로 다른 체형을 고를 수 있다(ADR-013 개정).
+   * 고르지 않은 인물은 이 작업의 기본 체형을 쓴다.
+   */
+  const resolveFor = (personIndex: number) =>
+    resolveCharacter({
+      pinned: characterByPerson[personIndex] ?? pinnedCharacterId,
+      preferred: preferredCharacterId,
+      catalog: modelCatalog,
+      format: effectiveFormat,
+      serverSupportsCharacterSelection: serverSupportsCharacter,
+    });
+
+  const defaultCharacterName =
+    modelCatalog?.characters.find((item) => item.characterId === modelCatalog.defaultCharacterId)
+      ?.displayName ?? null;
+  const resolutions = selections.map(([personIndex]) => resolveFor(Number(personIndex)));
+  /** 실제로 쓰인 체형 이름들(중복 제거). 인물마다 다르면 둘 이상이 된다. */
+  const usedCharacterNames = [
+    ...new Set(
+      resolutions.map(
+        (r) => (r.characterId ? r.chosen?.displayName : defaultCharacterName) ?? null,
+      ),
+    ),
+  ].filter((name): name is string => name !== null);
+  /** 저장에 실제로 쓰인 체형 이름. 인물마다 다르면 null이고 화면이 다른 문구를 고른다. */
+  const characterName = usedCharacterNames.length === 1 ? usedCharacterNames[0]! : null;
+  /** 인물마다 다른 체형으로 저장했는가. */
+  const mixedCharacters = usedCharacterNames.length > 1;
+  const firstDowngraded = resolutions.find((r) => r.downgradeReason !== null);
+  /** 고른 체형을 못 쓴 이유. 화면이 그대로 문구를 고른다. */
+  const characterDowngradeReason = firstDowngraded?.downgradeReason ?? null;
+  /** 고르긴 했지만 저장에는 반영되지 않은 체형 이름. 다운그레이드 안내에 쓴다. */
+  const requestedCharacterName = firstDowngraded?.chosen?.displayName ?? null;
+  /**
+   * 기본 모델이 아닌 체형으로 저장을 시도하고 있는가. 저장이 실패했을 때 "기본 모델로
+   * 저장" 복구 버튼을 띄울지 결정한다 — 어차피 기본 모델이면 그 버튼은 재시도와 같다.
+   */
+  const usesCustomCharacter = resolutions.some(
+    (r) => r.characterId !== null && r.characterId !== modelCatalog?.defaultCharacterId,
+  );
 
   // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
   // 실행되어야 한다 — 순서가 뒤집히면 방금 채운 이름을 곧바로 지운다.
@@ -115,16 +191,41 @@ export function useSaveFlow(jobId: string | undefined) {
   }, [fileName, draft, effectiveFormat, setFileName]);
 
   // 최신 값을 자동 저장 effect에서 읽되, effect가 값 변화마다 재실행되지는 않게 한다.
-  const latest = useRef({ jobId, fileName, selections, queryClient });
-  latest.current = { jobId, fileName, selections, queryClient };
+  const latest = useRef({
+    jobId,
+    fileName,
+    selections,
+    queryClient,
+    modelCatalog,
+    preferredCharacterId,
+  });
+  latest.current = {
+    jobId,
+    fileName,
+    selections,
+    queryClient,
+    modelCatalog,
+    preferredCharacterId,
+  };
 
   const runSave = useCallback(
     /**
      * `append`는 앞선 저장 결과를 **남긴 채** 목록에 더한다. 같은 포즈를 다른 포맷으로 한
      * 번 더 저장하는 경우만 해당한다 — 재시도와 다른 폴더 저장은 앞선 결과를 대체한다.
      */
-    async (targetFolder: string, format: ExportFormat, options: { append?: boolean } = {}) => {
-      const { jobId: id, fileName: rawName, selections: picks, queryClient: qc } = latest.current;
+    async (
+      targetFolder: string,
+      format: ExportFormat,
+      options: { append?: boolean; forceDefaultCharacter?: boolean } = {},
+    ) => {
+      const {
+        jobId: id,
+        fileName: rawName,
+        selections: picks,
+        queryClient: qc,
+        modelCatalog: catalog,
+        preferredCharacterId: preferred,
+      } = latest.current;
       if (!targetFolder || !rawName || !id || picks.length === 0) return;
       // 이름의 확장자와 실제 내용이 어긋나면 클립스튜디오는 열지 못하면서 이유는 알려 주지
       // 않는다. 이름은 설정에서 포맷을 바꾸기 전에 정해졌을 수 있으므로 여기서 맞춘다.
@@ -136,7 +237,23 @@ export function useSaveFlow(jobId: string | undefined) {
         if (!analysisResult) {
           throw new Error("분석 결과를 찾지 못했습니다. 후보 화면에서 다시 시도해 주세요.");
         }
-        const refineByPerson = usePoseSelectionStore.getState().refineByPerson;
+        const selectionState = usePoseSelectionStore.getState();
+        const refineByPerson = selectionState.refineByPerson;
+        /**
+         * 체형은 **인물마다** 푼다(ADR-013 개정). 고르지 않은 인물은 이 작업의 기본
+         * 체형으로 떨어진다. 포맷은 인자를 따르므로 "다른 포맷으로도 저장"이 BVH를
+         * 고르면 여기서 자동으로 파라미터가 빠진다.
+         */
+        const characterFor = (personIndex: number) =>
+          options.forceDefaultCharacter
+            ? null
+            : resolveCharacter({
+                pinned: selectionState.characterByPerson[personIndex] ?? selectionState.characterId,
+                preferred,
+                catalog,
+                format,
+                serverSupportsCharacterSelection: analysisResult.capabilities.characterSelection,
+              }).characterId;
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
@@ -156,7 +273,12 @@ export function useSaveFlow(jobId: string | undefined) {
                 ? outcome
                 : undefined;
             const exportUrl = currentOutcome?.exportUrl ?? candidate.bvhUrl;
-            const content = await resolvePoseBytes(exportUrl, candidateId, format);
+            const content = await resolvePoseBytes(
+              exportUrl,
+              candidateId,
+              format,
+              characterFor(personIndex),
+            );
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),
         );
@@ -168,7 +290,17 @@ export function useSaveFlow(jobId: string | undefined) {
         // 서버 export_events만 보면 저장 단계 실패가 성공으로 집계된다.
         trackEvent(
           "export_completed",
-          { fileCount: results.length, format, surface: currentSurface() },
+          {
+            fileCount: results.length,
+            format,
+            // 인물마다 다를 수 있으므로 쓰인 값들을 모아 남긴다. 붙지 않은 경우
+            // (기본 모델)는 "default"로 남긴다 — 빈 값과 구분해야 모델 선택이 실제로
+            // 쓰이는지 지표에서 볼 수 있다.
+            characterId: [
+              ...new Set(picks.map(([i]) => characterFor(Number(i)) ?? "default")),
+            ].join(","),
+            surface: currentSurface(),
+          },
           usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
       } catch (err) {
@@ -224,6 +356,15 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   /**
+   * 고른 체형을 서버가 만들지 못할 때(`CHARACTER_UNAVAILABLE`·converter 거부)의 복구 경로.
+   * 이번 한 번만 기본 모델로 저장하고 설정값은 그대로 둔다 — 재시도로는 풀리지 않는
+   * 실패에 사용자가 실제로 할 수 있는 유일한 일이다.
+   */
+  async function saveWithDefaultCharacter() {
+    if (folder) await runSave(folder, effectiveFormat, { forceDefaultCharacter: true });
+  }
+
+  /**
    * 이번 한 번만 다른 폴더에 저장한다. 설정의 기본 저장 폴더는 바꾸지 않는다(ADR-009).
    * 기본 폴더를 바꾸려면 설정 화면으로 간다.
    */
@@ -264,6 +405,16 @@ export function useSaveFlow(jobId: string | undefined) {
     format: effectiveFormat,
     formatDowngraded,
     serverSupportsFbx,
+    /** 실제로 저장에 쓰인 체형 이름. 기본 모델로 내려갔으면 그 이름이다. */
+    characterName,
+    /** 사용자가 고른 체형 이름. 저장에 반영되지 않았어도 채워진다. */
+    requestedCharacterName,
+    /** 고른 체형을 못 쓴 이유. null이면 고른 대로 저장됐다. */
+    characterDowngradeReason,
+    /** 인물마다 다른 체형으로 저장했는가. 저장 화면이 문구를 고를 때 쓴다. */
+    mixedCharacters,
+    usesCustomCharacter,
+    saveWithDefaultCharacter,
     saveAlsoAs,
     status,
     savedPaths,

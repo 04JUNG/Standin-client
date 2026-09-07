@@ -1,7 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetApiClient, setInstallationCredentials } from "@/shared/api/client";
 import { safeStorage } from "@/shared/lib/safeStorage";
-import { flushEvents, resetAnalyticsQueue, trackEvent } from "./analyticsClient";
+
+/**
+ * 이 파일은 **전송 계층이 실제로 HTTP일 때의** 큐·재시도 동작을 본다. 서비스 스위치를
+ * 그대로 두면 mock이 잡혀(테스트 환경은 useMockPoseApi 기본값이 true다) fetch가 아예
+ * 불리지 않고, 아래 단언이 전부 무의미해진다 — 로컬 .env 유무에 따라 통과 여부가 갈렸다.
+ */
+vi.mock("./api/analytics.service", async () => ({
+  analyticsService: (await import("./api/analytics.http")).analyticsHttp,
+}));
+
+const { flushEvents, resetAnalyticsQueue, trackEvent } = await import("./analyticsClient");
 
 const QUEUE_KEY = "standin.analytics.queue.v1";
 

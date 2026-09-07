@@ -17,6 +17,7 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { dragService } from "@/features/export/api/drag.service";
 import { SavedFileList } from "@/features/export/components/SavedFileList";
 import { useSaveFlow } from "@/features/export/hooks/useSaveFlow";
+import { characterNotice } from "@/features/export/lib/characterNotice";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
 import { submitFeedback } from "@/features/analytics/analyticsClient";
@@ -46,6 +47,10 @@ export function BarSavePage() {
     error,
     selections,
     isSaved,
+    characterName,
+    requestedCharacterName,
+    characterDowngradeReason,
+    mixedCharacters,
     retry,
     saveToAnotherFolder,
     resetToDownloads,
@@ -53,6 +58,13 @@ export function BarSavePage() {
     revealSaved,
     copyPath,
   } = useSaveFlow(jobId ?? undefined);
+
+  const modelNotice = characterNotice({
+    characterName,
+    requestedCharacterName,
+    downgradeReason: characterDowngradeReason,
+    mixedCharacters,
+  });
 
   function handleNewScene() {
     newScene();
@@ -143,6 +155,9 @@ export function BarSavePage() {
               <p className="shrink-0 text-[10px] text-text-secondary">
                 BVH는 클립스튜디오 3.1.0 이상에서 열 수 있습니다.
               </p>
+            )}
+            {modelNotice && (
+              <p className="shrink-0 text-[10px] text-text-secondary">{modelNotice.text}</p>
             )}
 
             <div className="min-h-0 flex-1 overflow-auto">

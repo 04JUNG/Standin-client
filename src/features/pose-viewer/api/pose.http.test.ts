@@ -114,7 +114,7 @@ describe("poseHttp", () => {
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
       jobId: "server-job",
-      capabilities: { refine: false, fbxExport: false },
+      capabilities: { refine: false, fbxExport: false, characterSelection: false },
       people: [
         {
           index: 0,
@@ -216,6 +216,9 @@ describe("poseHttp", () => {
     });
 
     expect(result.capabilities.refine).toBe(true);
+    // capabilities에 characterSelection이 통째로 없는 응답(구 BFF)은 false로 좁힌다.
+    // 낙관적으로 읽으면 고른 체형과 다른 FBX가 저장된다.
+    expect(result.capabilities.characterSelection).toBe(false);
     expect(result.people[0]).toMatchObject({
       confidence: "high",
       skeletonState: "valid",

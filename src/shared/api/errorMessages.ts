@@ -49,6 +49,10 @@ const MESSAGES: Record<string, string> = {
   CONVERTER_REJECTED: "이 포즈는 FBX로 변환할 수 없습니다. 다른 후보를 선택하거나 BVH로 저장해 주세요.",
   CONVERTER_INTEGRITY: "변환 결과를 검증하지 못했습니다. 문제가 계속되면 문의해 주세요.",
   CONVERTER_FAILED: "FBX 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+  // 모델(체형) 선택. 둘 다 재시도로 풀리지 않는다 — 다른 모델을 고르거나 기본 모델로 간다.
+  INVALID_CHARACTER: "지원하지 않는 모델입니다. 모델 화면에서 다시 골라 주세요.",
+  CHARACTER_UNAVAILABLE:
+    "선택한 모델을 지금은 사용할 수 없습니다. 다른 모델을 고르거나 기본 모델로 저장해 주세요.",
 
   // 작업 기록
   JOB_IN_PROGRESS: "진행 중인 분석은 삭제할 수 없습니다. 끝난 뒤에 다시 시도해 주세요.",
