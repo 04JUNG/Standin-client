@@ -1,8 +1,7 @@
-import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
-import { endpoints } from "@/shared/api/endpoints";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import type { UploadDraft } from "@/shared/types/upload";
+import { analyticsService } from "./api/analytics.service";
 
 type EventName =
   | "app_started"
@@ -136,11 +135,7 @@ export function flushEvents(): Promise<void> {
       const generation = queueGeneration;
       const batch = queue.slice(0, BATCH_SIZE);
       try {
-        await apiFetch(endpoints.events.batch, {
-          method: "POST",
-          auth: false,
-          body: { events: batch },
-        });
+        await analyticsService.sendEvents({ events: batch });
       } catch (err) {
         // 동의 철회 등으로 큐가 비워졌으면 그 뒤 상태를 건드리지 않는다.
         if (generation !== queueGeneration) return;
@@ -201,18 +196,10 @@ export async function confirmSelections(
   jobId: string,
   selections: Array<{ personIndex: number; candidateId: string }>,
 ): Promise<void> {
-  await apiFetch(endpoints.analysis.selections(jobId), {
-    method: "PUT",
-    auth: false,
-    body: { selections },
-  });
+  await analyticsService.confirmSelections({ jobId, selections });
   trackEvent("selection_confirmed", { selectionCount: selections.length }, jobId);
 }
 
 export async function submitFeedback(jobId: string, reason: string): Promise<void> {
-  await apiFetch(endpoints.analysis.feedback(jobId), {
-    method: "POST",
-    auth: false,
-    body: { reason },
-  });
+  await analyticsService.submitFeedback({ jobId, reason });
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
+import { env } from "@/shared/lib/env";
 import { ApiError, toAppError } from "@/shared/api/errors";
 import { copyText } from "@/shared/lib/copyText";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
@@ -42,7 +43,13 @@ async function resolvePoseBytes(
   format: ExportFormat,
   characterId: string | null,
 ): Promise<Uint8Array> {
-  if (!exportUrl) return mockBvhContent(candidateId);
+  // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
+  // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
+  // exportUrl을 optional로 낮추는 대신 여기서 갈라낸다: "미리보기와 저장이 같은 URL"은
+  // 낮추면 안 되는 production 계약이다(refine.contract.ts).
+  if (!exportUrl || (env.useMockPoseApi && !env.isProduction)) {
+    return mockBvhContent(candidateId);
+  }
   try {
     return await apiFetchBytes(withExportParams(exportUrl, format, characterId), { auth: false });
   } catch (error) {
