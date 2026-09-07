@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { trackInputConfirmed } from "@/features/analytics/analyticsClient";
+import { useSelectedModel } from "@/features/models/hooks/useSelectedModel";
 import { BarShell } from "../components/BarShell";
 
 /**
@@ -18,7 +19,8 @@ import { BarShell } from "../components/BarShell";
 export function BarProgressPage() {
   const navigate = useNavigate();
   const draft = useUploadStore((s) => s.draft);
-  const setJobId = usePoseSelectionStore((s) => s.setJobId);
+  const startJob = usePoseSelectionStore((s) => s.startJob);
+  const { selectedId } = useSelectedModel();
   const started = useRef(false);
 
   useEffect(() => {
@@ -26,11 +28,12 @@ export function BarProgressPage() {
     started.current = true;
     // 바는 미리보기 없이 바로 분석에 들어가므로 확정 지점이 여기다.
     // 앱 모드의 InputPreviewPage와 같은 이벤트를 남겨야 두 표면을 같은 퍼널로 볼 수 있다.
-    trackInputConfirmed(draft);
+    trackInputConfirmed(draft, selectedId);
     const jobId = crypto.randomUUID();
-    setJobId(jobId);
+    // 바에도 미리보기가 없으므로 모델 고정 지점이 여기다(ADR-013).
+    startJob(jobId, selectedId);
     navigate("/bar/candidates", { replace: true });
-  }, [draft, navigate, setJobId]);
+  }, [draft, navigate, startJob, selectedId]);
 
   // 초안이 없으면(새로고침·직접 진입) 바 기본 상태로.
   if (!draft) return <Navigate to="/bar/actions" replace />;

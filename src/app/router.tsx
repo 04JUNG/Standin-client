@@ -3,6 +3,7 @@ import { HomePage } from "@/features/home/pages/HomePage";
 import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
 import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
 import { ScreenPermissionPage } from "@/features/capture/pages/ScreenPermissionPage";
+import { ModelsPage } from "@/features/models/pages/ModelsPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { PoseViewerPage } from "@/features/pose-viewer/pages/PoseViewerPage";
 import { ReviewPage } from "@/features/pose-viewer/pages/ReviewPage";
@@ -62,6 +63,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireInstallation>
             <ScreenPermissionPage />
+          </RequireInstallation>
+        ),
+      },
+      {
+        path: "/app/models",
+        element: (
+          <RequireInstallation>
+            <ModelsPage />
           </RequireInstallation>
         ),
       },

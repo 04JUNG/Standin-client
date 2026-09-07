@@ -165,6 +165,35 @@ type PoseSelectionState = {
 
 새 Job이 열릴 때 이전 선택을 초기화한다.
 
+이 스토어는 **그 Job에 고정된 모델(체형)**도 갖는다(ADR-013).
+
+```ts
+characterId: string | null;                       // 이 Job을 어떤 체형으로 저장할지
+startJob(jobId: string, characterId: string | null): void;
+```
+
+설정값(`modelStore.preferredCharacterId`)을 저장 시점에 그냥 읽으면, 분석이 도는 동안
+사용자가 모델 화면에서 다른 체형을 눌러 보기만 해도 그 컷이 조용히 다른 체형으로 저장된다 —
+저장은 화면에 들어오면 자동으로 시작하므로(ADR-009) 붙잡을 버튼이 없다. 그래서 흐름 시작
+지점(`InputPreviewPage`·`BarProgressPage`)에서 `startJob`이 값을 고정하고, 저장은 고정값을 읽는다.
+`setJobId`가 새 Job에서 이 값도 비운다 — 앞 작업의 체형이 새 작업으로 새면 안 된다.
+
+---
+
+## 4-1-2. 모델 설정 (`features/models/store/modelStore.ts`)
+
+```ts
+type ModelState = {
+  preferredCharacterId: string | null;   // null = 카탈로그 기본값을 따른다
+};
+```
+
+`preferredCharacterId`만 영속화한다(`standin-model`). 의미는 `exportStore.format`과 같다 —
+**"가능하면 이 체형"**이고, 실제 가능 여부는 서버가 정한다(카탈로그 `availability` +
+`capabilities.characterSelection`). 초기값이 하드코딩된 id가 아니라 `null`인 이유: 모델 화면을
+한 번도 열지 않은 사용자는 서버가 정한 기본 체형을 따라야 하고, 그래야 converter 기본
+캐릭터가 바뀌어도 앱을 다시 배포할 필요가 없다.
+
 ---
 
 ## 4-1. 단축키 Store
@@ -277,6 +306,10 @@ const queryKeys = {
   jobHistory: {
     list: () => ["jobHistory", "list"] as const,
     selections: (id: string) => ["jobHistory", "selections", id] as const,
+  },
+  // ⚠ 모델 카탈로그도 같은 이유로 ["analysis"] 밖이다.
+  models: {
+    catalog: () => ["models", "catalog"] as const,
   },
 };
 ```

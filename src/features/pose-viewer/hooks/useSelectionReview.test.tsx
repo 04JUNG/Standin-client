@@ -64,7 +64,7 @@ describe("useSelectionReview", () => {
           refinableLimbs: ["left_arm"],
         },
       ],
-      capabilities: { refine: true, fbxExport: false },
+      capabilities: { refine: true, fbxExport: false, characterSelection: false },
     };
     analysisState.selectedByPerson = { 0: "pose-1::front" };
     refineState.status = "done";

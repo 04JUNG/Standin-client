@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { BAR_SIZES } from "../lib/barSizes";
 
 /**
  * 창 모드 전환이 캡처와 어긋나지 않는지 확인한다.
@@ -106,7 +107,7 @@ describe("WindowModeSync", () => {
     await waitFor(() =>
       expect(service.setMode).toHaveBeenCalledWith(
         "bar",
-        expect.objectContaining({ height: 88 }),
+        expect.objectContaining({ height: BAR_SIZES.actions.height }),
         undefined,
       ),
     );
