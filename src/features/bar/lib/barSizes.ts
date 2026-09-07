@@ -33,12 +33,17 @@ export const BAR_SIZES: Record<BarState, WindowSize> = {
   /** 후보 5개 비교·선택 · 인물별 체형 */
   candidates: { width: 720, height: 460 },
   /**
-   * 저장 전 확인. 조정 진행 상태와 버튼 두 개뿐이라 progress와 비슷하게 작다.
+   * 저장 전 확인.
+   *
+   * 헤더 33 + 패딩 20 + 미리보기 128 + 간격 8 + 버튼 줄 38 + 테두리 2 = 229.
+   * 미리보기가 48px였을 때는 116이었는데, 그 크기로는 어떤 포즈가 저장되는지
+   * 알아볼 수 없었다. 추론은 256×256으로 그려 보내므로 128까지는 원본을 늘리지
+   * 않는다.
    *
    * 이 항목이 없으면 barStateForPath가 null을 돌려주고 windowTargetForPath가 앱 모드
    * (1280×800)로 떨어진다 — 바에서 확인 화면에 들어가는 순간 창이 통째로 커진다.
    */
-  review: { width: 360, height: 116 },
+  review: { width: 360, height: 229 },
   /** 폴더·파일명·저장 */
   save: { width: 420, height: 300 },
 };
