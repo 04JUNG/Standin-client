@@ -157,13 +157,17 @@ export function BarCandidatesPage() {
                 </span>
               )}
               {/* 인물마다 다른 체형이 필요할 수 있다(ADR-013 개정). 앱 모드와 같은
-                  컴포넌트를 쓰고 제어 값만 이 인물의 것으로 준다. */}
-              <ModelSelect
-                variant="compact"
-                label={`인물 ${person.index + 1}의 모델`}
-                value={characterByPerson[person.index] ?? jobCharacterId}
-                onChange={(characterId) => setPersonCharacter(person.index, characterId)}
-              />
+                  컴포넌트를 쓰고 제어 값만 이 인물의 것으로 준다.
+                  ⚠ 후보가 없는 인물(hard fallback)에는 띄우지 않는다 — 저장될 포즈가
+                  없는데 체형을 고르게 하면 고른 것이 어디에도 쓰이지 않는다. */}
+              {person.fallbackMode !== "hard" && (
+                <ModelSelect
+                  variant="compact"
+                  label={`인물 ${person.index + 1}의 모델`}
+                  value={characterByPerson[person.index] ?? jobCharacterId}
+                  onChange={(characterId) => setPersonCharacter(person.index, characterId)}
+                />
+              )}
             </div>
 
             {person.fallbackMode === "hard" ? (
