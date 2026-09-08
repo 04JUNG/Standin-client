@@ -6,6 +6,7 @@ import {
   FileDown,
   FolderOpen,
   Loader2,
+  PersonStanding,
   RotateCcw,
   Save,
   Sparkles,
@@ -19,6 +20,7 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { dragService } from "../api/drag.service";
 import { SavedFileList } from "../components/SavedFileList";
 import { useSaveFlow } from "../hooks/useSaveFlow";
+import { characterNotice } from "../lib/characterNotice";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { submitFeedback } from "@/features/analytics/analyticsClient";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
@@ -41,6 +43,12 @@ export function SavePage() {
     folder,
     format,
     formatDowngraded,
+    characterName,
+    requestedCharacterName,
+    characterDowngradeReason,
+    mixedCharacters,
+    usesCustomCharacter,
+    saveWithDefaultCharacter,
     serverSupportsFbx,
     saveAlsoAs,
     status,
@@ -55,6 +63,13 @@ export function SavePage() {
     revealSaved,
     copyPath,
   } = useSaveFlow(jobId);
+
+  const modelNotice = characterNotice({
+    characterName,
+    requestedCharacterName,
+    downgradeReason: characterDowngradeReason,
+    mixedCharacters,
+  });
 
   // 이미 저장한 포맷의 반대. FBX를 못 주는 서버에서는 FBX를 권하지 않는다 — 눌러도
   // 실패할 버튼을 보여주는 건 안내가 아니라 함정이다.
@@ -138,6 +153,18 @@ export function SavePage() {
                   {alternateFormat.toUpperCase()}로 대신 저장
                 </Button>
               )}
+              {/* 체형 거부(CHARACTER_UNAVAILABLE·converter 거부)도 재시도로 풀리지 않는다.
+                  설정값은 그대로 두고 이번 한 번만 기본 모델로 저장한다. */}
+              {usesCustomCharacter && (
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => void saveWithDefaultCharacter()}
+                >
+                  <PersonStanding className="h-4 w-4" aria-hidden />
+                  기본 모델로 저장
+                </Button>
+              )}
               <Button variant="ghost" size="md" onClick={() => void resetToDownloads()}>
                 다운로드 폴더로 재설정하고 저장
               </Button>
@@ -169,6 +196,14 @@ export function SavePage() {
                 <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   지금 연결된 서버는 FBX 저장을 아직 제공하지 않아 BVH로 저장했습니다.
+                </p>
+              )}
+              {modelNotice && (
+                <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
+                  {modelNotice.isDowngrade && (
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  )}
+                  {modelNotice.text}
                 </p>
               )}
               <SavedFileList paths={savedPaths} onCopy={copyPath} />

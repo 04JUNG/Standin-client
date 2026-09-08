@@ -29,7 +29,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     id: "sidebar",
     anchors: ["shell.sidebar"],
     title: "여기서 화면을 옮깁니다",
-    body: "홈에서 장면을 넣고, 설정에서 저장 폴더와 단축키를 바꿉니다. 이 튜토리얼도 설정에서 다시 볼 수 있어요.",
+    body: "홈에서 장면을 넣고, 모델에서 저장할 체형을 고르고, 설정에서 저장 폴더와 단축키를 바꿉니다. 이 튜토리얼도 설정에서 다시 볼 수 있어요.",
     match: (ctx) => isHome(ctx.pathname),
   },
   {

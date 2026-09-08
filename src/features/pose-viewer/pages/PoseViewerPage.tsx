@@ -16,6 +16,7 @@ import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
 import { useJobSelections } from "@/features/history/hooks/useJobSelections";
+import { ModelSelect } from "@/features/models/components/ModelSelect";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
@@ -24,6 +25,9 @@ export function PoseViewerPage() {
   const draft = useUploadStore((s) => s.draft);
   const setJobId = usePoseSelectionStore((s) => s.setJobId);
   const restoreSelections = usePoseSelectionStore((s) => s.restoreSelections);
+  const jobCharacterId = usePoseSelectionStore((s) => s.characterId);
+  const characterByPerson = usePoseSelectionStore((s) => s.characterByPerson);
+  const setPersonCharacter = usePoseSelectionStore((s) => s.setPersonCharacter);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const bindings = useShortcutStore((s) => s.bindings);
@@ -214,13 +218,23 @@ export function PoseViewerPage() {
               key={person.index}
               className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[13px] font-semibold text-text-primary">
                   인물 {person.index + 1}
                 </span>
-                <span className="text-[12px] text-text-secondary">
-                  {selectedCandidate ? `선택됨: ${selectedCandidate.title}` : "후보를 선택하세요"}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* 인물마다 다른 체형이 필요할 수 있다(ADR-013 개정). 고르지 않으면
+                      이 작업의 기본 체형으로 저장된다. */}
+                  <ModelSelect
+                    variant="compact"
+                    label={`인물 ${person.index + 1}의 모델`}
+                    value={characterByPerson[person.index] ?? jobCharacterId}
+                    onChange={(characterId) => setPersonCharacter(person.index, characterId)}
+                  />
+                  <span className="text-[12px] text-text-secondary">
+                    {selectedCandidate ? `선택됨: ${selectedCandidate.title}` : "후보를 선택하세요"}
+                  </span>
+                </div>
               </div>
               {/* soft fallback — 후보는 계속 보여주되 참고용임을 알린다. */}
               <PersonFallbackNotice person={person} />

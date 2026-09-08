@@ -1,8 +1,7 @@
-import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
-import { endpoints } from "@/shared/api/endpoints";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import type { UploadDraft } from "@/shared/types/upload";
+import { analyticsService } from "./api/analytics.service";
 
 type EventName =
   | "app_started"
@@ -136,11 +135,7 @@ export function flushEvents(): Promise<void> {
       const generation = queueGeneration;
       const batch = queue.slice(0, BATCH_SIZE);
       try {
-        await apiFetch(endpoints.events.batch, {
-          method: "POST",
-          auth: false,
-          body: { events: batch },
-        });
+        await analyticsService.sendEvents({ events: batch });
       } catch (err) {
         // 동의 철회 등으로 큐가 비워졌으면 그 뒤 상태를 건드리지 않는다.
         if (generation !== queueGeneration) return;
@@ -178,9 +173,17 @@ export function resetAnalyticsQueue(): void {
  * 서버 jobId는 아직 없다(분석 요청 전). 클라 라우팅용 jobId를 실으면 서버가 모르는
  * job이라 배치 전체가 거절되므로 job에 연결하지 않는다.
  */
-export function trackInputConfirmed(draft: UploadDraft): void {
+export function trackInputConfirmed(
+  draft: UploadDraft,
+  /**
+   * 이 입력을 어떤 체형으로 저장할 예정인가. 새 이벤트 이름을 만들지 않고 속성으로 붙인다 —
+   * EventName은 서버 allowlist라 모르는 이름은 배치 전체가 거절되고 그 배치가 버려진다.
+   */
+  characterId?: string | null,
+): void {
   trackEvent("input_confirmed", {
     source: draft.source,
+    characterId: characterId ?? "default",
     width: draft.width,
     height: draft.height,
     size: draft.sizeBytes ?? 0,
@@ -193,18 +196,10 @@ export async function confirmSelections(
   jobId: string,
   selections: Array<{ personIndex: number; candidateId: string }>,
 ): Promise<void> {
-  await apiFetch(endpoints.analysis.selections(jobId), {
-    method: "PUT",
-    auth: false,
-    body: { selections },
-  });
+  await analyticsService.confirmSelections({ jobId, selections });
   trackEvent("selection_confirmed", { selectionCount: selections.length }, jobId);
 }
 
 export async function submitFeedback(jobId: string, reason: string): Promise<void> {
-  await apiFetch(endpoints.analysis.feedback(jobId), {
-    method: "POST",
-    auth: false,
-    body: { reason },
-  });
+  await analyticsService.submitFeedback({ jobId, reason });
 }
