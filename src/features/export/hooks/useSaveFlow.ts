@@ -1,3 +1,5 @@
+import { framedExportUrl } from "../lib/framedExport";
+import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
@@ -42,6 +44,7 @@ async function resolvePoseBytes(
   candidateId: string,
   format: ExportFormat,
   characterId: string | null,
+  scope?: BodyScope,
 ): Promise<Uint8Array> {
   // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
   // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
@@ -51,7 +54,11 @@ async function resolvePoseBytes(
     return mockBvhContent(candidateId);
   }
   try {
-    return await apiFetchBytes(withExportParams(exportUrl, format, characterId), { auth: false });
+    const url =
+      scope && format === "fbx"
+        ? framedExportUrl(exportUrl, scope, "fbx", characterId)
+        : withExportParams(exportUrl, format, characterId);
+    return await apiFetchBytes(url, { auth: false });
   } catch (error) {
     // 격리된 포즈, converter 거부, lineage 불일치는 모두 **재시도로 풀리지 않는다.** 일반
     // 실패로 뭉치면 사용자는 영원히 실패하는 재시도 버튼만 누르게 된다. 코드별 문구는
@@ -278,6 +285,11 @@ export function useSaveFlow(jobId: string | undefined) {
               candidateId,
               format,
               characterFor(personIndex),
+              analysisResult.capabilities.outputScopeCropping === true
+                ? readOutputScope(
+                    analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
+                  ).resolved
+                : undefined,
             );
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),

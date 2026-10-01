@@ -176,6 +176,7 @@ export function BarCandidatesPage() {
               jobId={data.jobId}
               person={person}
               enabled={data.capabilities.outputScopeSelection === true}
+              cropping={data.capabilities.outputScopeCropping === true}
             />
             {person.fallbackMode === "hard" ? (
               <div className="flex flex-1 items-center justify-center px-3">

@@ -266,3 +266,18 @@ lineage 헤더 세 개를 대조한 FBX만 앱으로 내려온다. 계약은
 - `docs/11_QA_SECURITY_RELEASE.md` §2 내보내기 오류, §3 보안
 - `docs/adr/ADR-006-bvh-download.md` 다운로드·저장 계층
 - `docs/adr/ADR-009-pose-file-delivery.md` 전달 방식 결정
+
+
+## 10. 부분 FBX 출력 (2026-10-02)
+
+`outputScopeCropping=true`이고 저장 포맷이 FBX이면, 보정 완료 후 검토 화면에서
+인물별 resolved scope와 실제 저장 체형으로 `/framed?format=preview`를 요청한다.
+미리보기 생성 중/실패 시 저장 버튼은 잠긴다. 재시도 및 후보 돌아가기를 제공하고
+실패한 부분 결과를 전신 이미지로 대체하지 않는다. 다운로드는 동일 URL 빌더의
+`format=fbx`를 사용한다. 서버의 409 범위 변경은 후보 화면에서 재확인하도록 안내한다.
+BVH는 전체 동작/뼈대 파일이며 부분 메시를 담지 않는다고 명시한다.
+
+검증: 기본 체형의 3포즈×4범위 실제 Blender FBX 재import, 내부 API/worker 실제 호출,
+Windows 브라우저의 앱·바 실제 컴포넌트+격리 Mock API, 실패 시 저장 차단.
+외부 CSP/Tauri 네이티브 import, 다른 체형, macOS, 운영 DB는 이번 검증에 포함하지 않았다.
+뼈대가 전신으로 남으므로 외부 프로그램에서 자동 화면 맞춤은 별도 확인해야 한다.
