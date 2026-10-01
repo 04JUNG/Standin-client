@@ -115,8 +115,8 @@ export const poseMock: PoseResultService = {
         candidates: buildCandidates(jobId, 1, ["low", "low", "low", "low", "low"]),
         confidence: "low",
         skeletonState: "partial",
-        skeletonSource: "crop_retry",
-        coverageClass: "reduced",
+        skeletonSource: "full_image",
+        coverageClass: "upper_only",
         fallbackMode: "soft",
         refineAllowed: false,
         refinableLimbs: [],
@@ -124,8 +124,8 @@ export const poseMock: PoseResultService = {
       {
         // hard — 자동 후보가 없다. 다른 인물의 선택·저장은 계속 가능해야 한다.
         index: 2,
-        outputScope: mockOutputScope(jobId, 2, "bust"),
-        candidateShortfallReason: "ANALYSIS_ROUTE_SKIPPED",
+        outputScope: mockOutputScope(jobId, 2, "head"),
+        candidateShortfallReason: "HEAD_SEARCH_UNSUPPORTED",
         candidates: [],
         confidence: "low",
         skeletonState: "missing",

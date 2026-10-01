@@ -666,3 +666,15 @@ type ModelCharacter = {
 10. 다시 검색은 전체 재분석인가, 검색만 재실행인가?
 11. 작업 기록을 서버에 보관하는가?
 12. 입력 이미지와 결과 보관 기간은?
+
+
+### 관측 상체 검색 (2026-10-02)
+
+- `coverageClass=upper_only`: 골반 기준을 쓸 수 없어, 관측된 어깨·팔만으로 검색한 후보.
+  `confidence=low`, `fallbackMode=soft`, `refineAllowed=false`, `refinableLimbs=[]`.
+  거리의 단위가 달라 전신 일치도 임계값으로 승격하지 않는다.
+- 혼합 구도의 두상 인물은 후보 없이 `candidateShortfallReason=HEAD_SEARCH_UNSUPPORTED`.
+  같은 컷의 검색 가능한 인물에는 영향이 없다.
+- 출력 범위 수동 선택은 검색을 재실행하지 않는다. 관측 관절과 출력 설정은 별개다.
+  미리보기/내보내기는 여전히 전신이며 `outputScopeCropping=false`.
+- 구 응답의 누락 필드는 기존 폴백 처리. 실제 부분 검색은 새 분석부터 적용된다.

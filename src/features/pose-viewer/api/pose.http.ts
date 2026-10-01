@@ -103,6 +103,7 @@ const COVERAGE_CLASS = [
   "full",
   "reduced",
   "sparse",
+  "upper_only",
   "insufficient",
 ] as const satisfies readonly CoverageClass[];
 const FALLBACK_MODE = ["none", "soft", "hard"] as const satisfies readonly FallbackMode[];
