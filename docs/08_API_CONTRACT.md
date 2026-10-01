@@ -381,7 +381,7 @@ BFF는 인물별로 스켈레톤 품질 신호를 함께 준다. 실제 응답�
 서버 result에 영속화되어 작업 기록에서 복원된다. 후보/refine 변경과 독립적이다.
 저장 중에는 확정 버튼을 막는다. 구 BFF는 `capabilities.outputScopeSelection`이 없으므로 UI를 숨긴다.
 
-**현재 `outputScopeCropping: false`: 설정 저장만 구현.** UI는 미리보기/파일이 전신이라고 명시한다.
+`outputScopeCropping=false/누락`이면 UI는 설정 저장만 되며 파일이 전신이라고 명시한다. true이면 아래 부분 FBX 계약을 적용한다.
 검색/내보내기 파라미터를 바꾸지 않는다. 두상/흉상의 검색 미지원도 그대로 표시한다.
 VLM 판별이 없으면 자동(판별 불가 · 전신). 사용자 선택으로 자동 판별값을 덮어쓰지 않는다.
 
@@ -676,5 +676,25 @@ type ModelCharacter = {
 - 혼합 구도의 두상 인물은 후보 없이 `candidateShortfallReason=HEAD_SEARCH_UNSUPPORTED`.
   같은 컷의 검색 가능한 인물에는 영향이 없다.
 - 출력 범위 수동 선택은 검색을 재실행하지 않는다. 관측 관절과 출력 설정은 별개다.
-  미리보기/내보내기는 여전히 전신이며 `outputScopeCropping=false`.
+  부분 FBX 지원은 아래 `outputScopeCropping` 계약을 따른다.
 - 구 응답의 누락 필드는 기존 폴백 처리. 실제 부분 검색은 새 분석부터 적용된다.
+
+
+### 부분 FBX 출력과 검토 미리보기 (2026-10-02)
+
+`outputScopeCropping`은 converter `/healthz`의 건강 상태, 고정 solver 버전,
+`framing_version=skin-regions-v1`, full/half/bust/head 지원을 확인한 경우에만 true다.
+false/누락이면 기존 전신 출력과 설정 저장 안내를 유지한다.
+
+`GET /v1/pose-candidates/:poseId/framed?jobId=…&personIndex=…&candidateId=…&outputScope=half&format=preview`
+는 실제 최종 FBX를 재import해 만든 정면 PNG를 반환한다. 같은 URL에서 `format=fbx`는 그 FBX다.
+optional `characterId`는 두 요청에 동일하게 적용한다. 설치 인증, 소유 Job, 확정 후보,
+poseId를 매번 검사하며 outputScope는 서버 저장 resolved 값과 일치해야 한다.
+다르면 `409 OUTPUT_SCOPE_CHANGED`; 변환 실패 시 전신 파일로 대체하지 않는다.
+응답은 `private, no-store`, `X-Standin-Output-Scope`, FBX의 `X-Standin-Artifact-SHA256`를 포함한다.
+
+기존 `/export` 요청과 BVH는 전신 동작을 유지한다. half는 상체+팔+손, bust는
+가슴+어깨+목+머리(팔 제외), head는 머리 메시만 남기고 뼈대 계층은 전신으로 보존한다.
+후보 카드의 기존 썸네일과 달리 **저장 전 확인 화면**에서 선택 범위를 렌더링한다.
+이 기능은 얼굴만 있는 러프의 머리 방향 검색을 추가하지 않는다.
+자세한 알고리즘·제한·검증은 `Standin-server/docs/BODY_SCOPE.md`의 3단계를 따른다.

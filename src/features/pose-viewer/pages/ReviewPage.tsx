@@ -2,7 +2,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ImageOff, Loader2, Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
-import { useSelectionReview } from "../hooks/useSelectionReview";
+import { useFramedReview } from "../hooks/useFramedReview";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
 
 /**
@@ -11,17 +11,14 @@ import { tourAnchor } from "@/shared/lib/tourAnchor";
  * 저장 화면은 진입 즉시 자동 저장한다(ADR-009). 조정이 걸리면 되돌릴 수 없으므로 그 전에
  * 한 번 멈추는 자리가 필요하다.
  *
- * ⚠ 여기 그림은 **서버가 렌더한 것만** 쓴다. 클라이언트에서 BVH를 three.js로 그려 본 적이
- *   있는데(`a31aeda`) 실제 자세가 아니라 기본 T자 뼈대가 나왔다 — 저장될 포즈라며 틀린
- *   자세를 보여주는 건 확인 수단이 없는 것보다 나쁘다(CLAUDE.md §10). 지금 쓰는 그림은
- *   후보 썸네일과 같은 렌더러로 서버가 그린 조정 결과이고, 그게 없으면 사용자가 고른 후보
- *   썸네일이다 — 그 경우 실제로 저장되는 것도 그 후보의 베이스 포즈다.
- *   클라이언트에서 다시 그리자는 제안이 나오면 위 이력부터 확인한다.
+ * 부분 출력 지원 시에는 converter가 최종 FBX를 다시 읽어 만든 정면 PNG를 쓴다.
+ * 지원하지 않는 서버/BVH 경로는 기존 후보·보정 미리보기를 유지한다.
  */
 export function ReviewPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { items, isRefining } = useSelectionReview(jobId);
+  const { items, isRefining, previewLoading, previewError, previewNotice, retryPreview } =
+    useFramedReview(jobId);
 
   if (!jobId) return <Navigate to="/app/home" replace />;
   if (!isRefining && items.length === 0) return <Navigate to={`/app/jobs/${jobId}`} replace />;
@@ -46,7 +43,7 @@ export function ReviewPage() {
                   {item.previewUrl ? (
                     <img
                       src={item.previewUrl}
-                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈`}
+                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`}
                       className="aspect-square w-full bg-surface-2 object-contain"
                     />
                   ) : (
@@ -57,6 +54,7 @@ export function ReviewPage() {
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">
                       인물 {item.personIndex + 1}
+                      {item.scopeLabel ? ` · ${item.scopeLabel}` : ""}
                     </span>
                     <span className="truncate text-[12px] text-text-secondary">
                       {item.candidate.title}
@@ -75,6 +73,20 @@ export function ReviewPage() {
           </div>
         )}
 
+        {previewNotice && <p className="text-[12px] text-text-secondary">{previewNotice}</p>}
+        {previewLoading && (
+          <p role="status" className="text-[12px] text-text-secondary">
+            선택한 범위의 미리보기를 만드는 중…
+          </p>
+        )}
+        {previewError && (
+          <div role="alert" className="text-[12px] text-brand-coral">
+            미리보기를 만들지 못했습니다.{" "}
+            <button onClick={retryPreview} className="underline">
+              다시 시도
+            </button>
+          </div>
+        )}
         <div className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
           <Button variant="ghost" onClick={() => navigate(`/app/jobs/${jobId}`)}>
             후보 다시 고르기
@@ -82,7 +94,7 @@ export function ReviewPage() {
           <Button
             {...tourAnchor("review.confirm")}
             size="lg"
-            disabled={isRefining}
+            disabled={isRefining || previewLoading || previewError}
             onClick={() => navigate(`/app/jobs/${jobId}/save`)}
           >
             <Save className="h-4 w-4" aria-hidden />이 포즈로 저장 ({items.length})

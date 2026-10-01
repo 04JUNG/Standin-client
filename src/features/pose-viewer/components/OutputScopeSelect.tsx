@@ -13,10 +13,12 @@ export function OutputScopeSelect({
   jobId,
   person,
   enabled,
+  cropping = false,
 }: {
   jobId: string;
   person: PersonResult;
   enabled: boolean;
+  cropping?: boolean;
 }) {
   const queryClient = useQueryClient();
   const scope = readOutputScope(person.outputScope);
@@ -68,7 +70,9 @@ export function OutputScopeSelect({
           : `${SCOPE_LABELS[scope.resolved]}${scope.resolutionSource === "user" ? " · 직접 선택" : ""}`}
       </span>
       <span className="basis-full text-text-secondary">
-        범위 설정만 저장됩니다. 현재 미리보기와 파일은 전신입니다.
+        {cropping
+          ? "FBX와 저장 전 확인 화면에 적용됩니다. BVH는 전신 뼈대를 유지합니다."
+          : "범위 설정만 저장됩니다. 현재 미리보기와 파일은 전신입니다."}
       </span>
       {mutation.isError && (
         <p role="alert" className="basis-full text-brand-coral">

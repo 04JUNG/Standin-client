@@ -211,6 +211,7 @@ export function PoseViewerPage() {
                   jobId={data.jobId}
                   person={person}
                   enabled={data.capabilities.outputScopeSelection === true}
+                  cropping={data.capabilities.outputScopeCropping === true}
                 />
                 <PersonFallbackNotice person={person} />
               </div>
@@ -246,6 +247,7 @@ export function PoseViewerPage() {
                 jobId={data.jobId}
                 person={person}
                 enabled={data.capabilities.outputScopeSelection === true}
+                cropping={data.capabilities.outputScopeCropping === true}
               />
               {/* soft fallback — 후보는 계속 보여주되 참고용임을 알린다. */}
               <PersonFallbackNotice person={person} />
