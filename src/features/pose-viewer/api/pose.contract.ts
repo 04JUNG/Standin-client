@@ -25,7 +25,7 @@ export type PoseCandidate = {
 export type PersonConfidence = "high" | "low";
 export type SkeletonState = "valid" | "partial" | "suspect" | "missing" | "invalid";
 export type SkeletonSource = "full_image" | "crop_retry" | "none";
-export type CoverageClass = "full" | "reduced" | "sparse" | "insufficient";
+export type CoverageClass = "full" | "reduced" | "sparse" | "upper_only" | "insufficient";
 
 /**
  * 인물 단위 폴백 상태(BFF `fallbackMode`).
