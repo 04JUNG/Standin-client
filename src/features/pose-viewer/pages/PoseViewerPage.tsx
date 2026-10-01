@@ -12,6 +12,7 @@ import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
+import { OutputScopeSelect } from "../components/OutputScopeSelect";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
@@ -206,6 +207,11 @@ export function PoseViewerPage() {
                 <span className="text-[13px] font-semibold text-text-primary">
                   인물 {person.index + 1}
                 </span>
+                <OutputScopeSelect
+                  jobId={data.jobId}
+                  person={person}
+                  enabled={data.capabilities.outputScopeSelection === true}
+                />
                 <PersonFallbackNotice person={person} />
               </div>
             );
@@ -236,6 +242,11 @@ export function PoseViewerPage() {
                   </span>
                 </div>
               </div>
+              <OutputScopeSelect
+                jobId={data.jobId}
+                person={person}
+                enabled={data.capabilities.outputScopeSelection === true}
+              />
               {/* soft fallback — 후보는 계속 보여주되 참고용임을 알린다. */}
               <PersonFallbackNotice person={person} />
               <div
@@ -257,8 +268,8 @@ export function PoseViewerPage() {
 
         {failedPeople.length > 0 && selectablePeople.length === 0 && (
           <p className="flex items-center gap-2 text-[13px] text-brand-coral">
-            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-            검출된 인물 전원의 포즈 검색에 실패했습니다. 다른 이미지로 다시 시도해 주세요.
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />이 장면에는 사용할 수 있는
+            자동 포즈 후보가 없습니다. 인물별 안내를 확인해 주세요.
           </p>
         )}
 

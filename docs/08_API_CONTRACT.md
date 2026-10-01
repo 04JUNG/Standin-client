@@ -368,6 +368,23 @@ BFF는 인물별로 스켈레톤 품질 신호를 함께 준다. 실제 응답�
 
 ---
 
+## 6-1-1. 인물별 출력 범위 (1단계)
+
+`PersonResult.outputScope`는 BFF 인물의 `outputScope`를 검증해 옮긴다.
+`selection: auto | full | half | bust | head`, `detected: full | half | bust | head | null`,
+`detectionSource: vlm_person | legacy_shot | unknown`, `resolved: full | half | bust | head`,
+`resolutionSource: auto | user | fallback`.
+
+인물 카드와 플로팅 바에서 자동/전신/반신/흉상/두상을 고르면
+`PUT /v1/analysis/jobs/{jobId}/people/{personIndex}/output-scope`에 `{ selection }`만 보낸다.
+저장이 성공한 값만 Query cache에 반영하고, 실패하면 기존 값과 재시도 안내를 유지한다.
+서버 result에 영속화되어 작업 기록에서 복원된다. 후보/refine 변경과 독립적이다.
+저장 중에는 확정 버튼을 막는다. 구 BFF는 `capabilities.outputScopeSelection`이 없으므로 UI를 숨긴다.
+
+**현재 `outputScopeCropping: false`: 설정 저장만 구현.** UI는 미리보기/파일이 전신이라고 명시한다.
+검색/내보내기 파라미터를 바꾸지 않는다. 두상/흉상의 검색 미지원도 그대로 표시한다.
+VLM 판별이 없으면 자동(판별 불가 · 전신). 사용자 선택으로 자동 판별값을 덮어쓰지 않는다.
+
 ## 6-2. 선택 후보 조정(refine)
 
 ```http
