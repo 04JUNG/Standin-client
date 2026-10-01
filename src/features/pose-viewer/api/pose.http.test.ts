@@ -114,10 +114,24 @@ describe("poseHttp", () => {
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
       jobId: "server-job",
-      capabilities: { refine: false, fbxExport: false, characterSelection: false },
+      capabilities: {
+        refine: false,
+        fbxExport: false,
+        characterSelection: false,
+        outputScopeSelection: false,
+        outputScopeCropping: false,
+      },
       people: [
         {
           index: 0,
+          candidateShortfallReason: null,
+          outputScope: {
+            selection: "auto",
+            detected: null,
+            detectionSource: "unknown",
+            resolved: "full",
+            resolutionSource: "fallback",
+          },
           confidence: "low",
           skeletonState: "invalid",
           skeletonSource: "none",

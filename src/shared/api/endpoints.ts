@@ -36,6 +36,8 @@ export const endpoints = {
     cancel: (id: string) => `/v1/analysis/jobs/${id}/cancel`,
     selections: (id: string) => `/v1/analysis/jobs/${id}/selections`,
     feedback: (id: string) => `/v1/analysis/jobs/${id}/feedback`,
+    outputScope: (id: string, personIndex: number) =>
+      `/v1/analysis/jobs/${encodeURIComponent(id)}/people/${personIndex}/output-scope`,
     /** 선택 후보를 러프에 맞춰 조정한다. 본문은 candidateId 하나뿐이다. */
     refine: (id: string, personIndex: number) =>
       `/v1/analysis/jobs/${id}/people/${personIndex}/refine`,

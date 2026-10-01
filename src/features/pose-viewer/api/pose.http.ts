@@ -1,3 +1,4 @@
+import { readOutputScope } from "./outputScope";
 import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
@@ -47,9 +48,17 @@ type BffAnalysisResult = {
   /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
   inputUrl?: string | null;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
-  capabilities?: { refine?: boolean; fbxExport?: boolean; characterSelection?: boolean };
+  capabilities?: {
+    refine?: boolean;
+    fbxExport?: boolean;
+    characterSelection?: boolean;
+    outputScopeSelection?: boolean;
+    outputScopeCropping?: boolean;
+  };
   candidatesByPerson: Array<{
     personIndex: number;
+    outputScope?: unknown;
+    candidateShortfallReason?: string | null;
     box: number[] | null;
     tags: Record<string, string>;
     candidates: BffCandidate[];
@@ -208,6 +217,8 @@ async function toAnalysisResult(
       return {
         // 서버 personIndex를 그대로 쓴다. 화면에서 탐지 순서로 다시 번호를 매기지 않는다.
         index: person.personIndex,
+        outputScope: readOutputScope(person.outputScope),
+        candidateShortfallReason: person.candidateShortfallReason ?? null,
         candidates: await Promise.all(
           person.candidates.map((candidate) =>
             toPoseCandidate(candidate, raw.jobId, person.personIndex, signal),
@@ -245,6 +256,8 @@ async function toAnalysisResult(
       // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
       // 않아 이 기능이 없던 때와 바이트까지 같은 파일이 나온다.
       characterSelection: raw.capabilities?.characterSelection === true,
+      outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
+      outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
     },
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { ApiError } from "@/shared/api/errors";
 import { poseService } from "../api/pose.service";
@@ -108,7 +108,9 @@ export function useAnalysisResult(jobId: string | undefined) {
   const selectablePeople = people.filter((p) => p.fallbackMode !== "hard");
   const failedPeople = people.filter((p) => p.fallbackMode === "hard");
   const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
-  const allSelected = selectablePeople.length > 0 && selectedCount === selectablePeople.length;
+  const isSavingScope = useIsMutating({ mutationKey: ["output-scope", query.data?.jobId] }) > 0;
+  const allSelected =
+    !isSavingScope && selectablePeople.length > 0 && selectedCount === selectablePeople.length;
 
   useEffect(() => {
     if (query.isFetching && startedAt.current === null) startedAt.current = Date.now();
