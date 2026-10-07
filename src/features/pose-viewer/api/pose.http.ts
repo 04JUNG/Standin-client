@@ -40,6 +40,7 @@ type BffCandidate = {
   matchLevel: MatchLevel;
   bvhAvailable: boolean;
   thumbnailUrl?: string;
+  camera?: { version?: string } | null;
 };
 
 type BffAnalysisResult = {
@@ -190,7 +191,8 @@ async function toPoseCandidate(
   personIndex: number,
   signal: AbortSignal,
 ): Promise<PoseCandidate> {
-  const thumbnailUrl = await loadThumbnail(raw.thumbnailUrl, signal);
+  const deferred = raw.camera?.version === "candidate-camera-v1" && !!raw.thumbnailUrl;
+  const thumbnailUrl = deferred ? "" : await loadThumbnail(raw.thumbnailUrl, signal);
   return {
     id: raw.id,
     poseId: raw.poseId,
@@ -199,6 +201,7 @@ async function toPoseCandidate(
     tags: raw.tags,
     matchLevel: raw.matchLevel,
     thumbnailUrl,
+    ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
     bvhAvailable: raw.bvhAvailable,

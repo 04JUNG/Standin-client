@@ -698,3 +698,17 @@ poseId를 매번 검사하며 outputScope는 서버 저장 resolved 값과 일�
 후보 카드의 기존 썸네일과 달리 **저장 전 확인 화면**에서 선택 범위를 렌더링한다.
 이 기능은 얼굴만 있는 러프의 머리 방향 검색을 추가하지 않는다.
 자세한 알고리즘·제한·검증은 `Standin-server/docs/BODY_SCOPE.md`의 3단계를 따른다.
+
+
+## 후보 카메라 preview (2026-10-07)
+
+`candidate.camera.version=candidate-camera-v1` 응답의 thumbnailUrl은 작업 소유권이 있는
+동적 렌더 경로다. 분석 결과 adapter에서 다운로드를 기다리지 않는다. 후보 목록은 먼저
+열고 `deferredThumbnailUrl`을 각 카드의 인증된 TanStack Query로 로드한다. 앱/바/확인 화면은
+같은 Query key를 공유한다. 준비 중에는 “각도 맞추는 중”, 실패 시 “미리보기 다시 시도”를
+표시한다. 준비 전에는 해당 카드 선택을 잠그며, 오류를 예전 방향 이미지로 숨기지 않는다.
+기존 작업·Mock·구 서버의 정적 thumbnailUrl은 기존 동작을 유지한다. 카메라 계산은 서버가
+담당하며, 앱은 회전 행렬을 재계산하거나 BVH에 적용하지 않는다.
+
+Windows의 타입 검사·컴포넌트/HTTP adapter 테스트로 검증한다. 실제 Tauri/CSP/macOS의
+새 빌드 검증과 콜드 변환 지연 측정은 별도이며, 변경된 출력 포맷은 없다.

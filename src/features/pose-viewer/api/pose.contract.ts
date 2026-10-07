@@ -15,6 +15,8 @@ export type PoseCandidate = {
   tags: string[];
   matchLevel: MatchLevel;
   thumbnailUrl: string;
+  /** Job-owned render URL, loaded independently of analysis completion. */
+  deferredThumbnailUrl?: string;
   previewImages: Array<{ view: string; url: string }>;
   modelUrl?: string | null;
   bvhAvailable: boolean;
