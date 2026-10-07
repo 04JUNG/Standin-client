@@ -1,5 +1,6 @@
 import { useQueries } from "@tanstack/react-query";
 import { candidateThumbnailOptions } from "../api/candidateThumbnail";
+import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { useMemo } from "react";
 import type { PoseCandidate } from "../api/pose.contract";
 import { useAnalysisResult } from "./useAnalysisResult";
@@ -32,6 +33,8 @@ export type ReviewItem = {
  */
 export function useSelectionReview(jobId: string | undefined) {
   const analysis = useAnalysisResult(jobId);
+  const characterId = usePoseSelectionStore((s) => s.characterId);
+  const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const { status, refineByPerson } = useRefineSelection(analysis.data);
   const { data, selectedByPerson } = analysis;
 
@@ -62,13 +65,22 @@ export function useSelectionReview(jobId: string | undefined) {
     });
   }, [data, selectedByPerson, refineByPerson]);
 
-  const previews = useQueries({ queries: items.map(item => ({
-    ...candidateThumbnailOptions(item.candidate.deferredThumbnailUrl),
-    enabled: !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
-  })) });
+  const previews = useQueries({
+    queries: items.map((item) => ({
+      ...candidateThumbnailOptions(
+        item.candidate.deferredThumbnailUrl,
+        item.candidate.previewModel,
+        byPerson[item.personIndex] ?? characterId ?? undefined,
+      ),
+      enabled: !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
+    })),
+  });
   return {
     ...analysis,
-    items: items.map((item, i) => ({...item, previewUrl: item.previewUrl || previews[i]?.data || ""})),
+    items: items.map((item, i) => ({
+      ...item,
+      previewUrl: item.previewUrl || previews[i]?.data || "",
+    })),
     /**
      * 조정이 끝나지 않았다 — 저장 대상 URL이 아직 바뀔 수 있다.
      *

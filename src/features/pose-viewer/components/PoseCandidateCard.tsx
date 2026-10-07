@@ -19,19 +19,37 @@ const MATCH_BADGE_CLASS: Record<MatchLevel, string> = {
 
 type PoseCandidateCardProps = {
   candidate: PoseCandidate;
+  characterId?: string | null;
   isSelected: boolean;
   onSelect(): void;
 };
 
-export function PoseCandidateCard({ candidate, isSelected, onSelect }: PoseCandidateCardProps) {
-  const preview = useQuery(candidateThumbnailOptions(candidate.deferredThumbnailUrl));
+export function PoseCandidateCard({
+  candidate,
+  characterId,
+  isSelected,
+  onSelect,
+}: PoseCandidateCardProps) {
+  const preview = useQuery(
+    candidateThumbnailOptions(
+      candidate.deferredThumbnailUrl,
+      candidate.previewModel,
+      characterId ?? undefined,
+    ),
+  );
   const imageUrl = candidate.thumbnailUrl || preview.data;
   const pending = !!candidate.deferredThumbnailUrl && preview.isPending;
   const failed = !!candidate.deferredThumbnailUrl && preview.isError;
   return (
     <button
       type="button"
-      onClick={failed ? () => { void preview.refetch(); } : onSelect}
+      onClick={
+        failed
+          ? () => {
+              void preview.refetch();
+            }
+          : onSelect
+      }
       disabled={pending}
       aria-busy={pending}
       aria-pressed={isSelected}
@@ -46,11 +64,14 @@ export function PoseCandidateCard({ candidate, isSelected, onSelect }: PoseCandi
         <div className="flex aspect-square w-full items-center justify-center bg-surface-2 text-text-secondary">
           {pending ? (
             <span className="flex flex-col items-center gap-2 text-xs" role="status">
-              <LoaderCircle className="h-6 w-6 animate-spin" aria-hidden />각도 맞추는 중
+              <LoaderCircle className="h-6 w-6 animate-spin" aria-hidden />
+              각도 맞추는 중
             </span>
           ) : failed ? (
             <span className="text-xs">미리보기 다시 시도</span>
-          ) : <ImageOff className="h-8 w-8" aria-hidden />}
+          ) : (
+            <ImageOff className="h-8 w-8" aria-hidden />
+          )}
         </div>
       )}
       <div className="flex flex-col gap-2 p-3">
@@ -70,7 +91,10 @@ export function PoseCandidateCard({ candidate, isSelected, onSelect }: PoseCandi
             {MATCH_LABEL[candidate.matchLevel]}
           </span>
           {candidate.tags.map((tag) => (
-            <span key={tag} className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-secondary">
+            <span
+              key={tag}
+              className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-secondary"
+            >
               {tag}
             </span>
           ))}
