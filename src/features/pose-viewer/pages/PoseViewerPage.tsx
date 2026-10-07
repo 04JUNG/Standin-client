@@ -259,6 +259,7 @@ export function PoseViewerPage() {
                   <PoseCandidateCard
                     key={candidate.id}
                     candidate={candidate}
+                    characterId={characterByPerson[person.index] ?? jobCharacterId}
                     isSelected={candidate.id === selectedId}
                     onSelect={() => selectCandidate(person.index, candidate.id)}
                   />

@@ -31,6 +31,8 @@ type JobStatusResponse = CreateJobResponse & {
   error: string | null;
 };
 
+import { validRotation } from "../preview/modelContract";
+
 type BffCandidate = {
   id: string;
   poseId: string;
@@ -40,7 +42,8 @@ type BffCandidate = {
   matchLevel: MatchLevel;
   bvhAvailable: boolean;
   thumbnailUrl?: string;
-  camera?: { version?: string } | null;
+  previewModelUrl?: string;
+  camera?: { version?: string; rotation?: unknown; source_bvh_sha256?: string } | null;
 };
 
 type BffAnalysisResult = {
@@ -202,6 +205,18 @@ async function toPoseCandidate(
     matchLevel: raw.matchLevel,
     thumbnailUrl,
     ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
+    ...(deferred &&
+    raw.previewModelUrl &&
+    validRotation(raw.camera?.rotation) &&
+    /^[a-f0-9]{64}$/.test(raw.camera?.source_bvh_sha256 ?? "")
+      ? {
+          previewModel: {
+            url: raw.previewModelUrl,
+            rotation: raw.camera!.rotation as number[][],
+            sourceSha: raw.camera!.source_bvh_sha256!,
+          },
+        }
+      : {}),
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
     bvhAvailable: raw.bvhAvailable,

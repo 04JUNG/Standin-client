@@ -712,3 +712,14 @@ poseId를 매번 검사하며 outputScope는 서버 저장 resolved 값과 일�
 
 Windows의 타입 검사·컴포넌트/HTTP adapter 테스트로 검증한다. 실제 Tauri/CSP/macOS의
 새 빌드 검증과 콜드 변환 지연 측정은 별도이며, 변경된 출력 포맷은 없다.
+
+### Precomputed candidate preview (`posed-mesh-v1`)
+
+Optional `previewModelUrl` with candidate-camera-v1 enables local static GLB rendering.
+The authenticated URL accepts the selected characterId. The GLB contains the evaluated
+frozen-converter surface in Y-up coordinates, with Hips at the origin; the exact stored
+camera.rotation is applied once. Single shared WebGL renderer; 384px PNG snapshot per
+card; no animation loop or new pose solver. Raw matrix, source and character are checked.
+Missing models, old servers or unavailable WebGL fall back to the existing aligned PNG.
+Cancellation does not start fallback work. Final selected/refined/cropped FBX still uses
+the converter and its verified preview. BVH behavior is unchanged.

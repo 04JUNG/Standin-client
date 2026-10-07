@@ -193,6 +193,7 @@ export function BarCandidatesPage() {
                     <PoseCandidateCard
                       key={candidate.id}
                       candidate={candidate}
+                      characterId={characterByPerson[person.index] ?? jobCharacterId}
                       isSelected={candidate.id === selectedByPerson[person.index]}
                       onSelect={() => selectCandidate(person.index, candidate.id)}
                     />

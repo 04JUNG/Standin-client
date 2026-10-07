@@ -17,6 +17,7 @@ export type PoseCandidate = {
   thumbnailUrl: string;
   /** Job-owned render URL, loaded independently of analysis completion. */
   deferredThumbnailUrl?: string;
+  previewModel?: import("../preview/modelContract").CandidateModel;
   previewImages: Array<{ view: string; url: string }>;
   modelUrl?: string | null;
   bvhAvailable: boolean;
