@@ -29,6 +29,19 @@ describe("poseHttp", () => {
     __resetAnalysisJobs();
   });
 
+  it("camera rendering does not block an already completed analysis result", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      jobId:"job_saved",notes:[],candidatesByPerson:[{personIndex:0,box:null,tags:{},candidates:[{
+        id:"pose::back",poseId:"pose",rank:1,view:"back",tags:["front"],matchLevel:"medium",bvhAvailable:true,
+        camera:{version:"candidate-camera-v1"},thumbnailUrl:"/v1/pose-candidates/pose/aligned?jobId=job_saved"
+      }]}]
+    }));
+    const result=await poseHttp.loadResult({jobId:"job_saved"});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.people[0]?.candidates[0]?.thumbnailUrl).toBe("");
+    expect(result.people[0]?.candidates[0]?.deferredThumbnailUrl).toContain("/aligned?");
+  });
+
   it("인증된 multipart Job을 만들고 완료 결과를 클라이언트 후보로 변환한다", async () => {
     fetchMock
       .mockResolvedValueOnce(
@@ -114,10 +127,24 @@ describe("poseHttp", () => {
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
       jobId: "server-job",
-      capabilities: { refine: false, fbxExport: false, characterSelection: false },
+      capabilities: {
+        refine: false,
+        fbxExport: false,
+        characterSelection: false,
+        outputScopeSelection: false,
+        outputScopeCropping: false,
+      },
       people: [
         {
           index: 0,
+          candidateShortfallReason: null,
+          outputScope: {
+            selection: "auto",
+            detected: null,
+            detectionSource: "unknown",
+            resolved: "full",
+            resolutionSource: "fallback",
+          },
           confidence: "low",
           skeletonState: "invalid",
           skeletonSource: "none",

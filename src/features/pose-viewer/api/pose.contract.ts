@@ -3,6 +3,8 @@
  * 클라이언트는 BFF에 분석 Job을 만들고 완료될 때까지 폴링한 뒤 이 형태로 변환한다.
  * 라우트의 jobId는 쿼리 키용 클라이언트 식별자이며, 응답의 jobId는 BFF가 발급한 값이다.
  */
+import type { OutputScope } from "./outputScope";
+
 export type MatchLevel = "high" | "medium" | "low";
 
 export type PoseCandidate = {
@@ -13,6 +15,8 @@ export type PoseCandidate = {
   tags: string[];
   matchLevel: MatchLevel;
   thumbnailUrl: string;
+  /** Job-owned render URL, loaded independently of analysis completion. */
+  deferredThumbnailUrl?: string;
   previewImages: Array<{ view: string; url: string }>;
   modelUrl?: string | null;
   bvhAvailable: boolean;
@@ -23,7 +27,7 @@ export type PoseCandidate = {
 export type PersonConfidence = "high" | "low";
 export type SkeletonState = "valid" | "partial" | "suspect" | "missing" | "invalid";
 export type SkeletonSource = "full_image" | "crop_retry" | "none";
-export type CoverageClass = "full" | "reduced" | "sparse" | "insufficient";
+export type CoverageClass = "full" | "reduced" | "sparse" | "upper_only" | "insufficient";
 
 /**
  * 인물 단위 폴백 상태(BFF `fallbackMode`).
@@ -38,6 +42,8 @@ export type FallbackMode = "none" | "soft" | "hard";
 
 /** 검출된 인물 한 명과 그 인물의 포즈 후보들. index는 실 서버 people[].index를 그대로 따른다. */
 export type PersonResult = {
+  outputScope?: OutputScope;
+  candidateShortfallReason?: string | null;
   index: number;
   candidates: PoseCandidate[];
   confidence: PersonConfidence;
@@ -71,6 +77,8 @@ export type AnalysisResult = {
      * false면 클라이언트가 파라미터를 아예 붙이지 않는다.
      */
     characterSelection: boolean;
+    outputScopeSelection?: boolean;
+    outputScopeCropping?: boolean;
   };
 };
 

@@ -7,6 +7,7 @@ import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { PoseCandidateCard } from "@/features/pose-viewer/components/PoseCandidateCard";
+import { OutputScopeSelect } from "@/features/pose-viewer/components/OutputScopeSelect";
 import { PersonFallbackNotice } from "@/features/pose-viewer/components/PersonFallbackNotice";
 import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
@@ -170,6 +171,13 @@ export function BarCandidatesPage() {
               )}
             </div>
 
+            <OutputScopeSelect
+              key={`${data.jobId}:${person.index}`}
+              jobId={data.jobId}
+              person={person}
+              enabled={data.capabilities.outputScopeSelection === true}
+              cropping={data.capabilities.outputScopeCropping === true}
+            />
             {person.fallbackMode === "hard" ? (
               <div className="flex flex-1 items-center justify-center px-3">
                 <PersonFallbackNotice person={person} compact />

@@ -368,6 +368,23 @@ BFF는 인물별로 스켈레톤 품질 신호를 함께 준다. 실제 응답�
 
 ---
 
+## 6-1-1. 인물별 출력 범위 (1단계)
+
+`PersonResult.outputScope`는 BFF 인물의 `outputScope`를 검증해 옮긴다.
+`selection: auto | full | half | bust | head`, `detected: full | half | bust | head | null`,
+`detectionSource: vlm_person | legacy_shot | unknown`, `resolved: full | half | bust | head`,
+`resolutionSource: auto | user | fallback`.
+
+인물 카드와 플로팅 바에서 자동/전신/반신/흉상/두상을 고르면
+`PUT /v1/analysis/jobs/{jobId}/people/{personIndex}/output-scope`에 `{ selection }`만 보낸다.
+저장이 성공한 값만 Query cache에 반영하고, 실패하면 기존 값과 재시도 안내를 유지한다.
+서버 result에 영속화되어 작업 기록에서 복원된다. 후보/refine 변경과 독립적이다.
+저장 중에는 확정 버튼을 막는다. 구 BFF는 `capabilities.outputScopeSelection`이 없으므로 UI를 숨긴다.
+
+`outputScopeCropping=false/누락`이면 UI는 설정 저장만 되며 파일이 전신이라고 명시한다. true이면 아래 부분 FBX 계약을 적용한다.
+검색/내보내기 파라미터를 바꾸지 않는다. 두상/흉상의 검색 미지원도 그대로 표시한다.
+VLM 판별이 없으면 자동(판별 불가 · 전신). 사용자 선택으로 자동 판별값을 덮어쓰지 않는다.
+
 ## 6-2. 선택 후보 조정(refine)
 
 ```http
@@ -649,3 +666,49 @@ type ModelCharacter = {
 10. 다시 검색은 전체 재분석인가, 검색만 재실행인가?
 11. 작업 기록을 서버에 보관하는가?
 12. 입력 이미지와 결과 보관 기간은?
+
+
+### 관측 상체 검색 (2026-10-02)
+
+- `coverageClass=upper_only`: 골반 기준을 쓸 수 없어, 관측된 어깨·팔만으로 검색한 후보.
+  `confidence=low`, `fallbackMode=soft`, `refineAllowed=false`, `refinableLimbs=[]`.
+  거리의 단위가 달라 전신 일치도 임계값으로 승격하지 않는다.
+- 혼합 구도의 두상 인물은 후보 없이 `candidateShortfallReason=HEAD_SEARCH_UNSUPPORTED`.
+  같은 컷의 검색 가능한 인물에는 영향이 없다.
+- 출력 범위 수동 선택은 검색을 재실행하지 않는다. 관측 관절과 출력 설정은 별개다.
+  부분 FBX 지원은 아래 `outputScopeCropping` 계약을 따른다.
+- 구 응답의 누락 필드는 기존 폴백 처리. 실제 부분 검색은 새 분석부터 적용된다.
+
+
+### 부분 FBX 출력과 검토 미리보기 (2026-10-02)
+
+`outputScopeCropping`은 converter `/healthz`의 건강 상태, 고정 solver 버전,
+`framing_version=skin-regions-v1`, full/half/bust/head 지원을 확인한 경우에만 true다.
+false/누락이면 기존 전신 출력과 설정 저장 안내를 유지한다.
+
+`GET /v1/pose-candidates/:poseId/framed?jobId=…&personIndex=…&candidateId=…&outputScope=half&format=preview`
+는 실제 최종 FBX를 재import해 만든 정면 PNG를 반환한다. 같은 URL에서 `format=fbx`는 그 FBX다.
+optional `characterId`는 두 요청에 동일하게 적용한다. 설치 인증, 소유 Job, 확정 후보,
+poseId를 매번 검사하며 outputScope는 서버 저장 resolved 값과 일치해야 한다.
+다르면 `409 OUTPUT_SCOPE_CHANGED`; 변환 실패 시 전신 파일로 대체하지 않는다.
+응답은 `private, no-store`, `X-Standin-Output-Scope`, FBX의 `X-Standin-Artifact-SHA256`를 포함한다.
+
+기존 `/export` 요청과 BVH는 전신 동작을 유지한다. half는 상체+팔+손, bust는
+가슴+어깨+목+머리(팔 제외), head는 머리 메시만 남기고 뼈대 계층은 전신으로 보존한다.
+후보 카드의 기존 썸네일과 달리 **저장 전 확인 화면**에서 선택 범위를 렌더링한다.
+이 기능은 얼굴만 있는 러프의 머리 방향 검색을 추가하지 않는다.
+자세한 알고리즘·제한·검증은 `Standin-server/docs/BODY_SCOPE.md`의 3단계를 따른다.
+
+
+## 후보 카메라 preview (2026-10-07)
+
+`candidate.camera.version=candidate-camera-v1` 응답의 thumbnailUrl은 작업 소유권이 있는
+동적 렌더 경로다. 분석 결과 adapter에서 다운로드를 기다리지 않는다. 후보 목록은 먼저
+열고 `deferredThumbnailUrl`을 각 카드의 인증된 TanStack Query로 로드한다. 앱/바/확인 화면은
+같은 Query key를 공유한다. 준비 중에는 “각도 맞추는 중”, 실패 시 “미리보기 다시 시도”를
+표시한다. 준비 전에는 해당 카드 선택을 잠그며, 오류를 예전 방향 이미지로 숨기지 않는다.
+기존 작업·Mock·구 서버의 정적 thumbnailUrl은 기존 동작을 유지한다. 카메라 계산은 서버가
+담당하며, 앱은 회전 행렬을 재계산하거나 BVH에 적용하지 않는다.
+
+Windows의 타입 검사·컴포넌트/HTTP adapter 테스트로 검증한다. 실제 Tauri/CSP/macOS의
+새 빌드 검증과 콜드 변환 지연 측정은 별도이며, 변경된 출력 포맷은 없다.

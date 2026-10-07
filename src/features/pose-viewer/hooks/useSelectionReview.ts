@@ -1,3 +1,5 @@
+import { useQueries } from "@tanstack/react-query";
+import { candidateThumbnailOptions } from "../api/candidateThumbnail";
 import { useMemo } from "react";
 import type { PoseCandidate } from "../api/pose.contract";
 import { useAnalysisResult } from "./useAnalysisResult";
@@ -60,9 +62,13 @@ export function useSelectionReview(jobId: string | undefined) {
     });
   }, [data, selectedByPerson, refineByPerson]);
 
+  const previews = useQueries({ queries: items.map(item => ({
+    ...candidateThumbnailOptions(item.candidate.deferredThumbnailUrl),
+    enabled: !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
+  })) });
   return {
     ...analysis,
-    items,
+    items: items.map((item, i) => ({...item, previewUrl: item.previewUrl || previews[i]?.data || ""})),
     /**
      * 조정이 끝나지 않았다 — 저장 대상 URL이 아직 바뀔 수 있다.
      *

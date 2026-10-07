@@ -22,7 +22,7 @@ const NOTICE: Record<"soft" | "hard", { text: string; tone: "warn" | "info" }> =
 };
 
 type PersonFallbackNoticeProps = {
-  person: Pick<PersonResult, "fallbackMode">;
+  person: Pick<PersonResult, "fallbackMode" | "candidateShortfallReason" | "coverageClass">;
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
 };
@@ -31,6 +31,14 @@ export function PersonFallbackNotice({ person, compact = false }: PersonFallback
   if (person.fallbackMode === "none") return null;
 
   const { text, tone } = NOTICE[person.fallbackMode];
+  const message =
+    person.candidateShortfallReason === "HEAD_SEARCH_UNSUPPORTED"
+      ? "두상 방향에 맞는 포즈 검색은 아직 지원하지 않습니다."
+      : person.candidateShortfallReason === "ANALYSIS_ROUTE_SKIPPED"
+        ? "이 구도의 포즈 검색은 아직 지원하지 않습니다."
+        : person.fallbackMode === "soft" && person.coverageClass === "upper_only"
+          ? "보이는 어깨와 팔을 기준으로 찾은 참고용 후보입니다. 자동 보정은 지원하지 않습니다."
+          : text;
   const Icon = tone === "warn" ? AlertTriangle : Info;
   return (
     <p
@@ -38,13 +46,11 @@ export function PersonFallbackNotice({ person, compact = false }: PersonFallback
       className={cn(
         "flex items-start gap-1.5 rounded-lg px-2 py-1.5",
         compact ? "text-[11px]" : "text-[12px]",
-        tone === "warn"
-          ? "bg-brand-coral/10 text-brand-coral"
-          : "bg-surface-2 text-text-secondary",
+        tone === "warn" ? "bg-brand-coral/10 text-brand-coral" : "bg-surface-2 text-text-secondary",
       )}
     >
       <Icon className={cn("mt-px shrink-0", compact ? "h-3 w-3" : "h-3.5 w-3.5")} aria-hidden />
-      <span>{text}</span>
+      <span>{message}</span>
     </p>
   );
 }

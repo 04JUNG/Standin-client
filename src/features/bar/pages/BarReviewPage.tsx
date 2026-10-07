@@ -1,7 +1,7 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { ImageOff, Loader2, Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
-import { useSelectionReview } from "@/features/pose-viewer/hooks/useSelectionReview";
+import { useFramedReview } from "@/features/pose-viewer/hooks/useFramedReview";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
 
@@ -14,7 +14,8 @@ import { BarShell } from "../components/BarShell";
 export function BarReviewPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
-  const { items, isRefining } = useSelectionReview(jobId ?? undefined);
+  const { items, isRefining, previewLoading, previewError, previewNotice, retryPreview } =
+    useFramedReview(jobId ?? undefined);
 
   if (!jobId) return <Navigate to="/bar/actions" replace />;
   if (!isRefining && items.length === 0) return <Navigate to="/bar/candidates" replace />;
@@ -40,7 +41,7 @@ export function BarReviewPage() {
                   {item.previewUrl ? (
                     <img
                       src={item.previewUrl}
-                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈`}
+                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`}
                       title={`인물 ${item.personIndex + 1} · ${item.candidate.title}`}
                       className="aspect-square w-full rounded border border-border bg-surface-2 object-contain"
                     />
@@ -49,12 +50,33 @@ export function BarReviewPage() {
                       <ImageOff className="h-5 w-5" aria-hidden />
                     </div>
                   )}
+                  {item.scopeLabel && (
+                    <p className="text-center text-[10px] text-text-secondary">{item.scopeLabel}</p>
+                  )}
                 </li>
               ))}
             </ul>
           )}
         </div>
 
+        {previewLoading && (
+          <p role="status" className="text-[11px] text-text-secondary">
+            범위 미리보기 생성 중…
+          </p>
+        )}
+        {previewError && (
+          <p role="alert" className="text-[11px] text-brand-coral">
+            미리보기 실패 ·{" "}
+            <button onClick={retryPreview} className="underline">
+              다시 시도
+            </button>
+          </p>
+        )}
+        {!previewLoading && !previewError && previewNotice && (
+          <p className="truncate text-[10px] text-text-secondary" title={previewNotice}>
+            {previewNotice}
+          </p>
+        )}
         <div className="flex shrink-0 items-center gap-1.5 border-t border-border pt-2">
           <Button
             variant="ghost"
@@ -67,7 +89,7 @@ export function BarReviewPage() {
           <Button
             size="sm"
             className="min-w-0 flex-1"
-            disabled={isRefining}
+            disabled={isRefining || previewLoading || previewError}
             onClick={() => navigate("/bar/save")}
           >
             <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />이 포즈로 저장

@@ -1,4 +1,6 @@
-import { ImageOff, Info } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { candidateThumbnailOptions } from "../api/candidateThumbnail";
+import { ImageOff, Info, LoaderCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { MatchLevel, PoseCandidate } from "../api/pose.contract";
 
@@ -22,21 +24,33 @@ type PoseCandidateCardProps = {
 };
 
 export function PoseCandidateCard({ candidate, isSelected, onSelect }: PoseCandidateCardProps) {
+  const preview = useQuery(candidateThumbnailOptions(candidate.deferredThumbnailUrl));
+  const imageUrl = candidate.thumbnailUrl || preview.data;
+  const pending = !!candidate.deferredThumbnailUrl && preview.isPending;
+  const failed = !!candidate.deferredThumbnailUrl && preview.isError;
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={failed ? () => { void preview.refetch(); } : onSelect}
+      disabled={pending}
+      aria-busy={pending}
       aria-pressed={isSelected}
       className={cn(
         "flex flex-col overflow-hidden rounded-xl border-2 bg-surface-0 text-left transition-colors",
         isSelected ? "border-brand-coral" : "border-border hover:border-brand-sky",
       )}
     >
-      {candidate.thumbnailUrl ? (
-        <img src={candidate.thumbnailUrl} alt={candidate.title} className="aspect-square w-full object-cover" />
+      {imageUrl ? (
+        <img src={imageUrl} alt={candidate.title} className="aspect-square w-full object-cover" />
       ) : (
         <div className="flex aspect-square w-full items-center justify-center bg-surface-2 text-text-secondary">
-          <ImageOff className="h-8 w-8" aria-hidden />
+          {pending ? (
+            <span className="flex flex-col items-center gap-2 text-xs" role="status">
+              <LoaderCircle className="h-6 w-6 animate-spin" aria-hidden />각도 맞추는 중
+            </span>
+          ) : failed ? (
+            <span className="text-xs">미리보기 다시 시도</span>
+          ) : <ImageOff className="h-8 w-8" aria-hidden />}
         </div>
       )}
       <div className="flex flex-col gap-2 p-3">

@@ -43,10 +43,13 @@ const MESSAGES: Record<string, string> = {
   INVALID_EXPORT: "이 작업에서 선택한 후보가 아닙니다. 후보 화면에서 다시 선택해 주세요.",
   EXPORT_FAILED: "포즈 파일을 서버에서 받아오지 못했습니다. 잠시 후 다시 시도해 주세요.",
   // FBX 변환(BFF docs/API.md 「format=fbx」). 재시도가 통하는 실패와 아닌 실패를 나눈다.
+  OUTPUT_SCOPE_CHANGED: "출력 범위가 바뀌었습니다. 후보 화면에서 다시 확인해 주세요.",
   FBX_UNAVAILABLE: "지금은 FBX 저장을 사용할 수 없습니다. BVH로 저장해 주세요.",
-  CONVERTER_UNAVAILABLE: "지금은 FBX 변환 서버를 사용할 수 없습니다. 잠시 후 다시 시도하거나 BVH로 저장해 주세요.",
+  CONVERTER_UNAVAILABLE:
+    "지금은 FBX 변환 서버를 사용할 수 없습니다. 잠시 후 다시 시도하거나 BVH로 저장해 주세요.",
   CONVERTER_TIMEOUT: "FBX 변환이 시간 안에 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.",
-  CONVERTER_REJECTED: "이 포즈는 FBX로 변환할 수 없습니다. 다른 후보를 선택하거나 BVH로 저장해 주세요.",
+  CONVERTER_REJECTED:
+    "이 포즈는 FBX로 변환할 수 없습니다. 다른 후보를 선택하거나 BVH로 저장해 주세요.",
   CONVERTER_INTEGRITY: "변환 결과를 검증하지 못했습니다. 문제가 계속되면 문의해 주세요.",
   CONVERTER_FAILED: "FBX 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.",
   // 모델(체형) 선택. 둘 다 재시도로 풀리지 않는다 — 다른 모델을 고르거나 기본 모델로 간다.

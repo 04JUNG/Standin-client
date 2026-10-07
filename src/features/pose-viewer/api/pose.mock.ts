@@ -1,4 +1,11 @@
-import type { AnalysisResult, MatchLevel, PersonResult, PoseCandidate, PoseResultService } from "./pose.contract";
+import { mockOutputScope } from "./outputScope";
+import type {
+  AnalysisResult,
+  MatchLevel,
+  PersonResult,
+  PoseCandidate,
+  PoseResultService,
+} from "./pose.contract";
 
 /**
  * 브라우저(Vite) 개발용 Mock. capture.mock.ts와 동일하게 canvas로 플레이스홀더 썸네일을 만든다.
@@ -91,6 +98,7 @@ export const poseMock: PoseResultService = {
     const people: PersonResult[] = [
       {
         index: 0,
+        outputScope: mockOutputScope(jobId, 0, "full"),
         candidates: buildCandidates(jobId, 0),
         confidence: "high",
         skeletonState: "valid",
@@ -103,11 +111,12 @@ export const poseMock: PoseResultService = {
       {
         // soft — 후보는 있지만 스켈레톤 인식이 불확실하다. refine 금지.
         index: 1,
+        outputScope: mockOutputScope(jobId, 1, "half"),
         candidates: buildCandidates(jobId, 1, ["low", "low", "low", "low", "low"]),
         confidence: "low",
         skeletonState: "partial",
-        skeletonSource: "crop_retry",
-        coverageClass: "reduced",
+        skeletonSource: "full_image",
+        coverageClass: "upper_only",
         fallbackMode: "soft",
         refineAllowed: false,
         refinableLimbs: [],
@@ -115,6 +124,8 @@ export const poseMock: PoseResultService = {
       {
         // hard — 자동 후보가 없다. 다른 인물의 선택·저장은 계속 가능해야 한다.
         index: 2,
+        outputScope: mockOutputScope(jobId, 2, "head"),
+        candidateShortfallReason: "HEAD_SEARCH_UNSUPPORTED",
         candidates: [],
         confidence: "low",
         skeletonState: "missing",
@@ -129,7 +140,13 @@ export const poseMock: PoseResultService = {
     return {
       jobId,
       people,
-      capabilities: { refine: true, fbxExport: true, characterSelection: true },
+      capabilities: {
+        refine: true,
+        fbxExport: true,
+        characterSelection: true,
+        outputScopeSelection: true,
+        outputScopeCropping: false,
+      },
     };
   },
 };

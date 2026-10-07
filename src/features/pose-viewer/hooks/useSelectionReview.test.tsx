@@ -1,7 +1,14 @@
-import { renderHook } from "@testing-library/react";
+import { createElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook as renderHookBase } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult, PoseCandidate } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
+
+function renderHook<T>(hook: () => T) {
+  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
+  return renderHookBase(hook, { wrapper: ({children}) => createElement(QueryClientProvider, {client}, children) });
+}
 
 const analysisState: {
   data: AnalysisResult | undefined;
