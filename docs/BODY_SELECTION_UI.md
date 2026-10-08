@@ -117,3 +117,7 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 - 최종 확인 재시도도 체형 조회·Top-K·최종 결과를 다시 확인한다. 회귀 테스트 2개 추가.
 - 설치 전환 뒤 늦은 기본 설정 응답은 이전 캐시에 쓰지 않는다.
 - 진행 중인 [창 위치 수정 PR #79](https://github.com/04JUNG/Standin-client/pull/79)도 `WindowModeSync.tsx`를 수정한다. 병합 순서에 따라 760px 상한과 해당 PR의 위치 복원 동작을 함께 유지해야 한다.
+
+## 설정 화면 활성화 보완
+
+BFF는 공개 body-preferences GET/PUT에도 후보 bodyPreviews와 같은 활성화 조건(BODY_SELECTION_ENABLED + BODY_UX_ENABLED + FBX 설정)을 적용한다. 저장 기능만 켠 단계에서는 BODY_SELECTION_DISABLED로 구 설정 UI를 유지한다. 클라이언트는 일시적인 5xx나 네트워크 장애를 이 상태로 오인하지 않는다.
