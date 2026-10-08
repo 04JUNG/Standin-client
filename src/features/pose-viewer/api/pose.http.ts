@@ -42,6 +42,7 @@ type BffCandidate = {
   matchLevel: MatchLevel;
   bvhAvailable: boolean;
   thumbnailUrl?: string;
+  quickThumbnailUrl?: string;
   previewModelUrl?: string;
   camera?: { version?: string; rotation?: unknown; source_bvh_sha256?: string } | null;
 };
@@ -206,6 +207,7 @@ async function toPoseCandidate(
     matchLevel: raw.matchLevel,
     thumbnailUrl,
     ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
+    ...(deferred && raw.quickThumbnailUrl ? { quickThumbnailUrl: raw.quickThumbnailUrl } : {}),
     ...(deferred &&
     raw.previewModelUrl &&
     validRotation(raw.camera?.rotation) &&

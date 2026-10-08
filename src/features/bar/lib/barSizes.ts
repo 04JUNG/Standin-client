@@ -4,13 +4,7 @@ import type { WindowMode, WindowSize } from "../api/windowMode.contract";
  * 바 모드의 하위 상태별 창 크기(docs/04 바 모드 규격).
  * 크기 표는 UI 관심사라 TS가 소유한다(CLAUDE.md §9). Rust는 받은 값을 적용만 한다.
  */
-export type BarState =
-  | "collapsed"
-  | "actions"
-  | "progress"
-  | "candidates"
-  | "review"
-  | "save";
+export type BarState = "collapsed" | "actions" | "progress" | "candidates" | "review" | "save";
 
 export const BAR_SIZES: Record<BarState, WindowSize> = {
   /**
@@ -27,11 +21,10 @@ export const BAR_SIZES: Record<BarState, WindowSize> = {
   actions: { width: 360, height: 88 },
   /** 분석 진행 상태 */
   progress: { width: 360, height: 96 },
-  // 인물 줄(스테퍼 + 체형 선택)이 늘었지만 460 그대로 둔다. 후보 카드는 자기 내용으로
-  // 높이가 정해져 창을 키워도 커지지 않는다(720×400~498에서 전부 232px 실측) — 올리면
-  // 카드가 아니라 빈 공간만 늘어난다. 바는 작업 화면 위에 뜨므로 작을수록 낫다.
+  // 카드와 이름이 여러 줄일 때도 창 크기를 고정한다. 넘치는 내용은 내부에서 스크롤한다.
+  // 이미지 로드 때 내용 높이를 따라 창을 재조정하면 스크롤바가 붙었다 떨어지며 떨린다.
   /** 후보 5개 비교·선택 · 인물별 체형 */
-  candidates: { width: 720, height: 460 },
+  candidates: { width: 720, height: 560 },
   /**
    * 저장 전 확인.
    *
