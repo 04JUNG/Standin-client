@@ -12,11 +12,13 @@ const { state, fetchBlob } = vi.hoisted(() => ({
     model: false,
     base: false,
     refined: false,
+    webgl: true,
   },
   fetchBlob: vi.fn(),
 }));
 vi.mock("@/shared/api/client", () => ({ apiFetchBlob: fetchBlob }));
 vi.mock("../preview/modelContract", () => ({ validateModel: vi.fn() }));
+vi.mock("../preview/modelSupport", () => ({ modelRenderingAvailable: () => state.webgl }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
     data: {
@@ -99,6 +101,7 @@ describe("framed review", () => {
       model: false,
       base: false,
       refined: false,
+      webgl: true,
     });
     fetchBlob.mockReset();
     fetchBlob.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
@@ -124,6 +127,13 @@ describe("framed review", () => {
       rerender();
     });
     await waitFor(() => expect(fetchBlob).toHaveBeenCalledTimes(1));
+  });
+  it("unsupported WebGL goes directly to PNG without preparing a model first", async () => {
+    Object.assign(state, { model: true, webgl: false });
+    const { result } = mount();
+    await waitFor(() => expect(result.current.previewLoading).toBe(false));
+    expect(fetchBlob.mock.calls[0]![0]).toContain("format=preview");
+    expect(fetchBlob).toHaveBeenCalledTimes(1);
   });
   it("waits for the model's first frame, then allows save without a PNG request", async () => {
     state.model = true;

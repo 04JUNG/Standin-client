@@ -1,6 +1,7 @@
 import { useQueries } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { validateModel } from "../preview/modelContract";
+import { modelRenderingAvailable } from "../preview/modelSupport";
 import type { ReviewModel } from "../preview/mountReviewModel";
 import { apiFetchBlob } from "@/shared/api/client";
 import { useExportStore } from "@/features/export/store/exportStore";
@@ -47,7 +48,9 @@ export function useFramedReview(jobId: string | undefined) {
           framedExportUrl(item.exportUrl, scope, "model", character.characterId) +
           `#${item.refined}`;
         model =
-          review.data?.capabilities.modelPreview === true && modelStatus[modelKey] !== "failed";
+          review.data?.capabilities.modelPreview === true &&
+          modelRenderingAvailable() &&
+          modelStatus[modelKey] !== "failed";
         url = framedExportUrl(
           item.exportUrl,
           scope,

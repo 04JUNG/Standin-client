@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useExportStore } from "@/features/export/store/exportStore";
+import { modelRenderingAvailable } from "../preview/modelSupport";
 import type { AnalysisResult } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
 import { refineService } from "../api/refine.service";
@@ -58,6 +59,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
             personIndex: next.personIndex,
             candidateId: next.candidateId,
             ...(result.capabilities.modelPreview &&
+            modelRenderingAvailable() &&
             result.capabilities.outputScopeCropping &&
             result.capabilities.fbxExport &&
             useExportStore.getState().format === "fbx"
