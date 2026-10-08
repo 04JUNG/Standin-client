@@ -12,7 +12,7 @@ import { tourAnchor } from "@/shared/lib/tourAnchor";
  * 저장 화면은 진입 즉시 자동 저장한다(ADR-009). 조정이 걸리면 되돌릴 수 없으므로 그 전에
  * 한 번 멈추는 자리가 필요하다.
  *
- * 부분 출력 지원 시에는 converter가 최종 FBX를 다시 읽어 만든 정면 PNG를 쓴다.
+ * 모델 지원 시 최종 표면을 GPU에 유지하고, 미지원 기기는 범위별 PNG를 쓴다.
  * 지원하지 않는 서버/BVH 경로는 기존 후보·보정 미리보기를 유지한다.
  */
 export function ReviewPage() {

@@ -13,11 +13,21 @@ const { state, fetchBlob } = vi.hoisted(() => ({
     base: false,
     refined: false,
     webgl: true,
+    serverBase: false,
   },
   fetchBlob: vi.fn(),
 }));
 vi.mock("@/shared/api/client", () => ({ apiFetchBlob: fetchBlob }));
-vi.mock("../preview/modelContract", () => ({ validateModel: vi.fn() }));
+vi.mock("../preview/modelContract", () => ({
+  validateModel: vi.fn((_data, _source, _character, _scope, version = "posed-mesh-v1") => {
+    if ((version === "posed-mesh-v1") !== state.serverBase) throw new Error("model version");
+    return {
+      source_bvh_sha256: "a".repeat(64),
+      character_sha256: "b".repeat(64),
+      revision: "c".repeat(64),
+    };
+  }),
+}));
 vi.mock("../preview/modelSupport", () => ({ modelRenderingAvailable: () => state.webgl }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
@@ -102,6 +112,7 @@ describe("framed review", () => {
       base: false,
       refined: false,
       webgl: true,
+      serverBase: false,
     });
     fetchBlob.mockReset();
     fetchBlob.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
@@ -164,20 +175,28 @@ describe("framed review", () => {
     expect(fetchBlob.mock.calls[1]![0]).toContain("outputScope=half");
   });
   it("an unchanged full pose can be viewed while its FBX is still preparing", async () => {
-    Object.assign(state, { model: true, base: true, scope: "full" });
-    fetchBlob.mockImplementation((url: string) =>
-      url.startsWith("/base-model")
-        ? Promise.resolve({
-            type: "model/gltf-binary",
-            arrayBuffer: async () => new ArrayBuffer(32),
-          })
-        : new Promise(() => {}),
-    );
+    Object.assign(state, { model: true, base: true, scope: "full", serverBase: true });
+    fetchBlob.mockResolvedValue({
+      type: "model/gltf-binary",
+      arrayBuffer: async () => new ArrayBuffer(32),
+    });
     const { result } = mount();
     await waitFor(() => expect(result.current.items[0]?.previewModel?.base).toBeDefined());
     act(() => result.current.items[0]!.onModelStatus("ready"));
     expect(result.current.previewLoading).toBe(false);
-    expect(fetchBlob).toHaveBeenCalledTimes(2);
+    expect(fetchBlob).toHaveBeenCalledTimes(1);
+    expect(fetchBlob.mock.calls[0]![0]).toContain("useLibraryModel=true");
+  });
+  it("server refine wins when the client missed its response", async () => {
+    Object.assign(state, { model: true, base: true, refined: false, scope: "full" });
+    fetchBlob.mockResolvedValue({
+      type: "model/gltf-binary",
+      arrayBuffer: async () => new ArrayBuffer(32),
+    });
+    const { result } = mount();
+    await waitFor(() => expect(result.current.items[0]?.previewModel).toBeDefined());
+    expect(result.current.items[0]?.previewModel?.base).toBeUndefined();
+    expect(fetchBlob).toHaveBeenCalledTimes(1);
   });
   it("a refined pose never uses a precomputed base model", async () => {
     Object.assign(state, { model: true, base: true, refined: true, scope: "full" });

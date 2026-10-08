@@ -5,7 +5,11 @@ import { modelRenderingAvailable } from "../preview/modelSupport";
 import type { ReviewModel } from "../preview/mountReviewModel";
 import { apiFetchBlob } from "@/shared/api/client";
 import { useExportStore } from "@/features/export/store/exportStore";
-import { framedExportUrl, rememberFramedFormat } from "@/features/export/lib/framedExport";
+import {
+  framedExportUrl,
+  rememberFramedFormat,
+  type ReviewedIdentity,
+} from "@/features/export/lib/framedExport";
 import { useModelStore } from "@/features/models/store/modelStore";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
 import { resolveCharacter } from "@/features/models/lib/resolveCharacter";
@@ -42,6 +46,7 @@ export function useFramedReview(jobId: string | undefined) {
     let modelKey = "";
     let model = false;
     let exportKey = "";
+    const base = scope === "full" && !item.refined ? item.candidate.previewModel : undefined;
     if (enabled && item.exportUrl) {
       try {
         modelKey =
@@ -57,6 +62,7 @@ export function useFramedReview(jobId: string | undefined) {
           model ? "model" : "preview",
           character.characterId,
         );
+        if (model && base) url += "&useLibraryModel=true";
         exportKey =
           framedExportUrl(item.exportUrl, scope, "fbx", character.characterId) + `#${item.refined}`;
       } catch {
@@ -69,6 +75,7 @@ export function useFramedReview(jobId: string | undefined) {
       modelKey,
       model,
       exportKey,
+      base,
       characterId: character.characterId ?? catalog.data?.defaultCharacterId ?? "",
     };
   });
@@ -80,16 +87,40 @@ export function useFramedReview(jobId: string | undefined) {
         signal,
       }: {
         signal: AbortSignal;
-      }): Promise<{ image: string; model?: ReviewModel }> => {
+      }): Promise<{ image: string; model?: ReviewModel; identity?: ReviewedIdentity }> => {
         const blob = await apiFetchBlob(request.url, { auth: false, signal });
         if (request.model) {
           if (!blob.type.startsWith("model/gltf-binary"))
             throw new Error("미리보기 형식을 확인하지 못했습니다.");
           const data = await blob.arrayBuffer();
-          validateModel(data, undefined, request.characterId, request.scope, "framed-mesh-v1");
+          let meta;
+          let base;
+          try {
+            meta = validateModel(
+              data,
+              undefined,
+              request.characterId,
+              request.scope,
+              "framed-mesh-v1",
+            );
+          } catch (error) {
+            if (!request.base) throw error;
+            meta = validateModel(data, request.base.sourceSha, request.characterId);
+            base = request.base;
+          }
+          if (
+            !/^[a-f0-9]{64}$/.test(meta.character_sha256) ||
+            !/^[a-f0-9]{64}$/.test(meta.revision)
+          )
+            throw new Error("model identity");
           return {
             image: "",
-            model: { data, characterId: request.characterId, scope: request.scope },
+            model: { data, characterId: request.characterId, scope: request.scope, base },
+            identity: {
+              sourceSha: meta.source_bvh_sha256,
+              characterSha: meta.character_sha256,
+              revision: base ? undefined : meta.revision,
+            },
           };
         }
         if (!blob.type.startsWith("image/png"))
@@ -101,46 +132,11 @@ export function useFramedReview(jobId: string | undefined) {
       gcTime: 600_000,
     })),
   });
-  // Only an unmodified, full-body result can reuse a library surface. Preparation
-  // still runs once in parallel so the export can join the same pending FBX job.
-  const baseQueries = useQueries({
-    queries: requests.map((request, index) => {
-      const item = review.items[index]!;
-      const base = item.candidate.previewModel;
-      return {
-        queryKey: ["review-base-model", base, request.characterId],
-        enabled:
-          enabled &&
-          request.model &&
-          request.scope === "full" &&
-          !item.refined &&
-          !review.isRefining &&
-          catalog.isSuccess &&
-          !!base,
-        queryFn: async ({ signal }: { signal: AbortSignal }): Promise<ReviewModel> => {
-          const url = `${base!.url}${base!.url.includes("?") ? "&" : "?"}characterId=${encodeURIComponent(request.characterId)}`;
-          const blob = await apiFetchBlob(url, { auth: false, signal });
-          if (blob.type !== "model/gltf-binary") throw new Error("model unavailable");
-          const data = await blob.arrayBuffer();
-          validateModel(data, base!.sourceSha, request.characterId);
-          return { data, characterId: request.characterId, scope: "full", base };
-        },
-        retry: false,
-        staleTime: 300_000,
-        gcTime: 600_000,
-      };
-    }),
-  });
-  const displays = requests.map((r, i) => {
-    const base =
-      r.model && r.scope === "full" && !review.items[i]!.refined && !review.isRefining
-        ? baseQueries[i]?.data
-        : undefined;
-    return {
-      model: base ?? queries[i]?.data?.model,
-      key: r.modelKey + (base ? ":base" : ":final"),
-    };
-  });
+  // The server checks the stored refine result before returning a library model.
+  const displays = requests.map((r, i) => ({
+    model: queries[i]?.data?.model,
+    key: r.modelKey + JSON.stringify(queries[i]?.data?.identity),
+  }));
   const previewLoading =
     enabled &&
     (review.isRefining ||
@@ -164,7 +160,7 @@ export function useFramedReview(jobId: string | undefined) {
         (queries[i]?.data?.image ||
           (displays[i]?.model && modelStatus[displays[i]!.key] === "ready"))
       )
-        rememberFramedFormat(r.exportKey, r.model);
+        rememberFramedFormat(r.exportKey, r.model, queries[i]?.data?.identity);
     });
   }, [enabled, review.isRefining, requests, queries, displays, modelStatus]);
   return {

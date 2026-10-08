@@ -1,4 +1,4 @@
-import { framedExportUrl, reviewedModelFormat } from "../lib/framedExport";
+import { framedExportUrl, reviewedModelFormat, reviewedExportUrl } from "../lib/framedExport";
 import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -69,7 +69,14 @@ async function resolvePoseBytes(
             ),
           )
         : withExportParams(exportUrl, format, characterId);
-    return await apiFetchBytes(url, { auth: false });
+    const pinnedUrl =
+      scope && format === "fbx"
+        ? reviewedExportUrl(
+            url,
+            framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`,
+          )
+        : url;
+    return await apiFetchBytes(pinnedUrl, { auth: false });
   } catch (error) {
     // 격리된 포즈, converter 거부, lineage 불일치는 모두 **재시도로 풀리지 않는다.** 일반
     // 실패로 뭉치면 사용자는 영원히 실패하는 재시도 버튼만 누르게 된다. 코드별 문구는
@@ -303,7 +310,11 @@ export function useSaveFlow(jobId: string | undefined) {
                 : undefined,
               analysisResult.capabilities.modelPreview === true,
               currentOutcome?.refined === true,
-            );
+            ).catch((error) => {
+              // Returning to review must fetch fresh lineage after a rejected save.
+              void queryClient.invalidateQueries({ queryKey: ["framed-preview"] });
+              throw error;
+            });
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),
         );
@@ -347,7 +358,7 @@ export function useSaveFlow(jobId: string | undefined) {
         );
       }
     },
-    [startSaving, setSaved, addSaved, setError],
+    [startSaving, setSaved, addSaved, setError, queryClient],
   );
 
   /**
