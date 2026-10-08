@@ -1,5 +1,9 @@
 # FastAPI 연동 계약 초안
 
+카메라 후보의 `quickThumbnailUrl`은 이미 렌더된 JPEG를 가리키는 선택 필드다.
+후보 카드에서 빠른 근사 시점으로만 쓰고, `thumbnailUrl`과 저장 전 확인 계약은
+기존처럼 최종 결과를 검증한다. 필드가 없는 구 BFF는 기존 카드 로딩 경로를 쓴다.
+
 ## 모델 미리보기 확장 (2026-10-08)
 
 `capabilities.modelPreview`(없으면 false)가 true인 FBX 확인 화면은

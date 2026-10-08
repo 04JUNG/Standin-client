@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { candidateThumbnailOptions } from "./candidateThumbnail";
+import { candidateThumbnailOptions, quickCandidateThumbnailOptions } from "./candidateThumbnail";
 import { apiFetchBlob } from "@/shared/api/client";
 import { renderCandidate } from "../preview/renderCandidate";
 vi.mock("@/shared/api/client", () => ({ apiFetchBlob: vi.fn() }));
@@ -14,6 +14,38 @@ const model = {
   ],
 };
 beforeEach(() => vi.resetAllMocks());
+it("shows the library JPEG without starting model or Blender work", async () => {
+  vi.mocked(apiFetchBlob).mockResolvedValue(new Blob(["jpeg"], { type: "image/jpeg" }));
+  const url = "/v1/pose-candidates/pose/thumbnail?view=front";
+  const result = await quickCandidateThumbnailOptions(url).queryFn({
+    signal: new AbortController().signal,
+  });
+  expect(result).toMatch(/^data:image\/jpeg;base64,/);
+  expect(apiFetchBlob).toHaveBeenCalledTimes(1);
+  expect(apiFetchBlob).toHaveBeenCalledWith(url, expect.anything());
+  expect(renderCandidate).not.toHaveBeenCalled();
+});
+it("stops waiting for an unresponsive library image after 2.5 seconds", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(apiFetchBlob).mockImplementation(
+      (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener("abort", () => reject(new Error("aborted")), {
+            once: true,
+          });
+        }),
+    );
+    const request = quickCandidateThumbnailOptions("/quick").queryFn({
+      signal: new AbortController().signal,
+    });
+    const failure = expect(request).rejects.toThrow("aborted");
+    await vi.advanceTimersByTimeAsync(2_500);
+    await failure;
+  } finally {
+    vi.useRealTimers();
+  }
+});
 it("renders the precomputed model without requesting a Blender PNG", async () => {
   vi.mocked(apiFetchBlob).mockResolvedValue({
     type: "model/gltf-binary",

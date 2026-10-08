@@ -167,6 +167,17 @@ describe("WindowModeSync", () => {
  * 자리로 튀었다.
  */
 describe("WindowModeSync 바 위치", () => {
+  it("후보 이미지와 줄바꿈으로 내용 높이가 바뀌어도 창 크기와 위치를 고정한다", async () => {
+    renderAt("/bar/candidates");
+    await settle();
+    service.setMode.mockClear();
+    service.setPosition.mockClear();
+    await setContentHeight(510);
+    await setContentHeight(575);
+    await setContentHeight(535);
+    expect(service.setMode).not.toHaveBeenCalled();
+    expect(service.setPosition).not.toHaveBeenCalled();
+  });
   it("후보를 넘겨 내용 높이만 바뀌면 사용자가 옮긴 창을 건드리지 않는다", async () => {
     useWindowModeStore.getState().setBarPosition({ x: 200, y: 200 });
     renderAt("/bar/candidates");
@@ -188,7 +199,7 @@ describe("WindowModeSync 바 위치", () => {
 
   it("내용이 넘쳐 창이 커져도 사용자가 옮긴 자리를 지킨다", async () => {
     useWindowModeStore.getState().setBarPosition({ x: 200, y: 200 });
-    renderAt("/bar/candidates");
+    renderAt("/bar/actions");
     await settle();
 
     windowAt = { x: 900, y: 400 };
@@ -196,7 +207,7 @@ describe("WindowModeSync 바 위치", () => {
 
     expect(service.setMode).toHaveBeenLastCalledWith(
       "bar",
-      { width: BAR_SIZES.candidates.width, height: 520 },
+      { width: BAR_SIZES.actions.width, height: 520 },
       undefined,
     );
     expect(windowAt).toEqual({ x: 900, y: 400 });
@@ -223,7 +234,7 @@ describe("WindowModeSync 바 위치", () => {
     expect(windowAt).toEqual({ x: 1500, y: 950 });
 
     await go("/bar/candidates");
-    expect(windowAt).toEqual({ x: 1200, y: 620 });
+    expect(windowAt).toEqual({ x: 1200, y: 520 });
 
     await go("/bar/actions");
     expect(windowAt).toEqual({ x: 1500, y: 950 });

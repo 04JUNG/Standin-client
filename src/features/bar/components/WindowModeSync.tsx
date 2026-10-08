@@ -46,7 +46,7 @@ export function WindowModeSync() {
     const base = windowTargetForPath(pathname);
     const barState = barStateForPath(pathname);
     const target: WindowTarget =
-      barState && contentHeight
+      barState && barState !== "candidates" && contentHeight
         ? { ...base, size: { ...base.size, height: Math.max(base.size.height, contentHeight) } }
         : base;
 
