@@ -6,8 +6,10 @@ import type { AnalysisResult, PoseCandidate } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
 
 function renderHook<T>(hook: () => T) {
-  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
-  return renderHookBase(hook, { wrapper: ({children}) => createElement(QueryClientProvider, {client}, children) });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return renderHookBase(hook, {
+    wrapper: ({ children }) => createElement(QueryClientProvider, { client }, children),
+  });
 }
 
 const analysisState: {
@@ -85,12 +87,11 @@ describe("useSelectionReview", () => {
     expect(result.current.items[0]?.refined).toBe(true);
   });
 
-  // 서버가 그림을 못 준 경우다. 이때 저장되는 것은 실제로 그 후보의 베이스 포즈이므로
-  // 후보 썸네일은 "비슷한 그림"이 아니라 맞는 그림이다.
-  it("조정 그림이 없으면 고른 후보의 썸네일로 폴백한다", () => {
+  it("조정 그림이 없으면 다른 포즈인 원본 썸네일을 보여주지 않는다", () => {
     refineState.refineByPerson = { 0: outcome({ previewUrl: "" }) };
     const { result } = renderHook(() => useSelectionReview("job-1"));
-    expect(result.current.items[0]?.previewUrl).toBe("data:image/png;base64,CANDIDATE");
+    expect(result.current.items[0]?.previewUrl).toBe("");
+    expect(result.current.items[0]?.exportUrl).toBe("/v1/refined.bvh");
   });
 
   // refine을 아예 시도하지 않은 인물(저신뢰·기능 off)도 확인 화면에는 그림이 있어야 한다.

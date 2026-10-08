@@ -1,4 +1,5 @@
 import { useQueries } from "@tanstack/react-query";
+import { useExportStore } from "@/features/export/store/exportStore";
 import { candidateThumbnailOptions } from "../api/candidateThumbnail";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { useMemo } from "react";
@@ -37,6 +38,9 @@ export function useSelectionReview(jobId: string | undefined) {
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const { status, refineByPerson } = useRefineSelection(analysis.data);
   const { data, selectedByPerson } = analysis;
+  const format = useExportStore((s) => s.format);
+  const framed =
+    format === "fbx" && data?.capabilities.fbxExport && data.capabilities.outputScopeCropping;
 
   const items = useMemo((): ReviewItem[] => {
     if (!data) return [];
@@ -55,9 +59,9 @@ export function useSelectionReview(jobId: string | undefined) {
           candidate,
           // 조정 결과가 있으면 그 URL이 최종이다. 없으면 후보의 베이스 URL로 저장한다.
           exportUrl: currentOutcome?.exportUrl ?? candidate.bvhUrl,
-          // 조정본 그림이 없을 때 후보 썸네일을 쓰는 것은 "비슷한 그림"이 아니다.
-          // 그 경우 저장되는 것이 실제로 그 후보의 베이스 포즈다.
-          previewUrl: currentOutcome?.previewUrl || candidate.thumbnailUrl,
+          // A deferred refined preview must never show the unmodified pose.
+          previewUrl:
+            currentOutcome?.previewUrl || (currentOutcome?.refined ? "" : candidate.thumbnailUrl),
           refined: currentOutcome?.refined === true,
           skipped: !currentOutcome,
         },
@@ -72,7 +76,8 @@ export function useSelectionReview(jobId: string | undefined) {
         item.candidate.previewModel,
         byPerson[item.personIndex] ?? characterId ?? undefined,
       ),
-      enabled: !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
+      enabled:
+        !framed && !item.refined && !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
     })),
   });
   return {

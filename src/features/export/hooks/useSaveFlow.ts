@@ -1,4 +1,4 @@
-import { framedExportUrl } from "../lib/framedExport";
+import { framedExportUrl, reviewedModelFormat } from "../lib/framedExport";
 import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -45,6 +45,8 @@ async function resolvePoseBytes(
   format: ExportFormat,
   characterId: string | null,
   scope?: BodyScope,
+  modelPreview = false,
+  refined = false,
 ): Promise<Uint8Array> {
   // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
   // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
@@ -56,7 +58,16 @@ async function resolvePoseBytes(
   try {
     const url =
       scope && format === "fbx"
-        ? framedExportUrl(exportUrl, scope, "fbx", characterId)
+        ? framedExportUrl(
+            exportUrl,
+            scope,
+            "fbx",
+            characterId,
+            reviewedModelFormat(
+              framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`,
+              modelPreview,
+            ),
+          )
         : withExportParams(exportUrl, format, characterId);
     return await apiFetchBytes(url, { auth: false });
   } catch (error) {
@@ -290,6 +301,8 @@ export function useSaveFlow(jobId: string | undefined) {
                     analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
                   ).resolved
                 : undefined,
+              analysisResult.capabilities.modelPreview === true,
+              currentOutcome?.refined === true,
             );
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),

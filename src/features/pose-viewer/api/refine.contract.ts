@@ -36,5 +36,6 @@ export interface RefineService {
     jobId: string;
     personIndex: number;
     candidateId: string;
+    deferPreview?: boolean;
   }): Promise<RefineOutcome>;
 }

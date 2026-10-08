@@ -80,6 +80,7 @@ export type AnalysisResult = {
     characterSelection: boolean;
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
+    modelPreview?: boolean;
   };
 };
 

@@ -25,7 +25,13 @@ export function validRotation(value: unknown): value is number[][] {
     a[2]! * (b[0]! * c[1]! - b[1]! * c[0]!);
   return Math.abs(det - 1) < 1e-6;
 }
-export function validateModel(data: ArrayBuffer, sourceSha: string, characterId: string) {
+export function validateModel(
+  data: ArrayBuffer,
+  sourceSha: string | undefined,
+  characterId: string,
+  scope = "full",
+  version = "posed-mesh-v1",
+) {
   if (data.byteLength < 28 || data.byteLength > 8 * 1024 * 1024) throw new Error("model size");
   const v = new DataView(data);
   if (
@@ -40,11 +46,15 @@ export function validateModel(data: ArrayBuffer, sourceSha: string, characterId:
   const doc = JSON.parse(new TextDecoder().decode(new Uint8Array(data, 20, jsonSize)));
   const meta = doc.asset?.extras;
   if (
-    meta?.version !== "posed-mesh-v1" ||
-    meta.source_bvh_sha256 !== sourceSha ||
+    meta?.version !== version ||
+    (sourceSha !== undefined && meta.source_bvh_sha256 !== sourceSha) ||
+    !/^[a-f0-9]{64}$/.test(meta.source_bvh_sha256) ||
     meta.character_id !== characterId ||
     meta.coordinates !== "Y-up-hips-origin" ||
-    meta.scope !== "full"
+    meta.scope !== scope ||
+    (version === "framed-mesh-v1" &&
+      meta.camera_rotation !== null &&
+      !validRotation(meta.camera_rotation))
   )
     throw new Error("model lineage");
   // This format has exactly one static mesh and one internal buffer. No network,

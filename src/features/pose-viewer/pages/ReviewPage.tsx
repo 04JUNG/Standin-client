@@ -3,6 +3,7 @@ import { ImageOff, Loader2, Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "../hooks/useFramedReview";
+import { ReviewModelPreview } from "../components/ReviewModelPreview";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
 
 /**
@@ -40,7 +41,9 @@ export function ReviewPage() {
                   key={item.personIndex}
                   className="flex flex-col overflow-hidden rounded-lg border border-border"
                 >
-                  {item.previewUrl ? (
+                  {item.previewModel ? (
+                    <ReviewModelPreview model={item.previewModel} onStatus={item.onModelStatus} />
+                  ) : item.previewUrl ? (
                     <img
                       src={item.previewUrl}
                       alt={`인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`}
