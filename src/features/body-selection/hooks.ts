@@ -23,6 +23,7 @@ export const bodyEnabled = (result?: AnalysisResult) => result?.capabilities?.bo
 export function useBodies(result: AnalysisResult | undefined) {
   const owner = useBodyOwner(),
     job = result?.jobId ?? "";
+  const qc = useQueryClient();
   const enabled = bodyEnabled(result);
   const people = enabled ? (result?.people.filter((p) => p.fallbackMode !== "hard") ?? []) : [];
   const selections = useQueries({
@@ -80,7 +81,12 @@ export function useBodies(result: AnalysisResult | undefined) {
         : null),
     retry: async () => {
       await selections[i]?.refetch();
-      await groups[i]?.refetch();
+      // The refreshed selection may use a different query key (or still be absent).
+      // Invalidate active groups instead of invoking the old render closure.
+      await qc.invalidateQueries({
+        queryKey: bodyKeys.person(owner, job, person.index),
+        predicate: (q) => q.queryKey[4] === "images",
+      });
     },
   }));
   return {

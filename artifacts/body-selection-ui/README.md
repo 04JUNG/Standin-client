@@ -3,16 +3,16 @@
 2026-10-08. 실제 React 앱·바 컴포넌트 + 격리된 API fixture. **그림과 FBX bytes는 실제 모델이 아니다.** 차렷 도식에 QA 표시를 넣었다. 실제 외형 검수 증거로 쓰지 않는다.
 
 - 후보/카드: 9종 테스트 데이터. 제품의 체형 수는 하드코딩하지 않음.
-- 720×460 바, 1280×800 앱. 선택 즉시 반영, 빠른 2→3 변경, 확정 후 접기, 포커스, 다인 분리, 앱 전환, 최종 다운로드 검증.
+- 720×460 바, 1280×800 앱. 선택 즉시 반영, 빠른 2→3 변경, 확정 후 접기, 다인 분리, 앱 전환, 최종 다운로드 검증.
 - 기본 체형 등록 후 auto 유지, 명시적 fixed_default 변경, 기존 Job 불변.
 - 확인 캐시를 지운 뒤 직접 저장 진입: 파일 다운로드 차단.
 - `body-ui-result.json`: 요청/검증 결과. 브라우저 pageerror 0.
 
 ## 자동 검증
 
-- 클라이언트: **419 tests / 57 files 통과**, typecheck / lint / build 통과.
+- 클라이언트: **421 tests / 58 files 통과**, typecheck / lint / build 통과.
 - Node 26에서는 `NODE_OPTIONS=--no-experimental-webstorage npm test -- --reporter=dot` 사용.
-- BFF: **305 tests, skip 0**, 임시 실제 PostgreSQL 포함. typecheck/build 통과.
+- BFF: **319 tests, skip 0**, 임시 실제 PostgreSQL 포함. typecheck/build 통과.
 - macOS 호스트 `cargo check` 통과. Windows와 Tauri GUI 실행·CSP 실제 드롭은 미검증.
 - 빌드 결과 main 538.12 kB, 지연 로딩 Three renderer 620.01 kB. 기존 chunk 경고는 남음.
 

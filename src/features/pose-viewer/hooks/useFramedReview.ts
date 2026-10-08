@@ -1,7 +1,7 @@
 import { loadBodyReview } from "@/features/body-selection/review";
 import { bodyKeys } from "@/features/body-selection/api";
 import { useBodyOwner } from "@/features/body-selection/hooks";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { apiFetchBlob } from "@/shared/api/client";
 import { useExportStore } from "@/features/export/store/exportStore";
 import { framedExportUrl } from "@/features/export/lib/framedExport";
@@ -17,6 +17,7 @@ import { useSelectionReview } from "./useSelectionReview";
 export function useFramedReview(jobId: string | undefined) {
   const review = useSelectionReview(jobId);
   const owner = useBodyOwner();
+  const qc = useQueryClient();
   const bodyMode = review.bodies.enabled;
   const format = useExportStore((s) => s.format);
   const pinned = usePoseSelectionStore((s) => s.characterId);
@@ -128,9 +129,17 @@ export function useFramedReview(jobId: string | undefined) {
       : format === "bvh"
         ? "BVH는 전신 뼈대의 동작 파일입니다. 출력 범위는 FBX에 적용됩니다."
         : "",
-    retryPreview: () => {
-      void catalog.refetch();
-      for (const query of queries) void query.refetch();
+    retryPreview: async () => {
+      if (bodyMode) {
+        await Promise.all(review.bodies.entries.map((entry) => entry.retry()));
+        await qc.invalidateQueries({
+          queryKey: ["body", owner, review.data!.jobId],
+          predicate: (q) => q.queryKey[4] === "review",
+        });
+      } else {
+        await catalog.refetch();
+        await Promise.all(queries.map((query) => query.refetch()));
+      }
     },
   };
 }

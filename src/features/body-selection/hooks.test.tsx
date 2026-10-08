@@ -117,6 +117,20 @@ describe("server body groups", () => {
     expect(h.result.current.ready).toBe(false);
     expect(h.result.current.entries[0]?.group).toBeUndefined();
   });
+  it("retry recovers a failed initial selection without rendering an undefined body", async () => {
+    const { wrapper } = setup();
+    api.getSelection.mockRejectedValue(new Error("offline"));
+    const h = renderHook(() => useBodies(result), { wrapper });
+    await waitFor(() => expect(h.result.current.entries[0]?.error).toBeTruthy());
+    expect(api.getManifest).not.toHaveBeenCalled();
+    api.getSelection.mockImplementation(async (_job, index) => selection(2, "b", index));
+    await act(async () => {
+      await Promise.all(h.result.current.entries.map((entry) => entry.retry()));
+    });
+    await waitFor(() => expect(h.result.current.ready).toBe(true));
+    expect(api.getManifest.mock.calls.every((call) => call[2]?.selectionRevision === 2)).toBe(true);
+    expect(h.result.current.entries[0]?.group?.images.p1).toBe("b:p1");
+  });
   it("body mutation updates only body queries, never invalidates analysis or pose selection", async () => {
     const { wrapper, qc } = setup();
     qc.setQueryData(["analysis", "result", "local"], { jobId: "immutable" });

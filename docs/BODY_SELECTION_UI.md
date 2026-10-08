@@ -94,7 +94,7 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 이 flag는 자산 준비/서비스 health 보장이 아니다. 미리보기 실패 시 계속 진행하지 않는다.
 
 승인 카탈로그/모델/차렷 이미지 준비 → converter 계약 배포 → BFF 배포 → 클라이언트 배포 → 대상 환경 검수 후 flag 활성화 순서다.
-이번 작업에서 운영 배포·flag 변경·원격 푸시·PR 생성은 하지 않았다.
+기능 브랜치에 푸시하고 develop 대상 PR로 검토한다. 운영 배포·flag 변경은 별도다.
 
 ## 검증과 한계
 
@@ -109,4 +109,11 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 주요 파일: `features/body-selection/*`, `useAnalysisResult`, `BodyCandidates`, `useFramedReview`, `useSaveFlow`, `window_mode.rs`.
 브라우저 검증 기록은 `artifacts/body-selection-ui/`에 보관한다.
 
-최종 검증 수치: 클라이언트 419개, BFF 305개(skip 0), 타입/lint/build 및 macOS cargo check 통과. 실제 브라우저 검증 결과는 [기록](../artifacts/body-selection-ui/README.md)에 있다.
+최종 검증 수치: 클라이언트 421개, BFF 319개(skip 0), 타입/lint/build 및 macOS cargo check 통과. 실제 브라우저 검증 결과는 [기록](../artifacts/body-selection-ui/README.md)에 있다.
+
+## PR 전 검수
+
+- 최초 체형 조회 실패 후 재시도가 이전 undefined selection으로 렌더하지 않도록 현재 Query를 갱신한다.
+- 최종 확인 재시도도 체형 조회·Top-K·최종 결과를 다시 확인한다. 회귀 테스트 2개 추가.
+- 설치 전환 뒤 늦은 기본 설정 응답은 이전 캐시에 쓰지 않는다.
+- 진행 중인 [창 위치 수정 PR #79](https://github.com/04JUNG/Standin-client/pull/79)도 `WindowModeSync.tsx`를 수정한다. 병합 순서에 따라 760px 상한과 해당 PR의 위치 복원 동작을 함께 유지해야 한다.

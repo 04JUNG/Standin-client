@@ -1,3 +1,4 @@
+import { useInstallationStore } from "@/features/installation/installationStore";
 import { useBodyPreferences } from "./preferences";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/shared/components/AppShell";
@@ -16,7 +17,8 @@ export function BodyPreferencesPage() {
       return putPreferences(change, query.data.revision);
     },
     onSuccess: (value) => {
-      qc.setQueryData(bodyKeys.preferences(owner), value);
+      if (useInstallationStore.getState().credentials?.installationId === owner)
+        qc.setQueryData(bodyKeys.preferences(owner), value);
     },
     onError: () => {
       void query.refetch();
