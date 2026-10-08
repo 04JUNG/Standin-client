@@ -1,3 +1,4 @@
+import { PREVIEW_STYLE_VERSION } from "../preview/previewStyleContract";
 import { apiFetchBlob } from "@/shared/api/client";
 import type { CandidateModel } from "../preview/modelContract";
 import { blobToDataUrl } from "./thumbnails";
@@ -35,7 +36,7 @@ export function candidateThumbnailOptions(
   characterId = "standin-master-v2",
 ) {
   return {
-    queryKey: ["candidate-camera-preview", url, model, characterId],
+    queryKey: ["candidate-camera-preview", PREVIEW_STYLE_VERSION, url, model, characterId],
     enabled: !!url,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const withCharacter = (path: string) =>

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { libraryPreviewMaterial, PREVIEW_BACKGROUND } from "./previewStyle";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { validateModel, validRotation, type CandidateModel } from "./modelContract";
 
@@ -71,6 +72,9 @@ export async function mountReviewModel(
     const points: THREE.Vector3[] = [];
     body.traverse((o) => {
       if (o instanceof THREE.Mesh) {
+        for (const material of Array.isArray(o.material) ? o.material : [o.material])
+          material.dispose();
+        o.material = libraryPreviewMaterial();
         const positions = o.geometry.getAttribute("position");
         for (let i = 0; i < positions.count; i++) {
           const p = new THREE.Vector3()
@@ -89,20 +93,12 @@ export async function mountReviewModel(
     camera.position.copy(center).add(new THREE.Vector3(0, 0, radius * 5));
     camera.lookAt(center);
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#999999");
-    scene.add(body, new THREE.HemisphereLight(0xffffff, 0x555568, 2));
-    for (const [x, y, z, intensity] of [
-      [-2, 3, 4, 2.5],
-      [3, 1, -2, 0.8],
-    ]) {
-      const light = new THREE.DirectionalLight(0xffffff, intensity);
-      light.position.copy(center).add(new THREE.Vector3(x! * radius, y! * radius, z! * radius));
-      light.target.position.copy(center);
-      scene.add(light, light.target);
-    }
+    scene.background = new THREE.Color(PREVIEW_BACKGROUND);
+    scene.add(body);
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
     const draw = () => {
       const width = Math.max(1, canvas.clientWidth),
         height = Math.max(1, canvas.clientHeight);
