@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useExportStore } from "@/features/export/store/exportStore";
+import { modelRenderingAvailable } from "../preview/modelSupport";
 import type { AnalysisResult } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
 import { refineService } from "../api/refine.service";
@@ -56,6 +58,13 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
             jobId: result.jobId,
             personIndex: next.personIndex,
             candidateId: next.candidateId,
+            ...(result.capabilities.modelPreview &&
+            modelRenderingAvailable() &&
+            result.capabilities.outputScopeCropping &&
+            result.capabilities.fbxExport &&
+            useExportStore.getState().format === "fbx"
+              ? { deferPreview: true }
+              : {}),
           });
           // store에서도 현재 job/candidate를 다시 확인한다. 화면을 떠난 뒤 응답이 와도
           // 새 선택의 export URL을 이전 조정본으로 되돌릴 수 없다.

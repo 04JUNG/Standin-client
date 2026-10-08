@@ -6,7 +6,7 @@ function model(overrides = {}) {
     asset: {
       extras: {
         version: "posed-mesh-v1",
-        source_bvh_sha256: "source",
+        source_bvh_sha256: "a".repeat(64),
         character_id: "character",
         coordinates: "Y-up-hips-origin",
         scope: "full",
@@ -62,9 +62,9 @@ describe("static preview contract", () => {
     ).toBe(false);
   });
   it("checks source and character before loading", () => {
-    expect(validateModel(model(), "source", "character").scope).toBe("full");
+    expect(validateModel(model(), "a".repeat(64), "character").scope).toBe("full");
     expect(() => validateModel(model(), "changed", "character")).toThrow();
-    expect(() => validateModel(model(), "source", "other")).toThrow();
+    expect(() => validateModel(model(), "a".repeat(64), "other")).toThrow();
   });
   it.each([
     { buffers: [{ uri: "https://outside.invalid/mesh" }] },
@@ -73,6 +73,6 @@ describe("static preview contract", () => {
     { animations: [{}] },
     { extensionsUsed: ["custom"] },
   ])("rejects resources that can change geometry or fetch externally: %o", (change) => {
-    expect(() => validateModel(model(change), "source", "character")).toThrow();
+    expect(() => validateModel(model(change), "a".repeat(64), "character")).toThrow();
   });
 });

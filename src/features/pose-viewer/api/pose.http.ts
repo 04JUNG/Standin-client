@@ -58,6 +58,7 @@ type BffAnalysisResult = {
     characterSelection?: boolean;
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
+    modelPreview?: boolean;
   };
   candidatesByPerson: Array<{
     personIndex: number;
@@ -277,6 +278,7 @@ async function toAnalysisResult(
       characterSelection: raw.capabilities?.characterSelection === true,
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
+      modelPreview: raw.capabilities?.modelPreview === true,
     },
   };
 }

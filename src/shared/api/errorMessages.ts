@@ -44,6 +44,7 @@ const MESSAGES: Record<string, string> = {
   EXPORT_FAILED: "포즈 파일을 서버에서 받아오지 못했습니다. 잠시 후 다시 시도해 주세요.",
   // FBX 변환(BFF docs/API.md 「format=fbx」). 재시도가 통하는 실패와 아닌 실패를 나눈다.
   OUTPUT_SCOPE_CHANGED: "출력 범위가 바뀌었습니다. 후보 화면에서 다시 확인해 주세요.",
+  PREVIEW_CHANGED: "포즈나 모델이 바뀌었습니다. 미리보기를 다시 확인한 뒤 저장해 주세요.",
   FBX_UNAVAILABLE: "지금은 FBX 저장을 사용할 수 없습니다. BVH로 저장해 주세요.",
   CONVERTER_UNAVAILABLE:
     "지금은 FBX 변환 서버를 사용할 수 없습니다. 잠시 후 다시 시도하거나 BVH로 저장해 주세요.",
