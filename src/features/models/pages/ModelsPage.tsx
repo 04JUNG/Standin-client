@@ -1,3 +1,5 @@
+import { BodyPreferencesPage } from "@/features/body-selection/BodyPreferencesPage";
+import { useBodyPreferences, legacyPreferences } from "@/features/body-selection/preferences";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
@@ -22,6 +24,11 @@ const SECTION_ORDER: ModelSource[] = ["builtin", "user", "store"];
  * 이미 진행 중인 작업은 시작할 때 고정된 모델을 그대로 쓴다.
  */
 export function ModelsPage() {
+  const query = useBodyPreferences();
+  if (query.isError && legacyPreferences(query.error)) return <LegacyModelsPage />;
+  return <BodyPreferencesPage />;
+}
+function LegacyModelsPage() {
   const { catalog, characters, isPending, isError, error, refetch, selectedId, select } =
     useSelectedModel();
 

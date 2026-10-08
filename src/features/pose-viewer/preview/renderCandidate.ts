@@ -35,7 +35,7 @@ export function renderCandidate(
 ): Promise<string> {
   const render = async () => {
     signal?.throwIfAborted();
-    validateModel(data, model.sourceSha, characterId);
+    validateModel(data, model.sourceSha, characterId, model);
     if (!validRotation(model.rotation)) throw new Error("invalid candidate camera");
     const loader = new GLTFLoader();
     // Fail closed even if a future parser adds an external glTF resource type.

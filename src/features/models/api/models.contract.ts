@@ -18,6 +18,7 @@ export type ModelAvailability = "available" | "coming_soon";
 export type ModelSource = "builtin" | "store" | "user";
 
 export type ModelCharacter = {
+  bodyRef?: import("@/features/body-selection/contract").BodySelection["resolvedBody"];
   /**
    * converter의 `character_id` 원문. **클라이언트는 이 문자열을 절대 해석하지 않는다** —
    * 성별이나 종류를 id에서 유추하는 순간 새 모델이 들어올 때마다 흐름 코드를 고쳐야 한다.

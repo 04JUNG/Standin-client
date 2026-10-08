@@ -1,3 +1,6 @@
+import { loadBodyReview } from "@/features/body-selection/review";
+import { bodyKeys } from "@/features/body-selection/api";
+import { useBodyOwner } from "@/features/body-selection/hooks";
 import { useQueries } from "@tanstack/react-query";
 import { apiFetchBlob } from "@/shared/api/client";
 import { useExportStore } from "@/features/export/store/exportStore";
@@ -13,6 +16,8 @@ import { useSelectionReview } from "./useSelectionReview";
 /** Presentation of the actual converter artifact, after refine has finished. */
 export function useFramedReview(jobId: string | undefined) {
   const review = useSelectionReview(jobId);
+  const owner = useBodyOwner();
+  const bodyMode = review.bodies.enabled;
   const format = useExportStore((s) => s.format);
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
@@ -21,7 +26,7 @@ export function useFramedReview(jobId: string | undefined) {
   const enabled =
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
-    review.data.capabilities.outputScopeCropping === true;
+    (bodyMode || review.data.capabilities.outputScopeCropping === true);
   const requests = review.items.map((item) => {
     const scope = readOutputScope(
       review.data?.people.find((p) => p.index === item.personIndex)?.outputScope,
@@ -33,25 +38,57 @@ export function useFramedReview(jobId: string | undefined) {
       format: "fbx",
       serverSupportsCharacterSelection: review.data?.capabilities.characterSelection === true,
     });
+    const body = review.bodies.entries.find((e) => e.personIndex === item.personIndex)?.selection;
     let url = "";
     if (enabled && item.exportUrl) {
       try {
-        url = framedExportUrl(item.exportUrl, scope, "preview", character.characterId);
+        url = framedExportUrl(
+          item.exportUrl,
+          scope,
+          "preview",
+          bodyMode ? null : character.characterId,
+        );
       } catch {
         /* Invalid server URL is a visible preview failure, never a render crash. */
       }
     }
-    return { scope, url };
+    return { scope, url, body };
   });
   const queries = useQueries({
     queries: requests.map((request, index) => ({
-      queryKey: ["framed-preview", request.url, review.items[index]?.refined],
-      enabled: enabled && !review.isRefining && catalog.isSuccess && !!request.url,
+      queryKey: bodyMode
+        ? [
+            ...bodyKeys.person(owner, review.data!.jobId, review.items[index]!.personIndex),
+            "review",
+            review.items[index]!.candidate.id,
+            request.scope,
+            request.body?.selectionRevision,
+            review.items[index]?.exportUrl,
+            review.items[index]?.refined,
+          ]
+        : ["framed-preview", request.url, review.items[index]?.refined],
+      enabled:
+        enabled &&
+        !review.isRefining &&
+        (bodyMode ? request.body?.resolutionStatus === "ready" : catalog.isSuccess) &&
+        !!request.url,
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        if (bodyMode) {
+          const item = review.items[index]!;
+          return loadBodyReview(
+            review.data!.jobId,
+            item.exportUrl!,
+            item.personIndex,
+            item.candidate.id,
+            request.scope,
+            request.body!,
+            signal,
+          );
+        }
         const blob = await apiFetchBlob(request.url, { auth: false, signal });
         if (!blob.type.startsWith("image/png"))
           throw new Error("미리보기 형식을 확인하지 못했습니다.");
-        return blobToDataUrl(blob);
+        return { previewUrl: await blobToDataUrl(blob) };
       },
       retry: false,
       staleTime: 0,
@@ -61,19 +98,27 @@ export function useFramedReview(jobId: string | undefined) {
   const previewLoading =
     enabled &&
     (review.isRefining ||
-      catalog.isPending ||
-      (catalog.isSuccess &&
+      (bodyMode
+        ? review.bodies.entries.some((e) => !e.selection && !e.error)
+        : catalog.isPending) ||
+      ((bodyMode
+        ? requests.every((r) => r.body?.resolutionStatus === "ready")
+        : catalog.isSuccess) &&
         requests.every((r) => !!r.url) &&
         queries.some((q) => q.isFetching || q.isPending)));
   const previewError =
     enabled &&
     !previewLoading &&
-    (catalog.isError || requests.some((r) => !r.url) || queries.some((q) => q.isError));
+    ((bodyMode
+      ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
+      : catalog.isError) ||
+      requests.some((r) => !r.url) ||
+      queries.some((q) => q.isError));
   return {
     ...review,
     items: review.items.map((item, index) => ({
       ...item,
-      previewUrl: enabled ? (queries[index]?.data ?? "") : item.previewUrl,
+      previewUrl: enabled ? (queries[index]?.data?.previewUrl ?? "") : item.previewUrl,
       scopeLabel: enabled ? SCOPE_LABELS[requests[index]!.scope] : "",
     })),
     previewLoading,

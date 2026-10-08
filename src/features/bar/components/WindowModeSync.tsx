@@ -26,7 +26,13 @@ export function WindowModeSync() {
     const barState = barStateForPath(pathname);
     const target =
       barState && contentHeight
-        ? { ...base, size: { ...base.size, height: Math.max(base.size.height, contentHeight) } }
+        ? {
+            ...base,
+            size: {
+              ...base.size,
+              height: Math.min(760, Math.max(base.size.height, contentHeight)),
+            },
+          }
         : base;
     const wasBar = previousBarState.current !== null;
 

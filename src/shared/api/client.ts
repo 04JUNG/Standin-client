@@ -111,7 +111,10 @@ function isFormData(body: unknown): body is FormData {
   return typeof FormData !== "undefined" && body instanceof FormData;
 }
 
-async function apiRequest(path: string, options: RequestOptions = {}): Promise<Response> {
+export async function apiFetchResponse(
+  path: string,
+  options: RequestOptions = {},
+): Promise<Response> {
   const {
     method = "GET",
     body,
@@ -166,7 +169,7 @@ async function apiRequest(path: string, options: RequestOptions = {}): Promise<R
 }
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const res = await apiRequest(path, options);
+  const res = await apiFetchResponse(path, options);
 
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -174,13 +177,13 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
 /** 인증·토큰 재발급을 유지하면서 BVH 같은 텍스트 응답을 받는다. */
 export async function apiFetchText(path: string, options: RequestOptions = {}): Promise<string> {
-  const res = await apiRequest(path, options);
+  const res = await apiFetchResponse(path, options);
   return res.text();
 }
 
 /** 인증·토큰 재발급을 유지하면서 PNG 같은 바이너리 응답을 받는다. */
 export async function apiFetchBlob(path: string, options: RequestOptions = {}): Promise<Blob> {
-  const res = await apiRequest(path, options);
+  const res = await apiFetchResponse(path, options);
   return res.blob();
 }
 
@@ -195,6 +198,6 @@ export async function apiFetchBytes(
   path: string,
   options: RequestOptions = {},
 ): Promise<Uint8Array> {
-  const res = await apiRequest(path, options);
+  const res = await apiFetchResponse(path, options);
   return new Uint8Array(await res.arrayBuffer());
 }

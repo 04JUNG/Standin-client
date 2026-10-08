@@ -1,3 +1,4 @@
+import { selectionSchema } from "@/features/body-selection/contract";
 import { readOutputScope } from "./outputScope";
 import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
@@ -56,10 +57,14 @@ type BffAnalysisResult = {
     refine?: boolean;
     fbxExport?: boolean;
     characterSelection?: boolean;
+    bodyPreviews?: boolean;
+    bodyPreviewAssets?: boolean;
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
   };
   candidatesByPerson: Array<{
+    bodySelection?: unknown;
+    bodyPreviewManifestUrl?: string;
     personIndex: number;
     outputScope?: unknown;
     candidateShortfallReason?: string | null;
@@ -236,6 +241,10 @@ async function toAnalysisResult(
       return {
         // 서버 personIndex를 그대로 쓴다. 화면에서 탐지 순서로 다시 번호를 매기지 않는다.
         index: person.personIndex,
+        bodySelection: selectionSchema.safeParse(person.bodySelection).success
+          ? selectionSchema.parse(person.bodySelection)
+          : undefined,
+        bodyPreviewManifestUrl: person.bodyPreviewManifestUrl,
         outputScope: readOutputScope(person.outputScope),
         candidateShortfallReason: person.candidateShortfallReason ?? null,
         candidates: await Promise.all(
@@ -269,6 +278,8 @@ async function toAnalysisResult(
     inputPreviewUrl: raw.inputUrl ?? undefined,
     people,
     capabilities: {
+      bodyPreviews: raw.capabilities?.bodyPreviews === true,
+      bodyPreviewAssets: raw.capabilities?.bodyPreviewAssets === true,
       refine: raw.capabilities?.refine === true,
       // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
       fbxExport: raw.capabilities?.fbxExport === true,

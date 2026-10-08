@@ -15,6 +15,7 @@ const { state, fetchBlob } = vi.hoisted(() => ({
 vi.mock("@/shared/api/client", () => ({ apiFetchBlob: fetchBlob }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
+    bodies: { enabled: false, entries: [], ready: true },
     data: {
       capabilities: {
         fbxExport: true,

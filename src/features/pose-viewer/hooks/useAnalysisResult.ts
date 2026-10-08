@@ -1,3 +1,4 @@
+import { useBodies } from "@/features/body-selection/hooks";
 import { useEffect, useMemo, useRef } from "react";
 import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
@@ -109,8 +110,12 @@ export function useAnalysisResult(jobId: string | undefined) {
   const failedPeople = people.filter((p) => p.fallbackMode === "hard");
   const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
   const isSavingScope = useIsMutating({ mutationKey: ["output-scope", query.data?.jobId] }) > 0;
+  const bodies = useBodies(query.data);
   const allSelected =
-    !isSavingScope && selectablePeople.length > 0 && selectedCount === selectablePeople.length;
+    bodies.ready &&
+    !isSavingScope &&
+    selectablePeople.length > 0 &&
+    selectedCount === selectablePeople.length;
 
   useEffect(() => {
     if (query.isFetching && startedAt.current === null) startedAt.current = Date.now();
@@ -179,6 +184,7 @@ export function useAnalysisResult(jobId: string | undefined) {
 
   return {
     ...query,
+    bodies,
     /** 기록에서 열어 저장된 결과를 보고 있는가. 화면이 안내 문구를 고를 때 쓴다. */
     restoreOnly,
     draft,

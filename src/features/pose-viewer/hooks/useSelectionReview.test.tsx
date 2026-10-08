@@ -6,8 +6,10 @@ import type { AnalysisResult, PoseCandidate } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
 
 function renderHook<T>(hook: () => T) {
-  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
-  return renderHookBase(hook, { wrapper: ({children}) => createElement(QueryClientProvider, {client}, children) });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return renderHookBase(hook, {
+    wrapper: ({ children }) => createElement(QueryClientProvider, { client }, children),
+  });
 }
 
 const analysisState: {
@@ -19,7 +21,12 @@ const refineState: { status: string; refineByPerson: Record<number, RefineOutcom
   refineByPerson: {},
 };
 
-vi.mock("./useAnalysisResult", () => ({ useAnalysisResult: () => analysisState }));
+vi.mock("./useAnalysisResult", () => ({
+  useAnalysisResult: () => ({
+    ...analysisState,
+    bodies: { enabled: false, entries: [], ready: true },
+  }),
+}));
 vi.mock("./useRefineSelection", () => ({ useRefineSelection: () => refineState }));
 
 const { useSelectionReview } = await import("./useSelectionReview");

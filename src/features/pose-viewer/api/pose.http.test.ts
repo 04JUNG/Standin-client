@@ -30,13 +30,33 @@ describe("poseHttp", () => {
   });
 
   it("camera rendering does not block an already completed analysis result", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({
-      jobId:"job_saved",notes:[],candidatesByPerson:[{personIndex:0,box:null,tags:{},candidates:[{
-        id:"pose::back",poseId:"pose",rank:1,view:"back",tags:["front"],matchLevel:"medium",bvhAvailable:true,
-        camera:{version:"candidate-camera-v1"},thumbnailUrl:"/v1/pose-candidates/pose/aligned?jobId=job_saved"
-      }]}]
-    }));
-    const result=await poseHttp.loadResult({jobId:"job_saved"});
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        jobId: "job_saved",
+        notes: [],
+        candidatesByPerson: [
+          {
+            personIndex: 0,
+            box: null,
+            tags: {},
+            candidates: [
+              {
+                id: "pose::back",
+                poseId: "pose",
+                rank: 1,
+                view: "back",
+                tags: ["front"],
+                matchLevel: "medium",
+                bvhAvailable: true,
+                camera: { version: "candidate-camera-v1" },
+                thumbnailUrl: "/v1/pose-candidates/pose/aligned?jobId=job_saved",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const result = await poseHttp.loadResult({ jobId: "job_saved" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.people[0]?.candidates[0]?.thumbnailUrl).toBe("");
     expect(result.people[0]?.candidates[0]?.deferredThumbnailUrl).toContain("/aligned?");
@@ -133,6 +153,8 @@ describe("poseHttp", () => {
         characterSelection: false,
         outputScopeSelection: false,
         outputScopeCropping: false,
+        bodyPreviews: false,
+        bodyPreviewAssets: false,
       },
       people: [
         {

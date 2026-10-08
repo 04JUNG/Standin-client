@@ -72,7 +72,8 @@ export function useSelectionReview(jobId: string | undefined) {
         item.candidate.previewModel,
         byPerson[item.personIndex] ?? characterId ?? undefined,
       ),
-      enabled: !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
+      enabled:
+        !analysis.bodies.enabled && !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
     })),
   });
   return {

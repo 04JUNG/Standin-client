@@ -1,3 +1,7 @@
+import { useInstallationStore } from "@/features/installation/installationStore";
+import { bodyKeys } from "@/features/body-selection/api";
+import { downloadBodyReview, type BodyReview } from "@/features/body-selection/review";
+import type { BodySelection } from "@/features/body-selection/contract";
 import { framedExportUrl } from "../lib/framedExport";
 import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef } from "react";
@@ -129,6 +133,9 @@ export function useSaveFlow(jobId: string | undefined) {
    * 자리). 세션이 끝나면 캐시가 비워지므로(`sessionCacheReset`) "모름"이 될 수 있고,
    * 그때는 파라미터를 붙이지 않아 기본 모델로 저장된다 — 화면 문구도 그렇게 읽혀야 한다.
    */
+  const bodyMode =
+    queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
+      .bodyPreviews === true;
   const serverSupportsCharacter =
     queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
       .characterSelection === true;
@@ -148,7 +155,21 @@ export function useSaveFlow(jobId: string | undefined) {
   const defaultCharacterName =
     modelCatalog?.characters.find((item) => item.characterId === modelCatalog.defaultCharacterId)
       ?.displayName ?? null;
-  const resolutions = selections.map(([personIndex]) => resolveFor(Number(personIndex)));
+  const resolutions = selections.map(([personIndex]) => {
+    if (!bodyMode) return resolveFor(Number(personIndex));
+    const owner = useInstallationStore.getState().credentials?.installationId ?? "";
+    const serverJob =
+      queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.jobId ?? "";
+    const body = queryClient.getQueryData<BodySelection>(
+      bodyKeys.selection(owner, serverJob, Number(personIndex)),
+    );
+    const id = body?.resolvedBody?.characterId ?? null;
+    return {
+      characterId: id,
+      chosen: modelCatalog?.characters.find((c) => c.characterId === id) ?? null,
+      downgradeReason: null,
+    };
+  });
   /** 실제로 쓰인 체형 이름들(중복 제거). 인물마다 다르면 둘 이상이 된다. */
   const usedCharacterNames = [
     ...new Set(
@@ -170,9 +191,11 @@ export function useSaveFlow(jobId: string | undefined) {
    * 기본 모델이 아닌 체형으로 저장을 시도하고 있는가. 저장이 실패했을 때 "기본 모델로
    * 저장" 복구 버튼을 띄울지 결정한다 — 어차피 기본 모델이면 그 버튼은 재시도와 같다.
    */
-  const usesCustomCharacter = resolutions.some(
-    (r) => r.characterId !== null && r.characterId !== modelCatalog?.defaultCharacterId,
-  );
+  const usesCustomCharacter =
+    !bodyMode &&
+    resolutions.some(
+      (r) => r.characterId !== null && r.characterId !== modelCatalog?.defaultCharacterId,
+    );
 
   // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
   // 실행되어야 한다 — 순서가 뒤집히면 방금 채운 이름을 곧바로 지운다.
@@ -261,6 +284,7 @@ export function useSaveFlow(jobId: string | undefined) {
                 format,
                 serverSupportsCharacterSelection: analysisResult.capabilities.characterSelection,
               }).characterId;
+        const bodyNames = new Set<string>();
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
@@ -280,17 +304,46 @@ export function useSaveFlow(jobId: string | undefined) {
                 ? outcome
                 : undefined;
             const exportUrl = currentOutcome?.exportUrl ?? candidate.bvhUrl;
-            const content = await resolvePoseBytes(
-              exportUrl,
-              candidateId,
-              format,
-              characterFor(personIndex),
-              analysisResult.capabilities.outputScopeCropping === true
-                ? readOutputScope(
-                    analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
-                  ).resolved
-                : undefined,
-            );
+            let content: Uint8Array;
+            if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
+              if (options.forceDefaultCharacter)
+                throw new Error("체형은 후보 화면에서 변경해 주세요.");
+              const owner = useInstallationStore.getState().credentials?.installationId ?? "";
+              const body = qc.getQueryData<BodySelection>(
+                bodyKeys.selection(owner, analysisResult.jobId, personIndex),
+              );
+              const scope = readOutputScope(
+                analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
+              ).resolved;
+              const receipts = qc.getQueriesData<BodyReview>({
+                queryKey: [...bodyKeys.person(owner, analysisResult.jobId, personIndex), "review"],
+              });
+              const receipt = receipts
+                .map(([, r]) => r)
+                .find(
+                  (r) =>
+                    r?.candidateId === candidateId &&
+                    r.exportUrl === exportUrl &&
+                    r.scope === scope &&
+                    r.selection.selectionRevision === body?.selectionRevision &&
+                    r.selection.resolvedBody?.assetSha256 === body?.resolvedBody?.assetSha256,
+                );
+              if (!owner || !receipt || body?.resolutionStatus !== "ready")
+                throw new Error("저장 전 확인 화면에서 현재 체형의 결과를 확인해 주세요.");
+              content = await downloadBodyReview(receipt);
+              bodyNames.add(receipt.selection.resolvedBody!.characterId);
+            } else
+              content = await resolvePoseBytes(
+                exportUrl,
+                candidateId,
+                format,
+                characterFor(personIndex),
+                analysisResult.capabilities.outputScopeCropping === true
+                  ? readOutputScope(
+                      analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
+                    ).resolved
+                  : undefined,
+              );
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),
         );
@@ -308,20 +361,22 @@ export function useSaveFlow(jobId: string | undefined) {
             // 인물마다 다를 수 있으므로 쓰인 값들을 모아 남긴다. 붙지 않은 경우
             // (기본 모델)는 "default"로 남긴다 — 빈 값과 구분해야 모델 선택이 실제로
             // 쓰이는지 지표에서 볼 수 있다.
-            characterId: [
-              ...new Set(picks.map(([i]) => characterFor(Number(i)) ?? "default")),
-            ].join(","),
+            characterId: bodyNames.size
+              ? [...bodyNames].join(",")
+              : [...new Set(picks.map(([i]) => characterFor(Number(i)) ?? "default"))].join(","),
             surface: currentSurface(),
           },
           usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
       } catch (err) {
         setError(
-          err instanceof ExportError
-            ? err.message
-            : err instanceof Error
+          err instanceof ApiError
+            ? toAppError(err).message
+            : err instanceof ExportError
               ? err.message
-              : "알 수 없는 오류로 저장하지 못했습니다.",
+              : err instanceof Error
+                ? err.message
+                : "알 수 없는 오류로 저장하지 못했습니다.",
         );
         trackEvent(
           "export_failed",
@@ -411,6 +466,10 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    bodyMode,
+    returnToReview: () => {
+      clearError();
+    },
     folder,
     fileName,
     /** 실제로 저장에 쓰는 포맷. 설정값과 다를 수 있다(서버가 FBX를 못 줄 때). */

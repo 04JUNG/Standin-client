@@ -40,6 +40,8 @@ export function SavePage() {
   const [feedbackError, setFeedbackError] = useState(false);
 
   const {
+    bodyMode,
+    returnToReview,
     folder,
     format,
     formatDowngraded,
@@ -121,6 +123,17 @@ export function SavePage() {
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <p role="alert">{error}</p>
             </div>
+            {bodyMode && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  returnToReview();
+                  navigate(`/app/jobs/${jobId}/review`);
+                }}
+              >
+                체형·포즈 다시 확인
+              </Button>
+            )}
             <p className="break-all text-[12px] text-text-secondary">
               저장을 시도한 폴더: {folder}
             </p>

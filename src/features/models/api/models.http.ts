@@ -1,3 +1,4 @@
+import { bodyRefSchema } from "@/features/body-selection/contract";
 import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
@@ -37,6 +38,9 @@ function toCharacter(raw: RawCharacter): ModelCharacter | null {
   const characterId = text(raw.characterId);
   if (!characterId) return null;
   return {
+    ...(bodyRefSchema.safeParse(raw.bodyRef).success
+      ? { bodyRef: bodyRefSchema.parse(raw.bodyRef) }
+      : {}),
     characterId,
     displayName: text(raw.displayName) ?? characterId,
     gender: narrow(GENDERS, raw.gender, "unspecified"),

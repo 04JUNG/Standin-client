@@ -18,6 +18,7 @@ const MATCH_BADGE_CLASS: Record<MatchLevel, string> = {
 };
 
 type PoseCandidateCardProps = {
+  bodyPreview?: { url?: string; pending: boolean };
   candidate: PoseCandidate;
   characterId?: string | null;
   isSelected: boolean;
@@ -26,22 +27,26 @@ type PoseCandidateCardProps = {
 
 export function PoseCandidateCard({
   candidate,
+  bodyPreview,
   characterId,
   isSelected,
   onSelect,
 }: PoseCandidateCardProps) {
   const preview = useQuery(
     candidateThumbnailOptions(
-      candidate.deferredThumbnailUrl,
+      bodyPreview ? undefined : candidate.deferredThumbnailUrl,
       candidate.previewModel,
       characterId ?? undefined,
     ),
   );
-  const imageUrl = candidate.thumbnailUrl || preview.data;
-  const pending = !!candidate.deferredThumbnailUrl && preview.isPending;
-  const failed = !!candidate.deferredThumbnailUrl && preview.isError;
+  const imageUrl = bodyPreview ? bodyPreview.url : candidate.thumbnailUrl || preview.data;
+  const pending = bodyPreview
+    ? bodyPreview.pending
+    : !!candidate.deferredThumbnailUrl && preview.isPending;
+  const failed = !bodyPreview && !!candidate.deferredThumbnailUrl && preview.isError;
   return (
     <button
+      data-pose-candidate
       type="button"
       onClick={
         failed
@@ -59,7 +64,7 @@ export function PoseCandidateCard({
       )}
     >
       {imageUrl ? (
-        <img src={imageUrl} alt={candidate.title} className="aspect-square w-full object-cover" />
+        <img src={imageUrl} alt={candidate.title} className="aspect-square w-full object-contain" />
       ) : (
         <div className="flex aspect-square w-full items-center justify-center bg-surface-2 text-text-secondary">
           {pending ? (

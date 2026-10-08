@@ -13,6 +13,7 @@ type BarShellProps = {
   title?: string;
   /** 접기 버튼을 숨긴다(이미 접힌 상태). */
   hideCollapse?: boolean;
+  footer?: ReactNode;
   children: ReactNode;
 };
 
@@ -22,7 +23,7 @@ type BarShellProps = {
  * 드래그는 `data-tauri-drag-region`으로 처리한다 — JS 없이 웹뷰가 창을 옮긴다.
  * 버튼 위에서는 드래그가 걸리면 안 되므로 핸들 영역에만 붙인다.
  */
-export function BarShell({ title, hideCollapse, children }: BarShellProps) {
+export function BarShell({ title, hideCollapse, children, footer }: BarShellProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const jobId = usePoseSelectionStore((s) => s.jobId);
@@ -107,6 +108,7 @@ export function BarShell({ title, hideCollapse, children }: BarShellProps) {
         {/* 내용 높이를 재기 위한 래퍼. 스크롤 영역 자체는 창 크기를 따라가므로 잴 수 없다. */}
         <div ref={contentRef}>{children}</div>
       </div>
+      {footer && <div className="shrink-0 border-t border-border bg-surface-0 px-2">{footer}</div>}
     </div>
   );
 }

@@ -38,6 +38,13 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
           const candidateId = picks[person.index];
           // 저신뢰(soft) 인물은 후보를 고르고 베이스로 저장할 수 있지만 refine은 금지다.
           if (!candidateId || !person.refineAllowed) return [];
+          const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
+          if (
+            result.capabilities.bodyPreviews &&
+            saved?.jobId === result.jobId &&
+            saved.candidateId === candidateId
+          )
+            return [];
           return [{ personIndex: person.index, candidateId }];
         })
       : [];
