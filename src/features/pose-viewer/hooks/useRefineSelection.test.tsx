@@ -198,3 +198,30 @@ describe("useRefineSelection", () => {
     expect(result.current.refineByPerson[0]).toBeUndefined();
   });
 });
+
+it("body-only review revisits reuse the same refined BVH", async () => {
+  const saved = {
+    jobId: "server-job",
+    personIndex: 0,
+    candidateId: "cand-0",
+    refined: true,
+    reasonCode: "ok_partial",
+    adjustedLimbs: [],
+    exportUrl: "/v1/old-refined",
+    previewUrl: "",
+  };
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    selectedByPerson: { 0: "cand-0" },
+    refineByPerson: { 0: saved },
+  });
+  refineSelection.mockClear();
+  const data = analysis([person({ index: 0 })]);
+  data.capabilities.bodyPreviews = true;
+  const { result, unmount } = renderHook(() => useRefineSelection(data));
+  await waitFor(() => expect(result.current.status).toBe("done"));
+  expect(refineSelection).not.toHaveBeenCalled();
+  expect(result.current.refineByPerson[0]).toEqual(saved);
+  unmount();
+  usePoseSelectionStore.getState().clearSelection();
+});

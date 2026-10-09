@@ -70,3 +70,27 @@ it("offers retry instead of silently showing a legacy view", async () => {
   expect(await screen.findByText("미리보기 다시 시도")).toBeInTheDocument();
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
 });
+it("never requests a legacy quick thumbnail while a selected-body preview is pending or ready", async () => {
+  const client = new QueryClient();
+  const card = (pending: boolean) => (
+    <QueryClientProvider client={client}>
+      <PoseCandidateCard
+        candidate={{
+          ...candidate,
+          quickThumbnailUrl: "/quick-wrong-body",
+          thumbnailUrl: "/old-body.png",
+        }}
+        bodyPreview={{ pending, url: pending ? undefined : "data:image/png;base64,Ym9keQ==" }}
+        isSelected={false}
+        onSelect={() => {}}
+      />
+    </QueryClientProvider>
+  );
+  const { rerender } = render(card(true));
+  expect(screen.getByRole("button")).toBeDisabled();
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  rerender(card(false));
+  expect(screen.getByRole("img")).toHaveAttribute("src", "data:image/png;base64,Ym9keQ==");
+  expect(screen.getByRole("button")).not.toBeDisabled();
+  expect(apiFetchBlob).not.toHaveBeenCalled();
+});

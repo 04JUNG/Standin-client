@@ -1,5 +1,11 @@
 /** Narrow static mesh contract. Reject active/external glTF resources before loading. */
-export type CandidateModel = { url: string; rotation: number[][]; sourceSha: string };
+export type CandidateModel = {
+  url: string;
+  rotation: number[][];
+  sourceSha: string;
+  characterSha256?: string;
+  modelRevision?: string;
+};
 export function validRotation(value: unknown): value is number[][] {
   if (
     !Array.isArray(value) ||
@@ -29,9 +35,11 @@ export function validateModel(
   data: ArrayBuffer,
   sourceSha: string | undefined,
   characterId: string,
-  scope = "full",
+  scopeOrExpected: string | CandidateModel = "full",
   version = "posed-mesh-v1",
 ) {
+  const scope = typeof scopeOrExpected === "string" ? scopeOrExpected : "full";
+  const expected = typeof scopeOrExpected === "string" ? undefined : scopeOrExpected;
   if (data.byteLength < 28 || data.byteLength > 8 * 1024 * 1024) throw new Error("model size");
   const v = new DataView(data);
   if (
@@ -46,6 +54,9 @@ export function validateModel(
   const doc = JSON.parse(new TextDecoder().decode(new Uint8Array(data, 20, jsonSize)));
   const meta = doc.asset?.extras;
   if (
+    (expected?.characterSha256 !== undefined &&
+      meta?.character_sha256 !== expected.characterSha256) ||
+    (expected?.modelRevision !== undefined && meta?.revision !== expected.modelRevision) ||
     meta?.version !== version ||
     (sourceSha !== undefined && meta.source_bvh_sha256 !== sourceSha) ||
     !/^[a-f0-9]{64}$/.test(meta.source_bvh_sha256) ||

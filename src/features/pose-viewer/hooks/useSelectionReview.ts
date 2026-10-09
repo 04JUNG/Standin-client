@@ -77,7 +77,11 @@ export function useSelectionReview(jobId: string | undefined) {
         byPerson[item.personIndex] ?? characterId ?? undefined,
       ),
       enabled:
-        !framed && !item.refined && !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
+        !analysis.bodies.enabled &&
+        !framed &&
+        !item.refined &&
+        !!item.candidate.deferredThumbnailUrl &&
+        !item.previewUrl,
     })),
   });
   return {

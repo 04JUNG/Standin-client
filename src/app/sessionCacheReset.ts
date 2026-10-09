@@ -1,3 +1,4 @@
+import { useInstallationStore } from "@/features/installation/installationStore";
 import type { QueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/features/auth/store/authStore";
 
@@ -11,9 +12,22 @@ import { useAuthStore } from "@/features/auth/store/authStore";
  * 반환값은 구독 해제 함수다.
  */
 export function clearQueryCacheOnSessionEnd(queryClient: QueryClient): () => void {
-  return useAuthStore.subscribe((state, prev) => {
+  const unsubscribeAuth = useAuthStore.subscribe((state, prev) => {
     if (prev.status === "authenticated" && state.status !== "authenticated") {
       queryClient.clear();
     }
   });
+  const unsubscribeInstallation = useInstallationStore.subscribe((state, prev) => {
+    if (
+      prev.credentials?.installationId &&
+      prev.credentials.installationId !== state.credentials?.installationId
+    ) {
+      void queryClient.cancelQueries({ queryKey: ["body"] });
+      queryClient.removeQueries({ queryKey: ["body"] });
+    }
+  });
+  return () => {
+    unsubscribeAuth();
+    unsubscribeInstallation();
+  };
 }

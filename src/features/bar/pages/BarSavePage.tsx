@@ -40,6 +40,8 @@ export function BarSavePage() {
   const [feedbackError, setFeedbackError] = useState(false);
 
   const {
+    bodyMode,
+    returnToReview,
     folder,
     format,
     status,
@@ -108,6 +110,17 @@ export function BarSavePage() {
               <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
               {error}
             </p>
+            {bodyMode && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  returnToReview();
+                  navigate("/bar/review");
+                }}
+              >
+                체형·포즈 다시 확인
+              </Button>
+            )}
             <p className="truncate text-[10px] text-text-secondary" title={folder ?? undefined}>
               {folder}
             </p>
@@ -180,7 +193,9 @@ export function BarSavePage() {
                   disabled={Boolean(feedback)}
                   onChange={(event) => void sendFeedback(event.target.value)}
                 >
-                  <option value="" disabled>선택</option>
+                  <option value="" disabled>
+                    선택
+                  </option>
                   <option value="good">좋아요</option>
                   <option value="person_missing">인물 누락</option>
                   <option value="skeleton_wrong">스켈레톤 오류</option>

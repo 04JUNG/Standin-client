@@ -38,6 +38,13 @@ const MESSAGES: Record<string, string> = {
   SERVICE_PAUSED: "지금은 분석을 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   PAYLOAD_TOO_LARGE: "이미지가 너무 큽니다. 20MB 이하로 줄여서 다시 시도해 주세요.",
 
+  BODY_PREVIEW_STALE: "체형 또는 포즈가 변경되었습니다. 확인 화면에서 결과를 다시 확인해 주세요.",
+  BODY_REVIEW_REQUIRED: "저장 전 확인 화면에서 현재 체형의 결과를 확인해 주세요.",
+  BODY_SELECTION_DISABLED: "지금은 체형 선택을 사용할 수 없습니다.",
+  BODY_UNAVAILABLE: "선택한 체형을 사용할 수 없습니다. 후보 화면에서 다른 체형을 선택해 주세요.",
+  BODY_SELECTION_CONFLICT: "다른 화면에서 체형을 변경했습니다. 현재 선택을 다시 확인해 주세요.",
+  BODY_PREFERENCE_CONFLICT: "기본 설정이 변경되었습니다. 현재 값을 다시 확인해 주세요.",
+  BODY_PREVIEW_UNSUPPORTED: "이 작업은 체형 미리보기를 지원하지 않습니다.",
   // 저장(export)
   POSE_UNAVAILABLE: "이 포즈는 더 이상 제공되지 않습니다. 다른 후보를 선택해 주세요.",
   INVALID_EXPORT: "이 작업에서 선택한 후보가 아닙니다. 후보 화면에서 다시 선택해 주세요.",

@@ -45,6 +45,8 @@ export type FallbackMode = "none" | "soft" | "hard";
 
 /** 검출된 인물 한 명과 그 인물의 포즈 후보들. index는 실 서버 people[].index를 그대로 따른다. */
 export type PersonResult = {
+  bodySelection?: import("@/features/body-selection/contract").BodySelection;
+  bodyPreviewManifestUrl?: string;
   outputScope?: OutputScope;
   candidateShortfallReason?: string | null;
   index: number;
@@ -80,6 +82,8 @@ export type AnalysisResult = {
      * false면 클라이언트가 파라미터를 아예 붙이지 않는다.
      */
     characterSelection: boolean;
+    bodyPreviews?: boolean;
+    bodyPreviewAssets?: boolean;
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
     modelPreview?: boolean;

@@ -47,7 +47,13 @@ export function WindowModeSync() {
     const barState = barStateForPath(pathname);
     const target: WindowTarget =
       barState && barState !== "candidates" && contentHeight
-        ? { ...base, size: { ...base.size, height: Math.max(base.size.height, contentHeight) } }
+        ? {
+            ...base,
+            size: {
+              ...base.size,
+              height: Math.min(760, Math.max(base.size.height, contentHeight)),
+            },
+          }
         : base;
 
     // 바에서는 창 배경을 비워 둥근 모서리 밖이 흰 네모로 보이지 않게 한다(index.css).

@@ -76,3 +76,37 @@ describe("static preview contract", () => {
     expect(() => validateModel(model(change), "a".repeat(64), "character")).toThrow();
   });
 });
+
+it("new body mesh verifies asset hash and exporter revision against embedded metadata", () => {
+  const expected = {
+    url: "/v1/glb",
+    rotation: [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+    ],
+    sourceSha: "a".repeat(64),
+    characterSha256: "asset",
+    modelRevision: "revision",
+  };
+  const data = model({
+    asset: {
+      extras: {
+        version: "posed-mesh-v1",
+        source_bvh_sha256: "a".repeat(64),
+        character_id: "character",
+        character_sha256: "asset",
+        revision: "revision",
+        coordinates: "Y-up-hips-origin",
+        scope: "full",
+      },
+    },
+  });
+  expect(validateModel(data, "a".repeat(64), "character", expected).revision).toBe("revision");
+  expect(() =>
+    validateModel(data, "a".repeat(64), "character", { ...expected, characterSha256: "wrong" }),
+  ).toThrow();
+  expect(() =>
+    validateModel(data, "a".repeat(64), "character", { ...expected, modelRevision: "wrong" }),
+  ).toThrow();
+});

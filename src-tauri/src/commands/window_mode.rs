@@ -102,8 +102,8 @@ fn clamp_into_monitor(window: &WebviewWindow, width: f64, height: f64) {
         return;
     };
     let scale = monitor.scale_factor();
-    let area = monitor.size().to_logical::<f64>(scale);
-    let origin = monitor.position().to_logical::<f64>(scale);
+    let area = monitor.work_area().size.to_logical::<f64>(scale);
+    let origin = monitor.work_area().position.to_logical::<f64>(scale);
 
     let Ok(current) = window.outer_position() else {
         return;
@@ -119,6 +119,13 @@ fn clamp_into_monitor(window: &WebviewWindow, width: f64, height: f64) {
     if (x - current.x).abs() > 0.5 || (y - current.y).abs() > 0.5 {
         let _ = window.set_position(LogicalPosition::new(x, y));
     }
+}
+
+fn fit_bar_to_work_area(window: &WebviewWindow, width: f64, height: f64) -> (f64, f64) {
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        let area = monitor.work_area().size.to_logical::<f64>(monitor.scale_factor());
+        (width.min(area.width).max(1.0), height.min(area.height).max(1.0))
+    } else { (width, height) }
 }
 
 /// 창을 지금 있는 모니터 전체에 맞춘다. macOS에서 네이티브 전체화면 대신 쓰는 경로다.
@@ -148,6 +155,7 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
         "bar" => {
             let width = req.width.unwrap_or(360.0);
             let height = req.height.unwrap_or(64.0);
+            let (width, height) = fit_bar_to_work_area(&window, width, height);
 
             // 최대화 상태에서는 Windows가 set_size를 무시한다. 해제가 먼저다(실측).
             let _ = window.unmaximize();
@@ -292,6 +300,9 @@ pub fn set_window_position(
     window
         .set_position(LogicalPosition::new(x, y))
         .map_err(|e| WindowError::new("POSITION_FAILED", e.to_string()))?;
+    let (width, height) = fit_bar_to_work_area(&window, width, height);
+    window.set_size(LogicalSize::new(width, height))
+        .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
     clamp_into_monitor(&window, width, height);
     Ok(())
 }

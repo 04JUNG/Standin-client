@@ -31,6 +31,7 @@ vi.mock("../preview/modelContract", () => ({
 vi.mock("../preview/modelSupport", () => ({ modelRenderingAvailable: () => state.webgl }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
+    bodies: { enabled: false, entries: [], ready: true },
     data: {
       capabilities: {
         fbxExport: true,
@@ -214,7 +215,9 @@ describe("framed review", () => {
     const { result } = mount();
     await waitFor(() => expect(result.current.previewError).toBe(true));
     expect(result.current.items[0]?.previewUrl).toBe("");
-    act(() => result.current.retryPreview());
+    await act(async () => {
+      await result.current.retryPreview();
+    });
     await waitFor(() => expect(result.current.items[0]?.previewUrl).toMatch(/^data:image\/png/));
   });
   it("catalog failure shows an error, not infinite loading", () => {

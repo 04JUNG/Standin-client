@@ -21,7 +21,12 @@ const refineState: { status: string; refineByPerson: Record<number, RefineOutcom
   refineByPerson: {},
 };
 
-vi.mock("./useAnalysisResult", () => ({ useAnalysisResult: () => analysisState }));
+vi.mock("./useAnalysisResult", () => ({
+  useAnalysisResult: () => ({
+    ...analysisState,
+    bodies: { enabled: false, entries: [], ready: true },
+  }),
+}));
 vi.mock("./useRefineSelection", () => ({ useRefineSelection: () => refineState }));
 
 const { useSelectionReview } = await import("./useSelectionReview");

@@ -1,3 +1,5 @@
+import { useExportStore } from "@/features/export/store/exportStore";
+import { BodyCandidates } from "@/features/body-selection/BodyCandidates";
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, Info, Loader2 } from "lucide-react";
@@ -40,6 +42,7 @@ export function PoseViewerPage() {
   // 조회·파생은 바 모드와 공유한다(뷰만 다르다).
   const {
     data,
+    bodies,
     isPending,
     isError,
     error,
@@ -90,6 +93,7 @@ export function PoseViewerPage() {
       );
       // 저장 화면은 진입 즉시 자동 저장한다(ADR-009). 사용자가 고른 포즈와 실제 저장되는
       // 포즈가 달라질 수 있으므로 확인 단계를 사이에 둔다(ADR-010).
+      if (bodies.enabled) useExportStore.getState().clearError();
       navigate(`/app/jobs/${jobId}/review`);
     } catch {
       setConfirmError("선택 결과를 저장하지 못했습니다. 다시 시도해 주세요.");
@@ -232,12 +236,14 @@ export function PoseViewerPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   {/* 인물마다 다른 체형이 필요할 수 있다(ADR-013 개정). 고르지 않으면
                       이 작업의 기본 체형으로 저장된다. */}
-                  <ModelSelect
-                    variant="compact"
-                    label={`인물 ${person.index + 1}의 모델`}
-                    value={characterByPerson[person.index] ?? jobCharacterId}
-                    onChange={(characterId) => setPersonCharacter(person.index, characterId)}
-                  />
+                  {!bodies.enabled && (
+                    <ModelSelect
+                      variant="compact"
+                      label={`인물 ${person.index + 1}의 모델`}
+                      value={characterByPerson[person.index] ?? jobCharacterId}
+                      onChange={(characterId) => setPersonCharacter(person.index, characterId)}
+                    />
+                  )}
                   <span className="text-[12px] text-text-secondary">
                     {selectedCandidate ? `선택됨: ${selectedCandidate.title}` : "후보를 선택하세요"}
                   </span>
@@ -251,20 +257,30 @@ export function PoseViewerPage() {
               />
               {/* soft fallback — 후보는 계속 보여주되 참고용임을 알린다. */}
               <PersonFallbackNotice person={person} />
-              <div
-                {...tourAnchor("jobs.candidates")}
-                className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
-              >
-                {person.candidates.map((candidate) => (
-                  <PoseCandidateCard
-                    key={candidate.id}
-                    candidate={candidate}
-                    characterId={characterByPerson[person.index] ?? jobCharacterId}
-                    isSelected={candidate.id === selectedId}
-                    onSelect={() => selectCandidate(person.index, candidate.id)}
-                  />
-                ))}
-              </div>
+              {bodies.enabled ? (
+                <BodyCandidates
+                  job={data.jobId}
+                  person={person}
+                  entry={bodies.entries.find((e) => e.personIndex === person.index)}
+                  selected={selectedId}
+                  onSelect={(id) => selectCandidate(person.index, id)}
+                />
+              ) : (
+                <div
+                  {...tourAnchor("jobs.candidates")}
+                  className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+                >
+                  {person.candidates.map((candidate) => (
+                    <PoseCandidateCard
+                      key={candidate.id}
+                      candidate={candidate}
+                      characterId={characterByPerson[person.index] ?? jobCharacterId}
+                      isSelected={candidate.id === selectedId}
+                      onSelect={() => selectCandidate(person.index, candidate.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -284,6 +300,7 @@ export function PoseViewerPage() {
             홈으로 돌아가기
           </Button>
           <Button
+            data-body-next
             {...tourAnchor("jobs.confirm")}
             size="lg"
             disabled={!allSelected || isConfirming}

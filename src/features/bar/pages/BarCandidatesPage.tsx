@@ -1,3 +1,5 @@
+import { useExportStore } from "@/features/export/store/exportStore";
+import { BodyCandidates } from "@/features/body-selection/BodyCandidates";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AlertTriangle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
@@ -38,6 +40,7 @@ export function BarCandidatesPage() {
 
   const {
     data,
+    bodies,
     isPending,
     isError,
     error,
@@ -76,6 +79,7 @@ export function BarCandidatesPage() {
         })),
       );
       // 앱 모드와 같은 순서다(ADR-010) — 저장 전에 조정 결과를 확인한다.
+      if (bodies.enabled) useExportStore.getState().clearError();
       navigate("/bar/review");
     } catch {
       setConfirmError("선택을 저장하지 못했습니다. 다시 시도해 주세요.");
@@ -86,8 +90,44 @@ export function BarCandidatesPage() {
 
   const person = people[personCursor];
 
+  const footer =
+    !isPending && !isError && person ? (
+      <div className="sticky bottom-0 z-10 flex shrink-0 items-center justify-between gap-2 border-t border-border bg-surface-0 py-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {/* "다시 검색"이 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
+                    안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
+                    대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
+          <Button
+            variant="ghost"
+            size="md"
+            className="shrink-0"
+            onClick={() => navigate("/bar/actions")}
+          >
+            처음으로
+          </Button>
+          {confirmError && (
+            <span
+              role="alert"
+              className="flex min-w-0 items-center gap-1 text-[11px] text-brand-coral"
+            >
+              <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+              <span className="truncate">{confirmError}</span>
+            </span>
+          )}
+        </div>
+        <Button
+          size="md"
+          data-body-next
+          disabled={!allSelected || isConfirming}
+          onClick={() => void confirmAndContinue()}
+        >
+          이 포즈 사용
+          <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
+        </Button>
+      </div>
+    ) : undefined;
   return (
-    <BarShell title={`포즈 후보 ${selectedCount}/${selectablePeople.length}`}>
+    <BarShell title={`포즈 후보 ${selectedCount}/${selectablePeople.length}`} footer={footer}>
       <div className="flex h-full flex-col gap-2 p-2">
         {isPending && (
           <>
@@ -161,7 +201,7 @@ export function BarCandidatesPage() {
                   컴포넌트를 쓰고 제어 값만 이 인물의 것으로 준다.
                   ⚠ 후보가 없는 인물(hard fallback)에는 띄우지 않는다 — 저장될 포즈가
                   없는데 체형을 고르게 하면 고른 것이 어디에도 쓰이지 않는다. */}
-              {person.fallbackMode !== "hard" && (
+              {person.fallbackMode !== "hard" && !bodies.enabled && (
                 <ModelSelect
                   variant="compact"
                   label={`인물 ${person.index + 1}의 모델`}
@@ -188,52 +228,30 @@ export function BarCandidatesPage() {
                 {/* soft fallback 안내는 앱 모드와 같은 컴포넌트를 쓴다 — 표면마다 경고가
                     달라지면 같은 결과를 다르게 판단하게 된다. */}
                 <PersonFallbackNotice person={person} compact />
-                <div className="grid grid-cols-5 gap-1.5">
-                  {person.candidates.map((candidate) => (
-                    <PoseCandidateCard
-                      key={candidate.id}
-                      candidate={candidate}
-                      characterId={characterByPerson[person.index] ?? jobCharacterId}
-                      isSelected={candidate.id === selectedByPerson[person.index]}
-                      onSelect={() => selectCandidate(person.index, candidate.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border pt-2">
-              <div className="flex min-w-0 items-center gap-1.5">
-                {/* "다시 검색"이 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
-                    안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
-                    대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
-                <Button
-                  variant="ghost"
-                  size="md"
-                  className="shrink-0"
-                  onClick={() => navigate("/bar/actions")}
-                >
-                  처음으로
-                </Button>
-                {confirmError && (
-                  <span
-                    role="alert"
-                    className="flex min-w-0 items-center gap-1 text-[11px] text-brand-coral"
-                  >
-                    <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
-                    <span className="truncate">{confirmError}</span>
-                  </span>
+                {bodies.enabled ? (
+                  <BodyCandidates
+                    key={data.jobId + ":" + person.index}
+                    job={data.jobId}
+                    person={person}
+                    entry={bodies.entries.find((e) => e.personIndex === person.index)}
+                    selected={selectedByPerson[person.index]}
+                    onSelect={(id) => selectCandidate(person.index, id)}
+                  />
+                ) : (
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {person.candidates.map((candidate) => (
+                      <PoseCandidateCard
+                        key={candidate.id}
+                        candidate={candidate}
+                        characterId={characterByPerson[person.index] ?? jobCharacterId}
+                        isSelected={candidate.id === selectedByPerson[person.index]}
+                        onSelect={() => selectCandidate(person.index, candidate.id)}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
-              <Button
-                size="md"
-                disabled={!allSelected || isConfirming}
-                onClick={() => void confirmAndContinue()}
-              >
-                이 포즈 사용
-                <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
-              </Button>
-            </div>
+            )}
           </>
         )}
       </div>

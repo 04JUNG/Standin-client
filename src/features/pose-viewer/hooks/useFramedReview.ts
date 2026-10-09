@@ -1,4 +1,7 @@
-import { useQueries } from "@tanstack/react-query";
+import { loadBodyReview } from "@/features/body-selection/review";
+import { bodyKeys } from "@/features/body-selection/api";
+import { useBodyOwner } from "@/features/body-selection/hooks";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { validateModel } from "../preview/modelContract";
 import { modelRenderingAvailable } from "../preview/modelSupport";
@@ -22,6 +25,9 @@ import { useSelectionReview } from "./useSelectionReview";
 export function useFramedReview(jobId: string | undefined) {
   const [modelStatus, setModelStatus] = useState<Record<string, "ready" | "failed">>({});
   const review = useSelectionReview(jobId);
+  const owner = useBodyOwner();
+  const qc = useQueryClient();
+  const bodyMode = review.bodies.enabled;
   const format = useExportStore((s) => s.format);
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
@@ -30,7 +36,7 @@ export function useFramedReview(jobId: string | undefined) {
   const enabled =
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
-    review.data.capabilities.outputScopeCropping === true;
+    (bodyMode || review.data.capabilities.outputScopeCropping === true);
   const requests = review.items.map((item) => {
     const scope = readOutputScope(
       review.data?.people.find((p) => p.index === item.personIndex)?.outputScope,
@@ -42,6 +48,7 @@ export function useFramedReview(jobId: string | undefined) {
       format: "fbx",
       serverSupportsCharacterSelection: review.data?.capabilities.characterSelection === true,
     });
+    const body = review.bodies.entries.find((e) => e.personIndex === item.personIndex)?.selection;
     let url = "";
     let modelKey = "";
     let model = false;
@@ -49,22 +56,32 @@ export function useFramedReview(jobId: string | undefined) {
     const base = scope === "full" && !item.refined ? item.candidate.previewModel : undefined;
     if (enabled && item.exportUrl) {
       try {
-        modelKey =
-          framedExportUrl(item.exportUrl, scope, "model", character.characterId) +
-          `#${item.refined}`;
-        model =
-          review.data?.capabilities.modelPreview === true &&
-          modelRenderingAvailable() &&
-          modelStatus[modelKey] !== "failed";
-        url = framedExportUrl(
-          item.exportUrl,
-          scope,
-          model ? "model" : "preview",
-          character.characterId,
-        );
-        if (model && base) url += "&useLibraryModel=true";
-        exportKey =
-          framedExportUrl(item.exportUrl, scope, "fbx", character.characterId) + `#${item.refined}`;
+        if (bodyMode) {
+          url = framedExportUrl(
+            item.exportUrl,
+            scope,
+            "preview",
+            bodyMode ? null : character.characterId,
+          );
+        } else {
+          modelKey =
+            framedExportUrl(item.exportUrl, scope, "model", character.characterId) +
+            `#${item.refined}`;
+          model =
+            review.data?.capabilities.modelPreview === true &&
+            modelRenderingAvailable() &&
+            modelStatus[modelKey] !== "failed";
+          url = framedExportUrl(
+            item.exportUrl,
+            scope,
+            model ? "model" : "preview",
+            character.characterId,
+          );
+          if (model && base) url += "&useLibraryModel=true";
+          exportKey =
+            framedExportUrl(item.exportUrl, scope, "fbx", character.characterId) +
+            `#${item.refined}`;
+        }
       } catch {
         /* Invalid server URL is a visible preview failure, never a render crash. */
       }
@@ -72,6 +89,7 @@ export function useFramedReview(jobId: string | undefined) {
     return {
       scope,
       url,
+      body,
       modelKey,
       model,
       exportKey,
@@ -81,13 +99,40 @@ export function useFramedReview(jobId: string | undefined) {
   });
   const queries = useQueries({
     queries: requests.map((request, index) => ({
-      queryKey: ["framed-preview", request.url, review.items[index]?.refined],
-      enabled: enabled && !review.isRefining && catalog.isSuccess && !!request.url,
+      queryKey: bodyMode
+        ? [
+            ...bodyKeys.person(owner, review.data!.jobId, review.items[index]!.personIndex),
+            "review",
+            review.items[index]!.candidate.id,
+            request.scope,
+            request.body?.selectionRevision,
+            review.items[index]?.exportUrl,
+            review.items[index]?.refined,
+          ]
+        : ["framed-preview", request.url, review.items[index]?.refined],
+      enabled:
+        enabled &&
+        !review.isRefining &&
+        (bodyMode ? request.body?.resolutionStatus === "ready" : catalog.isSuccess) &&
+        !!request.url,
       queryFn: async ({
         signal,
       }: {
         signal: AbortSignal;
       }): Promise<{ image: string; model?: ReviewModel; identity?: ReviewedIdentity }> => {
+        if (bodyMode) {
+          const item = review.items[index]!;
+          const receipt = await loadBodyReview(
+            review.data!.jobId,
+            item.exportUrl!,
+            item.personIndex,
+            item.candidate.id,
+            request.scope,
+            request.body!,
+            signal,
+          );
+          return { ...receipt, image: receipt.previewUrl };
+        }
         const blob = await apiFetchBlob(request.url, { auth: false, signal });
         if (request.model) {
           if (!blob.type.startsWith("model/gltf-binary"))
@@ -128,7 +173,7 @@ export function useFramedReview(jobId: string | undefined) {
         return { image: await blobToDataUrl(blob) };
       },
       retry: false,
-      staleTime: 300_000,
+      staleTime: bodyMode ? 0 : 300_000,
       gcTime: 600_000,
     })),
   });
@@ -140,8 +185,12 @@ export function useFramedReview(jobId: string | undefined) {
   const previewLoading =
     enabled &&
     (review.isRefining ||
-      catalog.isPending ||
-      (catalog.isSuccess &&
+      (bodyMode
+        ? review.bodies.entries.some((e) => !e.selection && !e.error)
+        : catalog.isPending) ||
+      ((bodyMode
+        ? requests.every((r) => r.body?.resolutionStatus === "ready")
+        : catalog.isSuccess) &&
         requests.every((r) => !!r.url) &&
         queries.some((q, i) =>
           displays[i]?.model
@@ -151,9 +200,13 @@ export function useFramedReview(jobId: string | undefined) {
   const previewError =
     enabled &&
     !previewLoading &&
-    (catalog.isError || requests.some((r) => !r.url) || queries.some((q) => q.isError));
+    ((bodyMode
+      ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
+      : catalog.isError) ||
+      requests.some((r) => !r.url) ||
+      queries.some((q) => q.isError));
   useEffect(() => {
-    if (!enabled || review.isRefining) return;
+    if (bodyMode || !enabled || review.isRefining) return;
     requests.forEach((r, i) => {
       if (
         r.exportKey &&
@@ -162,7 +215,7 @@ export function useFramedReview(jobId: string | undefined) {
       )
         rememberFramedFormat(r.exportKey, r.model, queries[i]?.data?.identity);
     });
-  }, [enabled, review.isRefining, requests, queries, displays, modelStatus]);
+  }, [bodyMode, enabled, review.isRefining, requests, queries, displays, modelStatus]);
   return {
     ...review,
     items: review.items.map((item, index) => ({
@@ -183,9 +236,17 @@ export function useFramedReview(jobId: string | undefined) {
       : format === "bvh"
         ? "BVH는 전신 뼈대의 동작 파일입니다. 출력 범위는 FBX에 적용됩니다."
         : "",
-    retryPreview: () => {
-      void catalog.refetch();
-      for (const query of queries) void query.refetch();
+    retryPreview: async () => {
+      if (bodyMode) {
+        await Promise.all(review.bodies.entries.map((entry) => entry.retry()));
+        await qc.invalidateQueries({
+          queryKey: ["body", owner, review.data!.jobId],
+          predicate: (q) => q.queryKey[4] === "review",
+        });
+      } else {
+        await catalog.refetch();
+        await Promise.all(queries.map((query) => query.refetch()));
+      }
     },
   };
 }

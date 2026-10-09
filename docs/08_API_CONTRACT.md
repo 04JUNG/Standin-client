@@ -742,3 +742,8 @@ card; no animation loop or new pose solver. Raw matrix, source and character are
 Missing models, old servers or unavailable WebGL fall back to the existing aligned PNG.
 Cancellation does not start fallback work. Final selected/refined/cropped FBX still uses
 the converter and its verified preview. BVH behavior is unchanged.
+
+
+## 체형 선택 UX 확장 (2026-10-08)
+
+새 계약을 지원하는 작업의 기본 설정·인물별 선택·Top-K·최종 확인·저장 기준은 [BODY_SELECTION_UI.md](BODY_SELECTION_UI.md)를 따른다. 구 계약 설명보다 이 확장이 우선한다.

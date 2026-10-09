@@ -155,6 +155,8 @@ describe("poseHttp", () => {
         characterSelection: false,
         outputScopeSelection: false,
         outputScopeCropping: false,
+        bodyPreviews: false,
+        bodyPreviewAssets: false,
         modelPreview: false,
       },
       people: [
