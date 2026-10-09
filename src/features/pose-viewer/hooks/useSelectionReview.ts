@@ -1,4 +1,5 @@
 import { useQueries } from "@tanstack/react-query";
+import { useExportStore } from "@/features/export/store/exportStore";
 import { candidateThumbnailOptions } from "../api/candidateThumbnail";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { useMemo } from "react";
@@ -14,8 +15,8 @@ export type ReviewItem = {
   /**
    * 저장될 포즈의 미리보기 이미지.
    *
-   * 조정 결과의 그림이 있으면 그것이고, 없으면 사용자가 고른 후보 썸네일이다. 둘 다
-   * 서버가 **같은 렌더러**로 그린 그림이라 나란히 놓아도 시각 언어가 갈리지 않는다.
+   * 조정 결과는 해당 결과의 그림만 쓴다. 원본 결과만 후보 썸네일을 쓸 수 있다.
+   * FBX 확인은 useFramedReview가 최종 모델 또는 범위별 PNG로 대체한다.
    * 비어 있을 수도 있다 — 그때 화면은 자리표시자를 그린다.
    */
   previewUrl: string;
@@ -37,6 +38,9 @@ export function useSelectionReview(jobId: string | undefined) {
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const { status, refineByPerson } = useRefineSelection(analysis.data);
   const { data, selectedByPerson } = analysis;
+  const format = useExportStore((s) => s.format);
+  const framed =
+    format === "fbx" && data?.capabilities.fbxExport && data.capabilities.outputScopeCropping;
 
   const items = useMemo((): ReviewItem[] => {
     if (!data) return [];
@@ -55,9 +59,9 @@ export function useSelectionReview(jobId: string | undefined) {
           candidate,
           // 조정 결과가 있으면 그 URL이 최종이다. 없으면 후보의 베이스 URL로 저장한다.
           exportUrl: currentOutcome?.exportUrl ?? candidate.bvhUrl,
-          // 조정본 그림이 없을 때 후보 썸네일을 쓰는 것은 "비슷한 그림"이 아니다.
-          // 그 경우 저장되는 것이 실제로 그 후보의 베이스 포즈다.
-          previewUrl: currentOutcome?.previewUrl || candidate.thumbnailUrl,
+          // A deferred refined preview must never show the unmodified pose.
+          previewUrl:
+            currentOutcome?.previewUrl || (currentOutcome?.refined ? "" : candidate.thumbnailUrl),
           refined: currentOutcome?.refined === true,
           skipped: !currentOutcome,
         },
@@ -73,7 +77,11 @@ export function useSelectionReview(jobId: string | undefined) {
         byPerson[item.personIndex] ?? characterId ?? undefined,
       ),
       enabled:
-        !analysis.bodies.enabled && !!item.candidate.deferredThumbnailUrl && !item.previewUrl,
+        !analysis.bodies.enabled &&
+        !framed &&
+        !item.refined &&
+        !!item.candidate.deferredThumbnailUrl &&
+        !item.previewUrl,
     })),
   });
   return {

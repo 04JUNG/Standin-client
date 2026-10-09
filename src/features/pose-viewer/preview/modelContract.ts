@@ -33,10 +33,13 @@ export function validRotation(value: unknown): value is number[][] {
 }
 export function validateModel(
   data: ArrayBuffer,
-  sourceSha: string,
+  sourceSha: string | undefined,
   characterId: string,
-  expected?: CandidateModel,
+  scopeOrExpected: string | CandidateModel = "full",
+  version = "posed-mesh-v1",
 ) {
+  const scope = typeof scopeOrExpected === "string" ? scopeOrExpected : "full";
+  const expected = typeof scopeOrExpected === "string" ? undefined : scopeOrExpected;
   if (data.byteLength < 28 || data.byteLength > 8 * 1024 * 1024) throw new Error("model size");
   const v = new DataView(data);
   if (
@@ -54,11 +57,15 @@ export function validateModel(
     (expected?.characterSha256 !== undefined &&
       meta?.character_sha256 !== expected.characterSha256) ||
     (expected?.modelRevision !== undefined && meta?.revision !== expected.modelRevision) ||
-    meta?.version !== "posed-mesh-v1" ||
-    meta.source_bvh_sha256 !== sourceSha ||
+    meta?.version !== version ||
+    (sourceSha !== undefined && meta.source_bvh_sha256 !== sourceSha) ||
+    !/^[a-f0-9]{64}$/.test(meta.source_bvh_sha256) ||
     meta.character_id !== characterId ||
     meta.coordinates !== "Y-up-hips-origin" ||
-    meta.scope !== "full"
+    meta.scope !== scope ||
+    (version === "framed-mesh-v1" &&
+      meta.camera_rotation !== null &&
+      !validRotation(meta.camera_rotation))
   )
     throw new Error("model lineage");
   // This format has exactly one static mesh and one internal buffer. No network,

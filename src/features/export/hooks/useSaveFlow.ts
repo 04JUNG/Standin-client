@@ -2,7 +2,7 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import { bodyKeys } from "@/features/body-selection/api";
 import { downloadBodyReview, type BodyReview } from "@/features/body-selection/review";
 import type { BodySelection } from "@/features/body-selection/contract";
-import { framedExportUrl } from "../lib/framedExport";
+import { framedExportUrl, reviewedModelFormat, reviewedExportUrl } from "../lib/framedExport";
 import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -49,6 +49,8 @@ async function resolvePoseBytes(
   format: ExportFormat,
   characterId: string | null,
   scope?: BodyScope,
+  modelPreview = false,
+  refined = false,
 ): Promise<Uint8Array> {
   // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
   // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
@@ -60,9 +62,25 @@ async function resolvePoseBytes(
   try {
     const url =
       scope && format === "fbx"
-        ? framedExportUrl(exportUrl, scope, "fbx", characterId)
+        ? framedExportUrl(
+            exportUrl,
+            scope,
+            "fbx",
+            characterId,
+            reviewedModelFormat(
+              framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`,
+              modelPreview,
+            ),
+          )
         : withExportParams(exportUrl, format, characterId);
-    return await apiFetchBytes(url, { auth: false });
+    const pinnedUrl =
+      scope && format === "fbx"
+        ? reviewedExportUrl(
+            url,
+            framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`,
+          )
+        : url;
+    return await apiFetchBytes(pinnedUrl, { auth: false });
   } catch (error) {
     // 격리된 포즈, converter 거부, lineage 불일치는 모두 **재시도로 풀리지 않는다.** 일반
     // 실패로 뭉치면 사용자는 영원히 실패하는 재시도 버튼만 누르게 된다. 코드별 문구는
@@ -332,7 +350,7 @@ export function useSaveFlow(jobId: string | undefined) {
                 throw new Error("저장 전 확인 화면에서 현재 체형의 결과를 확인해 주세요.");
               content = await downloadBodyReview(receipt);
               bodyNames.add(receipt.selection.resolvedBody!.characterId);
-            } else
+            } else {
               content = await resolvePoseBytes(
                 exportUrl,
                 candidateId,
@@ -343,7 +361,14 @@ export function useSaveFlow(jobId: string | undefined) {
                       analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
                     ).resolved
                   : undefined,
-              );
+                analysisResult.capabilities.modelPreview === true,
+                currentOutcome?.refined === true,
+              ).catch((error) => {
+                // Returning to review must fetch fresh lineage after a rejected save.
+                void queryClient.invalidateQueries({ queryKey: ["framed-preview"] });
+                throw error;
+              });
+            }
             return { fileName: personFileName(name, personIndex, picks.length), content };
           }),
         );
@@ -389,7 +414,7 @@ export function useSaveFlow(jobId: string | undefined) {
         );
       }
     },
-    [startSaving, setSaved, addSaved, setError],
+    [startSaving, setSaved, addSaved, setError, queryClient],
   );
 
   /**

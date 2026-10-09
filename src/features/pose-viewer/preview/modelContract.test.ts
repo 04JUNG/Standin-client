@@ -6,7 +6,7 @@ function model(overrides = {}) {
     asset: {
       extras: {
         version: "posed-mesh-v1",
-        source_bvh_sha256: "source",
+        source_bvh_sha256: "a".repeat(64),
         character_id: "character",
         coordinates: "Y-up-hips-origin",
         scope: "full",
@@ -62,9 +62,9 @@ describe("static preview contract", () => {
     ).toBe(false);
   });
   it("checks source and character before loading", () => {
-    expect(validateModel(model(), "source", "character").scope).toBe("full");
+    expect(validateModel(model(), "a".repeat(64), "character").scope).toBe("full");
     expect(() => validateModel(model(), "changed", "character")).toThrow();
-    expect(() => validateModel(model(), "source", "other")).toThrow();
+    expect(() => validateModel(model(), "a".repeat(64), "other")).toThrow();
   });
   it.each([
     { buffers: [{ uri: "https://outside.invalid/mesh" }] },
@@ -73,7 +73,7 @@ describe("static preview contract", () => {
     { animations: [{}] },
     { extensionsUsed: ["custom"] },
   ])("rejects resources that can change geometry or fetch externally: %o", (change) => {
-    expect(() => validateModel(model(change), "source", "character")).toThrow();
+    expect(() => validateModel(model(change), "a".repeat(64), "character")).toThrow();
   });
 });
 
@@ -85,7 +85,7 @@ it("new body mesh verifies asset hash and exporter revision against embedded met
       [0, 1, 0],
       [0, 0, 1],
     ],
-    sourceSha: "source",
+    sourceSha: "a".repeat(64),
     characterSha256: "asset",
     modelRevision: "revision",
   };
@@ -93,7 +93,7 @@ it("new body mesh verifies asset hash and exporter revision against embedded met
     asset: {
       extras: {
         version: "posed-mesh-v1",
-        source_bvh_sha256: "source",
+        source_bvh_sha256: "a".repeat(64),
         character_id: "character",
         character_sha256: "asset",
         revision: "revision",
@@ -102,11 +102,11 @@ it("new body mesh verifies asset hash and exporter revision against embedded met
       },
     },
   });
-  expect(validateModel(data, "source", "character", expected).revision).toBe("revision");
+  expect(validateModel(data, "a".repeat(64), "character", expected).revision).toBe("revision");
   expect(() =>
-    validateModel(data, "source", "character", { ...expected, characterSha256: "wrong" }),
+    validateModel(data, "a".repeat(64), "character", { ...expected, characterSha256: "wrong" }),
   ).toThrow();
   expect(() =>
-    validateModel(data, "source", "character", { ...expected, modelRevision: "wrong" }),
+    validateModel(data, "a".repeat(64), "character", { ...expected, modelRevision: "wrong" }),
   ).toThrow();
 });

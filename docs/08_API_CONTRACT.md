@@ -1,5 +1,24 @@
 # FastAPI 연동 계약 초안
 
+카메라 후보의 `quickThumbnailUrl`은 이미 렌더된 JPEG를 가리키는 선택 필드다.
+후보 카드에서 빠른 근사 시점으로만 쓰고, `thumbnailUrl`과 저장 전 확인 계약은
+기존처럼 최종 결과를 검증한다. 필드가 없는 구 BFF는 기존 카드 로딩 경로를 쓴다.
+
+## 모델 미리보기 확장 (2026-10-08)
+
+`capabilities.modelPreview`(없으면 false)가 true인 FBX 확인 화면은
+`/framed?format=model`에서 정적 GLB를 받는다. 저장은 동일 조건의
+`format=fbx&previewType=model`을 요청해 준비한 FBX를 재사용한다.
+이 경로의 refine POST에만 `deferPreview:true`를 보낸다. BVH/구 서버는 기존 계약을 유지한다.
+모델은 최종 카메라/범위가 이미 적용된 `framed-mesh-v1`이다. 전신 원본은 기존
+`posed-mesh-v1`을 후보 회전행렬로 표시하면서 FBX를 준비할 수 있다.
+리파인 또는 부분 출력에는 원본 모델을 사용하지 않는다.
+
+WebGL 실패 시 같은 범위/체형의 PNG로 대체하고 그 PNG와 짝인 FBX로 저장한다.
+WebGL 2 미지원 기기는 모델 변환을 요청하거나 refine PNG를 생략하기 전에 기존 경로를 선택한다.
+모델 첫 프레임이나 PNG가 준비되기 전에는 저장을 잠근다. 정적 모델은 화면에 유지하고
+크기 변경 시에만 다시 그리며 화면을 떠나면 GPU 자원을 해제한다.
+
 > 서버 코드는 이 레포에 포함하지 않는다. 이 문서는 앱과 서버 팀이 합의할 계약의 초안이다.
 
 ## 1. 기본 원칙

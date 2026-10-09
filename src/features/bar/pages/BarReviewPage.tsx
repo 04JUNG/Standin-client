@@ -2,6 +2,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { ImageOff, Loader2, Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "@/features/pose-viewer/hooks/useFramedReview";
+import { ReviewModelPreview } from "@/features/pose-viewer/components/ReviewModelPreview";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
 
@@ -38,7 +39,9 @@ export function BarReviewPage() {
                  * 어떤 포즈인지 알아볼 수 없어 확인 화면의 뜻이 사라진다.
                  */
                 <li key={item.personIndex} className="min-w-[80px] max-w-[128px] flex-1 basis-0">
-                  {item.previewUrl ? (
+                  {item.previewModel ? (
+                    <ReviewModelPreview model={item.previewModel} onStatus={item.onModelStatus} />
+                  ) : item.previewUrl ? (
                     <img
                       src={item.previewUrl}
                       alt={`인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`}

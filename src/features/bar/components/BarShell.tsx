@@ -104,7 +104,7 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
         </BarIconButton>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]">
         {/* 내용 높이를 재기 위한 래퍼. 스크롤 영역 자체는 창 크기를 따라가므로 잴 수 없다. */}
         <div ref={contentRef}>{children}</div>
       </div>

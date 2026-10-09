@@ -43,6 +43,7 @@ type BffCandidate = {
   matchLevel: MatchLevel;
   bvhAvailable: boolean;
   thumbnailUrl?: string;
+  quickThumbnailUrl?: string;
   previewModelUrl?: string;
   camera?: { version?: string; rotation?: unknown; source_bvh_sha256?: string } | null;
 };
@@ -61,6 +62,7 @@ type BffAnalysisResult = {
     bodyPreviewAssets?: boolean;
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
+    modelPreview?: boolean;
   };
   candidatesByPerson: Array<{
     bodySelection?: unknown;
@@ -210,6 +212,7 @@ async function toPoseCandidate(
     matchLevel: raw.matchLevel,
     thumbnailUrl,
     ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
+    ...(deferred && raw.quickThumbnailUrl ? { quickThumbnailUrl: raw.quickThumbnailUrl } : {}),
     ...(deferred &&
     raw.previewModelUrl &&
     validRotation(raw.camera?.rotation) &&
@@ -288,6 +291,7 @@ async function toAnalysisResult(
       characterSelection: raw.capabilities?.characterSelection === true,
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
+      modelPreview: raw.capabilities?.modelPreview === true,
     },
   };
 }

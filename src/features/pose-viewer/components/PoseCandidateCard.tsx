@@ -1,5 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { candidateThumbnailOptions } from "../api/candidateThumbnail";
+import {
+  candidateThumbnailOptions,
+  quickCandidateThumbnailOptions,
+} from "../api/candidateThumbnail";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { MatchLevel, PoseCandidate } from "../api/pose.contract";
@@ -33,11 +36,13 @@ export function PoseCandidateCard({
   onSelect,
 }: PoseCandidateCardProps) {
   const preview = useQuery(
-    candidateThumbnailOptions(
-      bodyPreview ? undefined : candidate.deferredThumbnailUrl,
-      candidate.previewModel,
-      characterId ?? undefined,
-    ),
+    !bodyPreview && candidate.quickThumbnailUrl
+      ? quickCandidateThumbnailOptions(candidate.quickThumbnailUrl)
+      : candidateThumbnailOptions(
+          bodyPreview ? undefined : candidate.deferredThumbnailUrl,
+          candidate.previewModel,
+          characterId ?? undefined,
+        ),
   );
   const imageUrl = bodyPreview ? bodyPreview.url : candidate.thumbnailUrl || preview.data;
   const pending = bodyPreview
@@ -70,7 +75,7 @@ export function PoseCandidateCard({
           {pending ? (
             <span className="flex flex-col items-center gap-2 text-xs" role="status">
               <LoaderCircle className="h-6 w-6 animate-spin" aria-hidden />
-              각도 맞추는 중
+              {candidate.quickThumbnailUrl ? "미리보기 불러오는 중" : "각도 맞추는 중"}
             </span>
           ) : failed ? (
             <span className="text-xs">미리보기 다시 시도</span>

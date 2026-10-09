@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { libraryPreviewMaterial, PREVIEW_BACKGROUND } from "./previewStyle";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { validateModel, validRotation, type CandidateModel } from "./modelContract";
 
@@ -15,6 +16,7 @@ function getRenderer() {
     renderer.setSize(384, 384, false);
     renderer.setPixelRatio(1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
     window.addEventListener(
       "pagehide",
       () => {
@@ -71,6 +73,9 @@ export function renderCandidate(
       const points: THREE.Vector3[] = [];
       body.traverse((obj) => {
         if (obj instanceof THREE.Mesh) {
+          for (const material of Array.isArray(obj.material) ? obj.material : [obj.material])
+            material.dispose();
+          obj.material = libraryPreviewMaterial();
           const position = obj.geometry.getAttribute("position");
           for (let i = 0; i < position.count; i++) {
             const p = new THREE.Vector3()
@@ -90,17 +95,8 @@ export function renderCandidate(
       camera.position.copy(center).add(new THREE.Vector3(0, 0, radius * 5));
       camera.lookAt(center);
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color("#999999");
+      scene.background = new THREE.Color(PREVIEW_BACKGROUND);
       scene.add(body);
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x555568, 2.0));
-      const key = new THREE.DirectionalLight(0xffffff, 2.5);
-      key.position.copy(center).add(new THREE.Vector3(-radius * 2, radius * 3, radius * 4));
-      key.target.position.copy(center);
-      scene.add(key, key.target);
-      const fill = new THREE.DirectionalLight(0xffffff, 0.8);
-      fill.position.copy(center).add(new THREE.Vector3(radius * 3, radius, -radius * 2));
-      fill.target.position.copy(center);
-      scene.add(fill, fill.target);
       const output = getRenderer();
       output.render(scene, camera);
       return output.domElement.toDataURL("image/png");
