@@ -16,7 +16,10 @@ export function ModelPreview({
   className?: string;
   iconClassName?: string;
 }) {
-  const src = previewFor(character.characterId) ?? character.previewUrl ?? null;
+  const src =
+    previewFor(character.characterId, character.bodyRef?.assetSha256) ??
+    character.previewUrl ??
+    null;
 
   return (
     <div
