@@ -4,6 +4,7 @@
  * 라우트의 jobId는 쿼리 키용 클라이언트 식별자이며, 응답의 jobId는 BFF가 발급한 값이다.
  */
 import type { OutputScope } from "./outputScope";
+import type { UpstreamAnalysisCode } from "@/shared/api/analysisJobFailure";
 
 export type MatchLevel = "high" | "medium" | "low";
 
@@ -102,7 +103,7 @@ export type AnalysisErrorCode =
   /** 기록에서 열었는데 아직 끝나지 않았거나 결과가 없는 Job이다(BFF `NOT_READY`). */
   | "NOT_READY"
   /** 상류 VLM 혼잡. 같은 이미지로 잠시 후 다시 하면 된다(BFF `ANALYSIS_UNAVAILABLE`). */
-  | "UPSTREAM_UNAVAILABLE";
+  | UpstreamAnalysisCode;
 
 export class AnalysisError extends Error {
   constructor(

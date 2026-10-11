@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { isOpenable, jobStatusDisplay, unopenableReason } from "./jobStatusLabel";
 
 describe("jobStatusDisplay", () => {
+  it.each([
+    ["ANALYSIS_RATE_LIMITED", "요청 한도"],
+    ["ANALYSIS_DAILY_QUOTA_EXHAUSTED", "일일 사용 한도"],
+    ["ANALYSIS_UPSTREAM_TIMEOUT", "응답 시간"],
+    ["ANALYSIS_UPSTREAM_ERROR", "일시적인 오류"],
+  ])("기록에서도 %s를 혼잡으로 덮지 않는다", (errorCode, message) => {
+    const result = jobStatusDisplay({ status: "failed", errorCode });
+    expect(result.detail).toContain(message);
+    expect(result.detail).not.toContain("혼잡");
+  });
   it("완료와 진행 중을 구분한다", () => {
     expect(jobStatusDisplay({ status: "completed", errorCode: null }).tone).toBe("done");
     expect(jobStatusDisplay({ status: "queued", errorCode: null }).tone).toBe("running");

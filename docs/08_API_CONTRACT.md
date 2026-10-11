@@ -273,6 +273,18 @@ Response:
 | `INFERENCE_FAILED` | 추론 호출 실패 | "다른 이미지로 다시 시도" |
 | `INPUT_STORAGE_FAILED` | 입력 이미지 보관 실패 | 재시도 |
 | `ABANDONED` | 배포·태스크 교체로 진행 중 Job이 유실됨 | "분석이 중단됐습니다. 다시 시도" |
+| `ANALYSIS_UNAVAILABLE` | AI 혼잡 또는 구 서버의 상세 원인 없는 503 | 잠시 후 재시도 |
+| `ANALYSIS_RATE_LIMITED` | AI 제공 서비스의 일시적 요청 한도 | 잠시 기다린 뒤 재시도 |
+| `ANALYSIS_DAILY_QUOTA_EXHAUSTED` | AI 제공 서비스의 일일 한도 소진 | 한도 복구/운영자 확인 안내, 재시도 버튼 숨김 |
+| `ANALYSIS_UPSTREAM_TIMEOUT` | AI 제공 서비스 응답 시간 초과 | 잠시 후 재시도 |
+| `ANALYSIS_UPSTREAM_ERROR` | AI 제공 서비스 일시 오류 | 잠시 후 재시도 |
+
+새 AI 실패 코드는 `shared/api/analysisJobFailure.ts`에서 안전한 고정 문구와 재시도 여부로
+바꾼다. 실시간 결과와 작업 기록에 같은 원인을 표시한다. 사용자의 설치별 사용량 한도와
+AI 제공 서비스 한도를 혼동하지 않으며, 초기화 시각이나 정확한 대기 초를 추정하지 않는다.
+자동 재시도는 추가하지 않는다. BFF의 기존 코드/미지원 코드는 기존 처리를 유지한다.
+새 BFF 배포 전에 이 클라이언트를 배포해야 한다. 이미 설치된 데스크톱 앱에는 새 빌드/업데이트가
+필요하며, develop 머지만으로 설치된 앱이 바뀌지는 않는다. 과거 실패 기록은 재분류하지 않는다.
 
 `ABANDONED`는 러너가 아직 프로세스 내 fire-and-forget이라 생긴다. 서버가 주기적으로
 정리해 무응답 대신 명시적 실패로 만들어 준다. 앱은 이 값을 `analysis_failed.reason`에

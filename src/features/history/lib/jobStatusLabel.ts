@@ -1,4 +1,5 @@
 import type { JobHistoryItem } from "../api/history.contract";
+import { upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
 
 export type JobStatusTone = "done" | "failed" | "running";
 
@@ -22,6 +23,11 @@ export function jobStatusDisplay(item: Pick<JobHistoryItem, "status" | "errorCod
     return { label: "분석 중", tone: "running", detail: null };
   }
 
+  const upstream = upstreamAnalysisFailure(item.errorCode);
+  // 구 혼잡 기록의 문구는 유지하고 신규 세부 사유만 공통 안내를 쓴다.
+  if (upstream && item.errorCode !== "ANALYSIS_UNAVAILABLE") {
+    return { label: "실패", tone: "failed", detail: upstream.message };
+  }
   switch (item.errorCode) {
     case "ANALYSIS_UNAVAILABLE":
       return { label: "실패", tone: "failed", detail: "분석 서버가 혼잡했습니다. 같은 이미지로 다시 시도할 수 있습니다." };

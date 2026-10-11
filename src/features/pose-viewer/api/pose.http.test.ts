@@ -498,6 +498,23 @@ describe("poseHttp", () => {
     ).rejects.toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
   });
 
+  it.each([
+    ["ANALYSIS_RATE_LIMITED", "UPSTREAM_RATE_LIMITED", "요청 한도"],
+    ["ANALYSIS_DAILY_QUOTA_EXHAUSTED", "UPSTREAM_DAILY_QUOTA_EXHAUSTED", "일일 사용 한도"],
+    ["ANALYSIS_UPSTREAM_TIMEOUT", "UPSTREAM_TIMEOUT", "응답 시간"],
+    ["ANALYSIS_UPSTREAM_ERROR", "UPSTREAM_ERROR", "일시적인 오류"],
+  ])("Job 실패 %s의 원인을 유지한다", async (error, code, message) => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ jobId: "failed-job", status: "queued", createdAt: "now" }, 202))
+      .mockResolvedValueOnce(jsonResponse({ jobId: "failed-job", status: "failed", error }));
+    await expect(poseHttp.analyze({
+      jobId: "client-route-job",
+      file: new File(["image"], "rough.png", { type: "image/png" }),
+      source: "file", width: 1, height: 1,
+    })).rejects.toMatchObject({ code, message: expect.stringContaining(message) });
+    expect(fetchMock).toHaveBeenCalledTimes(2); // 자동 재분석 호출 없음
+  });
+
   it("쿼터 초과(429)는 원인과 다음 사용 가능 시점을 담은 오류로 올라간다", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
