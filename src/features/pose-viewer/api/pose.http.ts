@@ -18,6 +18,8 @@ import type {
   SkeletonState,
 } from "./pose.contract";
 
+import { upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
+
 /** BFF의 비동기 분석 Job 계약. */
 type AnalysisJobStatus = "queued" | "running" | "completed" | "failed";
 
@@ -322,12 +324,8 @@ async function waitForResult(
       // 상류(VLM)가 붐벼서 지금은 못 하는 상태다. 이걸 일반 실패로 뭉개면 화면이
       // "다른 이미지로 다시 시도"라고 안내하는데, 상류가 붐비는 동안에는 어떤 이미지도
       // 실패한다(2026-08-21 장애). 같은 입력으로 잠시 뒤 다시 하는 것이 맞다.
-      if (job.error === "ANALYSIS_UNAVAILABLE") {
-        throw new AnalysisError(
-          "UPSTREAM_UNAVAILABLE",
-          "지금 분석 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요.",
-        );
-      }
+      const upstream = upstreamAnalysisFailure(job.error);
+      if (upstream) throw new AnalysisError(upstream.code, upstream.message);
       throw new AnalysisError(
         "JOB_FAILED",
         "포즈 분석에 실패했습니다. 다른 이미지로 다시 시도해 주세요.",

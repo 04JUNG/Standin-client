@@ -2,8 +2,30 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "@/shared/api/errors";
 import { AnalysisError } from "../api/pose.contract";
 import { analysisFailure } from "./analysisFailure";
+import { upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
 
 describe("analysisFailure", () => {
+  it.each([
+    ["ANALYSIS_RATE_LIMITED", true],
+    ["ANALYSIS_DAILY_QUOTA_EXHAUSTED", false],
+    ["ANALYSIS_UPSTREAM_TIMEOUT", true],
+    ["ANALYSIS_UPSTREAM_ERROR", true],
+  ])("%s의 재시도 버튼 정책을 구분한다", (code, retryable) => {
+    const guidance = upstreamAnalysisFailure(code)!;
+    const failure = analysisFailure(new AnalysisError(guidance.code, guidance.message));
+    expect(failure.retryable).toBe(retryable);
+    expect(failure.message).not.toContain("혼잡");
+    if (!retryable) {
+      expect(failure.message).not.toContain("다시 시도");
+      expect(failure.message).not.toContain("내일");
+    }
+  });
+
+  it("알 수 없거나 프로토타입 이름인 코드는 안내로 받아들이지 않는다", () => {
+    for (const code of [null, "NEW", "constructor", "__proto__"]) {
+      expect(upstreamAnalysisFailure(code)).toBeUndefined();
+    }
+  });
   // 2026-08-21 장애: 상류(Gemini)가 붐비는 동안 분석이 실패했는데 화면은 "다른 이미지로
   // 다시 시도해 주세요"라고 안내했다. 그 시간에는 어떤 이미지도 실패한다.
   it("상류 혼잡은 같은 입력으로 다시 시도하도록 안내한다", () => {
