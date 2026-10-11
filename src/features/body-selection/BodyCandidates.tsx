@@ -76,6 +76,9 @@ export function BodyCandidates({
     id ??
     "체형 확인 중";
   const ready = entry?.ready && !mutation.isPending;
+  // Saving the chosen body is separate from rendering all five previews. A slow
+  // or failed preview must not trap the user inside the expanded selector.
+  const canConfirm = selection?.resolutionStatus === "ready" && !mutation.isPending;
   const source = selection?.resolvedSource;
   const label =
     source === "manual"
@@ -86,7 +89,7 @@ export function BodyCandidates({
           ? "자동 추천"
           : "기본 체형 · 추천 불확실";
   function confirm() {
-    if (!ready) return;
+    if (!canConfirm) return;
     setOpen(key, false);
     requestAnimationFrame(() => {
       const next = selected
@@ -151,9 +154,14 @@ export function BodyCandidates({
           aria-label={`인물 ${person.index + 1} 체형 선택`}
           className="flex max-h-[340px] flex-col rounded-xl border border-border bg-surface-1 p-3"
         >
-          <p className="mb-2 text-xs text-text-secondary">
-            이 인물의 체형만 바뀝니다. 선택한 포즈는 유지됩니다.
-          </p>
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <p className="text-xs text-text-secondary">
+              이 인물의 체형만 바뀝니다. 선택한 포즈는 유지됩니다.
+            </p>
+            <Button variant="ghost" onClick={() => setOpen(key, false)}>
+              닫기
+            </Button>
+          </div>
           <div className="mb-3 flex gap-2">
             <Button
               variant="secondary"
@@ -200,7 +208,7 @@ export function BodyCandidates({
             </p>
           )}
           <div className="mt-3 flex shrink-0 justify-end bg-surface-1 py-2">
-            <Button disabled={!ready} onClick={confirm}>
+            <Button disabled={!canConfirm} onClick={confirm}>
               이 체형으로 확정
             </Button>
           </div>

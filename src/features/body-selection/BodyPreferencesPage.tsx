@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
+import { ModelPreview } from "@/features/models/components/ModelPreview";
 import { bodyKeys, putPreferences } from "./api";
 import { useBodyOwner } from "./hooks";
 export function BodyPreferencesPage() {
@@ -76,31 +77,40 @@ export function BodyPreferencesPage() {
               />
               내 기본 체형으로 시작
             </label>
-            <label className="block text-sm">
-              내 기본 체형
-              <select
-                className="ml-3 min-h-11 rounded border border-border bg-surface-0 p-2"
-                value={value.defaultCharacterId ?? ""}
-                onChange={(e) =>
-                  mutation.mutate({ mode: value.mode, defaultCharacterId: e.target.value || null })
-                }
-              >
-                <option value="" disabled={value.mode === "fixed_default"}>
-                  지정 안 함
-                </option>
-                {value.defaultCharacterId &&
-                  !options.some((c) => c.characterId === value.defaultCharacterId) && (
-                    <option value={value.defaultCharacterId} disabled>
-                      기존 체형 · 사용 가능 여부 확인 필요
-                    </option>
-                  )}
-                {options.map((c) => (
-                  <option key={c.characterId} value={c.characterId}>
-                    {c.displayName}
-                  </option>
+            <div>
+              <p className="mb-2 text-sm font-semibold">내 기본 체형</p>
+              {value.defaultCharacterId &&
+                !options.some((c) => c.characterId === value.defaultCharacterId) && (
+                  <p role="status" className="mb-2 text-xs text-text-secondary">
+                    기존 체형의 사용 가능 여부를 확인할 수 없습니다.
+                  </p>
+                )}
+              <div role="radiogroup" aria-label="내 기본 체형" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {options.map((character) => (
+                  <button
+                    key={character.characterId}
+                    type="button"
+                    role="radio"
+                    aria-checked={value.defaultCharacterId === character.characterId}
+                    onClick={() =>
+                      mutation.mutate({ mode: value.mode, defaultCharacterId: character.characterId })
+                    }
+                    className={`rounded-xl border-2 bg-surface-0 p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky ${value.defaultCharacterId === character.characterId ? "border-brand-sky" : "border-border"}`}
+                  >
+                    <ModelPreview character={character} className="h-36 w-full" />
+                    <span className="mt-2 block font-semibold">{character.displayName}</span>
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+              {value.mode === "auto" && value.defaultCharacterId && (
+                <Button
+                  variant="ghost"
+                  onClick={() => mutation.mutate({ mode: "auto", defaultCharacterId: null })}
+                >
+                  기본 체형 지정 해제
+                </Button>
+              )}
+            </div>
             <p className="text-xs text-text-secondary">
               기본 체형을 등록하는 것만으로 선택 방식이 바뀌지 않습니다. 각 인물은 후보 화면에서
               따로 바꿀 수 있습니다.
