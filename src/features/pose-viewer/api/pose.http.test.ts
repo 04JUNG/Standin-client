@@ -158,10 +158,12 @@ describe("poseHttp", () => {
         bodyPreviews: false,
         bodyPreviewAssets: false,
         modelPreview: false,
+        candidateRerun: false,
       },
       people: [
         {
           index: 0,
+          box: [0, 0, 100, 100],
           candidateShortfallReason: null,
           outputScope: {
             selection: "auto",

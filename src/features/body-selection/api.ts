@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchResponse, ApiError } from "@/shared/api/client";
+import { apiFetch, apiFetchBlob, apiFetchResponse, ApiError } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { validRotation } from "@/features/pose-viewer/preview/modelContract";
 import {
@@ -10,7 +10,9 @@ import {
   type BodyChange,
   type BodyManifest,
   type BodySelection,
+  type BodyOption,
 } from "./contract";
+import { bodyMock, bodyMockEnabled } from "./mock";
 export const personPath = (job: string, person: number) =>
   `/v1/analysis/jobs/${encodeURIComponent(job)}/people/${person}`;
 export const bodyKeys = {
@@ -20,6 +22,7 @@ export const bodyKeys = {
   preferences: (owner: string) => ["body", owner, "preferences"] as const,
 };
 export async function getSelection(job: string, person: number, signal?: AbortSignal) {
+  if (bodyMockEnabled()) return bodyMock.getSelection(job, person);
   const value = selectionSchema.parse(
     await apiFetch(personPath(job, person) + "/body-selection", { auth: false, signal }),
   );
@@ -32,6 +35,7 @@ export async function putSelection(
   change: BodyChange,
   revision: number,
 ) {
+  if (bodyMockEnabled()) return bodyMock.putSelection(job, person, change);
   await apiFetch(personPath(job, person) + "/body-selection", {
     auth: false,
     method: "PUT",
@@ -41,19 +45,27 @@ export async function putSelection(
   return getSelection(job, person);
 }
 export async function getOptions(job: string, person: number, signal?: AbortSignal) {
+  if (bodyMockEnabled()) return bodyMock.getOptions();
   return optionsSchema.parse(
     await apiFetch(personPath(job, person) + "/body-options", { auth: false, signal }),
   );
 }
 export async function getPreferences(signal?: AbortSignal) {
+  if (bodyMockEnabled()) return bodyMock.getPreferences();
   return preferencesSchema.parse(
     await apiFetch("/v1/installations/current/body-preferences", { auth: false, signal }),
   );
 }
 export async function putPreferences(
-  value: { mode: "auto" | "fixed_default"; defaultCharacterId: string | null },
+  value: {
+    mode: "auto" | "fixed_default";
+    defaultCharacterId: string | null;
+    /** Omit to keep the saved value; null clears it. */
+    shapeDefault?: { characterId: string; controls: Record<string, number> } | null;
+  },
   revision: number,
 ) {
+  if (bodyMockEnabled()) return bodyMock.putPreferences(value);
   await apiFetch("/v1/installations/current/body-preferences", {
     auth: false,
     method: "PUT",
@@ -67,6 +79,7 @@ export async function getManifest(
   selection: BodySelection,
   signal?: AbortSignal,
 ) {
+  if (bodyMockEnabled()) return bodyMock.getManifest(job, person, selection);
   const manifest = manifestSchema.parse(
     await apiFetch(personPath(job, person) + "/body-previews", { auth: false, signal }),
   );
@@ -128,6 +141,7 @@ export async function renderBodyCandidate(
   candidate: BodyManifest["candidates"][number],
   signal: AbortSignal,
 ) {
+  if (bodyMockEnabled()) return bodyMock.renderCandidate(manifest, candidate.candidateId);
   try {
     const blob = await bodyBytes(candidate.previewModel.url, manifest, candidate, signal);
     if (blob.type !== "model/gltf-binary") throw new Error("model unavailable");
@@ -144,5 +158,17 @@ export async function renderBodyCandidate(
   }
   const blob = await bodyBytes(candidate.thumbnailUrl, manifest, candidate, signal);
   if (blob.type !== "image/png") throw new Error("미리보기 형식을 확인하지 못했습니다.");
+  return blobToDataUrl(blob);
+}
+
+/** 체형 카드의 T 포즈 미리보기. 바이트 해시가 카탈로그와 같아야 보여 준다. */
+export async function loadNeutralPreview(option: BodyOption, signal?: AbortSignal) {
+  if (bodyMockEnabled()) return bodyMock.neutralPreview(option);
+  const preview = option.neutralPreview;
+  if (!preview || preview.characterSha256 !== option.bodyRef.assetSha256)
+    throw new Error("preview");
+  const blob = await apiFetchBlob(preview.url, { auth: false, signal });
+  if (blob.type !== "image/png") throw new Error("preview");
+  await verifyDigest(await blob.arrayBuffer(), preview.sha256);
   return blobToDataUrl(blob);
 }

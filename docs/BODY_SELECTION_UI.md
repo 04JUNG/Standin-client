@@ -15,7 +15,7 @@
 2. 자동 추천 체형의 실제 후보 개수만 표시한다. 포즈는 자동 선택하지 않는다.
 3. 인물의 ‘체형 더보기’에서 현재 인물의 승인 체형을 선택한다.
 4. PUT 완료 후 최신 체형의 모든 후보 이미지가 준비되어야 진행할 수 있다.
-5. ‘이 체형으로 확정’은 패널을 접는다. 포즈 선택이 있으면 진행 버튼, 없으면 첫 후보로 포커스를 돌린다.
+5. 체형 칩의 ‘포즈 | 체형 더보기’ 전환에서 ‘포즈’를 눌러 Top-5로 돌아간다. 닫으면 새 체형으로 다시 그린 후보가 보인다(2026-10-14 개정, 아래 절).
 6. 최종 확인에서 선택한 체형·보정된 포즈·출력 범위를 함께 확인한다.
 7. 확인 결과와 동일한 FBX만 저장한다. 중간에 바뀌면 다시 확인해야 한다.
 
@@ -57,10 +57,10 @@
 4. GLB/WebGL 실패 시 같은 manifest의 PNG를 사용한다.
 5. 취소·401·403·404·409는 이전 PNG 요청으로 이어지지 않는다.
 
-차렷 카드는 BFF body-options의 optional `neutralPreview`를 사용한다.
+T 포즈 카드는 BFF body-options의 optional `neutralPreview`를 사용한다.
 체형 asset hash와 PNG bytes hash를 함께 검증하고 공통 프레이밍 이미지를 그대로 표시한다.
-기존 T포즈 번들 이미지를 차렷 카드로 대체하지 않는다.
-승인된 이미지가 없으면 ‘차렷 이미지 준비 중’으로 표시하며 다른 체형 그림을 대신 쓰지 않는다.
+2026-10-15 결정: 기본 사진과 체형 비교는 T 포즈로 제공한다. 승인 카탈로그와 일치하는 이미지를 사용한다.
+승인된 이미지가 없으면 ‘T 포즈 이미지 준비 중’으로 표시하며 다른 체형 그림을 대신 쓰지 않는다.
 
 ## 작은 창
 
@@ -93,7 +93,7 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 기본값은 둘 다 false. snapshot 없는 구 Job에는 bodyPreviews를 끈다.
 이 flag는 자산 준비/서비스 health 보장이 아니다. 미리보기 실패 시 계속 진행하지 않는다.
 
-승인 카탈로그/모델/차렷 이미지 준비 → converter 계약 배포 → BFF 배포 → 클라이언트 배포 → 대상 환경 검수 후 flag 활성화 순서다.
+승인 카탈로그/모델/T 포즈 이미지 준비 → converter 계약 배포 → BFF 배포 → 클라이언트 배포 → 대상 환경 검수 후 flag 활성화 순서다.
 기능 브랜치에 푸시하고 develop 대상 PR로 검토한다. 운영 배포·flag 변경은 별도다.
 
 ## 검증과 한계
@@ -103,7 +103,7 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 - 실제 React 앱/바를 Chrome에서 실행하고 격리된 9종 API fixture로 선택→접기→앱 전환→최종 확인→다운로드 연결을 검증.
 - fixture PNG는 QA 표시를 넣은 도식이다. 실제 9종 FBX 외형 검증이 아니다.
 - Rust cargo check: macOS 호스트에서 컴파일 확인.
-- Windows/macOS Tauri 실행·다중 모니터·CSP 드롭 실기 검수와 실제 9종 FBX/차렷 이미지 승인은 남아 있다.
+- Windows/macOS Tauri 실행·다중 모니터·CSP 드롭 실기 검수와 실제 9종 FBX/T 포즈 이미지 승인은 남아 있다.
 - 동일 캐릭터를 다른 컷에서 계속 쓰는 기능은 2.0 후속이다.
 
 주요 파일: `features/body-selection/*`, `useAnalysisResult`, `BodyCandidates`, `useFramedReview`, `useSaveFlow`, `window_mode.rs`.
@@ -121,3 +121,35 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 ## 설정 화면 활성화 보완
 
 BFF는 공개 body-preferences GET/PUT에도 후보 bodyPreviews와 같은 활성화 조건(BODY_SELECTION_ENABLED + BODY_UX_ENABLED + FBX 설정)을 적용한다. 저장 기능만 켠 단계에서는 BODY_SELECTION_DISABLED로 구 설정 UI를 유지한다. 클라이언트는 일시적인 5xx나 네트워크 장애를 이 상태로 오인하지 않는다.
+
+## 2026-10-14 개정 · 쉐이프키 체형 UX와 인물별 내보내기
+
+흐름: Top-5 → ‘체형 더보기’ → 체형 비교·조절 → ‘포즈’ 전환 → 새 체형으로 다시 그린 Top-5 →
+포즈 선택 → 이후는 기존 `저장할 포즈 확인`·저장 화면 그대로.
+
+- **원본 패널.** 후보 옆에 원본 러프를 둔다. ‘이 인물’은 서버 인물 상자(`box`, 원본 픽셀
+  `[x1,y1,x2,y2]`)로 자른 그림, ‘전체’는 원본 위 인물 상자이며 상자를 누르면 그 인물로 넘어간다.
+  상자가 원본 크기를 벗어나면 좌표계가 다르다고 보고 자르지 않는다.
+- **선택 스위치(내보내기).** 인물마다 끌 수 있다. 끈 인물은 `selectedByPerson`에서 빠지고(다시 켜면
+  고른 후보를 되살린다) 진행 조건·확정 요청에서 제외된다. 확인·저장 화면은 `selectedByPerson`만
+  읽으므로 바꾸지 않았다. 진행 조건은 “켠 인물이 1명 이상이고 모두 골랐다”. BFF의
+  `PUT .../selections`는 받은 목록으로 확정 집합을 대체한다.
+- **체형 더보기.** Top-5 자리를 바꾼다(바 720×560 고정). 체형 종류 남성·여성·아동, 맨 앞에 고정된
+  원본 카드, 카드를 누르면 즉시 PUT. 여닫기는 체형 칩의 ‘포즈 | 체형 더보기’ 전환(코랄 바탕이
+  고른 쪽으로 미끄러진다)으로만 하고, 하단 주 버튼은 펼친 동안에도 포즈 진행 버튼 그대로다.
+- **조절 바.** 서버가 그 체형의 `shape`(`body-shape.v1`)를 줄 때만 슬라이더를 연다. 손을 뗀 뒤
+  0.6초 쉬면 `{ intent: "manual", characterId, shape: { controls } }`로 저장하고, 저장 중 움직인
+  값은 새 revision을 받은 뒤 보낸다. 버튼은 자동 추천(auto) · 내 기본값(설정의 `shapeDefault`,
+  없으면 `defaultCharacterId`) · 초기화(같은 체형, shape 없이).
+- **설정 › 체형 기본 설정 › 내 기본 체형 수치.** 서버가 `shapeEditable`을 줄 때만 보인다.
+- **후보 다시 찾기.** `capabilities.candidateRerun`과 서버 동작이 생길 때만 6번째 칸/버튼을 그린다.
+  지금은 어떤 BFF도 노출하지 않아 그리지 않는다.
+- **비교 자세 전환(T 포즈/고른 포즈).** 체형별 포즈 렌더가 없어 넣지 않았다.
+
+⚠ converter가 수치 체형을 아직 굽지 못한다. BFF는 shape가 있는 선택의 미리보기·FBX를
+`409 BODY_SHAPE_RENDER_UNSUPPORTED`로 막으므로, `BODY_SHAPE_EDIT_ENABLED`를 켜기 전에 converter 연동이 필요하다.
+- **출력 범위 선택은 후보 화면에서 뺐다(2026-10-14).** 범위는 서버 자동 판별값을 쓴다.
+- **앱의 접힌 인물 줄**은 줄 전체가 버튼이다(누르면 펼침, 호버 시 옅은 배경과 › 표시). 줄 안의 선택 스위치는 펼치지 않는다.
+
+- **이전 인물 버튼.** 앱·바 모두 하단 주 버튼(이 포즈 사용 / 다음 인물로) 왼쪽에 둔다. 인물 순서에서 바로 앞 인물로 가고, 맨 앞이면 꺼진다. 인물이 한 명이면 그리지 않는다.
+- **체형 더보기 레이아웃(2026-10-15).** 왼쪽 큰 박스 “내 체형”(조절 바에 따라 그 자리에서 다시 그림, 원본 러프를 작게 겹침) | 오른쪽 프리셋 줄(고정 그림, 고른 것에 “선택됨”). 실서버 실시간 렌더 계획과 주의점은 [BODY_SHAPE_LIVE_PREVIEW.md](BODY_SHAPE_LIVE_PREVIEW.md).

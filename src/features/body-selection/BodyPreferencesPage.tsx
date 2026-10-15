@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { useInstallationStore } from "@/features/installation/installationStore";
+import type { ShapeSpec } from "./contract";
+import { formatShapeValue, shapeLabel } from "./shapeLabels";
 import { useBodyPreferences } from "./preferences";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/shared/components/AppShell";
@@ -12,7 +15,11 @@ export function BodyPreferencesPage() {
     qc = useQueryClient(),
     catalog = useModelCatalog();
   const mutation = useMutation({
-    mutationFn: (change: { mode: "auto" | "fixed_default"; defaultCharacterId: string | null }) => {
+    mutationFn: (change: {
+      mode: "auto" | "fixed_default";
+      defaultCharacterId: string | null;
+      shapeDefault?: { characterId: string; controls: Record<string, number> } | null;
+    }) => {
       if (!query.data) throw new Error("preferences missing");
       return putPreferences(change, query.data.revision);
     },
@@ -107,6 +114,23 @@ export function BodyPreferencesPage() {
             </p>
           </fieldset>
         )}
+        {value && (value.shapeEditable?.length ?? 0) > 0 && (
+          <ShapeDefaultSection
+            editable={value.shapeEditable!}
+            saved={value.shapeDefault ?? null}
+            busy={busy}
+            names={(id) =>
+              catalog.data?.characters.find((c) => c.characterId === id)?.displayName ?? id
+            }
+            onSave={(shapeDefault) =>
+              mutation.mutate({
+                mode: value.mode,
+                defaultCharacterId: value.defaultCharacterId,
+                shapeDefault,
+              })
+            }
+          />
+        )}
         {(catalog.isError || catalog.data?.origin === "fallback") && (
           <p role="alert">사용 가능한 체형 목록을 확인하지 못했습니다.</p>
         )}
@@ -118,5 +142,106 @@ export function BodyPreferencesPage() {
         {mutation.isSuccess && <p role="status">설정이 저장됐습니다. 다음 작업부터 적용됩니다.</p>}
       </div>
     </AppShell>
+  );
+}
+
+/**
+ * "내 기본값": 후보 화면 체형 조절 바의 "내 기본값" 버튼이 불러오는 수치.
+ * 서버가 조절 가능한 체형(`shapeEditable`)을 알려 줄 때만 보인다.
+ */
+function ShapeDefaultSection({
+  editable,
+  saved,
+  busy,
+  names,
+  onSave,
+}: {
+  editable: Array<{ characterId: string; shape: ShapeSpec }>;
+  saved: { characterId: string; controls: Record<string, number> } | null;
+  busy: boolean;
+  names(id: string): string;
+  onSave(value: { characterId: string; controls: Record<string, number> } | null): void;
+}) {
+  const initialId =
+    saved && editable.some((e) => e.characterId === saved.characterId)
+      ? saved.characterId
+      : editable[0].characterId;
+  const [characterId, setCharacterId] = useState(initialId);
+  const spec = editable.find((e) => e.characterId === characterId)!.shape;
+  const base = Object.fromEntries(spec.controls.map((c) => [c.key, c.default]));
+  const [values, setValues] = useState<Record<string, number>>(() => ({
+    ...base,
+    ...(saved?.characterId === characterId ? saved.controls : {}),
+  }));
+  useEffect(() => {
+    // 다른 체형으로 바꾸면 그 체형의 저장값(없으면 기본값)에서 시작한다.
+    setValues({
+      ...Object.fromEntries(spec.controls.map((c) => [c.key, c.default])),
+      ...(saved?.characterId === characterId ? saved.controls : {}),
+    });
+  }, [characterId, saved, spec]);
+  const dirty =
+    !saved ||
+    saved.characterId !== characterId ||
+    spec.controls.some((c) => saved.controls[c.key] !== values[c.key]);
+  return (
+    <section className="space-y-3 rounded-xl border border-border bg-surface-0 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-base font-bold">내 기본 체형 수치</h3>
+        <span className="text-xs text-text-secondary">
+          {saved ? `저장됨 · ${names(saved.characterId)}` : "저장된 값 없음"}
+        </span>
+      </div>
+      <p className="text-xs text-text-secondary">
+        자주 쓰는 캐릭터 체형을 저장해 두면 후보 화면의 체형 더보기에서 “내 기본값”으로 한 번에
+        불러올 수 있어요.
+      </p>
+      <label className="block text-sm">
+        기준 체형
+        <select
+          className="ml-3 min-h-11 rounded border border-border bg-surface-0 p-2"
+          value={characterId}
+          disabled={busy}
+          onChange={(e) => setCharacterId(e.target.value)}
+        >
+          {editable.map((e) => (
+            <option key={e.characterId} value={e.characterId}>
+              {names(e.characterId)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="grid max-w-[560px] gap-2">
+        {spec.controls.map((c) => (
+          <label
+            key={c.key}
+            className="grid grid-cols-[96px_minmax(0,1fr)_56px] items-center gap-2 text-sm"
+          >
+            <span className="font-semibold">{c.label ?? shapeLabel(c.key)}</span>
+            <input
+              type="range"
+              min={c.min}
+              max={c.max}
+              step={c.step}
+              value={values[c.key] ?? c.default}
+              disabled={busy}
+              onChange={(e) => setValues((v) => ({ ...v, [c.key]: Number(e.target.value) }))}
+              className="accent-brand-coral"
+            />
+            <output className="text-right font-mono text-xs text-text-secondary">
+              {formatShapeValue(c, values[c.key] ?? c.default)}
+            </output>
+          </label>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Button disabled={busy || !dirty} onClick={() => onSave({ characterId, controls: values })}>
+          저장
+        </Button>
+        <Button variant="ghost" disabled={busy || !saved} onClick={() => onSave(null)}>
+          지우기
+        </Button>
+      </div>
+    </section>
   );
 }

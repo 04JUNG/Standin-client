@@ -111,7 +111,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         )}
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-topbar items-center justify-between border-b border-border bg-surface-0 px-6">
           <h1 className="text-[16px] font-bold text-text-primary">{title}</h1>
           <div className="flex items-center gap-3">
