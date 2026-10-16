@@ -174,6 +174,41 @@ controls(UI 값)
 - 목업: 처음엔 내 기본값이 비어 있다. Mock 자산 정보의 sha256을 규칙마다 다르게 바꿨다(같은 값이면 앱 캐시가 남녀 자산을 섞어 여성 3D가 실루엣으로 떨어졌다).
 - 테스트: `myDefault.test.tsx`(규칙·저장 형태·지우기), BFF `shape.test.ts`(설정용 메타데이터, 서버 경로 비노출).
 
+## 3.6 슬라이더 값을 실제 포즈 FBX에 굽기 + 버전에 매이지 않는 미리보기 (2026-10-16, 브랜치 `codex/shape-bake-latest`)
+
+목표: 슬라이더로 세밀하게 조절한 값이 **최종 FBX와 저장 결과 포즈에 그대로** 들어간다. 대상 남성 0.7.1, 여성 0.3.2.
+
+**결과물은 converter가 굽는다(정확).** 앱은 선택에 저장된 수치를 그대로 쓰고, BFF가 converter `/convert-framed`에
+수치와 "어느 원본으로 구울지"(`expected_shape_source`)를 함께 보낸다. converter는 승인된 .blend와
+`standin_body.py`를 Blender에서 직접 실행해 수치를 굽고 → V3.2.5 solver → 컨트롤러 자세·접촉 보정 → 최종 FBX를
+만든다. 검토 화면(PNG/GLB)도 그 FBX에서 나온다. 계약 정본: Standin-server `docs/API_CONTRACT.md`, BFF `docs/API.md`.
+
+**실시간 미리보기는 v2 표본 자산(`standin-shape-runtime.v2`).** 규칙을 손으로 옮기지 않는다
+(`scripts/shape-runtime/README.md`). 앱은 `shapeRuntime/sampled.ts`에서 보간·기저 합·프리셋 모델 섞기만 한다.
+모델 버전이 바뀌면 빌드만 다시 돌린다. v1(0.6.x 규칙 이식) 경로는 예전 카탈로그용으로 남겨 두었다.
+
+**버전 가드.** 카탈로그 asset `shapeSource{rules, blendSha256, controllerSha256}` = converter 레지스트리 원본 = 앱 자산
+머리말 `source`일 때만 굽고 그린다. 앱: `load.ts`의 `matchesCatalog` — 다르면 실시간 3D를 끄고 고정 그림.
+BFF: 다른 원본의 SSR2는 서빙하지 않고, converter 계보가 다르면 무결성 오류. converter: 다르면 `409 SHAPE_SOURCE_MISMATCH`.
+v1 자산은 원본 해시가 없으므로 카탈로그가 원본을 밝힌 체형에는 쓰지 않는다.
+
+**미리보기 정확도** (`check_sampled_runtime.py`, 빌드와 다른 시드의 독립 검사, 컨트롤러 대비 최대 정점 오차 mm, 중앙값):
+
+| | 조절 2~6개 프리셋 근처 | 기본 조절 전부 전 범위 무작위 | 모든 조절 전 범위 무작위(스트레스) |
+|---|---|---|---|
+| 남성 0.7.1 (9 프리셋, 기저 176, 31.1 MB) | 0.1–0.6 (최대 7) | 1.6–4.4 (최대 8.7) | 4–10 (최대 17) |
+| 여성 0.3.2 (11 프리셋, 기저 168, 32.8 MB) | 0.06–0.85, 슬림형 3.4 (최대 7.6) | 1.6–7.0 (일부 조합 최대 68) | 3–11 (최대 49) |
+
+화면 박스(248px)에서 1px ≈ 8mm다. 보통의 조절은 1px 미만이다. 여성의 극단 조합(근육 0~4 × 지방 볼륨 0~2 × 지방
+동시 극단)에서 수 px 차이가 날 수 있다 — 저장 전 검토 화면은 실제 FBX라 그 차이를 확인할 수 있다.
+계산 시간: 값 한 번 19 ms(클라우드 CPU, 기저 160). 자산은 체형 더보기를 처음 열 때 한 번 받는다(남 31 MB, 여 33 MB).
+
+**대기 시간.** 수치 굽기는 1회 30~110초(2 vCPU). 검토 화면은 수치 체형이 있으면
+"조절한 체형을 실제 포즈에 반영하는 중… 1~2분 걸릴 수 있어요."를 보여 준다.
+
+**하지 않은 것:** "내 기본값으로 시작"의 수치 자동 적용(BFF `fixed_default`가 `shapeDefault`를 선택에 붙이는 일)은
+아직이다 — 굽기가 켜진 뒤 다음 단계로 한다. Mock/목업 HTML은 여전히 v1 자산(0.6.10/0.2.2)이다(v2 자산은 각 30 MB 이상).
+
 ## 4. 신경 써야 할 부분
 
 ### 4.1 성능 (측정값은 3절 표, 아래는 대응)
@@ -226,7 +261,8 @@ controls(UI 값)
 - [ ] 서버에 .ssr 2개(남성 0.6.10, 여성 0.2.2) 배치하고 manifest의 남성 9종·여성 11종 asset에 `shapeRuntime`(rules·preset), `shape`(basic 6/7·label) 적기
 - [ ] `BODY_SELECTION/CONFIRMED_MODELS.json`의 남성 기준을 0.6.10으로 올릴지 결정(지금은 0.6.7)
 - [ ] Mac(실제 GPU)에서 프레임 시간 측정, 16ms를 넘으면 계산을 Web Worker로
-- [ ] converter가 체형 수치를 굽기(그 전까지 `BODY_SHAPE_EDIT_ENABLED` 끔, shape 선택의 미리보기·FBX 409)
+- [x] converter가 체형 수치를 굽기(3.6절, 운영 반영 전까지 `BODY_SHAPE_BAKE_ENABLED` 끔)
+- [ ] Blender 5.2.0(운영 고정)에서 릴리스 재빌드·굽기 재검증 후 S3 스테이징 패키지(`package_shape_staging.py`)
 - [ ] S3 차렷 미리보기 이미지를 남성 0.6.10 T 포즈로 교체
 - [x] 여성 쉐이프키(0.2.2) 실시간 미리보기
 - [ ] 아동 쉐이프키 전환

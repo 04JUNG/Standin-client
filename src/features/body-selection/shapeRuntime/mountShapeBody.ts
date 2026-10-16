@@ -3,7 +3,7 @@ import {
   libraryPreviewMaterial,
   PREVIEW_BACKGROUND,
 } from "@/features/pose-viewer/preview/previewStyle";
-import type { ShapeRuntime } from "./format";
+import type { AnyShapeRuntime } from "./format";
 import { evaluateShape, type BlenderControls } from "./evaluate";
 
 /**
@@ -18,7 +18,7 @@ const FRAME_WIDTH = 1.95; // m
 const FRAME_CENTER_Y = 0.995;
 
 export type ShapeBodyView = {
-  update(controls: BlenderControls): void;
+  update(controls: BlenderControls, preset?: string): void;
   dispose(): void;
   /** 마지막 계산 시간(ms). 성능 기록용. */
   lastComputeMs(): number;
@@ -26,7 +26,7 @@ export type ShapeBodyView = {
 
 export function mountShapeBody(
   canvas: HTMLCanvasElement,
-  runtime: ShapeRuntime,
+  runtime: AnyShapeRuntime,
   onLost: () => void,
 ): ShapeBodyView {
   const V = runtime.header.vertexCount;
@@ -61,6 +61,7 @@ export function mountShapeBody(
   canvas.addEventListener("webglcontextlost", lost);
 
   let pending: BlenderControls | null = null;
+  let pendingPreset: string | undefined;
   let frame = 0;
   let computeMs = 0;
   let hasBody = false;
@@ -84,7 +85,7 @@ export function mountShapeBody(
     const c = pending;
     pending = null;
     const t = performance.now();
-    evaluateShape(runtime, c, blender);
+    evaluateShape(runtime, c, blender, pendingPreset);
     for (let i = 0; i < V; i++) {
       positions[i * 3] = blender[i * 3]!;
       positions[i * 3 + 1] = blender[i * 3 + 2]!;
@@ -100,8 +101,9 @@ export function mountShapeBody(
   observer.observe(canvas);
 
   return {
-    update(controls) {
+    update(controls, preset) {
       pending = controls;
+      pendingPreset = preset;
       if (!frame) frame = requestAnimationFrame(flush);
     },
     lastComputeMs: () => computeMs,

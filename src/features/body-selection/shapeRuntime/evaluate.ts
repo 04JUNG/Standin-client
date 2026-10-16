@@ -1,4 +1,5 @@
-import type { ShapeRuntime } from "./format";
+import type { AnyShapeRuntime, ShapeRuntime } from "./format";
+import { evaluateSampled } from "./sampled";
 import { clip, type BlenderControls } from "./common";
 import { evaluateMale067, MALE_067 } from "./male067";
 import { evaluateMale0610, MALE_0610 } from "./male0610";
@@ -25,7 +26,7 @@ export const SUPPORTED_RULES: ReadonlySet<string> = new Set(Object.keys(EVALUATO
  * 기본값 ← 고른 프리셋 ← 사용자가 바꾼 값 순서로 덮고, 범위 밖 값은 자른다.
  */
 export function resolveControls(
-  runtime: ShapeRuntime,
+  runtime: AnyShapeRuntime,
   preset: string | undefined,
   controls: Record<string, number> | null | undefined,
 ): BlenderControls {
@@ -48,12 +49,20 @@ export function resolveControls(
   return out;
 }
 
-/** Blender z-up 미터 좌표의 정점 위치(Float32Array, 정점×3). */
+/**
+ * Blender z-up 미터 좌표의 정점 위치(Float32Array, 정점×3).
+ * v2(표본) 자산은 프리셋마다 모델이 따로라 `preset`이 필요하다.
+ */
 export function evaluateShape(
-  runtime: ShapeRuntime,
+  runtime: AnyShapeRuntime,
   c: BlenderControls,
   out = new Float32Array(runtime.header.vertexCount * 3),
+  preset?: string,
 ) {
+  if (runtime.kind === "sampled") {
+    if (!preset) throw new Error("shape runtime: sampled runtime needs a preset");
+    return evaluateSampled(runtime, preset, c, out);
+  }
   const run = EVALUATORS[runtime.header.rules];
   if (!run) throw new Error("shape runtime: unsupported rules " + runtime.header.rules);
   return run(runtime, c, out);

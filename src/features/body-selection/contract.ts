@@ -80,9 +80,17 @@ export const shapeRuntimeSchema = z.object({
     .int()
     .positive()
     .max(32 * 1024 * 1024),
-  format: z.literal("standin-shape-runtime.v1"),
+  format: z.enum(["standin-shape-runtime.v1", "standin-shape-runtime.v2"]),
   rules: z.string().min(1).max(64),
   preset: z.string().regex(/^[A-Z][A-Z0-9_]{0,31}$/),
+  /** 서버가 이 체형을 굽는 원본(컨트롤러 VERSION·해시). 자산 머리말과 같아야 쓴다. */
+  source: z
+    .object({
+      rules: z.string().min(1).max(64),
+      blendSha256: sha,
+      controllerSha256: sha,
+    })
+    .optional(),
 });
 export const preferencesSchema = z.object({
   version: z.literal("body-preferences.v1"),

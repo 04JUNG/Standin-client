@@ -23,8 +23,10 @@ async function bytesOf(fixture: Fixture) {
   const stream = new Response(raw).body!.pipeThrough(new DecompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
-async function runtime(fixture: Fixture) {
-  return parseShapeRuntime((await bytesOf(fixture)).slice().buffer);
+async function runtime(fixture: Fixture): Promise<ShapeRuntime> {
+  const parsed = parseShapeRuntime((await bytesOf(fixture)).slice().buffer);
+  if (parsed.kind !== "rules") throw new Error("expected a v1 runtime");
+  return parsed;
 }
 
 describe.each([

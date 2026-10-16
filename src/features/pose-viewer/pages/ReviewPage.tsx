@@ -18,8 +18,15 @@ import { tourAnchor } from "@/shared/lib/tourAnchor";
 export function ReviewPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { items, isRefining, previewLoading, previewError, previewNotice, retryPreview } =
-    useFramedReview(jobId);
+  const {
+    items,
+    isRefining,
+    previewLoading,
+    previewError,
+    previewNotice,
+    retryPreview,
+    shapedBake,
+  } = useFramedReview(jobId);
 
   if (!jobId) return <Navigate to="/app/home" replace />;
   if (!isRefining && items.length === 0) return <Navigate to={`/app/jobs/${jobId}`} replace />;
@@ -79,7 +86,9 @@ export function ReviewPage() {
         {previewNotice && <p className="text-[12px] text-text-secondary">{previewNotice}</p>}
         {previewLoading && (
           <p role="status" className="text-[12px] text-text-secondary">
-            선택한 범위의 미리보기를 만드는 중…
+            {shapedBake
+              ? "조절한 체형을 실제 포즈에 반영하는 중… 1~2분 걸릴 수 있어요."
+              : "선택한 범위의 미리보기를 만드는 중…"}
           </p>
         )}
         {previewError && (

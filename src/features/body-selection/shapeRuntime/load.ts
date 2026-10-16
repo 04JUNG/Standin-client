@@ -3,24 +3,44 @@ import { apiFetchBlob } from "@/shared/api/client";
 import type { BodyOption } from "../contract";
 import { verifyDigest } from "../api";
 import { bodyMock, bodyMockEnabled } from "../mock";
-import { parseShapeRuntime, type ShapeRuntime } from "./format";
+import { parseShapeRuntime, SHAPE_RUNTIME_FORMAT_V2, type AnyShapeRuntime } from "./format";
 import { SUPPORTED_RULES } from "./evaluate";
 
 export type ShapeRuntimeRef = NonNullable<BodyOption["shapeRuntime"]>;
 
-/** 이 앱이 계산할 수 있는 규칙의 자산인가. 아니면 실시간 미리보기를 끄고 고정 그림을 쓴다. */
+/**
+ * 이 앱이 계산할 수 있는 자산인가. 아니면 실시간 미리보기를 끄고 고정 그림을 쓴다.
+ * v2(표본)는 규칙과 무관하게 계산할 수 있지만, 카탈로그가 어느 원본(source)으로 굽는지 밝혀야 한다.
+ */
 export const supportedRuntime = (ref?: ShapeRuntimeRef | null): ref is ShapeRuntimeRef =>
-  !!ref && SUPPORTED_RULES.has(ref.rules);
+  !!ref && (ref.format === SHAPE_RUNTIME_FORMAT_V2 ? !!ref.source : SUPPORTED_RULES.has(ref.rules));
 
-async function fetchRuntime(ref: ShapeRuntimeRef, signal?: AbortSignal): Promise<ShapeRuntime> {
+/**
+ * 받은 자산이 카탈로그가 약속한 것과 같은가(버전 가드). 서버는 `source`의 컨트롤러로 FBX를 굽는다.
+ * 미리보기가 다른 원본에서 나왔다면 저장될 몸과 다른 몸을 보여 주게 되므로 쓰지 않는다.
+ */
+export function matchesCatalog(runtime: AnyShapeRuntime, ref: ShapeRuntimeRef) {
+  if (runtime.header.rules !== ref.rules || !(ref.preset in runtime.header.presets)) return false;
+  if (runtime.kind === "sampled")
+    return (
+      ref.format === SHAPE_RUNTIME_FORMAT_V2 &&
+      !!ref.source &&
+      ref.source.rules === runtime.header.rules &&
+      ref.source.blendSha256 === runtime.header.source.blendSha256 &&
+      ref.source.controllerSha256 === runtime.header.source.controllerSha256
+    );
+  // v1 자산에는 원본 해시가 없다. 카탈로그가 원본을 밝혔다면(굽기 연동) 확인할 수 없으니 쓰지 않는다.
+  return ref.format !== SHAPE_RUNTIME_FORMAT_V2 && !ref.source;
+}
+
+async function fetchRuntime(ref: ShapeRuntimeRef, signal?: AbortSignal): Promise<AnyShapeRuntime> {
   if (bodyMockEnabled()) return parseShapeRuntime(await bodyMock.shapeRuntime(ref.rules));
   const blob = await apiFetchBlob(ref.url, { auth: false, signal });
   if (blob.size !== ref.bytes) throw new Error("shape runtime size");
   const bytes = await blob.arrayBuffer();
   await verifyDigest(bytes, ref.sha256);
   const runtime = parseShapeRuntime(bytes);
-  if (runtime.header.rules !== ref.rules || !(ref.preset in runtime.header.presets))
-    throw new Error("shape runtime does not match catalog");
+  if (!matchesCatalog(runtime, ref)) throw new Error("shape runtime does not match catalog");
   return runtime;
 }
 

@@ -231,6 +231,8 @@ export function useFramedReview(jobId: string | undefined) {
     })),
     previewLoading,
     previewError,
+    /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
+    shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: enabled
       ? "선택한 범위와 체형으로 저장될 FBX입니다. 뼈대는 전신 구조를 유지합니다."
       : format === "bvh"

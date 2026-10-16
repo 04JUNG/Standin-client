@@ -8,7 +8,7 @@ import { useBodyOwner } from "./hooks";
 import { loadNeutralPreview } from "./api";
 import { bodyMock, bodyMockEnabled } from "./mock";
 import type { BodyLook } from "./contract";
-import type { ShapeRuntime } from "./shapeRuntime/format";
+import type { AnyShapeRuntime } from "./shapeRuntime/format";
 import { resolveControls } from "./shapeRuntime/evaluate";
 import { mountShapeBody, type ShapeBodyView } from "./shapeRuntime/mountShapeBody";
 import { supportedRuntime, useShapeRuntime } from "./shapeRuntime/load";
@@ -40,7 +40,7 @@ function ShapeCanvas({
   label,
   onFail,
 }: {
-  runtime: ShapeRuntime;
+  runtime: AnyShapeRuntime;
   preset: string;
   controls: Record<string, number> | null;
   label: string;
@@ -77,7 +77,7 @@ function ShapeCanvas({
   }, [label]);
   useEffect(() => {
     try {
-      view.current?.update(resolveControls(runtime, preset, controls));
+      view.current?.update(resolveControls(runtime, preset, controls), preset);
     } catch {
       fail.current();
     }
@@ -105,8 +105,8 @@ function MockSilhouette({
  * 체형 더보기의 왼쪽 큰 박스: 지금 이 인물에 고른 체형과 손대는 중인 값.
  * 조절 바를 움직이면 이 박스만 다시 그린다. 오른쪽 프리셋 카드는 고정 그림이다.
  *
- * 실시간 3D는 카탈로그가 `shapeRuntime`(standin-shape-runtime.v1)을 주고, 자산 검증과 WebGL이
- * 모두 될 때만 켠다. 아니면 고른 체형의 고정 그림을 보여 주고 그렇다고 적는다.
+ * 실시간 3D는 카탈로그가 `shapeRuntime`(standin-shape-runtime.v1/v2)을 주고, 자산 검증(해시·원본
+ * 버전 일치)과 WebGL이 모두 될 때만 켠다. 아니면 고른 체형의 고정 그림을 보여 주고 그렇다고 적는다.
  */
 export function LiveBodyView({
   option,

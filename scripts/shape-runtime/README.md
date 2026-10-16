@@ -49,3 +49,34 @@ python3.11 -m venv .bpy && .bpy/bin/pip install bpy==5.0.1
 `muscle_bulk_offset` / `refine_bulk_profile` / `fold_guard`가 바뀌면 `build_runtime.py`(남성 `bake`·`bake_bulk`·`coefs`·
 `rest_body`·`evaluate`, 여성 `bake_female`·`evaluate_female`)와 앱의 규칙 모듈(`shapeRuntime/male0610.ts`,
 `male067.ts`, `female022.ts`)을 함께 고치고, 새 규칙이면 `evaluate.ts`의 `EVALUATORS`에 더한다.
+
+## v2: 버전에 매이지 않는 표본 자산 (`standin-shape-runtime.v2`, "SSR2") — 2026-10-16
+
+규칙을 손으로 옮기지 않는다. Blender에서 컨트롤러 `compute()`를 직접 돌려 프리셋마다
+조절 하나씩의 곡선(적응형 격자)과 서로 영향을 크게 주고받는 조절 쌍(3×3 격자)을 표본으로 뜨고,
+모든 표본을 공통 PCA 기저(int16)로 줄인다. 앱(`shapeRuntime/sampled.ts`)은 선형 보간과 기저 합만 한다.
+**모델 버전이 바뀌어도 앱 코드는 그대로이고 이 빌드만 다시 돌린다.**
+
+```bash
+# 1) 빌드 (남성 0.7.1 기준 9개 프리셋 약 50분 / 2 vCPU — 대부분 컨트롤러 계산 시간)
+.bpy/bin/python scripts/shape-runtime/build_sampled_runtime.py \
+  --blend <model>/standin-body-0.7.1.blend --controller <model>/standin_body.py \
+  --out runtime-male-0.7.1.ssr --report runtime-male-0.7.1.json --basis-tol-mm 0.5 --max-basis 192
+# 2) 새 시드로 독립 검사 + 크기 예산(32 MiB)에 맞게 기저 자르기
+.bpy/bin/python scripts/shape-runtime/check_sampled_runtime.py --runtime runtime-male-0.7.1.ssr \
+  --blend ... --controller ... --report check.json --truncate-basis 176 --selection-cut-ratio 2 \
+  --out runtime-standin-body-0.7.1.ssr
+# 3) 앱 테스트 고정 자료(프리셋 하나, 정점 150개, 빌더와 같은 계산의 정답 좌표)
+.bpy/bin/python scripts/shape-runtime/make_sampled_fixture.py --runtime runtime-male-0.7.1-k160.ssr \
+  --presets BASE,BULK --basis 48 --out src/features/body-selection/shapeRuntime/__fixtures__/mini-sampled.json
+```
+
+- 머리말 `source`(.blend·컨트롤러 SHA-256)가 카탈로그의 `shapeSource`와 같아야 앱이 쓴다.
+  BFF도 다르면 서빙하지 않고, converter는 같은 원본으로만 굽는다(버전 가드).
+- 리포트·머리말 `quality`: 프리셋별 컨트롤러 대비 최대 오차(mm). `few`=조절 2~6개를 프리셋 근처에서,
+  `basic`=기본 조절 전부를 전 범위 무작위, `all`=모든 조절 전 범위 무작위(스트레스).
+- 프리셋 모델 섞기(`selection: idw2`): 모든 프리셋 모델은 같은 함수를 다른 점 둘레에서 근사한다.
+  앱은 지금 값에 가까운 모델들을 거리(조절 범위로 정규화)의 1/d²로 섞는다. 프리셋에서 멀리 움직일수록 정확도가
+  크게 오른다(여성 풍만형 기본 조절 무작위: 중앙 29mm → 2mm).
+- 빌드는 프리셋마다 표본을 `<out>.state/`에 남긴다. 중간에 끊겨도(메모리 부족 등) 같은 명령을 다시 돌리면 이어서 한다.
+- 미리보기는 근사다. 저장되는 FBX와 검토 화면은 converter가 원본 컨트롤러로 굽는다.
