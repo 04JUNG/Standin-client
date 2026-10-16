@@ -438,7 +438,7 @@ def constants_of(sb):
 
 
 # ------------------------------------------------------------------ write
-def write(path, sb, m, baked, subset=None):
+def write(path, sb, m, baked, subset=None, source=None):
     co, F, G, idx, C = baked["co"], dict(baked["F"]), dict(baked["G"]), baked["idx"], baked["C"]
     faces = baked["faces"]
     band_const = C[idx]
@@ -490,7 +490,10 @@ def write(path, sb, m, baked, subset=None):
         aliases={"height": "height_cm"},
         presets={k: v[1] for k, v in sb.PRESETS.items()},
         constants=constants_of(sb),
-        fields=fields, arrays=arrays)
+        fields=fields, arrays=arrays,
+        # Authoring source (file SHA-256). The app uses this runtime only when the catalog's
+        # shapeSource names the same files (the converter bakes from them).
+        **({"source": source} if source else {}))
     hj = json.dumps(header, ensure_ascii=False, separators=(",", ":")).encode()
     hpad = (-(8 + len(hj))) % 4
     data = b"SSR1" + struct.pack("<I", len(hj) + hpad) + hj + b" " * hpad + b"".join(blobs)
@@ -584,7 +587,9 @@ def main():
     if args.dump:
         np.savez_compressed(args.dump, names=np.array(list(cases)), controls=json.dumps(cases),
                             positions=np.stack([refs[k] for k in cases]).astype("<f8"))
-    data_bytes = write(args.out, sb, m, baked)
+    source = {"blendSha256": hashlib.sha256(open(args.blend, "rb").read()).hexdigest(),
+              "controllerSha256": hashlib.sha256(open(args.controller, "rb").read()).hexdigest()}
+    data_bytes = write(args.out, sb, m, baked, source=source)
     print(json.dumps(dict(out=args.out, bytes=len(data_bytes), sha256=hashlib.sha256(data_bytes).hexdigest(),
                           rules=sb.VERSION, asset=m["asset_identity"], cases=len(cases),
                           decomposition_max_mm=worst, fold_guard_cases=folds), ensure_ascii=False))

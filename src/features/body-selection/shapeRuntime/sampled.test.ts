@@ -101,15 +101,23 @@ describe("버전 가드", () => {
     expect(matchesCatalog(rt, { ...ref, preset: "NOPE" })).toBe(false);
   });
 
-  it("never pairs an old v1 runtime with a catalog that bakes from a named source", () => {
-    const v1 = {
-      kind: "rules",
-      header: { rules: ref.rules, presets: { [ref.preset]: {} } },
-    } as unknown as AnyShapeRuntime;
-    expect(matchesCatalog(v1, { ...ref, format: "standin-shape-runtime.v1" })).toBe(false);
-    expect(
-      matchesCatalog(v1, { ...ref, format: "standin-shape-runtime.v1", source: undefined }),
-    ).toBe(true);
+  it("pairs a v1 runtime with a baking catalog only when its header names the same source", () => {
+    const v1 = (source?: object) =>
+      ({
+        kind: "rules",
+        header: { rules: ref.rules, presets: { [ref.preset]: {} }, source },
+      }) as unknown as AnyShapeRuntime;
+    const asV1 = { ...ref, format: "standin-shape-runtime.v1" as const };
+    // 예전 v1 자산(원본 해시 없음)은 원본을 밝힌 카탈로그와 짝짓지 않는다.
+    expect(matchesCatalog(v1(), asV1)).toBe(false);
+    expect(matchesCatalog(v1(), { ...asV1, source: undefined })).toBe(true);
+    // 원본 해시가 있는 v1(정밀 이식 규칙)은 같은 원본일 때만.
+    expect(matchesCatalog(v1(rt.header.source), asV1)).toBe(true);
+    expect(matchesCatalog(v1({ ...rt.header.source, blendSha256: "d".repeat(64) }), asV1)).toBe(
+      false,
+    );
+    // 형식이 카탈로그와 다르면 쓰지 않는다.
+    expect(matchesCatalog(v1(rt.header.source), ref)).toBe(false);
   });
 
   it("rejects a corrupted asset", () => {

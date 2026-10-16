@@ -20,10 +20,16 @@ const arraySchema = z.object({
   offset: z.number().int().nonnegative(),
   length: z.number().int().nonnegative(),
 });
+const sourceSchema = z.object({
+  blendSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  controllerSha256: z.string().regex(/^[a-f0-9]{64}$/),
+});
 const headerSchema = z.object({
   format: z.literal(SHAPE_RUNTIME_FORMAT),
   rules: z.string().min(1),
   asset: z.string().min(1),
+  /** 이 자산을 구운 원본 .blend·컨트롤러 해시(2026-10-16부터). 굽기 연동 카탈로그는 이 값을 대조한다. */
+  source: sourceSchema.optional(),
   vertexCount: z.number().int().positive().max(MAX_VERTICES),
   faceCount: z.number().int().nonnegative(),
   bandCount: z.number().int().nonnegative(),
@@ -157,7 +163,7 @@ export function parseShapeRuntime(buffer: ArrayBuffer): AnyShapeRuntime {
 export const SHAPE_RUNTIME_FORMAT_V2 = "standin-shape-runtime.v2";
 const MAGIC_V2 = 0x32525353; // "SSR2"
 const MAX_BASIS = 512;
-const sha256 = z.string().regex(/^[a-f0-9]{64}$/);
+
 const axisSchema = z.object({
   key: z.string().min(1),
   knots: z.array(finite).min(2).max(64),
@@ -173,7 +179,7 @@ const pairSchema = z.object({
 const sampledHeaderSchema = z.object({
   format: z.literal(SHAPE_RUNTIME_FORMAT_V2),
   rules: z.string().min(1).max(64),
-  source: z.object({ blendSha256: sha256, controllerSha256: sha256 }),
+  source: sourceSchema,
   asset: z.string().min(1),
   vertexCount: z.number().int().positive().max(MAX_VERTICES),
   faceCount: z.number().int().nonnegative(),

@@ -21,16 +21,18 @@ export const supportedRuntime = (ref?: ShapeRuntimeRef | null): ref is ShapeRunt
  */
 export function matchesCatalog(runtime: AnyShapeRuntime, ref: ShapeRuntimeRef) {
   if (runtime.header.rules !== ref.rules || !(ref.preset in runtime.header.presets)) return false;
-  if (runtime.kind === "sampled")
-    return (
-      ref.format === SHAPE_RUNTIME_FORMAT_V2 &&
-      !!ref.source &&
-      ref.source.rules === runtime.header.rules &&
-      ref.source.blendSha256 === runtime.header.source.blendSha256 &&
-      ref.source.controllerSha256 === runtime.header.source.controllerSha256
-    );
-  // v1 자산에는 원본 해시가 없다. 카탈로그가 원본을 밝혔다면(굽기 연동) 확인할 수 없으니 쓰지 않는다.
-  return ref.format !== SHAPE_RUNTIME_FORMAT_V2 && !ref.source;
+  if ((runtime.kind === "sampled") !== (ref.format === SHAPE_RUNTIME_FORMAT_V2)) return false;
+  const source = runtime.header.source;
+  // 카탈로그가 원본을 밝히지 않은 예전 체형(굽기 연동 전)은 규칙 이름만 맞으면 된다(v1만).
+  if (!ref.source) return runtime.kind === "rules";
+  // 굽기 연동 체형: 자산 머리말의 원본이 converter가 굽는 원본과 같아야 한다.
+  // 원본 해시가 없는 예전 v1 자산은 확인할 수 없으니 쓰지 않는다.
+  return (
+    !!source &&
+    ref.source.rules === runtime.header.rules &&
+    ref.source.blendSha256 === source.blendSha256 &&
+    ref.source.controllerSha256 === source.controllerSha256
+  );
 }
 
 async function fetchRuntime(ref: ShapeRuntimeRef, signal?: AbortSignal): Promise<AnyShapeRuntime> {
