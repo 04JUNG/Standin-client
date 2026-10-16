@@ -32,8 +32,9 @@ type Preset = {
 };
 
 /**
- * 쉐이프키 체형: 기준 모델의 컨트롤러 규칙·프리셋 값을 그대로 쓴다(남성 standin-body-0.6.10 9종,
- * 여성 standin-female-body-0.2.2 11종). 실서버에서는 승인 manifest가 spec과 shapeRuntime을 준다.
+ * 쉐이프키 체형: 기준 모델의 컨트롤러 규칙·프리셋 값을 그대로 쓴다(남성 standin-body-0.7.1 9종,
+ * 여성 standin-female-body-0.3.3 11종 — body-production-release-2026-10-16-v0.7.1-v0.3.3의 프리셋·이름).
+ * 실서버에서는 승인 manifest가 spec과 shapeRuntime을 준다.
  */
 type ShapeBody = {
   kind: "male" | "female";
@@ -43,8 +44,8 @@ type ShapeBody = {
   /** 컨트롤러 프리셋 값(앱 key: height, 나머지는 컨트롤러 key와 같다). */
   values: Record<string, number>;
 };
-const MALE_RULES = "standin-body-0.6.10";
-const FEMALE_RULES = "standin-female-body-0.2.2";
+const MALE_RULES = "standin-body-0.7.1";
+const FEMALE_RULES = "standin-female-body-0.3.3";
 const male = (name: string, preset: string, values: Record<string, number>): ShapeBody => ({
   kind: "male",
   name,
@@ -129,7 +130,7 @@ const SHAPE_BODIES: Record<string, ShapeBody> = {
     detail_chest: 0,
   }),
   "male-soft": male("부드러운형", "SOFT", {
-    head_scale: 0.9,
+    head_scale: 0.927,
     heads: 6.95,
     neck_width: 0.2,
     neck_length: -0.1,
@@ -139,7 +140,7 @@ const SHAPE_BODIES: Record<string, ShapeBody> = {
     pelvis: 0.1,
   }),
   "male-fat-max": male("통통형", "FAT_MAX", {
-    head_scale: 0.9,
+    head_scale: 0.927,
     heads: 6.7,
     neck_width: 0.4,
     neck_length: -0.2,
@@ -149,14 +150,14 @@ const SHAPE_BODIES: Record<string, ShapeBody> = {
     glute: 0,
   }),
   "female-base": female("기본형", "BASE", {}),
-  "female-slim": female("슬림형", "SLIM", { physique: -0.8, muscle: 0.1 }),
+  "female-slim": female("슬림형", "SLIM", { physique: -0.8, muscle: 0.12 }),
   "female-ideal83": female("8.3등신", "IDEAL83", {
     heads: 8.3,
     physique: -0.2,
     muscle: 0.35,
     leg_length: 0.35,
-    shoulders: 0.1,
-    waist: -0.1,
+    shoulders: 0.12,
+    waist: -0.12,
   }),
   "female-ideal70": female("7등신", "IDEAL70", {
     height: 168,
@@ -176,7 +177,7 @@ const SHAPE_BODIES: Record<string, ShapeBody> = {
     muscle: 1.25,
     definition: 0.45,
     shoulders: 0.25,
-    thigh: 0.1,
+    thigh: 0.12,
   }),
   "female-muscular": female("근육형", "MUSCLE_MAX", {
     muscle: 2,
@@ -190,8 +191,16 @@ const SHAPE_BODIES: Record<string, ShapeBody> = {
     shoulders: 0.4,
     thigh: 0.2,
   }),
-  "female-soft": female("부드러운형", "SOFT", { physique: 0.8, fat_distribution: 0.15 }),
-  "female-fat": female("통통형", "FAT_MAX", { physique: 1.4, fat_distribution: 0.2 }),
+  "female-soft": female("부드러운형", "SOFT", {
+    physique: 0.8,
+    fat_distribution: 0.15,
+    head_scale: 1.03,
+  }),
+  "female-fat": female("통통형", "FAT_MAX", {
+    physique: 1.4,
+    fat_distribution: 0.2,
+    head_scale: 1.03,
+  }),
   "female-full": female("풍만형", "NEW_FAT", { physique: 1.4, fat_distribution: 0.2, fat_gain: 2 }),
 };
 const FIXED: Record<string, Preset & { kind: "child" }> = {
@@ -208,7 +217,7 @@ const FIXED: Record<string, Preset & { kind: "child" }> = {
 
 /**
  * 조절 바: [key, min, max, step, default, label?]. 앞의 `basic`개가 기본 조절이고 나머지는 세부 조절.
- * 남성 6개(위 3·아래 3, 0.6.10의 근육 볼륨 포함), 여성 7개(위 4·아래 3).
+ * 남성 6개(위 3·아래 3, 근육 볼륨 포함), 여성 7개(위 4·아래 3). 머리 크기는 0.001 단위(프리셋 0.927·1.03이 눈금에 오도록).
  */
 type Field = [string, number, number, number, number, string?];
 const MALE_FIELDS: Field[] = [
@@ -219,7 +228,7 @@ const MALE_FIELDS: Field[] = [
   ["muscle_bulk", 0, 1, 0.05, 0, "근육 볼륨"],
   ["shoulders", -1, 1, 0.05, 0],
   ["definition", 0, 1, 0.05, 0],
-  ["head_scale", 0.9, 1, 0.01, 1],
+  ["head_scale", 0.9, 1, 0.001, 1],
   ["neck_width", -1, 1, 0.05, 0],
   ["neck_length", -1, 1, 0.05, 0],
   ["chest_width", -1, 1, 0.05, 0],
@@ -243,12 +252,12 @@ const FEMALE_FIELDS: Field[] = [
   ["fat_gain", 0, 2, 0.05, 0, "지방 볼륨"],
   ["breast_size", -1, 1, 0.05, 0, "가슴 크기"],
   ["definition", 0, 1, 0.05, 0, "근육 선명도"],
-  ["fat_distribution", -1, 1, 0.05, 0, "살집 분포 · 복부↔둔부"],
+  ["fat_distribution", -1, 1, 0.05, 0, "지방 분포 · 복부↔둔부"],
   ["breast_projection", -1, 1, 0.05, 0, "가슴 돌출"],
   ["breast_spacing", -1, 1, 0.05, 0, "가슴 간격"],
   ["breast_height", -1, 1, 0.05, 0, "가슴 높이"],
   ["breast_width", -1, 1, 0.05, 0, "가슴 폭"],
-  ["head_scale", 0.94, 1.04, 0.01, 1, "머리 크기"],
+  ["head_scale", 0.94, 1.04, 0.001, 1, "머리 크기"],
   ["neck_width", -1, 1, 0.05, 0, "목 두께"],
   ["neck_length", -1, 1, 0.05, 0, "목 길이"],
   ["chest_width", -1, 1, 0.05, 0, "흉곽 너비"],
@@ -295,8 +304,8 @@ declare global {
   var __STANDIN_MOCK_SHAPE_RUNTIMES__: Record<string, string> | undefined;
 }
 const RUNTIME_FILES: Record<string, string> = {
-  [MALE_RULES]: "/mock/shape-runtime-0.6.10.ssr",
-  [FEMALE_RULES]: "/mock/shape-runtime-female-0.2.2.ssr",
+  [MALE_RULES]: "/mock/shape-runtime-0.7.1.ssr",
+  [FEMALE_RULES]: "/mock/shape-runtime-female-0.3.3.ssr",
 };
 async function mockRuntimeBytes(rules: string): Promise<ArrayBuffer> {
   // 단일 HTML 목업: 빌드가 규칙별 gzip+base64로 넣어 둔다. Vite 개발 서버: public/mock/의 파일.

@@ -29,6 +29,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from blendread import Blend  # noqa: E402
+import anatomy  # noqa: E402
 
 FORMAT = "standin-shape-runtime.v1"
 EPS = 1e-6  # m; sparse field entries below 1 µm on every axis are dropped
@@ -410,8 +411,8 @@ def evaluate(sb, m, baked, c):
 
 # ------------------------------------------------------------------ female 0.2.x
 # Female compute is a plain weighted sum of the authored BODY keys, then its own warp().
-FEMALE_RULES = ("standin-female-body-0.2.2",)
-MALE_RULES = ("standin-body-0.6.7", "standin-body-0.6.10")
+FEMALE_RULES = ("standin-female-body-0.2.2",) + anatomy.FEMALE_RULES
+MALE_RULES = ("standin-body-0.6.7", "standin-body-0.6.10") + anatomy.MALE_RULES
 
 
 def bake_female(sb, m):
@@ -429,9 +430,11 @@ def evaluate_female(sb, m, baked, c):
 
 
 def constants_of(sb):
+    extra = anatomy.constants(sb) if sb.VERSION in anatomy.RULES else {}
     if sb.VERSION in FEMALE_RULES:
-        return dict(gains=sb.GAINS)
-    return dict(gains=sb.GAINS, volumeExtra=sb.VOLUME_EXTRA, defMax=sb.DEF_MAX, excessStart=sb.EXCESS_START, fatArmExtra=sb.FAT_ARM_EXTRA)
+        return dict(gains=sb.GAINS, **extra)
+    return dict(gains=sb.GAINS, volumeExtra=sb.VOLUME_EXTRA, defMax=sb.DEF_MAX, excessStart=sb.EXCESS_START,
+                fatArmExtra=sb.FAT_ARM_EXTRA, **extra)
 
 
 # ------------------------------------------------------------------ write
@@ -496,6 +499,38 @@ def write(path, sb, m, baked, subset=None):
     return data
 
 
+LAYERED_RINGS = 10
+
+
+def layered_subset(sb, baked, rng, cases, refs, folds):
+    """Fixture for the anatomy rules: a few check vertices with their 18-ring neighbourhoods.
+
+    The layers smooth over the mesh (muscle volume 6 rings, heavy-fat blend 8) and fold_guard
+    relaxes zones, so the subset only reproduces the full mesh at the check vertices for cases
+    whose total smoothing depth fits and where fold_guard moved nothing. Female muscle > 2
+    (28 + 16 rings) is checked on the full mesh only (--dump, evaluate.full.test.ts).
+    """
+    co = baked["co"]
+    x, z = co[:, 0], co[:, 2]
+    pick = lambda m: rng.choice(np.nonzero(m)[0], 1)
+    seeds = np.unique(np.concatenate([
+        pick((np.abs(x) > .3) & (z > 1.2)),                 # arm
+        pick((np.abs(x) < .06) & (z > .6) & (z < .8)),      # inner thigh / groin
+        pick((z > .15) & (z < .4)),                         # calf
+        pick((z > .95) & (z < 1.1) & (np.abs(x) > .1)),     # hip / waist side
+        pick(z > z.max() - .15)]))                          # head
+    edges = baked["edges"] if "edges" in baked else sb.source()["edges_raw"]
+    ring = np.zeros(len(co), bool)
+    ring[seeds] = True
+    for _ in range(LAYERED_RINGS):
+        ring[edges[ring[edges[:, 0]], 1]] = True
+        ring[edges[ring[edges[:, 1]], 0]] = True
+    sel = np.nonzero(ring)[0]
+    folded = {f[0] for f in folds}
+    keep = {k for k, c in cases.items() if k not in folded and c.get("muscle", 0.) <= 2.}
+    return sel, np.searchsorted(sel, seeds), keep
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--blend", required=True)
@@ -503,6 +538,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--fixture")
     ap.add_argument("--random", type=int, default=20)
+    ap.add_argument("--dump", help="write the controller output of every case (.npz) for the full-mesh app check")
     args = ap.parse_args()
     if has_bpy():
         sb, m = load_bpy(args.blend, args.controller)
@@ -511,8 +547,15 @@ def main():
     female = sb.VERSION in FEMALE_RULES
     if sb.VERSION not in MALE_RULES + FEMALE_RULES:
         raise SystemExit("unsupported controller rules " + sb.VERSION + " — extend build_runtime.py and evaluate.ts first")
+    layered = sb.VERSION in anatomy.RULES
+    if layered and not has_bpy():
+        raise SystemExit(sb.VERSION + " needs bpy: the anatomy layer reads skin weights and bone rest data")
     baked = bake_female(sb, m) if female else bake(sb, m)
-    run = (lambda c: evaluate_female(sb, m, baked, c)) if female else (lambda c: evaluate(sb, m, baked, c))
+    if layered:
+        anatomy.bake_anatomy(sb, m, baked)
+        run = lambda c: anatomy.evaluate(sb, m, baked, c, lambda cc: rest_body(sb, m, baked, cc))
+    else:
+        run = (lambda c: evaluate_female(sb, m, baked, c)) if female else (lambda c: evaluate(sb, m, baked, c))
     values = lambda over: {**sb.defaults(m), **over}
     rng = np.random.default_rng(1)
     cases = {"preset:" + p: values(v[1]) for p, v in sb.PRESETS.items()}
@@ -536,7 +579,11 @@ def main():
         moved = float(np.linalg.norm(full - ref, axis=1).max() * 1000)
         if moved > 1e-6:  # fold_guard repaired flipped faces in this case
             folds.append((name, round(moved, 3), round(c.get(BULK, 0.), 3)))  # (case, max shift mm, muscle_bulk)
-        worst = max(worst, float(np.abs(run(c) - ref).max() * 1000))
+        # Layered rules: the app ports fold_guard and every smoothing, so compare with it on.
+        worst = max(worst, float(np.abs(run(c) - (full if layered else ref)).max() * 1000))
+    if args.dump:
+        np.savez_compressed(args.dump, names=np.array(list(cases)), controls=json.dumps(cases),
+                            positions=np.stack([refs[k] for k in cases]).astype("<f8"))
     data_bytes = write(args.out, sb, m, baked)
     print(json.dumps(dict(out=args.out, bytes=len(data_bytes), sha256=hashlib.sha256(data_bytes).hexdigest(),
                           rules=sb.VERSION, asset=m["asset_identity"], cases=len(cases),
@@ -548,7 +595,9 @@ def main():
                                         rng.choice(baked["idx"], min(60, len(baked["idx"])), replace=False).astype(int),
                                         [int(np.argmax(baked["co"][:, 2])), int(np.argmin(baked["co"][:, 2]))]]))
         check = None
-        if baked["extra"]:
+        if layered:
+            sel, check, keep_cases = layered_subset(sb, baked, rng, cases, refs, folds)
+        elif baked["extra"]:
             # Muscle volume smooths 6 rings over the mesh: check a few vertices per region and
             # ship their 6-ring neighbourhoods so the subset evaluates exactly at those vertices.
             idx_mb = baked["extra"]["MB"][0]
@@ -574,6 +623,8 @@ def main():
                     "muscle_bulk:max", "bulk0", "bulk1", "bulk3"]
         keep = [k for k in cases if k.startswith("preset:")] + ["rand0", "rand1", "rand2", "rand3"] + \
             [k for k in extremes if k in cases]
+        if layered:
+            keep = [k for k in keep if k in keep_cases]
         pick = sel if check is None else sel[check]
         raw = open(mini, "rb").read()
         packed = dict(ssrGzip=base64.b64encode(gzip.compress(raw, mtime=0)).decode()) if check is not None else \

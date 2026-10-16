@@ -71,12 +71,12 @@
 
 | 조건 | 내 체형 박스 |
 |---|---|
-| 카탈로그가 `shapeRuntime`(규칙 `standin-body-0.6.10`·`0.6.7`·`standin-female-body-0.2.2`)을 주고 자산 검증·WebGL 성공 | **그 모델을 앱에서 계산해 three.js로 그린다.** 바를 움직이면 다음 프레임에 다시 그림 |
+| 카탈로그가 `shapeRuntime`(규칙 `standin-body-0.7.1`·`0.6.10`·`0.6.7`·`standin-female-body-0.3.3`·`0.2.2`)을 주고 자산 검증·WebGL 성공 | **그 모델을 앱에서 계산해 three.js로 그린다.** 바를 움직이면 다음 프레임에 다시 그림 |
 | 자산을 받는 중 | 고른 체형의 고정 그림 + "3D 체형 불러오는 중" |
 | 자산 없음·규칙 다름·검증 실패·WebGL 실패 | 고정 그림 + "수치 미리보기를 쓸 수 없어요 · 지금은 처음 모양만 보여요" |
 | 개발용 Mock에서 자산 파일이 없을 때 | canvas 실루엣(실제 렌더 아님) |
 
-구현: `LiveBodyView.tsx`(분기), `shapeRuntime/format.ts`(자산 검증), `shapeRuntime/evaluate.ts`(규칙별 계산: `male0610.ts`·`male067.ts`·`female022.ts`), `shapeRuntime/mountShapeBody.ts`(three.js), `shapeRuntime/load.ts`(받기·sha256 검증·캐시). 자산 만들기: `scripts/shape-runtime/`.
+구현: `LiveBodyView.tsx`(분기), `shapeRuntime/format.ts`(자산 검증), `shapeRuntime/evaluate.ts`(규칙별 계산: `male071.ts`·`female033.ts`(+`anatomy.ts`·`mesh.ts`)·`male0610.ts`·`male067.ts`·`female022.ts`), `shapeRuntime/mountShapeBody.ts`(three.js), `shapeRuntime/load.ts`(받기·sha256 검증·캐시). 자산 만들기: `scripts/shape-runtime/`.
 
 ---
 
@@ -109,7 +109,7 @@
 | 앱 계산 정확도(전체 메시, 프리셋 11종) | 최대 0.004 mm |
 | 계산 시간(Node) | 중앙값 4.5 ms |
 
-- 규칙은 `evaluate.ts`의 `EVALUATORS`에서 고른다(`standin-body-0.6.10` → `male0610.ts`, `standin-body-0.6.7` → `male067.ts`, `standin-female-body-0.2.2` → `female022.ts`). 모르는 규칙이면 고정 그림.
+- 규칙은 `evaluate.ts`의 `EVALUATORS`에서 고른다(`standin-body-0.7.1` → `male071.ts`, `standin-female-body-0.3.3` → `female033.ts`, `standin-body-0.6.10` → `male0610.ts`, `standin-body-0.6.7` → `male067.ts`, `standin-female-body-0.2.2` → `female022.ts`). 모르는 규칙이면 고정 그림.
 - **기본 조절**: 여성 7개 — 키·등신·어깨너비·근육량·지방(`physique`)·지방 볼륨(`fat_gain`)·가슴 크기(`breast_size`), 위 4·아래 3. 남성(0.6.10) 6개 — 키·등신·체격·근육·근육 볼륨(`muscle_bulk`)·어깨, 위 3·아래 3. 나머지는 세부 조절.
   - spec에 `basic`(기본 조절 수)과 control별 `label`(화면 이름)을 더했다. 같은 key라도 체형마다 다르게 부를 수 있다(여성 `physique`="지방", 남성은 "체격").
 - **프리셋**(화면 이름 → 컨트롤러 프리셋)
@@ -131,6 +131,27 @@
 | 계산 시간(컨테이너 Chromium) | 근육 볼륨 0: 중앙값 8~13 ms. 근육 볼륨 > 0: 39~62 ms(볼륨 0 계산 한 번 더 + 메시 평활 + 면 검사·수리). 컨테이너 CPU가 들쭉날쭉하다 — Mac에서 다시 잴 것 |
 | 자산 굽기 | 이제 pip `bpy`(5.0.1, Python 3.11)가 있으면 Blender로 .blend를 연다. 0.6.10은 근육 볼륨 기준 웨이트(`mass_W`)가 필요해 bpy가 필수. 0.6.7·여성 0.2.2 자산은 새 스크립트로도 바이트까지 같게 나온다 |
 | 테스트 자료 `mini-0.6.10.json` | 근육 볼륨은 메시 평활이라 검사 정점 4개와 그 6고리 이웃(1,272정점)을 담고 검사 정점만 비교(gzip, 336 KB) |
+
+### 남성 0.7.1 · 여성 0.3.3으로 교체 (2026-10-16)
+
+체형 더보기의 남녀 프리셋·실시간 미리보기를 릴리스 `Standin-server/artifacts/body-production-release-2026-10-16-v0.7.1-v0.3.3`
+(남성 `standin-body-0.7.1` asset `standin-headsize-male-62189c5fff652d4bcdfd`, 여성 `standin-female-body-0.3.3` asset
+`standin-female-pelvis-refine-bc1669308a36324a270d`)에 맞췄다. 이 릴리스는 **운영 승급·S3 게시 전**(PROMOTION_GATE: 실제 BVH 최종 FBX에
+관통 잔존)이라 로컬·Mock 전용이다. 0.6.10·0.6.7·여성 0.2.2 규칙과 자산은 그대로 지원한다.
+
+| 항목 | 값 |
+|---|---|
+| 중립 체형 변경 | 앞 compute를 감싼 **해부 보정 층**: 체형 키마다 평활한 변위(`anatomy_delta`)와의 차이를 더하고(정점 12mm 상한), 지방이 크면 합친 변위를 8회 평활 쪽으로 당김. warp는 다리·몸통 구간 높이 재배치를 PCHIP(C1)로 이음. 여성은 근육 2 초과 다듬기(팔·아래팔·허벅지 축 방향 두께 정리, 팔꿈치 소매)와 근육 1.25부터 골반 옆선 보정이 더 있다. 단계마다 `fold_guard` |
+| 프리셋 | 값은 0.6.10/0.2.2와 같고 머리 크기만: 남성 SOFT·FAT_MAX `head_scale` 0.9→0.927, 여성 SOFT·FAT_MAX 1.03. 여성 SLIM·IDEAL83·MUSCULAR 값은 컨트롤러 그대로(0.12 등)로 바로잡음. 머리 크기 눈금 0.001 |
+| 이름 | 릴리스 이름 그대로(남성: 기본형·8.3등신·7등신·6.4등신·근육형·고근육형·벌크형·부드러운형·통통형 / 여성: 기본형·슬림형·8.3등신·7등신·6.4등신·탄탄형·근육형·고근육형·부드러운형·통통형·풍만형) |
+| `fold_guard` | **이제 근육 볼륨 0에서도 돈다**(남성 TOON64·FAT_MAX·physique 끝값, 여성 SLIM·FAT_MAX·NEW_FAT 등). 앱도 매 계산마다 돌린다 |
+| 자산 `shape-runtime-0.7.1.ssr` | 7,090,848 B (gzip 4.8 MB), sha256 `2b3a165a…2878`, 정점 24,988. 0.6.10 필드 + `AD:` 필드(해부 평활 차이) + `VN`(휴지 법선)·`PM`(머리·목·손·발 보호) |
+| 자산 `shape-runtime-female-0.3.3.ssr` | 4,983,900 B (gzip 3.2 MB), sha256 `6601d435…7c82`, 정점 24,994. + `FA`(아래팔 받침)·`MR`(다듬기 마스크 6개)·`PIN`·`EO`·`PV`, 상수 `bones` |
+| 분해 정확도(굽기, `fold_guard` 켬) | 남성 100조합·여성 109조합 모두 컨트롤러와 최대 1.6×10⁻¹² mm |
+| 앱 계산 정확도(전체 메시, `evaluate.full.test.ts`) | 여성 109조합 최대 0.006 mm. 남성 100조합 중 98개 0.025 mm 이하, **2개 예외**: `physique` 최대 0.32 mm, FAT_MAX 0.15 mm — 겨드랑이 면 하나가 뒤집힘 경계(정규화 내적 −0.001)에 걸려 Blender만 그 면을 수리한 경우. int16 양자화(≈0.003 mm)로 판정이 갈린다. 식 차이는 아님 |
+| 계산 시간(컨테이너 Node) | 남성 중앙값 21 ms·p90 101 ms·최대 156 ms, 여성 중앙값 18 ms·p90 91 ms·최대 209 ms. 무거운 경우는 `fold_guard`가 실제로 수리할 때, 근육 볼륨(볼륨 0 계산 한 번 더), 여성 근육 2 초과(층 두 번 + 28·16회 평활). Mac에서 16 ms를 넘으면 Web Worker로 옮길 것 |
+| 굽기 | `build_runtime.py`가 규칙을 자동 판별하고 `anatomy.py`로 해부 층 자료를 굽는다(bpy 필수). `--dump`로 모든 조합의 컨트롤러 출력을 저장해 전체 메시 대조에 쓴다 |
+| 테스트 자료 | `mini-0.7.1.json`(4,850정점, 1.4 MB)·`mini-female-0.3.3.json`(4,733정점, 0.8 MB): 검사 정점 5개 + 10고리 이웃, `fold_guard`가 안 움직인 조합·근육 2 이하만 |
 
 ### 3.1 0.6.7의 중립 체형 계산 (standin_body.py)
 
