@@ -57,10 +57,10 @@
 4. GLB/WebGL 실패 시 같은 manifest의 PNG를 사용한다.
 5. 취소·401·403·404·409는 이전 PNG 요청으로 이어지지 않는다.
 
-차렷 카드는 BFF body-options의 optional `neutralPreview`를 사용한다.
+T 포즈 카드는 BFF body-options의 optional `neutralPreview`를 사용한다.
 체형 asset hash와 PNG bytes hash를 함께 검증하고 공통 프레이밍 이미지를 그대로 표시한다.
-기존 T포즈 번들 이미지를 차렷 카드로 대체하지 않는다.
-승인된 이미지가 없으면 ‘차렷 이미지 준비 중’으로 표시하며 다른 체형 그림을 대신 쓰지 않는다.
+2026-10-15 결정: 기본 사진과 체형 비교는 T 포즈로 제공한다. 승인 카탈로그와 일치하는 이미지를 사용한다.
+승인된 이미지가 없으면 ‘T 포즈 이미지 준비 중’으로 표시하며 다른 체형 그림을 대신 쓰지 않는다.
 
 ## 작은 창
 
@@ -93,7 +93,7 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 기본값은 둘 다 false. snapshot 없는 구 Job에는 bodyPreviews를 끈다.
 이 flag는 자산 준비/서비스 health 보장이 아니다. 미리보기 실패 시 계속 진행하지 않는다.
 
-승인 카탈로그/모델/차렷 이미지 준비 → converter 계약 배포 → BFF 배포 → 클라이언트 배포 → 대상 환경 검수 후 flag 활성화 순서다.
+승인 카탈로그/모델/T 포즈 이미지 준비 → converter 계약 배포 → BFF 배포 → 클라이언트 배포 → 대상 환경 검수 후 flag 활성화 순서다.
 기능 브랜치에 푸시하고 develop 대상 PR로 검토한다. 운영 배포·flag 변경은 별도다.
 
 ## 검증과 한계
@@ -103,7 +103,7 @@ BFF의 `BODY_SELECTION_ENABLED=true`와 `BODY_UX_ENABLED=true`, converter 설정
 - 실제 React 앱/바를 Chrome에서 실행하고 격리된 9종 API fixture로 선택→접기→앱 전환→최종 확인→다운로드 연결을 검증.
 - fixture PNG는 QA 표시를 넣은 도식이다. 실제 9종 FBX 외형 검증이 아니다.
 - Rust cargo check: macOS 호스트에서 컴파일 확인.
-- Windows/macOS Tauri 실행·다중 모니터·CSP 드롭 실기 검수와 실제 9종 FBX/차렷 이미지 승인은 남아 있다.
+- Windows/macOS Tauri 실행·다중 모니터·CSP 드롭 실기 검수와 실제 9종 FBX/T 포즈 이미지 승인은 남아 있다.
 - 동일 캐릭터를 다른 컷에서 계속 쓰는 기능은 2.0 후속이다.
 
 주요 파일: `features/body-selection/*`, `useAnalysisResult`, `BodyCandidates`, `useFramedReview`, `useSaveFlow`, `window_mode.rs`.

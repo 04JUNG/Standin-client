@@ -161,7 +161,7 @@ export async function renderBodyCandidate(
   return blobToDataUrl(blob);
 }
 
-/** 체형 카드의 차렷 미리보기. 바이트 해시가 카탈로그와 같아야 보여 준다. */
+/** 체형 카드의 T 포즈 미리보기. 바이트 해시가 카탈로그와 같아야 보여 준다. */
 export async function loadNeutralPreview(option: BodyLook, signal?: AbortSignal) {
   if (bodyMockEnabled()) return bodyMock.neutralPreview(option);
   const preview = option.neutralPreview;

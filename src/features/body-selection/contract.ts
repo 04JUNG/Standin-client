@@ -65,7 +65,7 @@ export const neutralSchema = z.object({
   url: localUrl,
   sha256: sha,
   characterSha256: sha,
-  pose: z.literal("attention"),
+  pose: z.enum(["t_pose", "attention"]),
   framing: z.literal("body-comparison.v1"),
 });
 /**
