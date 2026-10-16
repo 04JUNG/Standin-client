@@ -29,6 +29,13 @@ type PoseSelectionState = {
    * 필요할 수 있다 — 후보 화면에서 인물마다 고른다. 여기 없는 인물은 `characterId`를 쓴다.
    */
   characterByPerson: Record<number, string>;
+  /**
+   * 내보내지 않기로 한 인물. 값은 끄기 전에 골라 둔 후보다 — 다시 켜면 되살린다.
+   *
+   * 끈 인물은 `selectedByPerson`에서 빠진다. 확인·저장 화면은 `selectedByPerson`만 읽으므로
+   * 따로 거르지 않아도 켠 인물만 넘어간다(기존 화면을 그대로 쓴다).
+   */
+  excludedPeople: Record<number, string | null>;
   setJobId(jobId: string): void;
   /** 새 흐름을 시작하면서 그 job의 기본 체형을 고정한다. 같은 job이면 아무것도 하지 않는다. */
   startJob(jobId: string, characterId: string | null): void;
@@ -36,6 +43,7 @@ type PoseSelectionState = {
   setPersonCharacter(personIndex: number, characterId: string): void;
   setServerJobId(jobId: string): void;
   selectCandidate(personIndex: number, candidateId: string): void;
+  setPersonIncluded(personIndex: number, included: boolean): void;
   setRefineOutcome(outcome: RefineOutcome): void;
   restoreSelections(jobId: string, selectedByPerson: Record<number, string>): void;
   clearSelection(): void;
@@ -48,6 +56,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   refineByPerson: {},
   characterId: null,
   characterByPerson: {},
+  excludedPeople: {},
   setJobId(jobId) {
     if (get().jobId !== jobId) {
       set({
@@ -58,6 +67,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
         // 앞 job의 모델이 새 job으로 새면 안 된다. 고정은 startJob이 다시 한다.
         characterId: null,
         characterByPerson: {},
+        excludedPeople: {},
       });
     }
   },
@@ -70,6 +80,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
       refineByPerson: {},
       characterId,
       characterByPerson: {},
+      excludedPeople: {},
     });
   },
   setCharacterId(characterId) {
@@ -86,8 +97,30 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
       set({ serverJobId, refineByPerson: {} });
     }
   },
+  setPersonIncluded(personIndex, included) {
+    set((state) => {
+      const isExcluded = personIndex in state.excludedPeople;
+      if (included === !isExcluded) return state;
+      const excludedPeople = { ...state.excludedPeople };
+      const selectedByPerson = { ...state.selectedByPerson };
+      const refineByPerson = { ...state.refineByPerson };
+      if (included) {
+        const previous = excludedPeople[personIndex];
+        delete excludedPeople[personIndex];
+        if (previous && !(personIndex in selectedByPerson))
+          selectedByPerson[personIndex] = previous;
+      } else {
+        excludedPeople[personIndex] = selectedByPerson[personIndex] ?? null;
+        delete selectedByPerson[personIndex];
+        delete refineByPerson[personIndex];
+      }
+      return { excludedPeople, selectedByPerson, refineByPerson };
+    });
+  },
   selectCandidate(personIndex, candidateId) {
     set((state) => {
+      // 끈 인물은 고를 수 없다. 화면이 막지만 단축키·늦은 클릭도 여기서 막는다.
+      if (personIndex in state.excludedPeople) return state;
       // 후보를 바꾸면 이전 후보의 조정 결과는 더 이상 이 선택의 것이 아니다.
       // 남겨 두면 저장 단계가 고르지 않은 포즈의 exportUrl을 내려받는다.
       const refineByPerson = { ...state.refineByPerson };
@@ -127,6 +160,6 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     });
   },
   clearSelection() {
-    set({ selectedByPerson: {}, refineByPerson: {} });
+    set({ selectedByPerson: {}, refineByPerson: {}, excludedPeople: {} });
   },
 }));

@@ -61,6 +61,8 @@ export function useAnalysisResult(jobId: string | undefined) {
   const selectedByPerson = usePoseSelectionStore((s) => s.selectedByPerson);
   const selectCandidate = usePoseSelectionStore((s) => s.selectCandidate);
   const setServerJobId = usePoseSelectionStore((s) => s.setServerJobId);
+  const excludedPeople = usePoseSelectionStore((s) => s.excludedPeople);
+  const setPersonIncluded = usePoseSelectionStore((s) => s.setPersonIncluded);
 
   const sourceFile = draft?.file ?? null;
 
@@ -108,14 +110,20 @@ export function useAnalysisResult(jobId: string | undefined) {
   const people = useMemo(() => query.data?.people ?? [], [query.data?.people]);
   const selectablePeople = people.filter((p) => p.fallbackMode !== "hard");
   const failedPeople = people.filter((p) => p.fallbackMode === "hard");
-  const selectedCount = selectablePeople.filter((p) => selectedByPerson[p.index]).length;
+  // 내보내기를 끈 인물은 진행 조건과 확정 요청에서 빠진다. 한 명은 남아야 한다.
+  const includedPeople = selectablePeople.filter((p) => !(p.index in excludedPeople));
+  const pendingPeople = includedPeople.filter((p) => !selectedByPerson[p.index]);
+  const selectedCount = includedPeople.length - pendingPeople.length;
   const isSavingScope = useIsMutating({ mutationKey: ["output-scope", query.data?.jobId] }) > 0;
-  const bodies = useBodies(query.data);
+  const bodies = useBodies(query.data, excludedPeople);
   const allSelected =
-    bodies.ready &&
-    !isSavingScope &&
-    selectablePeople.length > 0 &&
-    selectedCount === selectablePeople.length;
+    bodies.ready && !isSavingScope && includedPeople.length > 0 && pendingPeople.length === 0;
+  /** 확정 요청. 켠 인물의 선택만 싣는다(서버는 이 목록으로 확정 집합을 대체한다). */
+  const confirmedSelections = includedPeople.flatMap((p) =>
+    selectedByPerson[p.index]
+      ? [{ personIndex: p.index, candidateId: selectedByPerson[p.index] }]
+      : [],
+  );
 
   useEffect(() => {
     if (query.isFetching && startedAt.current === null) startedAt.current = Date.now();
@@ -191,10 +199,15 @@ export function useAnalysisResult(jobId: string | undefined) {
     sourceFile,
     people,
     selectablePeople,
+    includedPeople,
+    pendingPeople,
+    excludedPeople,
+    setPersonIncluded,
     failedPeople,
     selectedByPerson,
     selectedCount,
     allSelected,
+    confirmedSelections,
     selectCandidate: selectAndTrack,
   };
 }

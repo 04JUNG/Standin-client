@@ -1,5 +1,6 @@
 import { useInstallationStore } from "@/features/installation/installationStore";
-import { useBodyPreferences } from "./preferences";
+import { myDefaultOf, useBodyPreferences } from "./preferences";
+import { MyDefaultEditor } from "./MyDefaultEditor";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
@@ -12,9 +13,12 @@ export function BodyPreferencesPage() {
     qc = useQueryClient(),
     catalog = useModelCatalog();
   const mutation = useMutation({
-    mutationFn: (change: { mode: "auto" | "fixed_default"; defaultCharacterId: string | null }) => {
+    mutationFn: (mode: "auto" | "fixed_default") => {
       if (!query.data) throw new Error("preferences missing");
-      return putPreferences(change, query.data.revision);
+      return putPreferences(
+        { mode, defaultCharacterId: query.data.defaultCharacterId },
+        query.data.revision,
+      );
     },
     onSuccess: (value) => {
       if (useInstallationStore.getState().credentials?.installationId === owner)
@@ -26,17 +30,15 @@ export function BodyPreferencesPage() {
   });
   const value = query.data,
     busy = mutation.isPending || !value;
-  const options =
-    catalog.data?.origin === "server"
-      ? catalog.data.characters.filter((c) => c.bodyRef && c.availability === "available")
-      : [];
+  const mine = myDefaultOf(value);
+  const mineName = mine
+    ? (value?.shapeEditable?.find((e) => e.characterId === mine.characterId)?.displayName ??
+      catalog.data?.characters.find((c) => c.characterId === mine.characterId)?.displayName ??
+      mine.characterId)
+    : null;
   return (
     <AppShell title="체형 기본 설정">
       <div className="mx-auto max-w-[880px] space-y-5">
-        <h2 className="text-xl font-bold">새 작업의 체형</h2>
-        <p className="text-sm text-text-secondary">
-          설정은 다음 분석부터 적용됩니다. 진행 중인 인물의 체형은 바뀌지 않습니다.
-        </p>
         {query.isPending && <p role="status">체형 설정을 불러오는 중…</p>}
         {query.isError && (
           <div role="alert">
@@ -44,71 +46,60 @@ export function BodyPreferencesPage() {
             <Button onClick={() => void query.refetch()}>다시 시도</Button>
           </div>
         )}
+
+        <MyDefaultEditor />
+
         {value && (
-          <fieldset disabled={busy} className="space-y-4">
-            <legend className="sr-only">체형 선택 방식</legend>
-            <label className="flex min-h-11 items-center gap-3">
-              <input
-                type="radio"
-                name="body-mode"
-                checked={value.mode === "auto"}
-                onChange={() =>
-                  mutation.mutate({ mode: "auto", defaultCharacterId: value.defaultCharacterId })
-                }
-              />
-              자동 추천 (기본)
-            </label>
+          <section className="space-y-3 rounded-xl border border-border bg-surface-0 p-4">
+            <h3 className="text-base font-bold">새 작업을 시작할 때</h3>
             <p className="text-xs text-text-secondary">
-              러프에 맞춰 추천합니다. 추천이 불확실하면 등록한 기본 체형을 사용합니다.
-            </p>
-            <label className="flex min-h-11 items-center gap-3">
-              <input
-                type="radio"
-                name="body-mode"
-                checked={value.mode === "fixed_default"}
-                disabled={!value.defaultCharacterId}
-                onChange={() =>
-                  mutation.mutate({
-                    mode: "fixed_default",
-                    defaultCharacterId: value.defaultCharacterId,
-                  })
-                }
-              />
-              내 기본 체형으로 시작
-            </label>
-            <label className="block text-sm">
-              내 기본 체형
-              <select
-                className="ml-3 min-h-11 rounded border border-border bg-surface-0 p-2"
-                value={value.defaultCharacterId ?? ""}
-                onChange={(e) =>
-                  mutation.mutate({ mode: value.mode, defaultCharacterId: e.target.value || null })
-                }
-              >
-                <option value="" disabled={value.mode === "fixed_default"}>
-                  지정 안 함
-                </option>
-                {value.defaultCharacterId &&
-                  !options.some((c) => c.characterId === value.defaultCharacterId) && (
-                    <option value={value.defaultCharacterId} disabled>
-                      기존 체형 · 사용 가능 여부 확인 필요
-                    </option>
-                  )}
-                {options.map((c) => (
-                  <option key={c.characterId} value={c.characterId}>
-                    {c.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p className="text-xs text-text-secondary">
-              기본 체형을 등록하는 것만으로 선택 방식이 바뀌지 않습니다. 각 인물은 후보 화면에서
+              다음 분석부터 적용됩니다. 진행 중인 인물의 체형은 바뀌지 않고, 각 인물은 후보 화면에서
               따로 바꿀 수 있습니다.
             </p>
-          </fieldset>
+            <fieldset disabled={busy} className="space-y-2">
+              <legend className="sr-only">체형 선택 방식</legend>
+              <label className="flex min-h-11 items-start gap-3">
+                <input
+                  type="radio"
+                  name="body-mode"
+                  className="mt-1"
+                  checked={value.mode === "auto"}
+                  onChange={() => mutation.mutate("auto")}
+                />
+                <span>
+                  <span className="block text-sm font-semibold">자동 추천 (기본)</span>
+                  <span className="block text-xs text-text-secondary">
+                    러프에 맞춰 추천합니다. 추천이 불확실하면 내 기본값의 체형을 씁니다.
+                  </span>
+                </span>
+              </label>
+              <label className="flex min-h-11 items-start gap-3">
+                <input
+                  type="radio"
+                  name="body-mode"
+                  className="mt-1"
+                  checked={value.mode === "fixed_default"}
+                  disabled={!value.defaultCharacterId}
+                  onChange={() => mutation.mutate("fixed_default")}
+                />
+                <span>
+                  <span className="block text-sm font-semibold">
+                    내 기본값으로 시작{mineName ? ` · ${mineName}` : ""}
+                  </span>
+                  <span className="block text-xs text-text-secondary">
+                    {value.defaultCharacterId
+                      ? "모든 인물이 내 기본값의 체형으로 시작합니다. 수치는 후보 화면에서 ‘내 기본값’을 눌러 불러옵니다."
+                      : "먼저 위에서 내 기본값을 저장하세요."}
+                  </span>
+                </span>
+              </label>
+            </fieldset>
+          </section>
         )}
         {(catalog.isError || catalog.data?.origin === "fallback") && (
-          <p role="alert">사용 가능한 체형 목록을 확인하지 못했습니다.</p>
+          <p role="alert" className="text-xs text-text-secondary">
+            사용 가능한 체형 목록을 확인하지 못했습니다.
+          </p>
         )}
         {mutation.isError && (
           <p role="alert" className="text-brand-coral">

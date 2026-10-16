@@ -1,0 +1,82 @@
+import { createElement } from "react";
+import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, expect, it } from "vitest";
+import { LiveBodyView } from "./LiveBodyView";
+import type { BodyOption } from "./contract";
+
+const option = (shape: boolean): BodyOption => ({
+  characterId: "male-base",
+  bodyRef: {
+    bodyId: "male-base",
+    characterId: "male-base",
+    bodyVersion: "1",
+    assetSha256: "a".repeat(64),
+    rigVersion: "1",
+    measurementVersion: "1",
+  },
+  selectable: true,
+  reasonCodes: [],
+  ...(shape
+    ? {
+        shape: {
+          schemaVersion: "body-shape.v1",
+          controls: [{ key: "height", min: 150, max: 195, step: 1, default: 178 }],
+        },
+      }
+    : {}),
+});
+
+const runtimeRef = (rules: string) => ({
+  url: "/v1/body-assets/shape-runtime",
+  sha256: "b".repeat(64),
+  bytes: 1000,
+  format: "standin-shape-runtime.v1" as const,
+  rules,
+  preset: "BASE",
+});
+
+function view(props: Partial<Parameters<typeof LiveBodyView>[0]>) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(
+      QueryClientProvider,
+      { client },
+      createElement(LiveBodyView, {
+        option: option(true),
+        name: "기본",
+        controls: { height: 185 },
+        edited: true,
+        personIndex: 0,
+        variant: "app",
+        ...props,
+      }),
+    ),
+  );
+}
+
+describe("LiveBodyView", () => {
+  // 실서버 모드에는 실시간 렌더러가 아직 없다. 바뀐 수치를 그린 것처럼 보이면 안 된다.
+  it("says the numeric preview is unavailable instead of faking it", () => {
+    view({});
+    expect(screen.getByText("기본 수정")).toBeTruthy();
+    expect(screen.getByText(/수치 미리보기를 쓸 수 없어요/)).toBeTruthy();
+  });
+
+  it("ignores a runtime built for other rules", () => {
+    view({ option: { ...option(true), shapeRuntime: runtimeRef("standin-body-9.9.9") } });
+    expect(screen.queryByText("3D 체형 불러오는 중")).toBeNull();
+    expect(screen.getByText(/수치 미리보기를 쓸 수 없어요/)).toBeTruthy();
+  });
+
+  it("shows loading while the 0.6.7 runtime downloads", () => {
+    view({ option: { ...option(true), shapeRuntime: runtimeRef("standin-body-0.6.7") } });
+    expect(screen.getByText("3D 체형 불러오는 중")).toBeTruthy();
+  });
+
+  it("labels a fixed body without slider hints", () => {
+    view({ option: option(false), controls: null, edited: false });
+    expect(screen.getByText("고정 체형")).toBeTruthy();
+    expect(screen.queryByText("수정 중")).toBeNull();
+  });
+});

@@ -28,6 +28,7 @@ export type PoseCandidate = {
 };
 
 export type PersonConfidence = "high" | "low";
+export type PersonBox = readonly [number, number, number, number];
 export type SkeletonState = "valid" | "partial" | "suspect" | "missing" | "invalid";
 export type SkeletonSource = "full_image" | "crop_retry" | "none";
 export type CoverageClass = "full" | "reduced" | "sparse" | "upper_only" | "insufficient";
@@ -49,6 +50,11 @@ export type PersonResult = {
   bodyPreviewManifestUrl?: string;
   outputScope?: OutputScope;
   candidateShortfallReason?: string | null;
+  /**
+   * 원본 이미지 픽셀 좌표의 인물 상자 `[x1, y1, x2, y2]`. 구 응답·검출 실패면 없다.
+   * 원본과 후보를 나란히 비교하는 데만 쓴다 — 위치 판단에 쓰지 않는다.
+   */
+  box?: PersonBox | null;
   index: number;
   candidates: PoseCandidate[];
   confidence: PersonConfidence;
@@ -87,6 +93,11 @@ export type AnalysisResult = {
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
+    /**
+     * 같은 인물의 다음 후보 묶음을 서버가 줄 수 있는가. 아직 어떤 서버도 켜지 않는다 —
+     * 켜지기 전에는 "후보 다시 찾기" 자리를 그리지 않는다(없는 기능을 보이지 않는다).
+     */
+    candidateRerun?: boolean;
   };
 };
 
