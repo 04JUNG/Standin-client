@@ -205,6 +205,7 @@ describe("poseHttp", () => {
     expect(result).toEqual({
       jobId: "server-job",
       capabilities: {
+        handSelection: false,
         refine: false,
         fbxExport: false,
         characterSelection: false,

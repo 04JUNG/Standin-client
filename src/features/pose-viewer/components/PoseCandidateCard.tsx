@@ -120,11 +120,13 @@ export function PoseCandidateCard({
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold",
-              MATCH_BADGE_CLASS[candidate.matchLevel],
+              candidate.semantic
+                ? MATCH_BADGE_CLASS.medium
+                : MATCH_BADGE_CLASS[candidate.matchLevel],
             )}
           >
             {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
-            {reviewOnly(candidate) ? "검수용 · 보정·저장 불가" : MATCH_LABEL[candidate.matchLevel]}
+            {reviewOnly(candidate) ? "검수용 · 보정·저장 불가" : candidate.semantic ? "문장 검색" : MATCH_LABEL[candidate.matchLevel]}
           </span>
           {!fill &&
             candidate.tags.map((tag) => (

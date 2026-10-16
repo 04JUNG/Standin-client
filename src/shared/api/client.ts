@@ -56,6 +56,7 @@ export function __resetApiClient(): void {
 }
 
 type RequestOptions = {
+  cache?: RequestCache;
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
@@ -119,6 +120,7 @@ export async function apiFetchResponse(
     method = "GET",
     body,
     signal,
+    cache,
     auth = true,
     installation = true,
     skipRefresh = false,
@@ -144,6 +146,7 @@ export async function apiFetchResponse(
         headers,
         body: multipart ? body : body !== undefined ? JSON.stringify(body) : undefined,
         signal,
+        ...(cache ? { cache } : {}),
       });
     } catch (error) {
       // 호출자가 취소한 요청은 일반 네트워크 장애로 바꾸지 않는다. React Query가

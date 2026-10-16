@@ -52,7 +52,11 @@ export function useSelectionReview(jobId: string | undefined) {
       if (!candidate) return [];
       const outcome = refineByPerson[personIndex];
       const currentOutcome =
-        outcome?.jobId === data.jobId && outcome.candidateId === candidateId ? outcome : undefined;
+        data.source !== "semantic" &&
+        outcome?.jobId === data.jobId &&
+        outcome.candidateId === candidateId
+          ? outcome
+          : undefined;
       return [
         {
           personIndex,
@@ -97,6 +101,6 @@ export function useSelectionReview(jobId: string | undefined) {
      * `idle`인데, 그걸 "끝남"으로 다루면 첫 렌더가 완료 화면을 보여주고 저장 버튼도
      * 활성이 된다 — 그 사이에 저장하면 조정본 대신 베이스 URL이 내려간다.
      */
-    isRefining: status !== "done",
+    isRefining: data?.source !== "semantic" && status !== "done",
   };
 }

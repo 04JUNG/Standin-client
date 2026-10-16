@@ -24,7 +24,7 @@ export interface PreviewCandidate {
   rank: number;
   camera_kind: string;
   render_camera: RenderCamera;
-  score_kind: "weighted_rrf" | null;
+  score_kind: "weighted_rrf" | "semantic_similarity" | null;
   rank_score: number | null;
   score_is_accuracy: false;
   asset: { transport: "library_bvh" | "inline_bvh"; bvh_sha256: string; preview_bvh_url: string };

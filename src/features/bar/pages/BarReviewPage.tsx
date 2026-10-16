@@ -1,3 +1,4 @@
+import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
 import { ImageOff, Loader2, Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
@@ -15,7 +16,7 @@ import { BarShell } from "../components/BarShell";
 export function BarReviewPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
-  const { items, isRefining, previewLoading, previewError, previewNotice, retryPreview } =
+  const { items, hands, isRefining, previewLoading, previewError, previewNotice, retryPreview } =
     useFramedReview(jobId ?? undefined);
 
   if (!jobId) return <Navigate to="/bar/actions" replace />;
@@ -23,7 +24,7 @@ export function BarReviewPage() {
 
   return (
     <BarShell title="저장할 포즈 확인">
-      <div className="flex h-full flex-col gap-2 p-2.5">
+      <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
           {isRefining ? (
             <>
@@ -62,6 +63,18 @@ export function BarReviewPage() {
           )}
         </div>
 
+        {hands?.enabled && (
+          <div className="max-h-[180px] shrink-0 overflow-y-auto">
+            {items.map((item) => (
+              <HandChips
+                key={item.personIndex}
+                state={hands}
+                personIndex={item.personIndex}
+                compact
+              />
+            ))}
+          </div>
+        )}
         {previewLoading && (
           <p role="status" className="text-[11px] text-text-secondary">
             범위 미리보기 생성 중…

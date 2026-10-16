@@ -1,3 +1,4 @@
+import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { ImageOff, Loader2, Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
@@ -20,6 +21,7 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const {
     items,
+    hands,
     isRefining,
     previewLoading,
     previewError,
@@ -41,7 +43,11 @@ export function ReviewPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
-            <p className="text-[13px] text-text-secondary">아래 포즈가 저장됩니다.</p>
+            <p className="text-[13px] text-text-secondary">
+              {hands?.pending || previewLoading
+                ? "최종 미리보기를 준비하고 있습니다…"
+                : "아래 포즈를 확인한 뒤 저장하세요."}
+            </p>
             <ul className="grid grid-cols-2 gap-3">
               {items.map((item) => (
                 <li
@@ -80,6 +86,10 @@ export function ReviewPage() {
                 </li>
               ))}
             </ul>
+            {hands?.enabled &&
+              items.map((item) => (
+                <HandChips key={item.personIndex} state={hands} personIndex={item.personIndex} />
+              ))}
           </div>
         )}
 

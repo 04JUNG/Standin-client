@@ -9,6 +9,7 @@ import type { UpstreamAnalysisCode } from "@/shared/api/analysisJobFailure";
 export type MatchLevel = "high" | "medium" | "low";
 
 export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
+  semantic?: { familyId: string; alternate: boolean; description: string };
   id: string;
   poseId: string;
   rank: number;
@@ -70,6 +71,8 @@ export type PersonResult = {
 };
 
 export type AnalysisResult = {
+  source?: "image" | "semantic";
+  semantic?: { query: string; index: Record<string, string> };
   jobId: string;
   inputPreviewUrl?: string;
   people: PersonResult[];
@@ -78,6 +81,7 @@ export type AnalysisResult = {
    * false가 오고, 클라이언트는 그걸 따른다(자기 판단으로 호출하지 않는다).
    */
   capabilities: {
+    handSelection?: boolean;
     refine: boolean;
     /**
      * 서버가 FBX 저장을 노출하는가. converter는 추론 서버와 **별개로** 배포되므로 refine과

@@ -1,3 +1,5 @@
+import { useHands } from "@/features/hand-selection/hooks";
+import { loadHandReview, type HandReview } from "@/features/hand-selection/api";
 import { loadBodyReview } from "@/features/body-selection/review";
 import { bodyKeys } from "@/features/body-selection/api";
 import { useBodyOwner } from "@/features/body-selection/hooks";
@@ -29,6 +31,11 @@ export function useFramedReview(jobId: string | undefined) {
   const qc = useQueryClient();
   const bodyMode = review.bodies.enabled;
   const format = useExportStore((s) => s.format);
+  const hands = useHands(
+    review.data,
+    review.items.map((i) => i.personIndex),
+    format === "fbx",
+  );
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const preferred = useModelStore((s) => s.preferredCharacterId);
@@ -49,6 +56,7 @@ export function useFramedReview(jobId: string | undefined) {
       serverSupportsCharacterSelection: review.data?.capabilities.characterSelection === true,
     });
     const body = review.bodies.entries.find((e) => e.personIndex === item.personIndex)?.selection;
+    const handSelection = hands.entries.find((e) => e.personIndex === item.personIndex)?.selection;
     let url = "";
     let modelKey = "";
     let model = false;
@@ -68,6 +76,7 @@ export function useFramedReview(jobId: string | undefined) {
             framedExportUrl(item.exportUrl, scope, "model", character.characterId) +
             `#${item.refined}`;
           model =
+            !hands.enabled &&
             review.data?.capabilities.modelPreview === true &&
             modelRenderingAvailable() &&
             modelStatus[modelKey] !== "failed";
@@ -86,7 +95,10 @@ export function useFramedReview(jobId: string | undefined) {
         /* Invalid server URL is a visible preview failure, never a render crash. */
       }
     }
+    if (url && hands.enabled && handSelection)
+      url += `&handSelectionRevision=${handSelection.revision}`;
     return {
+      handSelection,
       scope,
       url,
       body,
@@ -106,12 +118,15 @@ export function useFramedReview(jobId: string | undefined) {
             review.items[index]!.candidate.id,
             request.scope,
             request.body?.selectionRevision,
+            request.handSelection?.revision,
+            request.handSelection?.library_sha256,
             review.items[index]?.exportUrl,
             review.items[index]?.refined,
           ]
-        : ["framed-preview", request.url, review.items[index]?.refined],
+        : ["framed-preview", owner, request.url, review.items[index]?.refined],
       enabled:
         enabled &&
+        hands.ready &&
         !review.isRefining &&
         (bodyMode ? request.body?.resolutionStatus === "ready" : catalog.isSuccess) &&
         !!request.url,
@@ -119,7 +134,12 @@ export function useFramedReview(jobId: string | undefined) {
         signal,
       }: {
         signal: AbortSignal;
-      }): Promise<{ image: string; model?: ReviewModel; identity?: ReviewedIdentity }> => {
+      }): Promise<{
+        image: string;
+        model?: ReviewModel;
+        identity?: ReviewedIdentity;
+        handReceipt?: HandReview;
+      }> => {
         if (bodyMode) {
           const item = review.items[index]!;
           const receipt = await loadBodyReview(
@@ -130,8 +150,18 @@ export function useFramedReview(jobId: string | undefined) {
             request.scope,
             request.body!,
             signal,
+            hands.enabled ? request.handSelection : undefined,
           );
           return { ...receipt, image: receipt.previewUrl };
+        }
+        if (hands.enabled && request.handSelection) {
+          const item = review.items[index]!;
+          return loadHandReview(
+            request.url,
+            framedExportUrl(item.exportUrl!, request.scope, "fbx", request.characterId),
+            request.handSelection,
+            signal,
+          );
         }
         const blob = await apiFetchBlob(request.url, { auth: false, signal });
         if (request.model) {
@@ -182,9 +212,11 @@ export function useFramedReview(jobId: string | undefined) {
     model: queries[i]?.data?.model,
     key: r.modelKey + JSON.stringify(queries[i]?.data?.identity),
   }));
+  const handLoading = hands.enabled && !hands.error && !hands.ready;
   const previewLoading =
     enabled &&
-    (review.isRefining ||
+    (handLoading ||
+      review.isRefining ||
       (bodyMode
         ? review.bodies.entries.some((e) => !e.selection && !e.error)
         : catalog.isPending) ||
@@ -192,6 +224,7 @@ export function useFramedReview(jobId: string | undefined) {
         ? requests.every((r) => r.body?.resolutionStatus === "ready")
         : catalog.isSuccess) &&
         requests.every((r) => !!r.url) &&
+        !hands.error &&
         queries.some((q, i) =>
           displays[i]?.model
             ? modelStatus[displays[i]!.key] !== "ready"
@@ -200,9 +233,10 @@ export function useFramedReview(jobId: string | undefined) {
   const previewError =
     enabled &&
     !previewLoading &&
-    ((bodyMode
-      ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
-      : catalog.isError) ||
+    (hands.error ||
+      (bodyMode
+        ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
+        : catalog.isError) ||
       requests.some((r) => !r.url) ||
       queries.some((q) => q.isError));
   useEffect(() => {
@@ -218,6 +252,7 @@ export function useFramedReview(jobId: string | undefined) {
   }, [bodyMode, enabled, review.isRefining, requests, queries, displays, modelStatus]);
   return {
     ...review,
+    hands,
     items: review.items.map((item, index) => ({
       ...item,
       previewUrl: enabled ? (queries[index]?.data?.image ?? "") : item.previewUrl,
@@ -239,6 +274,7 @@ export function useFramedReview(jobId: string | undefined) {
         ? "BVH는 전신 뼈대의 동작 파일입니다. 출력 범위는 FBX에 적용됩니다."
         : "",
     retryPreview: async () => {
+      if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
       if (bodyMode) {
         await Promise.all(review.bodies.entries.map((entry) => entry.retry()));
         await qc.invalidateQueries({

@@ -1,3 +1,4 @@
+import { semanticCandidateSchema, semanticResultSchema } from "@/features/semantic-search/api";
 import { selectionSchema } from "@/features/body-selection/contract";
 import { readOutputScope } from "./outputScope";
 import { apiFetch } from "@/shared/api/client";
@@ -45,6 +46,7 @@ import {
 } from "./routedSearch";
 
 type BffCandidate = CandidatePolicy & {
+  semantic?: unknown;
   id: string;
   poseId: string;
   rank: number;
@@ -59,12 +61,15 @@ type BffCandidate = CandidatePolicy & {
 };
 
 type BffAnalysisResult = {
+  source?: "image" | "semantic";
+  semantic?: unknown;
   jobId: string;
   notes: string[];
   /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
   inputUrl?: string | null;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: {
+    handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
     characterSelection?: boolean;
@@ -214,6 +219,15 @@ async function toPoseCandidate(
   personIndex: number,
   signal: AbortSignal,
 ): Promise<PoseCandidate> {
+  const semantic =
+    raw.semantic === undefined ? undefined : semanticCandidateSchema.parse(raw.semantic);
+  if (
+    semantic &&
+    raw.thumbnailUrl &&
+    raw.thumbnailUrl !==
+      `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/thumbnail?view=front`
+  )
+    throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid thumbnail path");
   const deferred = raw.camera?.version === "candidate-camera-v1" && !!raw.thumbnailUrl;
   const thumbnailUrl = deferred ? "" : await loadThumbnail(raw.thumbnailUrl, signal);
   return {
@@ -221,7 +235,8 @@ async function toPoseCandidate(
     id: raw.id,
     poseId: raw.poseId,
     rank: raw.rank,
-    title: `포즈 ${raw.id}`,
+    ...(semantic ? { semantic } : {}),
+    title: semantic ? semantic.description || `포즈 ${raw.rank}` : `포즈 ${raw.id}`,
     tags: raw.tags,
     matchLevel: raw.matchLevel,
     thumbnailUrl,
@@ -261,6 +276,16 @@ async function toAnalysisResult(
   raw: BffAnalysisResult,
   signal: AbortSignal,
 ): Promise<AnalysisResult> {
+  const semantic = raw.source === "semantic" ? semanticResultSchema.parse(raw.semantic) : undefined;
+  if (
+    semantic &&
+    raw.candidatesByPerson.some(
+      (p) =>
+        p.refineAllowed !== false ||
+        p.candidates.some((c) => !semanticCandidateSchema.safeParse(c.semantic).success),
+    )
+  )
+    throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid semantic candidates");
   const people: PersonResult[] = await Promise.all(
     raw.candidatesByPerson.map(async (person) => {
       const confidence = narrow(CONFIDENCE, person.confidence, "low");
@@ -304,13 +329,15 @@ async function toAnalysisResult(
 
   return {
     jobId: raw.jobId,
+    ...(semantic ? { source: "semantic" as const, semantic } : {}),
     // 라이브 분석에서도 원본 미리보기가 draft의 blob URL에 의존하지 않게 된다.
     inputPreviewUrl: raw.inputUrl ?? undefined,
     people,
     capabilities: {
-      bodyPreviews: raw.capabilities?.bodyPreviews === true,
-      bodyPreviewAssets: raw.capabilities?.bodyPreviewAssets === true,
-      refine: raw.capabilities?.refine === true,
+      handSelection: raw.capabilities?.handSelection === true,
+      bodyPreviews: !semantic && raw.capabilities?.bodyPreviews === true,
+      bodyPreviewAssets: !semantic && raw.capabilities?.bodyPreviewAssets === true,
+      refine: !semantic && raw.capabilities?.refine === true,
       // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
       fbxExport: raw.capabilities?.fbxExport === true,
       // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
