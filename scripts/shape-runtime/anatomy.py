@@ -22,8 +22,9 @@ tables); the app computes the rest (src/features/body-selection/shapeRuntime/ana
 import json
 import numpy as np
 
-MALE_RULES = ("standin-body-0.7.1",)
-FEMALE_RULES = ("standin-female-body-0.3.3",)
+# 0.7.2 / 0.3.4: pose surface correction only; the neutral computation is unchanged.
+MALE_RULES = ("standin-body-0.7.1", "standin-body-0.7.2")
+FEMALE_RULES = ("standin-female-body-0.3.3", "standin-female-body-0.3.4")
 RULES = MALE_RULES + FEMALE_RULES
 PROTECT = ("Head", "Neck", "Hand", "Foot", "Toe")
 LIMBS = (("Arm", .48), ("ForeArm", .44), ("UpLeg", .40))  # muscle_refine_limb_fields order per side

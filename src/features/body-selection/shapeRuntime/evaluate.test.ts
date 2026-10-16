@@ -5,7 +5,9 @@ import female from "./__fixtures__/mini-female-0.2.2.json";
 import male071 from "./__fixtures__/mini-0.7.1.json";
 import female033 from "./__fixtures__/mini-female-0.3.3.json";
 import { parseShapeRuntime, type ShapeRuntime } from "./format";
-import { evaluateShape, resolveControls } from "./evaluate";
+import { evaluateShape, resolveControls, SUPPORTED_RULES } from "./evaluate";
+import { MALE_072 } from "./male071";
+import { FEMALE_034 } from "./female033";
 
 /**
  * 고정 자료: 실제 자산을 일부 정점으로 줄인 .ssr과, 같은 정점에서 Blender 컨트롤러
@@ -153,5 +155,16 @@ describe("해부 층 (남성 0.7.1 · 여성 0.3.3)", () => {
     expect(out.every(Number.isFinite)).toBe(true);
     const two = evaluateShape(rt, resolveControls(rt, "NEW_MUSCULAR", { muscle: 2 }));
     expect(out).not.toEqual(two);
+  });
+
+  it.each([
+    ["남성 0.7.2", male071 as Fixture, MALE_072, "FAT_MAX"],
+    ["여성 0.3.4", female033 as Fixture, FEMALE_034, "NEW_FAT"],
+  ])("%s runs the same exact rules (only pose correction changed)", async (_, fixture, rules, preset) => {
+    expect(SUPPORTED_RULES.has(rules)).toBe(true);
+    const rt = await runtime(fixture);
+    const relabeled: ShapeRuntime = { ...rt, header: { ...rt.header, rules } };
+    const c = resolveControls(rt, preset, { leg_length: 0.3 });
+    expect(evaluateShape(relabeled, c)).toEqual(evaluateShape(rt, c));
   });
 });

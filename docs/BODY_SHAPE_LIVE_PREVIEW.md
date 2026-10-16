@@ -153,6 +153,29 @@
 | 굽기 | `build_runtime.py`가 규칙을 자동 판별하고 `anatomy.py`로 해부 층 자료를 굽는다(bpy 필수). `--dump`로 모든 조합의 컨트롤러 출력을 저장해 전체 메시 대조에 쓴다 |
 | 테스트 자료 | `mini-0.7.1.json`(4,850정점, 1.4 MB)·`mini-female-0.3.3.json`(4,733정점, 0.8 MB): 검사 정점 5개 + 10고리 이웃, `fold_guard`가 안 움직인 조합·근육 2 이하만 |
 
+### 남성 0.7.2 · 여성 0.3.4 등록 (2026-10-16, 확정 모델)
+
+확정 모델(`Standin-server/artifacts/body-production-publish-2026-10-16-m072-f034`, S3 스테이징
+`body-models/releases/confirmed-20261016-m072-f034-04778b9f9479`)은 **포즈 표면 보정(`correct_pose`)만** 바뀌었다.
+중립 체형 계산·웨이트·관절·프리셋은 0.7.1/0.3.3과 같다(컨트롤러 대조 0.0 mm, 같은 asset identity).
+그래서 새 계산 코드 없이 `male071.ts`·`female033.ts`에 `MALE_072`·`FEMALE_034` 별칭만 등록했다(`evaluate.ts` `EVALUATORS`,
+`scripts/shape-runtime/anatomy.py` 규칙 목록). 자산은 0.7.2/0.3.4 원본으로 **다시 구워야** 한다 — 머리말의
+`rules`·`source`(blend/컨트롤러 SHA-256)가 카탈로그 `shapeSource`와 같아야 앱이 그린다.
+
+| 항목 | 값 |
+|---|---|
+| 원본 SHA-256 | 남성 blend `9ff276f6…5998` · 컨트롤러 `51baa18d…45b9` / 여성 blend `a3622a9d…ae32` · 컨트롤러 `df981aed…eb1f` (S3 스테이징 blend와 일치) |
+| 자산 `standin-body-0.7.2.ssr` | SSR1 7,091,028 B, sha256 `f6d7be53072ca5c4695ed1292037ecd4c5b747d4064c7971fe56841b0ebaa129`, asset `standin-headsize-male-62189c5fff652d4bcdfd` |
+| 자산 `standin-female-body-0.3.4.ssr` | SSR1 4,984,080 B, sha256 `c21d170b1fb0878e5b0d855965546786f14043d4e7ad6159bc6d113d7c112f6f`, asset `standin-female-pelvis-refine-bc1669308a36324a270d` |
+| 분해 정확도(굽기) | 남성 100조합 1.6×10⁻¹² mm, 여성 109조합 1.1×10⁻¹² mm |
+| 앱 계산 정확도(전체 메시) | 여성 109조합 최대 0.0056 mm. 남성 100조합 중 98개 0.024 mm 이하, 예외 2개(`physique` 최대 0.32 mm, FAT_MAX 0.15 mm)는 0.7.1과 **같은 수치·같은 원인**(겨드랑이 면 뒤집힘 경계) |
+| 테스트 | `evaluate.test.ts`: 0.7.2/0.3.4가 `SUPPORTED_RULES`에 있고, 같은 자산을 새 규칙 이름으로 읽어도 결과가 0.7.1/0.3.3과 완전히 같음 |
+| 굽기 환경 | 클라우드 pip bpy 5.0.1. 정점 좌표는 원본 계산이라 Blender 버전과 무관하지만, 운영 게시 전에는 Blender 5.2.0에서 한 번 더 굽고 sha를 확인한다 |
+
+자산 파일(.ssr)은 저장소에 넣지 않는다. 게시는 converter 저장소 `scripts/package_shape_staging.py --runtime <rules>=<ssr>`로
+shape-bake 릴리스와 함께 만든다(업로드는 `--upload`일 때만). 현재 S3 스테이징 확정본에는 blend·T 포즈 FBX·프리셋만 있고
+컨트롤러 `.py`·`shape-bakes.json`·실시간 자산은 아직 없다.
+
 ### 3.1 0.6.7의 중립 체형 계산 (standin_body.py)
 
 ```text

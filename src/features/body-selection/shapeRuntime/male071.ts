@@ -15,6 +15,11 @@ import { faceNormals, foldGuard } from "./mesh";
  *   - fold_guard를 항상 돌린다(0.7.1은 근육 볼륨 0에서도 TOON64·FAT_MAX 등에서 실제로 동작한다).
  */
 export const MALE_071 = "standin-body-0.7.1";
+/**
+ * 0.7.2는 포즈 표면 보정(correct_pose)만 바뀌었고 중립 체형 계산·웨이트·관절·프리셋은 0.7.1과 같다
+ * (2026-10-16 확인: 20개 조합 0.0 mm). 같은 계산을 쓴다 — 자산은 0.7.2 원본으로 다시 굽는다.
+ */
+export const MALE_072 = "standin-body-0.7.2";
 
 export function evaluateMale071(runtime: ShapeRuntime, c: BlenderControls, out: Float32Array) {
   const parent: Warp = (cc, points, o) => warpBody(runtime, cc, points, o);

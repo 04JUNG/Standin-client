@@ -18,6 +18,8 @@ import { denseTable, faceNormals, foldGuard, laplacian, table } from "./mesh";
  * EO(팔꿈치 웨이트 2개), PV(골반 옆 마스크), 상수 bones(뼈 휴지 머리·꼬리).
  */
 export const FEMALE_033 = "standin-female-body-0.3.3";
+/** 0.3.4: 포즈 표면 보정만 바뀌었고 중립 체형 계산은 0.3.3과 같다(22개 조합 0.0 mm). */
+export const FEMALE_034 = "standin-female-body-0.3.4";
 const LIMBS = [
   ["Arm", 0.48],
   ["ForeArm", 0.44],

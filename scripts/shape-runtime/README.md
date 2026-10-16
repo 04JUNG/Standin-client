@@ -53,7 +53,8 @@ python3.11 -m venv .bpy && .bpy/bin/pip install bpy==5.0.1
    여성(`rules: "standin-female-body-0.2.2"`): BASE, SLIM, IDEAL83, IDEAL70, TOON64, MUSCULAR, MUSCLE_MAX, NEW_MUSCULAR, SOFT, FAT_MAX, NEW_FAT.
 2. BFF가 `GET /v1/models/:characterId/shape-runtime/:sha256`으로 준다(`BODY_SHAPE_EDIT_ENABLED`일 때만).
 3. 앱은 sha256·크기·형식·규칙을 검사하고, 모르는 규칙이면 고정 그림으로 떨어진다
-   (지원: `standin-body-0.7.1`, `standin-body-0.6.10`, `standin-body-0.6.7`, `standin-female-body-0.3.3`, `standin-female-body-0.2.2`).
+   (지원: `standin-body-0.7.2`, `standin-body-0.7.1`, `standin-body-0.6.10`, `standin-body-0.6.7`, `standin-female-body-0.3.4`, `standin-female-body-0.3.3`, `standin-female-body-0.2.2`.
+   0.7.2/0.3.4는 포즈 표면 보정만 바뀌어 0.7.1/0.3.3과 같은 계산을 쓴다 — 자산은 새 원본으로 다시 굽는다).
 
 ## 개발 Mock
 
