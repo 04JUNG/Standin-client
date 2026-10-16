@@ -10,7 +10,11 @@ import { bodyMock, bodyMockEnabled } from "./mock";
 import type { BodyLook } from "./contract";
 import type { ShapeRuntime } from "./shapeRuntime/format";
 import { resolveControls } from "./shapeRuntime/evaluate";
-import { mountShapeBody, type ShapeBodyView } from "./shapeRuntime/mountShapeBody";
+import {
+  mountShapeBody,
+  snapshotShapeBody,
+  type ShapeBodyView,
+} from "./shapeRuntime/mountShapeBody";
 import { supportedRuntime, useShapeRuntime } from "./shapeRuntime/load";
 
 /** 프리셋 카드의 고정 그림(서버의 차렷/T 포즈 PNG). 조절 값과 무관하게 한 번만 받는다. */
@@ -30,6 +34,42 @@ export function NeutralImage({ option }: { option: BodyLook }) {
       {query.isPending && query.fetchStatus !== "idle" ? "미리보기 준비 중" : "미리보기 없음"}
     </span>
   );
+}
+
+/**
+ * 내 체형 카드의 그림: 기준 체형에 카드 수치를 넣어 한 번 찍은 PNG. 같은 수치면 다시 찍지 않는다.
+ * 3D 자산·WebGL을 못 쓰면 기준 체형의 고정 그림을 보여 준다(수치는 반영되지 않음).
+ */
+export function ShapeThumb({
+  look,
+  controls,
+}: {
+  look: BodyLook;
+  controls: Record<string, number> | null;
+}) {
+  const ref = look.shape ? look.shapeRuntime : undefined;
+  const runtime = useShapeRuntime(ref);
+  const shot = useQuery({
+    queryKey: ["body", "shape-thumb", ref?.sha256, ref?.preset, controls],
+    enabled: !!runtime.data && !!ref,
+    queryFn: () =>
+      snapshotShapeBody(runtime.data!, resolveControls(runtime.data!, ref!.preset, controls)),
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+  });
+  if (shot.data) return <img src={shot.data} className="h-full w-full object-contain" alt="" />;
+  if (supportedRuntime(ref) && (runtime.isPending || (runtime.isSuccess && shot.isPending)))
+    return <Loader2 className="h-4 w-4 animate-spin text-text-secondary" aria-label="그리는 중" />;
+  if (bodyMockEnabled() && look.shape)
+    return (
+      <img
+        src={bodyMock.livePreview(look.characterId, controls)}
+        className="h-full w-full object-contain"
+        alt=""
+      />
+    );
+  return <NeutralImage option={look} />;
 }
 
 /** 실시간 3D: 캔버스 하나. 값이 바뀌면 다음 프레임에 한 번 다시 계산해 그린다. */
@@ -118,6 +158,7 @@ export function LiveBodyView({
   variant,
   title = "내 체형",
   badge,
+  plainName,
 }: {
   option?: BodyLook;
   name: string;
@@ -132,6 +173,8 @@ export function LiveBodyView({
   title?: string;
   /** 머리말 옆 표시. 없으면 edited일 때 "수정 중". 설정 화면은 저장 전일 때만 쓴다. */
   badge?: string | null;
+  /** 이름 뒤에 " 수정"을 붙이지 않는다(체형 커스텀처럼 이름 자체가 카드 이름일 때). */
+  plainName?: boolean;
 }) {
   const ref = option?.shape ? option.shapeRuntime : undefined;
   const runtime = useShapeRuntime(ref);
@@ -139,7 +182,8 @@ export function LiveBodyView({
   const live3d = !!option?.shape && !!runtime.data && supportedRuntime(ref) && !glFailed;
   const loading = !!option?.shape && supportedRuntime(ref) && runtime.isPending;
   const mockFallback = !live3d && !loading && !!option?.shape && bodyMockEnabled();
-  const label = `${name}${edited ? " 수정" : ""} 미리보기`;
+  const suffix = edited && !plainName ? " 수정" : "";
+  const label = `${name}${suffix} 미리보기`;
 
   return (
     <section
@@ -174,7 +218,7 @@ export function LiveBodyView({
             onFail={() => setGlFailed(true)}
           />
         ) : mockFallback ? (
-          <MockSilhouette option={option} controls={edited ? controls : null} />
+          <MockSilhouette option={option} controls={controls} />
         ) : (
           <NeutralImage option={option} />
         )}
@@ -206,7 +250,7 @@ export function LiveBodyView({
       <div className="flex min-w-0 flex-col px-0.5 pb-0.5">
         <span className="truncate text-[12px] font-semibold text-text-primary">
           {name}
-          {edited ? " 수정" : ""}
+          {suffix}
         </span>
         <span className="text-[10px] text-text-secondary">
           {!option

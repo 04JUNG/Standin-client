@@ -49,6 +49,7 @@ export const selectionSchema = z.object({
     .enum([
       "manual",
       "fixed_default",
+      "last_used",
       "auto_recommendation",
       "user_default_fallback",
       "catalog_default_fallback",
@@ -84,13 +85,30 @@ export const shapeRuntimeSchema = z.object({
   rules: z.string().min(1).max(64),
   preset: z.string().regex(/^[A-Z][A-Z0-9_]{0,31}$/),
 });
+/** 체형 커스텀에서 이름 붙여 저장한 체형("주인공 A"). 성별은 기준 체형(characterId)을 따른다. */
+export const bodyCardSchema = z.object({
+  cardId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+  name: z.string().min(1).max(64),
+  characterId: id,
+  controls: controlsSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
 export const preferencesSchema = z.object({
   version: z.literal("body-preferences.v1"),
   scope: z.literal("installation"),
-  mode: z.enum(["auto", "fixed_default"]),
+  /** `last_used`: 새 작업은 마지막으로 직접 고른 체형으로 시작(없으면 자동 추천). */
+  mode: z.enum(["auto", "fixed_default", "last_used"]),
   defaultCharacterId: id.nullable(),
-  /** "내 기본값". Older BFFs omit both fields. */
+  /** 예전 "내 기본값". 새 BFF는 카드로도 보여 준다(`cards`의 "my-default"). */
   shapeDefault: shapeDefaultSchema.nullable().optional(),
+  /** 내 체형 카드. 카드를 모르는 BFF는 빼고 보낸다. */
+  cards: z.array(bodyCardSchema).optional(),
+  /** 마지막으로 직접 고른 체형. 서버가 체형을 고를 때마다 적는다. */
+  lastUsed: z
+    .object({ characterId: id, controls: controlsSchema.nullable(), usedAt: z.string() })
+    .nullable()
+    .optional(),
   /**
    * 설정에서 수치를 정할 수 있는 체형. 이름·고정 그림·실시간 미리보기 자산은 새 BFF만 준다
    * (작업 밖에서도 "내 기본값" 화면이 그 체형을 그릴 수 있게).
@@ -166,6 +184,7 @@ export type BodyLook = Pick<
 export type ShapeSpec = z.infer<typeof shapeSpecSchema>;
 export type ShapeControl = z.infer<typeof shapeControlSchema>;
 export type ShapeDefault = z.infer<typeof shapeDefaultSchema>;
+export type BodyCard = z.infer<typeof bodyCardSchema>;
 export type BodyChange =
   | { intent: "auto" | "inherit" }
   | { intent: "manual"; characterId: string; shape?: { controls: Record<string, number> } };

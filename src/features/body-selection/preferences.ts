@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api/client";
 import { useInstallationStore } from "@/features/installation/installationStore";
-import { bodyKeys, getPreferences, putPreferences } from "./api";
+import { bodyKeys, changeCard, getPreferences, type CardChange } from "./api";
 import { useBodyOwner } from "./hooks";
-import type { BodyPreferences } from "./contract";
+import type { BodyCard, BodyPreferences, ShapeSpec } from "./contract";
+import { sameShape } from "./shapeValues";
 
 export function useBodyPreferences() {
   const owner = useBodyOwner();
@@ -21,42 +22,78 @@ export function legacyPreferences(error: unknown) {
   );
 }
 
-/**
- * "내 기본값" = 체형 하나 + (조절 가능한 체형이면) 그 수치.
- * 서버에는 두 칸으로 저장된다: `defaultCharacterId`(새 작업을 "내 기본값으로 시작"할 때의 체형)와
- * `shapeDefault`(그 체형의 수치). 앱은 둘을 늘 같은 체형으로 맞춰 저장하고, 예전 값이 어긋나
- * 있으면 수치가 있는 쪽을 내 기본값으로 본다(후보 화면 "내 기본값" 버튼과 같은 규칙).
- */
-export type MyDefault = { characterId: string; controls: Record<string, number> | null };
-export function myDefaultOf(prefs?: BodyPreferences | null): MyDefault | null {
-  if (prefs?.shapeDefault)
-    return { characterId: prefs.shapeDefault.characterId, controls: prefs.shapeDefault.controls };
-  if (prefs?.defaultCharacterId) return { characterId: prefs.defaultCharacterId, controls: null };
-  return null;
+/* ------------------------------------------------------------------ 내 체형 카드 */
+
+/** 카드 이름 최대 길이(서버와 같다). */
+export const CARD_NAME_MAX = 24;
+
+/** 카드를 모르는 BFF(이전 버전)는 예전 "내 기본값"을 카드 한 장처럼 보여 준다. */
+export function cardsOf(prefs?: BodyPreferences | null): BodyCard[] {
+  if (prefs?.cards) return prefs.cards;
+  const mine = prefs?.shapeDefault;
+  return mine
+    ? [
+        {
+          cardId: "my-default",
+          name: "내 기본 체형",
+          characterId: mine.characterId,
+          controls: mine.controls,
+          createdAt: "",
+          updatedAt: "",
+        },
+      ]
+    : [];
 }
 
-/** 내 기본값 읽기·저장·지우기. 저장은 다음 작업과 "내 기본값" 버튼에만 영향을 준다. */
-export function useMyDefault() {
+/** 새 카드의 처음 이름: 쓰지 않은 "주인공 A", "주인공 B", … */
+export function nextCardName(cards: readonly Pick<BodyCard, "name">[]) {
+  const taken = new Set(cards.map((c) => c.name.trim()));
+  for (let i = 0; i < 26; i++) {
+    const name = `주인공 ${String.fromCharCode(65 + i)}`;
+    if (!taken.has(name)) return name;
+  }
+  return `주인공 ${cards.length + 1}`;
+}
+
+/** 카드 이름 다듬기. 비었거나 너무 길면 null(서버도 같은 규칙으로 거절한다). */
+export function cleanCardName(raw: string) {
+  const name = raw.trim();
+  return name && [...name].length <= CARD_NAME_MAX ? name : null;
+}
+
+/**
+ * 이 인물의 지금 체형과 같은 카드. 체형과 수치가 모두 같아야 한다.
+ * 수치를 처음 값 그대로 둔 체형(shape 없음)은 spec이 있어야 비교할 수 있다.
+ */
+export function matchCard(
+  cards: readonly BodyCard[],
+  characterId: string | undefined,
+  controls: Record<string, number> | null | undefined,
+  spec?: ShapeSpec,
+) {
+  if (!characterId) return undefined;
+  return cards.find(
+    (card) =>
+      card.characterId === characterId &&
+      (spec
+        ? sameShape(spec, card.controls, controls)
+        : !!controls &&
+          Object.entries(card.controls).every(
+            ([key, value]) => Math.abs((controls[key] ?? NaN) - value) < 1e-6,
+          )),
+  );
+}
+
+/** 카드 읽기·추가·이름 변경·수치 변경·삭제. 저장이 끝나면 설정 캐시를 서버 값으로 바꾼다. */
+export function useBodyCards() {
   const query = useBodyPreferences();
   const owner = useBodyOwner();
   const qc = useQueryClient();
   const mutation = useMutation({
-    mutationFn: async (next: MyDefault | null) => {
+    mutationFn: async (change: CardChange) => {
       const current = query.data ?? (await query.refetch()).data;
       if (!current) throw new Error("preferences missing");
-      return putPreferences(
-        next
-          ? {
-              mode: current.mode,
-              defaultCharacterId: next.characterId,
-              shapeDefault: next.controls
-                ? { characterId: next.characterId, controls: next.controls }
-                : null,
-            }
-          : // 지우면 "내 기본값으로 시작"도 쓸 수 없으니 자동 추천으로 돌린다.
-            { mode: "auto", defaultCharacterId: null, shapeDefault: null },
-        current.revision,
-      );
+      return changeCard(change, current.revision);
     },
     onSuccess: (value) => {
       if (useInstallationStore.getState().credentials?.installationId === owner)
@@ -65,5 +102,11 @@ export function useMyDefault() {
     // 다른 창에서 먼저 바꿨을 수 있다(revision 충돌). 최신 값을 받아 다시 보여 준다.
     onError: () => void query.refetch(),
   });
-  return { query, value: myDefaultOf(query.data), save: mutation };
+  return {
+    query,
+    cards: cardsOf(query.data),
+    /** 카드를 지원하는 BFF인가. 아니면 만들기·고치기를 막는다. */
+    supported: !!query.data?.cards,
+    change: mutation,
+  };
 }
