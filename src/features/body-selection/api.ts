@@ -9,6 +9,7 @@ import {
   sameBody,
   type BodyChange,
   type BodyManifest,
+  type BodyPreferences,
   type BodySelection,
   type BodyLook,
 } from "./contract";
@@ -58,7 +59,7 @@ export async function getPreferences(signal?: AbortSignal) {
 }
 export async function putPreferences(
   value: {
-    mode: "auto" | "fixed_default";
+    mode: BodyPreferences["mode"];
     defaultCharacterId: string | null;
     /** Omit to keep the saved value; null clears it. */
     shapeDefault?: { characterId: string; controls: Record<string, number> } | null;
@@ -72,6 +73,36 @@ export async function putPreferences(
     body: { ...value, expectedRevision: revision, mutationId: crypto.randomUUID() },
   });
   return getPreferences();
+}
+/** 카드 바꾸기. 응답은 설정 전체(새 revision). */
+export type CardChange =
+  | { op: "create"; name: string; characterId: string; controls: Record<string, number> }
+  | {
+      op: "update";
+      cardId: string;
+      name?: string;
+      characterId?: string;
+      controls?: Record<string, number>;
+    }
+  | { op: "delete"; cardId: string };
+export async function changeCard(change: CardChange, revision: number) {
+  if (bodyMockEnabled()) return bodyMock.changeCard(change);
+  const base = "/v1/installations/current/body-preferences/cards";
+  const { op, ...rest } = change;
+  const path =
+    op === "create" ? base : base + "/" + encodeURIComponent((rest as { cardId: string }).cardId);
+  const body: Record<string, unknown> = {
+    expectedRevision: revision,
+    mutationId: crypto.randomUUID(),
+  };
+  for (const [k, v] of Object.entries(rest)) if (k !== "cardId") body[k] = v;
+  return preferencesSchema.parse(
+    await apiFetch(path, {
+      auth: false,
+      method: op === "create" ? "POST" : op === "update" ? "PUT" : "DELETE",
+      body,
+    }),
+  );
 }
 export async function getManifest(
   job: string,

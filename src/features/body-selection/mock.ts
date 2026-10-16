@@ -7,7 +7,9 @@
  */
 import { env } from "@/shared/lib/env";
 import type { PersonResult, PoseCandidate } from "@/features/pose-viewer/api/pose.contract";
+import type { CardChange } from "./api";
 import type {
+  BodyCard,
   BodyChange,
   BodyManifest,
   BodyLook,
@@ -449,35 +451,56 @@ const selections = new Map<string, BodySelection>();
 let preferences: BodyPreferences = {
   version: "body-preferences.v1",
   scope: "installation",
-  mode: "auto",
-  // 처음에는 비어 있다 — "내 기본값으로 저장" 흐름을 처음부터 볼 수 있게.
+  mode: "last_used",
   defaultCharacterId: null,
   shapeDefault: null,
+  // 처음에는 비어 있다 — 체형 커스텀에서 카드를 만드는 흐름을 처음부터 볼 수 있게.
+  cards: [],
+  lastUsed: null,
   revision: 1,
 };
+let cardSeq = 0;
 const key = (job: string, person: number) => job + ":" + person;
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const autoFor = (index: number) => (index === 1 ? "female-base" : "male-base");
 
-/** pose.mock이 분석 결과를 만들 때 부른다. 체형 상태는 인물마다 자동 추천에서 시작한다. */
+/**
+ * pose.mock이 분석 결과를 만들 때 부른다. 체형 상태는 인물마다 마지막으로 고른 체형
+ * (`last_used`, 실서버와 같은 규칙)에서, 없으면 자동 추천에서 시작한다.
+ */
 export function registerMockPeople(job: string, list: PersonResult[]) {
+  const last = preferences.mode === "last_used" ? preferences.lastUsed : null;
   for (const p of list) {
     people.set(key(job, p.index), p);
     if (selections.has(key(job, p.index))) continue;
     const body = ref(autoFor(p.index));
+    const lastBody = last ? ref(last.characterId) : null;
     selections.set(key(job, p.index), {
       schemaVersion: "body-selection.v1",
       personIndex: p.index,
       intent: "inherit",
       manualCharacterId: null,
-      shape: null,
+      shape: last?.controls ? mockShape(last.characterId, last.controls) : null,
       recommendation: { status: "available", body, reasonCodes: [] },
-      resolvedBody: body,
-      resolvedSource: "auto_recommendation",
+      resolvedBody: lastBody ?? body,
+      resolvedSource: lastBody ? "last_used" : "auto_recommendation",
       resolutionStatus: p.candidates.length ? "ready" : "not_applicable",
       selectionRevision: 0,
     });
   }
+}
+
+/** 처음 값과 다른 수치만 shape로 둔다(실서버: 모두 처음 값이면 shape 없음). */
+function mockShape(id: string, controls: Record<string, number>) {
+  const defaults = SHAPE_BODIES[id] ? spec(id).controls : [];
+  const changed = defaults.some((c) => Math.abs((controls[c.key] ?? c.default) - c.default) > 1e-6);
+  return changed
+    ? {
+        schemaVersion: "body-shape.v1" as const,
+        controls: { ...controls },
+        shapeSha256: hex(JSON.stringify(controls)),
+      }
+    : null;
 }
 
 const shapeEditable = () =>
@@ -501,26 +524,26 @@ export const bodyMock = {
     if (!s) throw new Error("mock body selection missing");
     const id = change.intent === "manual" ? change.characterId : autoFor(person);
     const controls = change.intent === "manual" ? change.shape?.controls : undefined;
-    const defaults = SHAPE_BODIES[id] ? spec(id).controls : [];
-    const changed =
-      !!controls &&
-      defaults.some((c) => Math.abs((controls[c.key] ?? c.default) - c.default) > 1e-6);
     const next: BodySelection = {
       ...s,
       intent: change.intent,
       manualCharacterId: change.intent === "manual" ? id : null,
       resolvedBody: ref(id),
       resolvedSource: change.intent === "manual" ? "manual" : "auto_recommendation",
-      shape: changed
-        ? {
-            schemaVersion: "body-shape.v1",
-            controls: { ...controls },
-            shapeSha256: hex(JSON.stringify(controls)),
-          }
-        : null,
+      shape: controls ? mockShape(id, controls) : null,
       selectionRevision: s.selectionRevision + 1,
     };
     selections.set(key(job, person), next);
+    // 실서버처럼 직접 고른 체형을 다음 작업의 시작 체형으로 기억한다(설정 revision은 그대로).
+    if (change.intent === "manual")
+      preferences = {
+        ...preferences,
+        lastUsed: {
+          characterId: id,
+          controls: next.shape?.controls ?? null,
+          usedAt: new Date().toISOString(),
+        },
+      };
     return structuredClone(next);
   },
   async getOptions(): Promise<{ catalogRevision: string; characters: BodyOption[] }> {
@@ -554,6 +577,39 @@ export const bodyMock = {
       ...("shapeDefault" in value ? { shapeDefault: value.shapeDefault ?? null } : {}),
       revision: preferences.revision + 1,
     };
+    return { ...structuredClone(preferences), shapeEditable: shapeEditable() };
+  },
+  async changeCard(change: CardChange): Promise<BodyPreferences> {
+    await delay(200);
+    const cards = preferences.cards ?? [];
+    const at = new Date().toISOString();
+    let next: BodyCard[];
+    if (change.op === "create")
+      next = [
+        ...cards,
+        {
+          cardId: `card_mock_${++cardSeq}`,
+          name: change.name.trim(),
+          characterId: change.characterId,
+          controls: { ...change.controls },
+          createdAt: at,
+          updatedAt: at,
+        },
+      ];
+    else if (change.op === "update")
+      next = cards.map((c) =>
+        c.cardId === change.cardId
+          ? {
+              ...c,
+              ...(change.name !== undefined ? { name: change.name.trim() } : {}),
+              ...(change.characterId ? { characterId: change.characterId } : {}),
+              ...(change.controls ? { controls: { ...change.controls } } : {}),
+              updatedAt: at,
+            }
+          : c,
+      );
+    else next = cards.filter((c) => c.cardId !== change.cardId);
+    preferences = { ...preferences, cards: next, revision: preferences.revision + 1 };
     return { ...structuredClone(preferences), shapeEditable: shapeEditable() };
   },
   async getManifest(job: string, person: number, selection: BodySelection): Promise<BodyManifest> {

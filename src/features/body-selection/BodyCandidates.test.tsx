@@ -6,12 +6,21 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import { BodyChip, BodyExpand } from "./BodyCandidates";
 import type { BodyEntry } from "./hooks";
+import type { BodyPreferences, ShapeSpec } from "./contract";
 
 /**
  * #84의 의도(미리보기가 느리거나 실패해도 체형 패널이 사용자를 가두지 않는다)를 새 패널에서 지킨다.
  * 새 UX에는 "확정" 버튼이 없다 — 카드를 누르면 바로 저장되고, 칩의 "포즈"로 언제든 닫는다.
  */
 const mutate = vi.hoisted(() => vi.fn());
+const prefs = vi.hoisted(() => ({ current: null as BodyPreferences | null }));
+const spec: ShapeSpec = {
+  schemaVersion: "body-shape.v1",
+  controls: [
+    { key: "height", min: 150, max: 190, step: 1, default: 175 },
+    { key: "muscle", min: 0, max: 4, step: 0.05, default: 0 },
+  ],
+};
 vi.mock("./hooks", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./hooks")>()),
   useBodyControls: () => ({
@@ -20,7 +29,7 @@ vi.mock("./hooks", async (importOriginal) => ({
       isPending: false,
       data: {
         characters: [
-          { characterId: "female-base", displayName: "기본형", selectable: true },
+          { characterId: "female-base", displayName: "기본형", selectable: true, shape: spec },
           { characterId: "female-muscular", displayName: "근육형", selectable: true },
         ],
       },
@@ -28,17 +37,14 @@ vi.mock("./hooks", async (importOriginal) => ({
     mutation: { mutate, isPending: false, isError: false },
   }),
 }));
-vi.mock("./preferences", () => ({
-  useBodyPreferences: () => ({ data: null }),
-  useMyDefault: () => ({
-    value: null,
-    query: { data: null },
-    save: { mutate: vi.fn(), isPending: false, isError: false },
-  }),
+vi.mock("./preferences", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./preferences")>()),
+  useBodyPreferences: () => ({ data: prefs.current }),
 }));
 vi.mock("./LiveBodyView", () => ({
   LiveBodyView: () => createElement("div", null, "내 체형"),
   NeutralImage: () => createElement("span"),
+  ShapeThumb: () => createElement("span"),
 }));
 vi.mock("@/features/models/hooks/useModelCatalog", () => ({
   useModelCatalog: () => ({ data: { characters: [] } }),
@@ -67,6 +73,23 @@ const entry = {
     recommendation: { status: "available", body: null, reasonCodes: [] },
   },
 } as unknown as BodyEntry;
+const withCard = (): BodyPreferences => ({
+  version: "body-preferences.v1",
+  scope: "installation",
+  mode: "last_used",
+  defaultCharacterId: null,
+  cards: [
+    {
+      cardId: "card_1",
+      name: "주인공 A",
+      characterId: "female-base",
+      controls: { height: 168, muscle: 1 },
+      createdAt: "",
+      updatedAt: "",
+    },
+  ],
+  revision: 1,
+});
 
 function wrap(node: ReturnType<typeof createElement>) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -75,6 +98,7 @@ function wrap(node: ReturnType<typeof createElement>) {
 
 beforeEach(() => {
   mutate.mockClear();
+  prefs.current = null;
   useInstallationStore.setState({
     credentials: {
       installationId: "panel-test",
@@ -101,4 +125,34 @@ it("saves a picked body without waiting for the previews", () => {
   expect(card).not.toBeDisabled();
   fireEvent.click(card);
   expect(mutate).toHaveBeenCalledWith({ intent: "manual", characterId: "female-muscular" });
+});
+
+it("applies a saved body card (body and numbers at once) and has no 'my default' buttons", () => {
+  prefs.current = withCard();
+  wrap(createElement(BodyExpand, { job: "job-panel", person, entry, variant: "app" }));
+  expect(screen.queryByRole("button", { name: /내 기본값/ })).toBeNull();
+  fireEvent.click(screen.getByRole("radio", { name: "내 체형 주인공 A" }));
+  expect(mutate).toHaveBeenCalledWith({
+    intent: "manual",
+    characterId: "female-base",
+    shape: { controls: { height: 168, muscle: 1 } },
+  });
+});
+
+it("names the person's body after the card it matches", () => {
+  prefs.current = withCard();
+  const shaped = {
+    ...entry,
+    selection: {
+      ...entry.selection!,
+      shape: {
+        schemaVersion: "body-shape.v1",
+        controls: { height: 168, muscle: 1 },
+        shapeSha256: "a".repeat(64),
+      },
+    },
+  } as BodyEntry;
+  wrap(createElement(BodyChip, { job: "job-panel", person, entry: shaped }));
+  expect(screen.getByText("내 체형")).toBeInTheDocument();
+  expect(screen.getByText("주인공 A")).toBeInTheDocument();
 });

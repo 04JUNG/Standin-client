@@ -4,6 +4,7 @@ import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
 import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
 import { ScreenPermissionPage } from "@/features/capture/pages/ScreenPermissionPage";
 import { ModelsPage } from "@/features/models/pages/ModelsPage";
+import { BodyCustomPage } from "@/features/body-selection/BodyCustomPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { PoseViewerPage } from "@/features/pose-viewer/pages/PoseViewerPage";
 import { ReviewPage } from "@/features/pose-viewer/pages/ReviewPage";
@@ -71,6 +72,23 @@ export const router = createBrowserRouter([
         element: (
           <RequireInstallation>
             <ModelsPage />
+          </RequireInstallation>
+        ),
+      },
+      // 체형 커스텀 편집: 새 카드(?base=시작 체형, ?kind=성별)와 저장한 카드 편집.
+      {
+        path: "/app/models/custom",
+        element: (
+          <RequireInstallation>
+            <BodyCustomPage />
+          </RequireInstallation>
+        ),
+      },
+      {
+        path: "/app/models/custom/:cardId",
+        element: (
+          <RequireInstallation>
+            <BodyCustomPage />
           </RequireInstallation>
         ),
       },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
-import { RotateCcw, Sparkles, Star } from "lucide-react";
+import { Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
@@ -12,22 +12,15 @@ import type {
 } from "@/features/pose-viewer/api/pose.contract";
 import { useBodyControls, type BodyEntry } from "./hooks";
 import { BODY_KIND_LABEL, bodyKind, useBodyPanel, type BodyKind } from "./bodyPanel";
-import { useBodyPreferences, useMyDefault } from "./preferences";
+import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
 import { ShapeControlGrid } from "./ShapeControls";
-import { sameShape, shapeDefaults as defaults } from "./shapeValues";
-import { LiveBodyView, NeutralImage } from "./LiveBodyView";
-import type { BodyOption, BodySelection, ShapeDefault } from "./contract";
+import { shapeDefaults as defaults } from "./shapeValues";
+import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
+import type { BodyCard, BodyOption, BodySelection } from "./contract";
 
-function sourceLabel(selection?: BodySelection, mine?: ShapeDefault | null) {
-  if (
-    selection?.shape &&
-    mine &&
-    mine.characterId === selection.resolvedBody?.characterId &&
-    Object.entries(selection.shape.controls).every(
-      ([key, value]) => Math.abs((mine.controls[key] ?? NaN) - value) < 1e-6,
-    )
-  )
-    return "내 기본값";
+function sourceLabel(selection?: BodySelection, card?: BodyCard) {
+  if (card) return "내 체형";
+  if (selection?.resolvedSource === "last_used") return "마지막 체형";
   if (selection?.shape) return "직접 조절";
   switch (selection?.resolvedSource) {
     case "manual":
@@ -51,6 +44,20 @@ function useBodyName(job: string, person: PersonResult, selection?: BodySelectio
     "체형 확인 중";
 }
 
+/** 인물 줄에 적을 체형: 내 체형 카드와 같으면 카드 이름, 아니면 체형 이름(+ 수정). */
+function useBodyTitle(job: string, person: PersonResult, selection?: BodySelection) {
+  const { options } = useBodyControls(job, person, selection);
+  const name = useBodyName(job, person, selection);
+  const cards = cardsOf(useBodyPreferences().data);
+  const id = selection?.resolvedBody?.characterId;
+  const spec = options.data?.characters.find((c) => c.characterId === id)?.shape;
+  const card = matchCard(cards, id, selection?.shape?.controls ?? null, spec);
+  return {
+    source: sourceLabel(selection, card),
+    title: card ? card.name : `${name(id)}${selection?.shape ? " 수정" : ""}`,
+  };
+}
+
 /* ------------------------------------------------------------------ 체형 칩 */
 
 /** 인물 줄의 체형 칩: 지금 체형과 "체형 더보기" 토글. */
@@ -66,9 +73,7 @@ export function BodyChip({
   className?: string;
 }) {
   const { open, setOpen } = useBodyPanel(job, person.index);
-  const selection = entry?.selection;
-  const name = useBodyName(job, person, selection);
-  const mine = useBodyPreferences().data?.shapeDefault;
+  const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span
       className={cn(
@@ -76,11 +81,8 @@ export function BodyChip({
         className,
       )}
     >
-      <span className="shrink-0 text-text-secondary">{sourceLabel(selection, mine)}</span>
-      <strong className="truncate font-semibold text-text-primary">
-        {name(selection?.resolvedBody?.characterId)}
-        {selection?.shape ? " 수정" : ""}
-      </strong>
+      <span className="shrink-0 text-text-secondary">{source}</span>
+      <strong className="truncate font-semibold text-text-primary">{title}</strong>
       {/* 포즈 | 체형 더보기. 코랄 바탕이 고른 쪽으로 미끄러진다. 열고 닫는 버튼을 따로 두지 않는다. */}
       <span
         role="group"
@@ -132,16 +134,10 @@ export function BodyLabel({
   person: PersonResult;
   entry?: BodyEntry;
 }) {
-  const selection = entry?.selection;
-  const name = useBodyName(job, person, selection);
-  const mine = useBodyPreferences().data?.shapeDefault;
+  const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span className="truncate text-[12px] text-text-secondary">
-      {sourceLabel(selection, mine)} ·{" "}
-      <span className="font-semibold text-text-primary">
-        {name(selection?.resolvedBody?.characterId)}
-        {selection?.shape ? " 수정" : ""}
-      </span>
+      {source} · <span className="font-semibold text-text-primary">{title}</span>
     </span>
   );
 }
@@ -251,11 +247,13 @@ export function BodyRenderStatus({ entry }: { entry?: BodyEntry }) {
 /* ------------------------------------------------------------------ 체형 펼쳐보기 */
 
 /**
- * "체형 더보기"를 열면 Top-5 자리에 그린다: 체형 종류, [내 체형 | 프리셋 줄], 조절 바.
- * 조절 바는 왼쪽 "내 체형"만 다시 그린다. 프리셋 카드는 고정 그림이고 고른 것에 "선택됨"만 붙는다.
+ * "체형 더보기"를 열면 Top-5 자리에 그린다: 체형 종류, [지금 체형 | 내 체형 카드 · 프리셋 줄], 조절 바.
+ * 조절 바는 왼쪽 "지금 체형"만 다시 그린다. 카드·프리셋은 고정 그림이고 고른 것에 "선택됨"만 붙는다.
  *
- * 카드를 누르면 바로 이 인물에 저장한다(포즈 선택은 유지). 수치 조절은 서버가 그 체형에
- * `shape`를 알려 줄 때만 열린다 — 아니면 조절 바 대신 지원하지 않는다고 적는다.
+ * 카드를 누르면 바로 이 인물에 저장한다(포즈 선택은 유지). 내 체형 카드("주인공 A")는 체형 커스텀에서
+ * 만든 체형과 수치를 한 번에 적용한다. 서버는 직접 고른 체형을 기억해 다음 작업을 그 체형으로
+ * 시작하므로 따로 "기본값으로 설정"하지 않는다. 수치 조절은 서버가 그 체형에 `shape`를 알려 줄 때만
+ * 열린다 — 아니면 조절 바 대신 지원하지 않는다고 적는다.
  */
 export function BodyExpand({
   job,
@@ -272,7 +270,7 @@ export function BodyExpand({
 }) {
   const selection = entry?.selection;
   const { options, mutation } = useBodyControls(job, person, selection);
-  const my = useMyDefault();
+  const cards = cardsOf(useBodyPreferences().data);
   const navigate = useNavigate();
   const name = useBodyName(job, person, selection);
   const characters = options.data?.characters ?? [];
@@ -339,48 +337,23 @@ export function BodyExpand({
     timer.current = setTimeout(sendShape, 600);
   }
 
-  /* ---- 내 기본값: 불러오기(이 인물에 적용)와 저장(지금 체형을 다음에도 쓰기) */
+  /* ---- 내 체형 카드: 누르면 체형과 수치를 한 번에 이 인물에 적용 */
   const busy = mutation.isPending || !selection;
-  const mine = my.value;
-  const mineId = mine?.characterId ?? null;
-  const mineOption = characters.find((c) => c.characterId === mineId);
-  const canMine = !!mineOption?.selectable;
-  const mineLabel = mine
-    ? `${name(mine.characterId)}${
-        mine.controls && mineOption?.shape && !sameShape(mineOption.shape, mine.controls, null)
-          ? " 수정"
-          : ""
-      }`
-    : "";
-  /** 지금 이 인물의 체형(손대는 중인 값 포함)이 내 기본값과 같은가. */
-  const isMine =
-    !!mine &&
-    mine.characterId === currentId &&
-    (spec ? sameShape(spec, values, mine.controls) : true);
-  const [savedNote, setSavedNote] = useState(false);
-  const noteTimer = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => () => clearTimeout(noteTimer.current), []);
-  function applyMine() {
-    if (!mine || !canMine) return;
+  const currentCard = spec ? matchCard(cards, currentId, values, spec) : undefined;
+  const baseOf = (card: BodyCard) => characters.find((c) => c.characterId === card.characterId);
+  const visibleCards = cards.filter((card) => {
+    const base = baseOf(card);
+    return !!base?.shape && bodyKind(base) === kind;
+  });
+  function applyCard(card: BodyCard) {
+    const base = baseOf(card);
+    if (busy || !base?.selectable || !base.shape || card === currentCard) return;
     setKindView(null);
-    mutation.mutate(
-      mine.controls && mineOption?.shape
-        ? { intent: "manual", characterId: mine.characterId, shape: { controls: mine.controls } }
-        : { intent: "manual", characterId: mine.characterId },
-    );
-  }
-  function saveMine() {
-    if (!currentId) return;
-    my.save.mutate(
-      { characterId: currentId, controls: spec ? { ...defaults(spec), ...values } : null },
-      {
-        onSuccess: () => {
-          setSavedNote(true);
-          clearTimeout(noteTimer.current);
-          noteTimer.current = setTimeout(() => setSavedNote(false), 6000);
-        },
-      },
-    );
+    mutation.mutate({
+      intent: "manual",
+      characterId: card.characterId,
+      shape: { controls: card.controls },
+    });
   }
   function pick(option: BodyOption) {
     if (busy || !option.selectable) return;
@@ -435,7 +408,7 @@ export function BodyExpand({
           </div>
         </div>
         <p className="text-[11px] text-text-secondary">
-          체형을 누르면 바로 적용 · 이 인물만 바뀌고 포즈 선택은 유지됩니다
+          체형을 누르면 바로 적용 · 이 인물만 바뀌고, 다음 작업도 마지막으로 고른 체형으로 시작해요
         </p>
       </div>
 
@@ -456,9 +429,9 @@ export function BodyExpand({
           {/* 왼쪽: 지금 고른 체형. 조절 바를 움직이면 여기만 다시 그린다. */}
           <LiveBodyView
             option={current}
-            name={name(currentId)}
+            name={currentCard?.name ?? name(currentId)}
             controls={spec ? values : null}
-            edited={!!spec && (!!draft || !!selection?.shape)}
+            edited={!currentCard && !!spec && (!!draft || !!selection?.shape)}
             rough={rough}
             personIndex={person.index}
             variant={variant}
@@ -466,15 +439,79 @@ export function BodyExpand({
           {/* 오른쪽: 프리셋. 고정 그림이라 조절 바와 무관하다 — 고른 것에 표시만 한다. */}
           <div className="flex min-w-0 flex-1 flex-col gap-1 border-l border-border pl-2">
             <span className="text-[11px] font-semibold text-text-secondary">
-              프리셋 · 누르면 그 체형으로 바뀌어요
+              내 체형 · 프리셋 — 누르면 그 체형으로 바뀌어요
+              {variant === "bar" && visibleCards.length === 0 && (
+                <span className="font-normal">
+                  {" "}
+                  · 내 체형 카드는 앱의 ‘체형 커스텀’에서 만들어요
+                </span>
+              )}
             </span>
             <div
               role="radiogroup"
-              aria-label="체형 프리셋"
+              aria-label="내 체형과 체형 프리셋"
               className="flex min-w-0 snap-x gap-2 overflow-x-auto pb-1"
             >
+              {visibleCards.map((card) => {
+                const base = baseOf(card)!;
+                const on = card === currentCard;
+                return (
+                  <button
+                    type="button"
+                    role="radio"
+                    key={card.cardId}
+                    aria-checked={on}
+                    aria-label={`내 체형 ${card.name}`}
+                    disabled={!base.selectable || busy}
+                    onClick={() => applyCard(card)}
+                    className={cn(
+                      "relative flex shrink-0 snap-start flex-col gap-0.5 rounded-xl border-2 bg-surface-0 p-1 text-left transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+                      "disabled:cursor-not-allowed",
+                      !base.selectable && "opacity-40",
+                      on ? "border-brand-coral" : "border-border hover:border-brand-sky",
+                      variant === "bar" ? "w-[96px]" : "w-[140px]",
+                    )}
+                  >
+                    {on && (
+                      <span className="absolute left-2 top-2 z-10 rounded-full bg-brand-coral px-1.5 text-[10px] font-semibold text-white">
+                        선택됨
+                      </span>
+                    )}
+                    <span
+                      className={cn(
+                        "flex w-full items-center justify-center overflow-hidden rounded-lg bg-surface-2",
+                        variant === "bar" ? "h-[120px]" : "h-[196px]",
+                      )}
+                    >
+                      <ShapeThumb look={base} controls={card.controls} />
+                    </span>
+                    <span className="truncate px-1 text-[11.5px] font-semibold">{card.name}</span>
+                    <span className="px-1 pb-0.5 text-[10px] text-text-secondary">
+                      {base.selectable ? "내 체형" : "현재 포즈에 사용 불가"}
+                    </span>
+                  </button>
+                );
+              })}
+              {variant === "app" && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/app/models/custom?kind=${kind}`)}
+                  className={cn(
+                    "flex w-[96px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border bg-surface-0 p-1 text-center text-[11px] font-semibold text-text-secondary transition-colors",
+                    "hover:border-brand-coral hover:text-brand-coral",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+                  )}
+                >
+                  <Plus className="h-5 w-5" aria-hidden />
+                  체형 만들기
+                </button>
+              )}
+              {(visibleCards.length > 0 || variant === "app") && (
+                <span aria-hidden className="mx-0.5 w-px shrink-0 self-stretch bg-border" />
+              )}
               {visible.map((option) => {
-                const on = option.characterId === currentId;
+                const on = option.characterId === currentId && !currentCard;
                 return (
                   <button
                     type="button"
@@ -495,14 +532,6 @@ export function BodyExpand({
                     {on && (
                       <span className="absolute left-2 top-2 z-10 rounded-full bg-brand-coral px-1.5 text-[10px] font-semibold text-white">
                         선택됨
-                      </span>
-                    )}
-                    {option.characterId === mineId && (
-                      <span
-                        className="absolute right-2 top-2 z-10 inline-flex items-center gap-0.5 rounded-full border border-brand-ink/20 bg-surface-0/95 px-1.5 text-[10px] font-semibold text-brand-ink"
-                        title={`내 기본값 · ${mineLabel}`}
-                      >
-                        <Star className="h-2.5 w-2.5 fill-current" aria-hidden />내 기본
                       </span>
                     )}
                     <span
@@ -537,12 +566,13 @@ export function BodyExpand({
           <span className="truncate">
             체형 조절 ·{" "}
             <strong className="text-text-primary">
-              {name(currentId)}
-              {selection?.shape || draft ? " 수정" : ""}
+              {currentCard
+                ? currentCard.name
+                : `${name(currentId)}${selection?.shape || draft ? " 수정" : ""}`}
             </strong>
-            {isMine && (
-              <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-brand-ink/10 px-1.5 text-[10px] font-semibold text-brand-ink">
-                <Star className="h-2.5 w-2.5 fill-current" aria-hidden />내 기본값
+            {currentCard && (
+              <span className="ml-1.5 inline-flex items-center rounded-full bg-brand-ink/10 px-1.5 text-[10px] font-semibold text-brand-ink">
+                내 체형
               </span>
             )}
           </span>
@@ -583,33 +613,6 @@ export function BodyExpand({
             자동 추천
           </ToolButton>
           <ToolButton
-            disabled={busy || !canMine || isMine}
-            onClick={applyMine}
-            title={
-              !mine
-                ? "아직 내 기본값이 없어요 · 지금 체형을 ‘내 기본값으로 저장’하거나 모델 화면에서 정하세요"
-                : !canMine
-                  ? `내 기본값(${mineLabel})은 이 포즈에 쓸 수 없어요`
-                  : isMine
-                    ? "지금 체형이 내 기본값이에요"
-                    : `내 기본값(${mineLabel})으로 바꿉니다`
-            }
-          >
-            내 기본값
-          </ToolButton>
-          <ToolButton
-            disabled={busy || !currentId || isMine || my.save.isPending || !my.query.data}
-            onClick={saveMine}
-            title={
-              isMine
-                ? "지금 체형이 이미 내 기본값이에요"
-                : "지금 체형과 수치를 내 기본값으로 저장합니다 · 다음 작업에서도 ‘내 기본값’으로 불러와요"
-            }
-          >
-            <Star className="h-3 w-3" aria-hidden />
-            {my.save.isPending ? "저장 중…" : isMine ? "내 기본값과 같음" : "내 기본값으로 저장"}
-          </ToolButton>
-          <ToolButton
             disabled={busy || !currentId || (!selection?.shape && !draft)}
             onClick={() => {
               clearTimeout(timer.current);
@@ -625,27 +628,6 @@ export function BodyExpand({
           {mutation.isError && (
             <span role="alert" className="text-[11px] text-brand-coral">
               체형을 저장하지 못했습니다. 현재 선택을 확인한 뒤 다시 시도해 주세요.
-            </span>
-          )}
-          {my.save.isError && (
-            <span role="alert" className="text-[11px] text-brand-coral">
-              내 기본값을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.
-            </span>
-          )}
-          {savedNote && !my.save.isError && (
-            <span role="status" className="text-[11px] text-text-secondary">
-              내 기본값으로 저장했어요 ·{" "}
-              {variant === "app" ? (
-                <button
-                  type="button"
-                  className="font-semibold text-text-primary underline underline-offset-2 hover:text-brand-coral"
-                  onClick={() => navigate("/app/models")}
-                >
-                  모델 화면에서 보기
-                </button>
-              ) : (
-                "앱의 모델 화면에서 바꿀 수 있어요"
-              )}
             </span>
           )}
         </div>
