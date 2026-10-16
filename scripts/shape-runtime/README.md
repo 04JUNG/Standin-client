@@ -89,7 +89,8 @@ python3.11 -m venv .bpy && .bpy/bin/pip install bpy==5.0.1
   --presets BASE,BULK --basis 48 --out src/features/body-selection/shapeRuntime/__fixtures__/mini-sampled.json
 ```
 
-- 머리말 `source`(.blend·컨트롤러 SHA-256)가 카탈로그의 `shapeSource`와 같아야 앱이 쓴다.
+- 머리말 `source`(.blend·컨트롤러 SHA-256)가 카탈로그의 `shapeSource`와 같아야 앱이 쓴다. v1(`build_runtime.py`)도
+  2026-10-16부터 같은 `source`를 머리말에 쓴다 — 굽기 연동 카탈로그에는 이 값이 있는 자산만 쓸 수 있다.
   BFF도 다르면 서빙하지 않고, converter는 같은 원본으로만 굽는다(버전 가드).
 - 리포트·머리말 `quality`: 프리셋별 컨트롤러 대비 최대 오차(mm). `few`=조절 2~6개를 프리셋 근처에서,
   `basic`=기본 조절 전부를 전 범위 무작위, `all`=모든 조절 전 범위 무작위(스트레스).
