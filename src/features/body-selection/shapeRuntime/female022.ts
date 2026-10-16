@@ -94,6 +94,24 @@ export function evaluateFemale022(runtime: ShapeRuntime, c: BlenderControls, out
   return out;
 }
 
+/** 여성 warp를 점 묶음(정점×3, 체형 변위가 들어간 점)에 적용한다. 0.3.3 해부 층도 이 warp를 쓴다. */
+export function warpFemale022<T extends Float32Array | Float64Array>(
+  runtime: ShapeRuntime,
+  c: BlenderControls,
+  points: ArrayLike<number>,
+  out: T,
+): T {
+  const L = runtime.header.landmarks;
+  const w = warpParams(L, c);
+  for (let i = 0; i + 2 < points.length; i += 3) {
+    const p = warpPoint(L, c, w, points[i]!, points[i + 1]!, points[i + 2]!);
+    out[i] = p[0]!;
+    out[i + 1] = p[1]!;
+    out[i + 2] = p[2]!;
+  }
+  return out;
+}
+
 function warpParams(L: Landmarks, c: BlenderControls) {
   const h = L.hip + 0.065 * c.leg_length!;
   const sh = h + (L.shoulder - L.hip) * (1 + 0.1 * c.torso_length!);

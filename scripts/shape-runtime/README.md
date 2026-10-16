@@ -1,7 +1,7 @@
 # shape-runtime — 실시간 체형 미리보기 자산 만들기
 
 `standin-shape-runtime.v1`(.ssr)은 체형 더보기의 "내 체형" 박스가 조절 바에 맞춰 기준 모델
-(남성 0.6.10, 여성 0.2.2)을 앱 안에서 다시 그릴 때 쓰는 자산이다.
+(남성 0.7.1, 여성 0.3.3 — 이전 0.6.10·0.6.7·여성 0.2.2도 지원)을 앱 안에서 다시 그릴 때 쓰는 자산이다.
 
 ```bash
 # Blender 모듈(pip bpy)이 있는 Python 3.11 — 0.6.10(근육 볼륨)은 필수
@@ -23,6 +23,24 @@ python3.11 -m venv .bpy && .bpy/bin/pip install bpy==5.0.1
 - `--fixture`는 부분 자산과 컨트롤러의 실제 출력(`fold_guard` 켬)을 만든다(`shapeRuntime/evaluate.test.ts`).
   0.6.7·여성은 정점 222개, 0.6.10은 메시 평활 때문에 검사 정점 4개와 그 6고리 이웃을 gzip으로 담는다.
 
+## 해부 보정 층 (남성 0.7.1 · 여성 0.3.3)
+
+```bash
+.bpy/bin/python scripts/shape-runtime/build_runtime.py \
+  --blend .../body-production-release-2026-10-16-v0.7.1-v0.3.3/male/model/standin-body-0.7.1.blend \
+  --controller .../male/model/standin_body.py \
+  --out shape-runtime-0.7.1.ssr \
+  --fixture src/features/body-selection/shapeRuntime/__fixtures__/mini-0.7.1.json \
+  --dump full-0.7.1.npz   # 선택: 모든 조합의 컨트롤러 출력(전체 메시 대조용)
+```
+
+- `anatomy.py`가 앞 버전 자료에 더해 `AD:<키>`(해부 평활 − 원래 키), `VN`·`PM`, 여성은 `FA`·`MR`·`PIN`·`EO`·`PV`와 상수 `bones`를 굽는다.
+  bpy가 필수다(스킨 웨이트·뼈 휴지 자료).
+- 이 규칙들은 `fold_guard`가 근육 볼륨 없이도 돌기 때문에 분해 검사를 `fold_guard` **켠** 출력과 비교한다.
+- 테스트 자료는 검사 정점 5개와 10고리 이웃이고, `fold_guard`가 움직이지 않은 조합·근육 2 이하만 담는다.
+- 전체 메시 대조: `--dump`의 .npz를 `<prefix>.bin`(케이스×정점×3 float64)·`<prefix>.json`(`names`, `controls`)으로 풀고
+  `SHAPE_RUNTIME_FULL=<.ssr>:<prefix> npx vitest run evaluate.full` (기본은 건너뜀).
+
 ## 배포
 
 1. 만든 .ssr을 서버의 승인 자산 위치에 두고 manifest의 조절 가능한 asset마다 적는다.
@@ -35,11 +53,11 @@ python3.11 -m venv .bpy && .bpy/bin/pip install bpy==5.0.1
    여성(`rules: "standin-female-body-0.2.2"`): BASE, SLIM, IDEAL83, IDEAL70, TOON64, MUSCULAR, MUSCLE_MAX, NEW_MUSCULAR, SOFT, FAT_MAX, NEW_FAT.
 2. BFF가 `GET /v1/models/:characterId/shape-runtime/:sha256`으로 준다(`BODY_SHAPE_EDIT_ENABLED`일 때만).
 3. 앱은 sha256·크기·형식·규칙을 검사하고, 모르는 규칙이면 고정 그림으로 떨어진다
-   (지원: `standin-body-0.6.10`, `standin-body-0.6.7`, `standin-female-body-0.2.2`).
+   (지원: `standin-body-0.7.1`, `standin-body-0.6.10`, `standin-body-0.6.7`, `standin-female-body-0.3.3`, `standin-female-body-0.2.2`).
 
 ## 개발 Mock
 
-- Vite 개발 서버: 만든 파일을 `public/mock/shape-runtime-0.6.10.ssr`, `public/mock/shape-runtime-female-0.2.2.ssr`에 두면 Mock 모드에서 실제 3D로 그린다
+- Vite 개발 서버: 만든 파일을 `public/mock/shape-runtime-0.7.1.ssr`, `public/mock/shape-runtime-female-0.3.3.ssr`에 두면 Mock 모드에서 실제 3D로 그린다
   (gitignore됨). 없으면 Mock 실루엣으로 떨어진다.
 - 단일 HTML 목업: 빌드할 때 규칙별 gzip+base64로 `globalThis.__STANDIN_MOCK_SHAPE_RUNTIMES__`에 넣는다.
 

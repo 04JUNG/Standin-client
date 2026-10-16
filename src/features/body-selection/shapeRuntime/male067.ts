@@ -201,15 +201,15 @@ export function restBody(
 }
 
 /** warp(키·등신·길이·머리·목)를 모든 정점에 적용한다. */
-export function warpBody(
+export function warpBody<T extends Float32Array | Float64Array>(
   runtime: ShapeRuntime,
   c: BlenderControls,
   body: ArrayLike<number>,
-  out: Float32Array,
-) {
+  out: T,
+): T {
   const L = runtime.header.landmarks;
   const w = warpParams(L, c);
-  const V = runtime.header.vertexCount;
+  const V = Math.floor(body.length / 3); // 보통 정점 전체, 해부 층은 뼈 끝점 몇 개도 넘긴다
   for (let v = 0; v < V; v++)
     warpPoint(L, c, w, body[v * 3]!, body[v * 3 + 1]!, body[v * 3 + 2]!, out, v * 3);
   return out;
@@ -254,7 +254,7 @@ function warpPoint(
   x: number,
   y: number,
   z: number,
-  out: Float32Array,
+  out: Float32Array | Float64Array,
   o: number,
 ) {
   const ax = Math.abs(x);
