@@ -62,7 +62,7 @@ export function ShapeThumb({
     staleTime: Infinity,
     gcTime: 30 * 60 * 1000,
   });
-  if (shot.data) return <img src={shot.data} className="h-full w-full object-contain" alt="" />;
+  if (runtime.data && shot.data) return <img src={shot.data} className="h-full w-full object-contain" alt="" />;
   if (supportedRuntime(ref) && (runtime.isPending || (runtime.isSuccess && shot.isPending)))
     return <Loader2 className="h-4 w-4 animate-spin text-text-secondary" aria-label="그리는 중" />;
   if (bodyMockEnabled() && look.shape)

@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { LiveBodyView } from "./LiveBodyView";
+import { LiveBodyView, ShapeThumb } from "./LiveBodyView";
 import type { BodyOption } from "./contract";
 
 const option = (shape: boolean): BodyOption => ({
@@ -79,4 +79,23 @@ describe("LiveBodyView", () => {
     expect(screen.getByText("고정 체형")).toBeTruthy();
     expect(screen.queryByText("수정 중")).toBeNull();
   });
+});
+
+it("hides a cached shape thumbnail when its runtime no longer matches the catalog", () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ref = { ...runtimeRef("standin-body-0.7.2"), source: {
+    rules: "standin-body-0.7.2", blendSha256: "c".repeat(64), controllerSha256: "d".repeat(64),
+  } };
+  client.setQueryData(["body", "shape-runtime", ref.sha256, ref.bytes], {
+    kind: "rules", header: { rules: ref.rules, presets: { BASE: {} }, source: {
+      blendSha256: "c".repeat(64), controllerSha256: "e".repeat(64),
+    } },
+  });
+  const controls = { height: 185 };
+  client.setQueryData(["body", "shape-thumb", ref.sha256, ref.preset, controls], "data:image/png;base64,OLD");
+  render(createElement(QueryClientProvider, { client }, createElement(ShapeThumb, {
+    look: { ...option(true), shapeRuntime: ref }, controls,
+  })));
+  expect(screen.queryByRole("img")).toBeNull();
+  expect(screen.getByText("미리보기 없음")).toBeTruthy();
 });

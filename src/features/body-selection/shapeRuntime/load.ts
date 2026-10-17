@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetchBlob } from "@/shared/api/client";
 import type { BodyOption } from "../contract";
@@ -41,9 +42,7 @@ async function fetchRuntime(ref: ShapeRuntimeRef, signal?: AbortSignal): Promise
   if (blob.size !== ref.bytes) throw new Error("shape runtime size");
   const bytes = await blob.arrayBuffer();
   await verifyDigest(bytes, ref.sha256);
-  const runtime = parseShapeRuntime(bytes);
-  if (!matchesCatalog(runtime, ref)) throw new Error("shape runtime does not match catalog");
-  return runtime;
+  return parseShapeRuntime(bytes);
 }
 
 /**
@@ -52,12 +51,23 @@ async function fetchRuntime(ref: ShapeRuntimeRef, signal?: AbortSignal): Promise
  */
 export function useShapeRuntime(ref?: ShapeRuntimeRef | null) {
   const enabled = supportedRuntime(ref);
-  return useQuery({
-    queryKey: ["body", "shape-runtime", enabled ? ref.sha256 : null],
+  // Immutable bytes are shared, but each observer checks its current catalog binding,
+  // including cache hits and a preset/source change while this hook stays mounted.
+  const select = useCallback((runtime: AnyShapeRuntime) => {
+    if (!ref || !matchesCatalog(runtime, ref))
+      throw new Error("shape runtime does not match catalog");
+    return runtime;
+  }, [ref]);
+  const query = useQuery({
+    queryKey: ["body", "shape-runtime", enabled ? ref.sha256 : null, enabled ? ref.bytes : null],
     enabled,
     queryFn: ({ signal }) => fetchRuntime(ref!, signal),
+    select,
     retry: false,
     staleTime: Infinity,
     gcTime: 30 * 60 * 1000,
   });
+  // React Query retains the previous selected data on a select error. Never expose
+  // that previous body's mesh after the catalog has rejected it.
+  return { ...query, data: query.isError ? undefined : query.data };
 }
