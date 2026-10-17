@@ -22,6 +22,14 @@ vi.mock("../hooks/useAnalysisResult", () => ({
     selectedByPerson: {},
     selectedCount: 0,
     allSelected: false,
+    // 화면은 오류 안내보다 먼저 체형·인물 포함 상태를 읽는다(훅은 항상 이 값들을 준다).
+    bodies: { enabled: false, ready: true, entries: [] },
+    restoreOnly: false,
+    includedPeople: [],
+    pendingPeople: [],
+    excludedPeople: [],
+    setPersonIncluded: () => {},
+    confirmedSelections: [],
   }),
 }));
 vi.mock("../hooks/usePoseViewerShortcuts", () => ({ usePoseViewerShortcuts: () => {} }));

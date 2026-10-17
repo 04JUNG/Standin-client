@@ -11,6 +11,7 @@ import type {
   FallbackMode,
   MatchLevel,
   PersonConfidence,
+  PersonBox,
   PersonResult,
   PoseCandidate,
   PoseResultService,
@@ -65,6 +66,7 @@ type BffAnalysisResult = {
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
+    candidateRerun?: boolean;
   };
   candidatesByPerson: Array<{
     bodySelection?: unknown;
@@ -236,6 +238,14 @@ async function toPoseCandidate(
   };
 }
 
+/** 네 값이 모두 유한하고 넓이가 있는 상자만 받는다. 아니면 없는 것으로 본다. */
+export function readPersonBox(value: unknown): PersonBox | null {
+  if (!Array.isArray(value) || value.length !== 4) return null;
+  if (!value.every((v) => typeof v === "number" && Number.isFinite(v) && v >= 0)) return null;
+  const [x1, y1, x2, y2] = value as number[];
+  return x2 > x1 && y2 > y1 ? [x1, y1, x2, y2] : null;
+}
+
 async function toAnalysisResult(
   raw: BffAnalysisResult,
   signal: AbortSignal,
@@ -252,6 +262,7 @@ async function toAnalysisResult(
         bodyPreviewManifestUrl: person.bodyPreviewManifestUrl,
         outputScope: readOutputScope(person.outputScope),
         candidateShortfallReason: person.candidateShortfallReason ?? null,
+        box: readPersonBox(person.box),
         candidates: await Promise.all(
           person.candidates.map((candidate) =>
             toPoseCandidate(candidate, raw.jobId, person.personIndex, signal),
@@ -294,6 +305,7 @@ async function toAnalysisResult(
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
       modelPreview: raw.capabilities?.modelPreview === true,
+      candidateRerun: raw.capabilities?.candidateRerun === true,
     },
   };
 }

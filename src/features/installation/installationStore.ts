@@ -3,10 +3,15 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { apiFetch, setInstallationCredentials } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
 import { messageOf } from "@/shared/api/errors";
+import { env } from "@/shared/lib/env";
 import { installationStorage, type InstallationCredentials } from "./installationStorage";
 import { resetAnalyticsQueue } from "@/features/analytics/analyticsClient";
 
 export const CONSENT_VERSION = "2026-08-02";
+
+function mockInstallation() {
+  return env.useMockApi && !env.isProduction && import.meta.env.MODE !== "test";
+}
 
 type InstallationStatus = "initializing" | "consent_required" | "registered" | "error";
 
@@ -81,17 +86,21 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
     try {
       resetAnalyticsQueue();
       const environment = await getInstallationEnvironment();
-      const response = await apiFetch<InstallationCredentials>(endpoints.installations.register, {
-        method: "POST",
-        auth: false,
-        installation: false,
-        body: {
-          consentVersion: CONSENT_VERSION,
-          consentedAt: new Date().toISOString(),
-          ...environment,
-          locale: navigator.language || "unknown",
-        },
-      });
+      // 브라우저 Mock 개발 모드(`npm run dev`)에서는 BFF 없이도 앱을 끝까지 볼 수 있게
+      // 가짜 설치 자격증명을 쓴다. 테스트·배포 빌드에서는 언제나 실서버에 등록한다.
+      const response = mockInstallation()
+        ? { installationId: "mock-installation", deviceToken: "mock-device-token" }
+        : await apiFetch<InstallationCredentials>(endpoints.installations.register, {
+            method: "POST",
+            auth: false,
+            installation: false,
+            body: {
+              consentVersion: CONSENT_VERSION,
+              consentedAt: new Date().toISOString(),
+              ...environment,
+              locale: navigator.language || "unknown",
+            },
+          });
       const credentials = { ...response, consentVersion: CONSENT_VERSION };
       await installationStorage.set(credentials);
       setInstallationCredentials(credentials);

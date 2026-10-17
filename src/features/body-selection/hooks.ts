@@ -20,7 +20,14 @@ export function useBodyOwner() {
   return useInstallationStore((s) => s.credentials?.installationId ?? "");
 }
 export const bodyEnabled = (result?: AnalysisResult) => result?.capabilities?.bodyPreviews === true;
-export function useBodies(result: AnalysisResult | undefined) {
+/**
+ * `excluded`: people the user will not export. Their previews may still load, but they
+ * never hold back the confirm button.
+ */
+export function useBodies(
+  result: AnalysisResult | undefined,
+  excluded: Readonly<Record<number, unknown>> = {},
+) {
   const owner = useBodyOwner(),
     job = result?.jobId ?? "";
   const qc = useQueryClient();
@@ -92,7 +99,12 @@ export function useBodies(result: AnalysisResult | undefined) {
   return {
     enabled,
     entries,
-    ready: !enabled || (!!owner && !pending && entries.length > 0 && entries.every((e) => e.ready)),
+    ready:
+      !enabled ||
+      (!!owner &&
+        !pending &&
+        entries.length > 0 &&
+        entries.every((e) => e.personIndex in excluded || e.ready)),
   };
 }
 export type BodyEntry = ReturnType<typeof useBodies>["entries"][number];

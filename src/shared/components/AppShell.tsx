@@ -36,7 +36,8 @@ const navItems: NavItem[] = [
   // 아이콘은 PersonStanding이 아니라 UserRound다. 사이드바의 나머지(집·시계·톱니)가
   // 상자를 채우는 둥근 도형인데 PersonStanding은 획이 가늘고 여백이 많아 혼자 떠 보였다.
   // 전신 실루엣이 필요한 자리는 미리보기 플레이스홀더이고, 거기는 PersonStanding 그대로다.
-  { to: "/app/models", label: "모델", icon: UserRound },
+  // 체형 커스텀(/app/models/custom…)도 이 항목의 하위 화면이다.
+  { to: "/app/models", label: "체형 커스텀", icon: UserRound },
   // end를 켜지 않으면 라이브 분석 중(/app/jobs/<uuid>)에도 "작업 기록"이 활성으로 보인다.
   { to: "/app/jobs", label: "작업 기록", icon: History, end: true },
   { to: "/app/settings", label: "설정", icon: Settings },
@@ -111,7 +112,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         )}
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-topbar items-center justify-between border-b border-border bg-surface-0 px-6">
           <h1 className="text-[16px] font-bold text-text-primary">{title}</h1>
           <div className="flex items-center gap-3">

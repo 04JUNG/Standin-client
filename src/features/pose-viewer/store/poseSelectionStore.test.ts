@@ -39,3 +39,39 @@ describe("poseSelectionStore.restoreSelections", () => {
     expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({ 0: "cand-3" });
   });
 });
+
+describe("poseSelectionStore 내보내기", () => {
+  beforeEach(() => {
+    usePoseSelectionStore.setState({
+      jobId: "job-x",
+      serverJobId: "server-x",
+      selectedByPerson: {},
+      refineByPerson: {},
+      excludedPeople: {},
+    });
+  });
+
+  it("끄면 선택과 조정본을 빼고, 다시 켜면 고른 후보를 되살린다", () => {
+    const store = usePoseSelectionStore.getState();
+    store.selectCandidate(0, "pose-a");
+    store.setPersonIncluded(0, false);
+    let state = usePoseSelectionStore.getState();
+    expect(state.selectedByPerson).toEqual({});
+    expect(state.excludedPeople).toEqual({ 0: "pose-a" });
+
+    // 끈 동안에는 고를 수 없다(단축키·늦은 클릭).
+    state.selectCandidate(0, "pose-b");
+    expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({});
+
+    usePoseSelectionStore.getState().setPersonIncluded(0, true);
+    state = usePoseSelectionStore.getState();
+    expect(state.selectedByPerson).toEqual({ 0: "pose-a" });
+    expect(state.excludedPeople).toEqual({});
+  });
+
+  it("새 작업을 열면 끈 인물 목록도 비운다", () => {
+    usePoseSelectionStore.getState().setPersonIncluded(1, false);
+    usePoseSelectionStore.getState().setJobId("job-y");
+    expect(usePoseSelectionStore.getState().excludedPeople).toEqual({});
+  });
+});
