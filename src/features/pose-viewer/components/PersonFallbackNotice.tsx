@@ -1,3 +1,4 @@
+import { PosePresentationPanel } from "./PosePresentationPanel";
 import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { PersonResult } from "../api/pose.contract";
@@ -24,13 +25,19 @@ const NOTICE: Record<"soft" | "hard", { text: string; tone: "warn" | "info" }> =
 type PersonFallbackNoticeProps = {
   person: Pick<
     PersonResult,
-    "fallbackMode" | "candidateShortfallReason" | "coverageClass" | "routedSearch"
+    | "fallbackMode"
+    | "candidateShortfallReason"
+    | "coverageClass"
+    | "routedSearch"
+    | "posePresentation"
   >;
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
 };
 
 export function PersonFallbackNotice({ person, compact = false }: PersonFallbackNoticeProps) {
+  if (person.posePresentation)
+    return <PosePresentationPanel presentation={person.posePresentation} compact={compact} />;
   if (person.routedSearch) {
     const r = person.routedSearch;
     const route =

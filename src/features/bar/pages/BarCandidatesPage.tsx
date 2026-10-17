@@ -326,67 +326,71 @@ export function BarCandidatesPage() {
                     entry={bodies.entries.find((e) => e.personIndex === person.index)}
                   />
                 )}
-                <PersonFallbackNotice person={person} compact />
+                <div className="min-h-0 overflow-y-auto">
+                  <PersonFallbackNotice person={person} compact />
+                </div>
                 {/* 후보 칸: [원본 | 후보]. 원본과 포즈를 나란히 놓고 비교한다. */}
                 {/* 3×2: 원본이 첫 칸, 후보 5개가 나머지 칸. 모든 칸이 같은 크기·비율이라
                     원본과 포즈를 같은 눈높이로 비교하고, 빈 칸이나 홀로 남는 줄이 없다. */}
                 {/* 후보 칸: [원본 | 후보 3 + 2]. 카드는 모두 같은 비율·크기이고 아래 두 장은
                     가운데에 둔다. 창이 커져도 카드가 찌그러지지 않는다(FitTile). */}
-                <div className="grid min-h-0 flex-1 grid-cols-[minmax(180px,26%)_minmax(0,1fr)] gap-2">
-                  <RoughPanel
-                    url={roughUrl}
-                    people={people}
-                    person={person}
-                    excluded={excludedPeople}
-                    onPick={(index) => {
-                      const target = people.find((p) => p.index === index);
-                      if (target) goToPerson(target);
-                    }}
-                  />
-                  {person.fallbackMode === "hard" ? (
-                    <div className="flex items-center justify-center px-3">
-                      <PersonFallbackNotice person={person} compact />
-                    </div>
-                  ) : (
-                    <div className="relative min-h-0">
-                      <div
-                        className={cn(
-                          "grid h-full min-h-0 grid-cols-6 grid-rows-2 gap-1.5",
-                          !included && "pointer-events-none opacity-40 grayscale",
-                        )}
-                      >
-                        {person.candidates.map((candidate, i) => (
-                          <FitTile key={candidate.id} className={candidateSpan(i)}>
-                            {bodies.enabled ? (
-                              <BodyCandidateCard
-                                candidate={candidate}
-                                entry={bodies.entries.find((e) => e.personIndex === person.index)}
-                                selected={selectedByPerson[person.index]}
-                                onSelect={(id) => selectCandidate(person.index, id)}
-                                disabled={!included}
-                              />
-                            ) : (
-                              <PoseCandidateCard
-                                candidate={candidate}
-                                characterId={characterByPerson[person.index] ?? jobCharacterId}
-                                isSelected={candidate.id === selectedByPerson[person.index]}
-                                onSelect={() => selectCandidate(person.index, candidate.id)}
-                                layout="fill"
-                                disabled={!included}
-                              />
-                            )}
-                          </FitTile>
-                        ))}
+                {!person.posePresentation && (
+                  <div className="grid min-h-0 flex-1 grid-cols-[minmax(180px,26%)_minmax(0,1fr)] gap-2">
+                    <RoughPanel
+                      url={roughUrl}
+                      people={people}
+                      person={person}
+                      excluded={excludedPeople}
+                      onPick={(index) => {
+                        const target = people.find((p) => p.index === index);
+                        if (target) goToPerson(target);
+                      }}
+                    />
+                    {person.fallbackMode === "hard" ? (
+                      <div className="flex items-center justify-center px-3">
+                        <PersonFallbackNotice person={person} compact />
                       </div>
-                      {!included && (
-                        <ExcludedOverlay
-                          compact
-                          onInclude={() => setPersonIncluded(person.index, true)}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className="relative min-h-0">
+                        <div
+                          className={cn(
+                            "grid h-full min-h-0 grid-cols-6 grid-rows-2 gap-1.5",
+                            !included && "pointer-events-none opacity-40 grayscale",
+                          )}
+                        >
+                          {person.candidates.map((candidate, i) => (
+                            <FitTile key={candidate.id} className={candidateSpan(i)}>
+                              {bodies.enabled ? (
+                                <BodyCandidateCard
+                                  candidate={candidate}
+                                  entry={bodies.entries.find((e) => e.personIndex === person.index)}
+                                  selected={selectedByPerson[person.index]}
+                                  onSelect={(id) => selectCandidate(person.index, id)}
+                                  disabled={!included}
+                                />
+                              ) : (
+                                <PoseCandidateCard
+                                  candidate={candidate}
+                                  characterId={characterByPerson[person.index] ?? jobCharacterId}
+                                  isSelected={candidate.id === selectedByPerson[person.index]}
+                                  onSelect={() => selectCandidate(person.index, candidate.id)}
+                                  layout="fill"
+                                  disabled={!included}
+                                />
+                              )}
+                            </FitTile>
+                          ))}
+                        </div>
+                        {!included && (
+                          <ExcludedOverlay
+                            compact
+                            onInclude={() => setPersonIncluded(person.index, true)}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </>

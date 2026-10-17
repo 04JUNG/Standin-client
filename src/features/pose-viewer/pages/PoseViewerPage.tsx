@@ -419,7 +419,7 @@ function ActivePersonCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          {!hard && (
+          {!hard && !person.posePresentation && (
             <ExportSwitch personIndex={person.index} included={included} onChange={onIncluded} />
           )}
           <span className="text-[13px] font-semibold text-text-primary">
@@ -428,17 +428,20 @@ function ActivePersonCard({
           {/* 인물마다 다른 체형이 필요할 수 있다(ADR-013 개정). 고르지 않으면
               이 작업의 기본 체형으로 저장된다. */}
           {!hard &&
+            !person.posePresentation &&
             (bodiesEnabled ? <BodyChip job={jobId} person={person} entry={entry} /> : modelSelect)}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[12px] text-text-secondary">
-            {hard
-              ? "후보 없음"
-              : !included
-                ? "선택 안 함"
-                : selectedCandidate
-                  ? `선택됨: ${selectedCandidate.title}`
-                  : "후보를 선택하세요"}
+            {person.posePresentation
+              ? "검수용 3D 미리보기"
+              : hard
+                ? "후보 없음"
+                : !included
+                  ? "선택 안 함"
+                  : selectedCandidate
+                    ? `선택됨: ${selectedCandidate.title}`
+                    : "후보를 선택하세요"}
           </span>
           {onRerun && !expanded && !hard && (
             <Button variant="secondary" size="sm" onClick={onRerun} disabled={!included}>
@@ -461,7 +464,7 @@ function ActivePersonCard({
           {bodiesEnabled && !hard && <BodyRenderStatus entry={entry} />}
           {/* soft·hard fallback 안내. */}
           <PersonFallbackNotice person={person} />
-          {!hard && (
+          {!hard && !person.posePresentation && (
             <div className="grid grid-cols-[190px_minmax(0,1fr)] gap-3">
               <RoughPanel
                 url={roughUrl}
@@ -558,7 +561,9 @@ function OtherPersonRow({
         !first && "border-t border-surface-2 hover:border-transparent",
       )}
     >
-      {hard ? (
+      {person.posePresentation ? (
+        <span className="text-xs">검수용 3D</span>
+      ) : hard ? (
         <span className="text-[11.5px] text-text-secondary">후보 없음</span>
       ) : (
         <ExportSwitch personIndex={person.index} included={included} onChange={onIncluded} />
@@ -579,13 +584,15 @@ function OtherPersonRow({
         {bodiesEnabled && !hard && <BodyLabel job={jobId} person={person} entry={entry} />}
       </div>
       <span className="truncate text-[12px] text-text-secondary">
-        {hard
-          ? "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
-          : !included
-            ? "선택 안 함"
-            : selectedTitle
-              ? `고름: ${selectedTitle}`
-              : "포즈를 아직 안 골랐어요"}
+        {person.posePresentation
+          ? "표시용 결과 펼치기"
+          : hard
+            ? "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
+            : !included
+              ? "선택 안 함"
+              : selectedTitle
+                ? `고름: ${selectedTitle}`
+                : "포즈를 아직 안 골랐어요"}
       </span>
       <ChevronRight
         aria-hidden

@@ -76,6 +76,7 @@ type BffAnalysisResult = {
     candidateRerun?: boolean;
   };
   candidatesByPerson: Array<{
+    posePresentation?: import("./posePresentation").PosePresentation;
     routedSearch?: RoutedSearch;
     bodySelection?: unknown;
     bodyPreviewManifestUrl?: string;
@@ -266,6 +267,7 @@ async function toAnalysisResult(
       return {
         // 서버 personIndex를 그대로 쓴다. 화면에서 탐지 순서로 다시 번호를 매기지 않는다.
         index: person.personIndex,
+        posePresentation: person.posePresentation,
         routedSearch: person.routedSearch,
         bodySelection: selectionSchema.safeParse(person.bodySelection).success
           ? selectionSchema.parse(person.bodySelection)
@@ -289,7 +291,8 @@ async function toAnalysisResult(
           person.candidates.length,
         ),
         // 허용은 명시적일 때만. 구 BFF 응답에서는 refine을 걸지 않는다.
-        refineAllowed: !person.routedSearch && person.refineAllowed === true,
+        refineAllowed:
+          !person.posePresentation && !person.routedSearch && person.refineAllowed === true,
         refinableLimbs: person.refinableLimbs ?? [],
       } satisfies PersonResult;
     }),
