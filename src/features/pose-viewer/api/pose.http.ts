@@ -37,7 +37,14 @@ type JobStatusResponse = CreateJobResponse & {
 
 import { validRotation } from "../preview/modelContract";
 
-type BffCandidate = {
+import {
+  readCandidatePolicy,
+  reviewOnly,
+  type CandidatePolicy,
+  type RoutedSearch,
+} from "./routedSearch";
+
+type BffCandidate = CandidatePolicy & {
   id: string;
   poseId: string;
   rank: number;
@@ -69,6 +76,7 @@ type BffAnalysisResult = {
     candidateRerun?: boolean;
   };
   candidatesByPerson: Array<{
+    routedSearch?: RoutedSearch;
     bodySelection?: unknown;
     bodyPreviewManifestUrl?: string;
     personIndex: number;
@@ -208,6 +216,7 @@ async function toPoseCandidate(
   const deferred = raw.camera?.version === "candidate-camera-v1" && !!raw.thumbnailUrl;
   const thumbnailUrl = deferred ? "" : await loadThumbnail(raw.thumbnailUrl, signal);
   return {
+    ...readCandidatePolicy(raw),
     id: raw.id,
     poseId: raw.poseId,
     rank: raw.rank,
@@ -231,10 +240,11 @@ async function toPoseCandidate(
       : {}),
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
-    bvhAvailable: raw.bvhAvailable,
-    bvhUrl: raw.bvhAvailable
-      ? endpoints.poseCandidates.export(raw.poseId, jobId, personIndex, raw.id)
-      : undefined,
+    bvhAvailable: !reviewOnly(raw) && raw.bvhAvailable,
+    bvhUrl:
+      !reviewOnly(raw) && raw.bvhAvailable
+        ? endpoints.poseCandidates.export(raw.poseId, jobId, personIndex, raw.id)
+        : undefined,
   };
 }
 
@@ -256,6 +266,7 @@ async function toAnalysisResult(
       return {
         // 서버 personIndex를 그대로 쓴다. 화면에서 탐지 순서로 다시 번호를 매기지 않는다.
         index: person.personIndex,
+        routedSearch: person.routedSearch,
         bodySelection: selectionSchema.safeParse(person.bodySelection).success
           ? selectionSchema.parse(person.bodySelection)
           : undefined,
@@ -278,7 +289,7 @@ async function toAnalysisResult(
           person.candidates.length,
         ),
         // 허용은 명시적일 때만. 구 BFF 응답에서는 refine을 걸지 않는다.
-        refineAllowed: person.refineAllowed === true,
+        refineAllowed: !person.routedSearch && person.refineAllowed === true,
         refinableLimbs: person.refinableLimbs ?? [],
       } satisfies PersonResult;
     }),

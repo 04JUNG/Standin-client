@@ -225,3 +225,31 @@ it("body-only review revisits reuse the same refined BVH", async () => {
   unmount();
   usePoseSelectionStore.getState().clearSelection();
 });
+
+it("review-only candidates never call refine even when person permission is stale", async () => {
+  refineSelection.mockClear();
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    refineByPerson: {},
+    selectedByPerson: { 0: "dynamic::pose" },
+  });
+  const { result } = renderHook(() =>
+    useRefineSelection(
+      analysis([
+        person({
+          index: 0,
+          refineAllowed: true,
+          candidates: [
+            {
+              id: "dynamic::pose",
+              source: "dynamic",
+              releaseAllowed: false,
+            } as PersonResult["candidates"][number],
+          ],
+        }),
+      ]),
+    ),
+  );
+  await waitFor(() => expect(result.current.status).toBe("done"));
+  expect(refineSelection).not.toHaveBeenCalled();
+});

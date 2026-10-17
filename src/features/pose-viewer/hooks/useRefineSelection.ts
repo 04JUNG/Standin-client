@@ -1,3 +1,4 @@
+import { reviewOnly } from "../api/routedSearch";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useExportStore } from "@/features/export/store/exportStore";
 import { modelRenderingAvailable } from "../preview/modelSupport";
@@ -39,7 +40,12 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
       ? result.people.flatMap((person) => {
           const candidateId = picks[person.index];
           // 저신뢰(soft) 인물은 후보를 고르고 베이스로 저장할 수 있지만 refine은 금지다.
-          if (!candidateId || !person.refineAllowed) return [];
+          if (
+            !candidateId ||
+            !person.refineAllowed ||
+            reviewOnly(person.candidates.find((c) => c.id === candidateId))
+          )
+            return [];
           const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
           if (
             result.capabilities.bodyPreviews &&

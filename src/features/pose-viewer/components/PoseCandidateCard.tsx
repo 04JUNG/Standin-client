@@ -1,3 +1,4 @@
+import { reviewOnly } from "../api/routedSearch";
 import { useQuery } from "@tanstack/react-query";
 import {
   candidateThumbnailOptions,
@@ -123,7 +124,7 @@ export function PoseCandidateCard({
             )}
           >
             {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
-            {MATCH_LABEL[candidate.matchLevel]}
+            {reviewOnly(candidate) ? "검수용 · 보정·저장 불가" : MATCH_LABEL[candidate.matchLevel]}
           </span>
           {!fill &&
             candidate.tags.map((tag) => (

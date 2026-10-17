@@ -29,6 +29,61 @@ describe("poseHttp", () => {
     __resetAnalysisJobs();
   });
 
+  it("preserves routed results but refuses refined/export URLs despite contradictory legacy permissions", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        jobId: "job_saved",
+        notes: [],
+        candidatesByPerson: [
+          {
+            personIndex: 0,
+            box: null,
+            tags: {},
+            confidence: "low",
+            fallbackMode: "soft",
+            refineAllowed: true,
+            routedSearch: {
+              version: "fullbody-dynamic-v1",
+              route: "hybrid",
+              status: "ok",
+              nearCandidateCount: 2,
+            },
+            candidates: [
+              {
+                id: "dynamic::pose",
+                poseId: "pose",
+                rank: 1,
+                view: "front",
+                tags: [],
+                matchLevel: "low",
+                source: "dynamic",
+                rankScore: 0.01,
+                releaseAllowed: true,
+                refineAllowed: true,
+                bvhAvailable: true,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const result = await poseHttp.loadResult({ jobId: "job_saved" });
+    expect(result.people[0].routedSearch).toMatchObject({
+      route: "hybrid",
+      status: "ok",
+      nearCandidateCount: 2,
+    });
+    expect(result.people[0].refineAllowed).toBe(false);
+    expect(result.people[0].candidates[0]).toMatchObject({
+      source: "dynamic",
+      releaseAllowed: false,
+      refineAllowed: false,
+      rankScore: 0.01,
+      bvhAvailable: false,
+    });
+    expect(result.people[0].candidates[0].bvhUrl).toBeUndefined();
+  });
+
   it("camera rendering does not block an already completed analysis result", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
@@ -507,13 +562,19 @@ describe("poseHttp", () => {
     ["ANALYSIS_UPSTREAM_ERROR", "UPSTREAM_ERROR", "일시적인 오류"],
   ])("Job 실패 %s의 원인을 유지한다", async (error, code, message) => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse({ jobId: "failed-job", status: "queued", createdAt: "now" }, 202))
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "failed-job", status: "queued", createdAt: "now" }, 202),
+      )
       .mockResolvedValueOnce(jsonResponse({ jobId: "failed-job", status: "failed", error }));
-    await expect(poseHttp.analyze({
-      jobId: "client-route-job",
-      file: new File(["image"], "rough.png", { type: "image/png" }),
-      source: "file", width: 1, height: 1,
-    })).rejects.toMatchObject({ code, message: expect.stringContaining(message) });
+    await expect(
+      poseHttp.analyze({
+        jobId: "client-route-job",
+        file: new File(["image"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 1,
+        height: 1,
+      }),
+    ).rejects.toMatchObject({ code, message: expect.stringContaining(message) });
     expect(fetchMock).toHaveBeenCalledTimes(2); // 자동 재분석 호출 없음
   });
 

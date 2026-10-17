@@ -422,4 +422,33 @@ describe("작업 기록 재진입", () => {
     expect(loadResult).not.toHaveBeenCalled();
     expect(result.current.restoreOnly).toBe(false);
   });
+  it("review-only candidates can be compared but cannot advance to save", async () => {
+    const { usePoseSelectionStore } = await import("../store/poseSelectionStore");
+    usePoseSelectionStore.setState({
+      selectedByPerson: {},
+      refineByPerson: {},
+      excludedPeople: {},
+    });
+    loadResult.mockResolvedValue({
+      jobId: "server-job-review",
+      capabilities: {},
+      people: [
+        {
+          index: 0,
+          candidates: [
+            { id: "dynamic::pose", poseId: "pose", source: "dynamic", releaseAllowed: false },
+          ],
+          fallbackMode: "soft",
+          confidence: "low",
+          refineAllowed: false,
+        },
+      ],
+    });
+    const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
+    await waitFor(() => expect(result.current.people).toHaveLength(1));
+    result.current.selectCandidate(0, "dynamic::pose");
+    await waitFor(() => expect(result.current.selectedCount).toBe(1));
+    expect(result.current.allSelected).toBe(false);
+    expect(result.current.selectablePeople).toHaveLength(1);
+  });
 });
