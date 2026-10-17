@@ -21,6 +21,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  // Lazy BVH previews must not trigger dependency re-optimization and a page
+  // reload that clears the in-memory upload while its analysis completes.
+  optimizeDeps: {
+    include: ["three", "three/addons/loaders/BVHLoader.js"],
+  },
   // 컴포넌트 테스트가 있어 기본 환경을 jsdom으로 둔다. 순수 함수 테스트도 그대로 돈다.
   test: {
     environment: "jsdom",
