@@ -1,3 +1,4 @@
+import { PosePresentationPanel } from "./PosePresentationPanel";
 import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { PersonResult } from "../api/pose.contract";
@@ -22,12 +23,79 @@ const NOTICE: Record<"soft" | "hard", { text: string; tone: "warn" | "info" }> =
 };
 
 type PersonFallbackNoticeProps = {
-  person: Pick<PersonResult, "fallbackMode" | "candidateShortfallReason" | "coverageClass">;
+  person: Pick<
+    PersonResult,
+    | "fallbackMode"
+    | "candidateShortfallReason"
+    | "coverageClass"
+    | "routedSearch"
+    | "posePresentation"
+  >;
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
 };
 
 export function PersonFallbackNotice({ person, compact = false }: PersonFallbackNoticeProps) {
+  if (person.posePresentation)
+    return <PosePresentationPanel presentation={person.posePresentation} compact={compact} />;
+  if (person.routedSearch) {
+    const r = person.routedSearch;
+    const route =
+      (
+        {
+          hybrid: "기하·의미 통합 검색",
+          geometric: "기하 검색",
+          semantic: "의미 검색",
+          basic_model: "기본 인체 구도",
+        } as Record<string, string>
+      )[r.route] ?? "검색 경로 판정";
+    const status =
+      (
+        {
+          ok: "검색 완료",
+          no_result: "일치 후보 없음",
+          error: "검색 오류",
+          partial_error: "일부 검색 오류",
+          blocked: "검색 제한",
+          undetermined: "판정 보류",
+          not_run: "검색 생략",
+        } as Record<string, string>
+      )[r.status] ?? "판정 보류";
+    return (
+      <div
+        role="status"
+        className={cn(
+          "rounded-lg bg-surface-2 px-2 py-1.5 text-text-secondary",
+          compact ? "text-[11px]" : "text-[12px]",
+        )}
+      >
+        <p>
+          {route} · {status}
+        </p>
+        <p>
+          {r.basicModel
+            ? "기본 인체 구도 참고이며 포즈 검색 결과가 아닙니다."
+            : "검수용 후보입니다. 자동 보정과 파일 저장은 지원하지 않습니다. 이미지는 정면 참고이며 검색 시점과 다를 수 있습니다."}
+        </p>
+        {r.nearCandidateCount > 0 && (
+          <p>세부 조건이 다른 근접 참고 {r.nearCandidateCount}개 · 정식 후보에서 제외</p>
+        )}
+        {r.framingReferenceCount > 0 && (
+          <p>구도 참고 {r.framingReferenceCount}개 · 포즈 후보와 별도</p>
+        )}
+        {r.generationStatus && (
+          <p>
+            별도 생성 검수:{" "}
+            {r.generationStatus === "preview_ready"
+              ? `미리보기 후보 ${r.generatedCandidateCount}개 (저장 불가)`
+              : r.generationStatus === "rejected"
+                ? "검증 미통과"
+                : "생성 결과 없음"}
+          </p>
+        )}
+      </div>
+    );
+  }
   if (person.fallbackMode === "none") return null;
 
   const { text, tone } = NOTICE[person.fallbackMode];

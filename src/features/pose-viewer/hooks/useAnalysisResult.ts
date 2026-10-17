@@ -1,3 +1,4 @@
+import { canRelease } from "../api/routedSearch";
 import { useBodies } from "@/features/body-selection/hooks";
 import { useEffect, useMemo, useRef } from "react";
 import { useIsMutating, useQuery } from "@tanstack/react-query";
@@ -116,8 +117,15 @@ export function useAnalysisResult(jobId: string | undefined) {
   const selectedCount = includedPeople.length - pendingPeople.length;
   const isSavingScope = useIsMutating({ mutationKey: ["output-scope", query.data?.jobId] }) > 0;
   const bodies = useBodies(query.data, excludedPeople);
+  const releaseReady = includedPeople.every((p) =>
+    canRelease(p.candidates.find((c) => c.id === selectedByPerson[p.index])),
+  );
   const allSelected =
-    bodies.ready && !isSavingScope && includedPeople.length > 0 && pendingPeople.length === 0;
+    releaseReady &&
+    bodies.ready &&
+    !isSavingScope &&
+    includedPeople.length > 0 &&
+    pendingPeople.length === 0;
   /** 확정 요청. 켠 인물의 선택만 싣는다(서버는 이 목록으로 확정 집합을 대체한다). */
   const confirmedSelections = includedPeople.flatMap((p) =>
     selectedByPerson[p.index]

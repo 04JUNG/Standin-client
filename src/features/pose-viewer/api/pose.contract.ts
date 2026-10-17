@@ -8,7 +8,7 @@ import type { UpstreamAnalysisCode } from "@/shared/api/analysisJobFailure";
 
 export type MatchLevel = "high" | "medium" | "low";
 
-export type PoseCandidate = {
+export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
   id: string;
   poseId: string;
   rank: number;
@@ -47,6 +47,8 @@ export type FallbackMode = "none" | "soft" | "hard";
 
 /** 검출된 인물 한 명과 그 인물의 포즈 후보들. index는 실 서버 people[].index를 그대로 따른다. */
 export type PersonResult = {
+  posePresentation?: import("./posePresentation").PosePresentation;
+  routedSearch?: import("./routedSearch").RoutedSearch;
   bodySelection?: import("@/features/body-selection/contract").BodySelection;
   bodyPreviewManifestUrl?: string;
   outputScope?: OutputScope;

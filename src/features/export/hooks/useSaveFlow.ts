@@ -1,3 +1,4 @@
+import { canRelease } from "@/features/pose-viewer/api/routedSearch";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { bodyKeys } from "@/features/body-selection/api";
 import { downloadBodyReview, type BodyReview } from "@/features/body-selection/review";
@@ -312,6 +313,7 @@ export function useSaveFlow(jobId: string | undefined) {
             if (!candidate) {
               throw new Error("선택한 포즈를 분석 결과에서 찾지 못했습니다.");
             }
+            if (!canRelease(candidate)) throw new Error("검수용 후보는 파일로 저장할 수 없습니다.");
             // 조정 결과가 있으면 BFF가 확정한 URL이 최종이다. 확인 화면이 보여 준 것과
             // 같은 URL이어야 "본 것과 저장된 것이 다르다"가 생기지 않는다.
             // 어느 쪽이든 BFF 경로다 — 추론 서버의 /refined/{handle}는 그 태스크의 로컬

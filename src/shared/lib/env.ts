@@ -2,7 +2,7 @@
  * 환경변수 단일 접근점. 하드코딩된 서버 URL 금지(CLAUDE.md §10).
  * import.meta.env 값은 빌드 타임에 주입된다.
  */
-type AppEnv = "development" | "production" | "test";
+type AppEnv = "development" | "staging" | "production" | "test";
 
 function readBool(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) return fallback;
