@@ -443,7 +443,7 @@ function ActivePersonCard({
                     ? `선택됨: ${selectedCandidate.title}`
                     : "후보를 선택하세요"}
           </span>
-          {onRerun && !expanded && !hard && (
+          {onRerun && !expanded && !hard && !person.posePresentation && (
             <Button variant="secondary" size="sm" onClick={onRerun} disabled={!included}>
               <RotateCw className="h-3.5 w-3.5" aria-hidden />
               후보 다시 찾기

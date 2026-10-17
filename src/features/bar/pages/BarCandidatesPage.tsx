@@ -274,11 +274,15 @@ export function BarCandidatesPage() {
                   </div>
                 ) : (
                   <span className="text-[11px] font-semibold text-text-secondary">
-                    {selectedByPerson[person.index] ? "선택됨" : "후보를 선택하세요"}
+                    {person.posePresentation
+                      ? "검수용 3D 미리보기"
+                      : selectedByPerson[person.index]
+                        ? "선택됨"
+                        : "후보를 선택하세요"}
                   </span>
                 )}
                 {/* 후보가 없는 인물(hard)은 원래 내보낼 것이 없다. 스위치를 두지 않는다. */}
-                {selectable && (
+                {selectable && !person.posePresentation && (
                   <ExportSwitch
                     personIndex={person.index}
                     included={included}
@@ -291,6 +295,7 @@ export function BarCandidatesPage() {
                   ⚠ 후보가 없는 인물(hard fallback)에는 띄우지 않는다 — 저장될 포즈가
                   없는데 체형을 고르게 하면 고른 것이 어디에도 쓰이지 않는다. */}
               {selectable &&
+                !person.posePresentation &&
                 (bodies.enabled ? (
                   <BodyChip
                     job={data.jobId}

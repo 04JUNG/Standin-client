@@ -76,7 +76,15 @@ export function bvhGeometry(text: string, scope: string | null, c: RenderCamera,
     (scope === "head" && /neck|head/.test(name));
   const points = new Map<THREE.Bone, THREE.Vector3>();
   for (const b of bones) {
-    if (!visible(key(b.name))) continue;
+    // End sites inherit their branch; a cropped leg must not leave floating foot dots.
+    let excludedBranch = false;
+    if (scope === "half")
+      for (let ancestor: THREE.Object3D | null = b; ancestor; ancestor = ancestor.parent) {
+        if (/upleg|hip$|leg|foot|toe/.test(key(ancestor.name))) excludedBranch = true;
+      }
+    const name = key(b.name);
+    const inScope = name === "endsite" ? visible(key(b.parent?.name ?? "")) : visible(name);
+    if (excludedBranch || !inScope) continue;
     const p = b
       .getWorldPosition(new THREE.Vector3())
       .sub(hip)

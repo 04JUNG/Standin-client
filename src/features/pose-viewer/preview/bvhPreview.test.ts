@@ -54,3 +54,8 @@ it("scope filtering never invents missing geometry or a default full body", () =
     bvhGeometry(syntheticBvh(), "full", { ...camera, bvh_camera_rotation_applied: true } as never),
   ).toThrow();
 });
+
+it("half scope removes end sites belonging to cropped leg branches", () => {
+  const half = bvhGeometry(syntheticBvh(), "half", camera);
+  expect(half.points.every((p) => Math.abs(p.x) !== 0.25)).toBe(true);
+});
