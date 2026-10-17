@@ -1,5 +1,19 @@
 # FastAPI 연동 계약 초안
 
+## 동적 검색 조회 전용 후보 (2026-10-17)
+
+`candidatesByPerson[].routedSearch`는 route/status/reason, 근접·구도 참고 개수, 별도 생성 검수 상태,
+기본 인체 여부를 보존합니다. `candidates[].source=dynamic|semantic`인 후보는 `rankScore`를 가지며
+기하 `distance`로 변환하지 않습니다. `lookupAllowed=true`, `refineAllowed=false`,
+`releaseAllowed=false`, `actualMeshValidated=false`, `reviewRequired=true`, `bvhAvailable=false`입니다.
+`searchCamera`는 검색 카메라 메타데이터이며 기존 정렬 렌더 camera 계약과 구별합니다.
+
+`GET /v1/pose-candidates/:id/lookup-thumbnail?jobId=...&personIndex=...&candidateId=...`는
+소유권·후보 ID·포즈를 검증한 정면 참고 이미지를 제공합니다. 검색 시점의 정렬 렌더라고 표시하지 않습니다.
+해당 후보의 refine은 409 `CANDIDATE_REFINE_FORBIDDEN`, BVH/FBX/framed FBX 저장은
+409 `CANDIDATE_RELEASE_FORBIDDEN`으로 거부합니다. 생성·근접·구도·기본 인체 결과는 정식 후보로 합치지 않습니다.
+상세는 [동적 검색 연결](ROUTED_SEARCH_INTEGRATION.md)을 참조합니다.
+
 카메라 후보의 `quickThumbnailUrl`은 이미 렌더된 JPEG를 가리키는 선택 필드다.
 후보 카드에서 빠른 근사 시점으로만 쓰고, `thumbnailUrl`과 저장 전 확인 계약은
 기존처럼 최종 결과를 검증한다. 필드가 없는 구 BFF는 기존 카드 로딩 경로를 쓴다.
