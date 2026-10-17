@@ -1,3 +1,4 @@
+import { ReferenceHands } from "@/features/hand-selection/ReferenceHands";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
   BodyCandidateCards,
@@ -187,6 +188,22 @@ export function PoseViewerPage() {
     );
   }
 
+  if (data.source === "semantic") return (
+    <AppShell title="문장 검색 결과">
+      <div className="flex flex-col gap-4 p-4">
+        <section className="rounded-xl border border-border bg-surface-0 p-4">
+          <h2 className="text-sm font-semibold">검색 문장</h2>
+          <p className="whitespace-pre-wrap break-words">{data.semantic?.query}</p>
+          <Button variant="ghost" onClick={() => navigate("/app/search", {state:{query:data.semantic?.query}})}>문장 바꿔 검색하기</Button>
+        </section>
+        {data.people.map(person => <div key={person.index} className="flex flex-col gap-3">
+          <PersonFallbackNotice person={person}/>
+          <ReferenceHands result={data} personIndex={person.index}/>
+        </div>)}
+      </div>
+    </AppShell>
+  );
+
   const roughUrl = draft?.previewUrl ?? data.inputPreviewUrl;
   const pick = (index: number) => setActiveIndex(index);
   const progressText =
@@ -281,6 +298,8 @@ export function PoseViewerPage() {
             characterId={characterByPerson[active.index] ?? jobCharacterId}
           />
         )}
+
+        {active?.posePresentation && <ReferenceHands result={data} personIndex={active.index}/>}
 
         {people.length > 1 && (
           <div className="rounded-xl border border-border bg-surface-0 px-4 py-1.5">

@@ -36,7 +36,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
     if (!result) return;
 
     // 서버가 refine을 노출하지 않으면 클라이언트는 호출하지 않는다(OPS-02).
-    const targets = result.capabilities.refine
+    const targets = result.source !== "semantic" && result.capabilities.refine
       ? result.people.flatMap((person) => {
           const candidateId = picks[person.index];
           // 저신뢰(soft) 인물은 후보를 고르고 베이스로 저장할 수 있지만 refine은 금지다.

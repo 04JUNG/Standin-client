@@ -1,3 +1,5 @@
+import { handReviewFromResponse, type HandReview } from "@/features/hand-selection/api";
+import type { HandSelection } from "@/features/hand-selection/contract";
 import { apiFetchResponse } from "@/shared/api/client";
 import type { BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { framedExportUrl } from "@/features/export/lib/framedExport";
@@ -5,6 +7,7 @@ import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { sha, type BodySelection } from "./contract";
 import { verifyDigest } from "./api";
 export type BodyReview = {
+  hands?: HandReview;
   previewUrl: string;
   downloadUrl: string;
   exportUrl: string;
@@ -23,6 +26,7 @@ export async function loadBodyReview(
   scope: BodyScope,
   selection: BodySelection,
   signal: AbortSignal,
+  hands?: HandSelection,
 ): Promise<BodyReview> {
   if (selection.resolutionStatus !== "ready" || !selection.resolvedBody)
     throw new Error("체형을 다시 선택해 주세요.");
@@ -35,7 +39,8 @@ export async function loadBodyReview(
   )
     throw new Error("확인할 인물과 포즈가 일치하지 않습니다.");
   const base = framedExportUrl(exportUrl, scope, "preview", null);
-  const url = base + "&bodySelectionRevision=" + selection.selectionRevision;
+  const handQuery = hands ? "&handSelectionRevision=" + hands.revision : "";
+  const url = base + "&bodySelectionRevision=" + selection.selectionRevision + handQuery;
   const res = await apiFetchResponse(url, { auth: false, signal });
   const reviewKey = sha.parse(res.headers.get("X-Standin-Review-Key"));
   const artifactSha256 = sha.parse(res.headers.get("X-Standin-Artifact-SHA256"));
@@ -51,8 +56,10 @@ export async function loadBodyReview(
     "&bodySelectionRevision=" +
     selection.selectionRevision +
     "&reviewKey=" +
-    reviewKey;
+    reviewKey +
+    handQuery;
   return {
+    ...(hands ? { hands: handReviewFromResponse(res, hands, downloadUrl) } : {}),
     previewUrl: await blobToDataUrl(blob),
     downloadUrl,
     exportUrl,
@@ -67,6 +74,9 @@ export async function loadBodyReview(
 export async function downloadBodyReview(receipt: BodyReview) {
   const res = await apiFetchResponse(receipt.downloadUrl, { auth: false });
   if (
+    (receipt.hands &&
+      (res.headers.get("X-Standin-Hand-Revision") !== String(receipt.hands.revision) ||
+        res.headers.get("X-Standin-Hand-Library-SHA256") !== receipt.hands.librarySha256)) ||
     res.headers.get("X-Standin-Review-Key") !== receipt.reviewKey ||
     res.headers.get("X-Standin-Artifact-SHA256") !== receipt.artifactSha256 ||
     res.headers.get("X-Standin-Body-Revision") !== String(receipt.selection.selectionRevision) ||

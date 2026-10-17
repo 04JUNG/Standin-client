@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { useRef } from "react";
 import { AlertCircle, Camera, Loader2, Upload } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -26,6 +28,7 @@ const RECOVERY_BUTTON = cn(
 );
 
 export function BarActionsPage() {
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const { acceptFile, error, isProcessing } = useImageInput({ origin: "bar" });
   const captureStatus = useCaptureStore((s) => s.status);
@@ -66,6 +69,12 @@ export function BarActionsPage() {
           />
         </div>
 
+        <BarAction
+          icon={Search}
+          label="문장으로 찾기"
+          disabled={busy}
+          onClick={() => navigate("/app/search")}
+        />
         {message && (
           <div role="alert" className="flex items-start gap-1 px-1 text-[11px] text-brand-coral">
             <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />

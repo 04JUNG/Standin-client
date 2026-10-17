@@ -1,4 +1,6 @@
 import { canRelease } from "@/features/pose-viewer/api/routedSearch";
+import { handKeys, downloadHandReview, type HandReview } from "@/features/hand-selection/api";
+import type { HandSelection } from "@/features/hand-selection/contract";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { bodyKeys } from "@/features/body-selection/api";
 import { downloadBodyReview, type BodyReview } from "@/features/body-selection/review";
@@ -236,8 +238,17 @@ export function useSaveFlow(jobId: string | undefined) {
   // 파일 이름은 beginJob이 비울 수 있으므로 마운트 1회가 아니라 비어 있을 때마다 채운다.
   // 확장자는 실제 저장 포맷을 따른다 — 설정에서 포맷을 바꾸면 다음 기본 이름부터 반영된다.
   useEffect(() => {
-    if (!fileName) setFileName(defaultFileName(draft?.originalName, effectiveFormat));
-  }, [fileName, draft, effectiveFormat, setFileName]);
+    if (!fileName)
+      setFileName(
+        defaultFileName(
+          queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.source ===
+            "semantic"
+            ? "문장검색.png"
+            : draft?.originalName,
+          effectiveFormat,
+        ),
+      );
+  }, [fileName, draft, effectiveFormat, setFileName, queryClient, jobId]);
 
   // 최신 값을 자동 저장 effect에서 읽되, effect가 값 변화마다 재실행되지는 않게 한다.
   const latest = useRef({
@@ -320,10 +331,16 @@ export function useSaveFlow(jobId: string | undefined) {
             // 디스크라 태스크가 교체되면 사라진다(FE-05).
             const outcome = refineByPerson[personIndex];
             const currentOutcome =
-              outcome?.jobId === analysisResult.jobId && outcome.candidateId === candidateId
+              analysisResult.source !== "semantic" &&
+              outcome?.jobId === analysisResult.jobId &&
+              outcome.candidateId === candidateId
                 ? outcome
                 : undefined;
             const exportUrl = currentOutcome?.exportUrl ?? candidate.bvhUrl;
+            const handOwner = useInstallationStore.getState().credentials?.installationId ?? "";
+            const handSelection = qc.getQueryData<HandSelection>(
+              handKeys.selection(handOwner, analysisResult.jobId, personIndex),
+            );
             let content: Uint8Array;
             if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
               if (options.forceDefaultCharacter)
@@ -346,12 +363,46 @@ export function useSaveFlow(jobId: string | undefined) {
                     r.exportUrl === exportUrl &&
                     r.scope === scope &&
                     r.selection.selectionRevision === body?.selectionRevision &&
-                    r.selection.resolvedBody?.assetSha256 === body?.resolvedBody?.assetSha256,
+                    r.selection.resolvedBody?.assetSha256 === body?.resolvedBody?.assetSha256 &&
+                    (!analysisResult.capabilities.handSelection ||
+                      (!!handSelection &&
+                        r.hands?.revision === handSelection.revision &&
+                        r.hands.librarySha256 === handSelection.library_sha256)),
                 );
               if (!owner || !receipt || body?.resolutionStatus !== "ready")
                 throw new Error("저장 전 확인 화면에서 현재 체형의 결과를 확인해 주세요.");
               content = await downloadBodyReview(receipt);
               bodyNames.add(receipt.selection.resolvedBody!.characterId);
+            } else if (analysisResult.capabilities.handSelection && format === "fbx") {
+              const scope = readOutputScope(
+                analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
+              ).resolved;
+              const receipts = qc.getQueriesData<{ handReceipt?: HandReview }>({
+                queryKey: ["framed-preview", handOwner],
+              });
+              const receipt = receipts
+                .map(([, data]) => data?.handReceipt)
+                .find((r) => {
+                  if (
+                    !r ||
+                    !handSelection ||
+                    r.revision !== handSelection.revision ||
+                    r.librarySha256 !== handSelection.library_sha256
+                  )
+                    return false;
+                  const params = new URL(r.downloadUrl, "https://standin.invalid").searchParams;
+                  return (
+                    params.get("jobId") === analysisResult.jobId &&
+                    params.get("personIndex") === String(personIndex) &&
+                    params.get("candidateId") === candidateId &&
+                    params.get("outputScope") === scope &&
+                    params.get("characterId") ===
+                      (characterFor(personIndex) ?? catalog?.defaultCharacterId)
+                  );
+                });
+              if (!receipt)
+                throw new Error("저장 전 확인 화면에서 현재 손의 결과를 확인해 주세요.");
+              content = await downloadHandReview(receipt);
             } else {
               content = await resolvePoseBytes(
                 exportUrl,

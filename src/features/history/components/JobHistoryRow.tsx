@@ -1,4 +1,4 @@
-import { ImageOff, Trash2, Users } from "lucide-react";
+import { ImageOff, Search, Trash2, Users } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { JobHistoryItem } from "../api/history.contract";
 import { useAuthedImage } from "../hooks/useAuthedImage";
@@ -41,14 +41,14 @@ export function JobHistoryRow({ item, onOpen, onRequestDelete, isDeleting }: Job
         )}
       >
         {thumbnail ? (
-          <img
-            src={thumbnail}
-            alt=""
-            className="h-16 w-16 shrink-0 rounded-lg object-cover"
-          />
+          <img src={thumbnail} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
         ) : (
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-text-secondary">
-            <ImageOff className="h-5 w-5" aria-hidden />
+            {item.source === "semantic" ? (
+              <Search className="h-5 w-5" aria-hidden />
+            ) : (
+              <ImageOff className="h-5 w-5" aria-hidden />
+            )}
           </div>
         )}
 
@@ -61,7 +61,8 @@ export function JobHistoryRow({ item, onOpen, onRequestDelete, isDeleting }: Job
           </div>
 
           <div className="flex items-center gap-3 text-[12px] text-text-secondary">
-            {item.personCount > 0 && (
+            {item.source === "semantic" && <span>문장 검색</span>}
+            {item.source !== "semantic" && item.personCount > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" aria-hidden />
                 인물 {item.personCount}명

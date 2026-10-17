@@ -793,3 +793,12 @@ BVH 본문과 내부 경로는 공개 결과 JSON에 포함하지 않는다. 기
 full/half/shoulder_head/head 범위를 적용하며 카메라 또는 범위가 유효하지 않으면 표시 실패를 알린다.
 미리보기에서 좌우 회전과 기준 시점 복원이 가능하다. 관절 기반 뷰어이며 실제 체형 메시의 피부 안전 인증이나 보정·저장 기능은 제공하지 않는다.
 기본 인체 계획은 미렌더 상태로 표시한다. 제공된 비공개 BVH/JSON은 Git에 올리지 않는다.
+
+## 손 라이브러리·직접 문장 검색 통합 (2026-10-18)
+
+GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people/:index/hands를 사용한다.
+직접 검색은 GET /v1/semantic-search/capabilities와 POST /v1/semantic-search {query,topK?}이며,
+신규 후보는 조회 전용이다. BFF semantic-pose-presentation-v1은 정식/근접 후보를 분리하고
+명시적 정면 참고 카메라와 인증된 BVH preview URL을 제공한다. 구형 #87 내보내기 계약으로 해석하지 않는다.
+손 reference PNG는 기존 preview URL + /hands?revision=N이다. PNG-only/손 revision/library 헤더를 확인하고
+권한을 승격하지 않는다. 자세한 현재 흐름은 HANDS_SEMANTIC_INTEGRATION.md를 따른다.

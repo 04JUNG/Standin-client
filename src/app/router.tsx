@@ -1,3 +1,5 @@
+import { HandLibraryPage } from "@/features/hand-selection/HandLibraryPage";
+import { SearchPage } from "@/features/semantic-search/SearchPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { HomePage } from "@/features/home/pages/HomePage";
 import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
@@ -30,10 +32,19 @@ export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
+      {path:"/app/hands",element:<RequireInstallation><HandLibraryPage/></RequireInstallation>},
       { path: "/", element: <Navigate to="/app/home" replace /> },
       { path: "/auth/login", element: <Navigate to="/app/home" replace /> },
       { path: "/auth/callback", element: <Navigate to="/app/home" replace /> },
       { path: "/beta-consent", element: <BetaConsentPage /> },
+      {
+        path: "/app/search",
+        element: (
+          <RequireInstallation>
+            <SearchPage />
+          </RequireInstallation>
+        ),
+      },
       {
         path: "/app/home",
         element: (
