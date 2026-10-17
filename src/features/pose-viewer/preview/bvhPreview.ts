@@ -27,9 +27,18 @@ export function bvhGeometry(text: string, scope: string | null, c: RenderCamera,
     throw Error("미리보기 카메라 규약을 확인하지 못했습니다.");
   const result = new BVHLoader().parse(text);
   const root = result.skeleton.bones[0];
-  const mixer = new THREE.AnimationMixer(root);
-  mixer.clipAction(result.clip).play();
-  mixer.setTime(0);
+  // Preview frame zero directly. AnimationMixer treats ':' in Mixamo bone names
+  // as binding syntax and silently leaves those bones in their offset pose.
+  const byName = new Map(result.skeleton.bones.map((bone) => [bone.name, bone]));
+  for (const track of result.clip.tracks) {
+    const separator = track.name.lastIndexOf(".");
+    const bone = byName.get(track.name.slice(0, separator));
+    const property = track.name.slice(separator + 1);
+    if (!bone || !track.times.length) throw Error("BVH 프레임 관절을 확인하지 못했습니다.");
+    if (property === "position") bone.position.fromArray(track.values, 0);
+    else if (property === "quaternion") bone.quaternion.fromArray(track.values, 0);
+    else throw Error("지원하지 않는 BVH 프레임입니다.");
+  }
   root.updateMatrixWorld(true);
   const bones = result.skeleton.bones;
   const find = (...names: string[]) =>
@@ -99,8 +108,6 @@ export function bvhGeometry(text: string, scope: string | null, c: RenderCamera,
     const parent = points.get(b.parent as THREE.Bone);
     if (parent && p.distanceTo(parent) > 1e-6) links.push([parent, p]);
   }
-  mixer.stopAllAction();
-  mixer.uncacheRoot(root);
   if (!links.length) throw Error("표시할 관절이 없습니다.");
   return { points: [...points.values()], links };
 }

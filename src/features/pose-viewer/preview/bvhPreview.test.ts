@@ -59,3 +59,18 @@ it("half scope removes end sites belonging to cropped leg branches", () => {
   const half = bvhGeometry(syntheticBvh(), "half", camera);
   expect(half.points.every((p) => Math.abs(p.x) !== 0.25)).toBe(true);
 });
+
+it("preserves frame-zero rotations for namespaced Mixamo joints", () => {
+  const rest = syntheticBvh();
+  const values = Array(21).fill(0);
+  values[3] = 35; // root Z rotation
+  values[12] = 70; // LeftArm Z rotation
+  const posed = rest.replace(Array(21).fill(0).join(" "), values.join(" "));
+  const namespaced = posed.replace(/(ROOT|JOINT) (\w+)/g, "$1 mixamorig:$2");
+  const coordinates = (text: string) =>
+    bvhGeometry(text, "full", camera).points.map((p) => p.toArray());
+  expect(coordinates(namespaced)).toEqual(coordinates(posed));
+  expect(coordinates(posed)).not.toEqual(coordinates(rest));
+  // The arm end site moves under the nonzero joint rotation, too.
+  expect(coordinates(namespaced)[6][0]).not.toBeCloseTo(coordinates(rest)[6][0]);
+});
