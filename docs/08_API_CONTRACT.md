@@ -802,3 +802,12 @@ GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people
 명시적 정면 참고 카메라와 인증된 BVH preview URL을 제공한다. 구형 #87 내보내기 계약으로 해석하지 않는다.
 손 reference PNG는 기존 preview URL + /hands?revision=N이다. PNG-only/손 revision/library 헤더를 확인하고
 권한을 승격하지 않는다. 자세한 현재 흐름은 HANDS_SEMANTIC_INTEGRATION.md를 따른다.
+
+### 자연어 검색 고정 남성 모델 조회
+
+`GET {preview_bvh_url}/model` — semantic-pose-presentation-v1의 full 검색/근접 후보에 한정한다.
+설치 인증을 유지하며 다른 설치의 작업은 404다. query는 허용하지 않는다(체형/format 지정 불가).
+200은 model/gltf-binary이며 X-Standin-Preview-Only=true, Character-Id, Model-Version,
+Source-BVH-SHA256, Character-SHA256, Model-Revision, Artifact-SHA256 헤더(X-Standin- prefix)를 검증한다.
+기본 남성 standin-master-v2의 posed-mesh-v1 또는 framed-mesh-v1만 표시한다.
+기존 export/refine API에 대한 허용을 의미하지 않는다. bodyPreviews/characterSelection capability를 열지 않는다.

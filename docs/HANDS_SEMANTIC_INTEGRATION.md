@@ -13,3 +13,13 @@
 
 세부 계약: HAND_SELECTION_UI.md, SEMANTIC_SEARCH_UI.md, BFF HAND_SELECTION_INTEGRATION.md.
 로컬 fixture 테스트, 실제 staging API 연결 브라우저 검증, 설치파일 CI 빌드는 구분해 기록한다.
+
+## 자연어 검색 기본 남성 표면 (후속)
+
+문장 검색 결과의 검색·근접 후보는 기본 남성 메쉬를 카드와 회전 가능한 확대 화면에 표시한다.
+`preview_bvh_url + /model`은 설치 인증·소유권·후보/BVH 해시를 확인하는 조회 전용 GLB다.
+원본·캐릭터·모델 revision·응답 SHA-256과 GLB 내부 메타데이터를 검사한 후 기존 Three.js 표면 렌더러로 표시한다.
+모델 오류는 오류와 재시도로 표시하며 뼈대만 표시하고 성공으로 처리하지 않는다. 이미지 기반 동적 검색 뷰어는 유지한다.
+카드가 동시에 나타나도 모델 요청은 순차 처리하며 취소된 요청은 시작하지 않는다.
+기본 남성/기본 손 고정이다. 손 선택은 별도 손 적용 참고 렌더에 반영된다. 체형 선택은 후속 범위다.
+신규 후보의 자동 적용·refine·export·release 및 actualMeshValidated=false는 유지한다.
