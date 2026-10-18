@@ -125,6 +125,11 @@ export function BarCandidatesPage() {
               {p.posePresentation ? (
                 <SemanticModelPresentation
                   presentation={p.posePresentation}
+                  bodyContext={
+                    data.capabilities.semanticBodySelection
+                      ? { jobId: data.jobId, person: p }
+                      : undefined
+                  }
                   bodyPreviewJob={
                     data.capabilities.presentationBodyPreviews ? data.jobId : undefined
                   }

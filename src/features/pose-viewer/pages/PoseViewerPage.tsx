@@ -208,6 +208,11 @@ export function PoseViewerPage() {
               {person.posePresentation ? (
                 <SemanticModelPresentation
                   presentation={person.posePresentation}
+                  bodyContext={
+                    data.capabilities.semanticBodySelection
+                      ? { jobId: data.jobId, person: person }
+                      : undefined
+                  }
                   bodyPreviewJob={
                     data.capabilities.presentationBodyPreviews ? data.jobId : undefined
                   }

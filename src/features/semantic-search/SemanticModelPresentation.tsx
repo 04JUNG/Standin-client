@@ -1,5 +1,11 @@
+import { BodyChip, BodyExpand } from "@/features/body-selection/BodyCandidates";
+import { useBodyControls, type BodyEntry } from "@/features/body-selection/hooks";
+import { bodyKeys, getSelection } from "@/features/body-selection/api";
+import { useBodyPanel } from "@/features/body-selection/bodyPanel";
+import type { BodySelection } from "@/features/body-selection/contract";
+import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { loadSemanticModel } from "./modelPreview";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { PosePresentationPanel } from "@/features/pose-viewer/components/PosePresentationPanel";
@@ -11,29 +17,49 @@ import type {
 } from "@/features/pose-viewer/api/posePresentation";
 import { Modal } from "@/shared/components/Modal";
 
-function Surface({ model }: { model: ReviewModel }) {
+function Surface({ model, label = "기본 남성" }: { model: ReviewModel; label?: string }) {
   const [failed, setFailed] = useState(false);
   return (
     <div>
       <ReviewModelPreview
         model={model}
-        label="기본 남성 모델 3D 미리보기"
+        label={`${label} 모델 3D 미리보기`}
         className="max-h-[58vh]"
         onStatus={(s) => setFailed(s === "failed")}
       />
       {failed && (
-        <p role="alert">기본 남성 모델을 표시하지 못했습니다. 미리보기를 다시 불러와 주세요.</p>
+        <p role="alert">체형 모델을 표시하지 못했습니다. 미리보기를 다시 불러와 주세요.</p>
       )}
     </div>
   );
 }
-function Candidate({ candidate }: { candidate: PreviewCandidate }) {
+function Candidate({
+  candidate,
+  selection,
+  waitForBody = false,
+  label = "기본 남성",
+  refreshSelection,
+}: {
+  candidate: PreviewCandidate;
+  refreshSelection?: () => Promise<unknown>;
+  selection?: BodySelection;
+  waitForBody?: boolean;
+  label?: string;
+}) {
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const [open, setOpen] = useState(false),
     [turn, setTurn] = useState(0);
   const q = useQuery({
-    queryKey: ["semantic-male-model", owner, candidate.asset.preview_bvh_url],
-    queryFn: ({ signal }) => loadSemanticModel(candidate, signal),
+    queryKey: [
+      "semantic-body-model",
+      owner,
+      candidate.asset.preview_bvh_url,
+      selection?.selectionRevision,
+      selection?.resolvedBody,
+      selection?.shape?.shapeSha256,
+    ],
+    enabled: !waitForBody,
+    queryFn: ({ signal }) => loadSemanticModel(candidate, signal, selection),
     retry: false,
     staleTime: 300_000,
     gcTime: 60_000,
@@ -43,35 +69,43 @@ function Candidate({ candidate }: { candidate: PreviewCandidate }) {
       className="rounded-lg border border-border bg-surface-0 p-2"
       data-semantic-model={candidate.candidate_id}
     >
-      {q.data ? (
-        <Surface key={q.data.modelRevision + String(q.data.data.byteLength)} model={q.data} />
+      {!waitForBody && q.data ? (
+        <Surface
+          key={q.data.modelRevision + String(q.data.data.byteLength)}
+          model={q.data}
+          label={label}
+        />
       ) : (
         <p
           className="flex aspect-square items-center justify-center text-xs"
-          role={q.error ? "alert" : "status"}
+          role={!waitForBody && q.error ? "alert" : "status"}
         >
-          {q.error ? "기본 남성 모델을 불러오지 못했습니다." : "기본 남성 모델 준비 중…"}
+          {!waitForBody && q.error
+            ? "체형 모델을 불러오지 못했습니다."
+            : "선택한 체형 모델 준비 중…"}
         </p>
       )}
       <p className="text-xs">
-        {candidate.rank}. {candidate.kind === "library_match" ? "검색 후보" : "근접 참고"} · 기본
-        남성
+        {candidate.rank}. {candidate.kind === "library_match" ? "검색 후보" : "근접 참고"} · {label}
       </p>
       <button
         className="text-xs underline"
-        disabled={!q.data}
+        disabled={waitForBody || !q.data}
         onClick={() => {
           setTurn(0);
           setOpen(true);
         }}
-        aria-label={`${candidate.rank}번 기본 남성 모델 확대`}
+        aria-label={`${candidate.rank}번 ${label} 모델 확대`}
       >
         3D 확대
       </button>
       <button
         className="ml-3 text-xs underline"
-        disabled={q.isFetching}
-        onClick={() => void q.refetch()}
+        disabled={waitForBody || q.isFetching}
+        onClick={() => {
+          if (refreshSelection) void refreshSelection().then(() => q.refetch());
+          else void q.refetch();
+        }}
       >
         미리보기 다시 불러오기
       </button>
@@ -79,32 +113,108 @@ function Candidate({ candidate }: { candidate: PreviewCandidate }) {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="기본 남성 모델 3D 미리보기"
+        title={`${label} 모델 3D 미리보기`}
         width="lg"
       >
-        {q.data && <Surface key={turn} model={{ ...q.data, turnDegrees: turn }} />}
+        {!waitForBody && q.data && (
+          <Surface key={turn} model={{ ...q.data, turnDegrees: turn }} label={label} />
+        )}
         <div className="flex gap-3">
           <button onClick={() => setTurn((v) => v - 15)}>왼쪽 회전</button>
           <button onClick={() => setTurn(0)}>정면</button>
           <button onClick={() => setTurn((v) => v + 15)}>오른쪽 회전</button>
         </div>
         <p className="text-xs">
-          기본 남성 체형·기본 손의 참고 모델입니다. 자동 적용·refine·내보내기는 지원하지 않습니다.
-          손 선택 결과는 아래 손 적용 참고 렌더에서 확인하세요.
+          {label}·기본 손의 참고 모델입니다. 자동 적용·refine·내보내기는 지원하지 않습니다. 손 선택
+          결과는 아래 손 적용 참고 렌더에서 확인하세요.
         </p>
       </Modal>
     </article>
   );
 }
+function SelectedBodyPresentation({
+  presentation,
+  compact,
+  context,
+}: {
+  presentation: PosePresentation;
+  compact: boolean;
+  context: { jobId: string; person: PersonResult };
+}) {
+  const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
+  const { jobId, person } = context;
+  const state = useQuery({
+    queryKey: bodyKeys.selection(owner, jobId, person.index),
+    queryFn: ({ signal }) => getSelection(jobId, person.index, signal),
+    enabled: !!owner,
+    retry: false,
+    staleTime: 0,
+  });
+  const pending = useIsMutating({ mutationKey: ["body-change", owner, jobId] }) > 0;
+  const { options } = useBodyControls(jobId, person, state.data);
+  const ready =
+    !pending &&
+    !state.isFetching &&
+    state.data?.resolutionStatus === "ready" &&
+    !!state.data.resolvedBody;
+  const label =
+    options.data?.characters.find((c) => c.characterId === state.data?.resolvedBody?.characterId)
+      ?.displayName ?? "선택한 체형";
+  const panel = useBodyPanel(jobId, person.index);
+  const entry: BodyEntry = {
+    personIndex: person.index,
+    selection: state.data,
+    group: undefined,
+    ready,
+    error: state.error,
+    retry: async () => {
+      await state.refetch();
+    },
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <BodyChip job={jobId} person={person} entry={entry} />
+      {panel.open && (
+        <BodyExpand job={jobId} person={person} entry={entry} variant={compact ? "bar" : "app"} />
+      )}
+      {state.error && (
+        <p role="alert">
+          체형 선택을 불러오지 못했습니다.{" "}
+          <button onClick={() => void state.refetch()}>다시 시도</button>
+        </p>
+      )}
+      {!state.isFetching && state.data && state.data.resolutionStatus !== "ready" && (
+        <p role="status">미리보기에 사용할 체형을 선택해 주세요.</p>
+      )}
+      <PosePresentationPanel
+        presentation={presentation}
+        compact={compact}
+        renderCandidate={(c) => (
+          <Candidate candidate={c} selection={state.data} waitForBody={!ready} label={label} />
+        )}
+      />
+    </div>
+  );
+}
 export function SemanticModelPresentation({
   presentation,
   compact = false,
+  bodyContext,
   bodyPreviewJob,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
   bodyPreviewJob?: string;
+  bodyContext?: { jobId: string; person: PersonResult };
 }) {
+  if (bodyContext)
+    return (
+      <SelectedBodyPresentation
+        presentation={presentation}
+        compact={compact}
+        context={bodyContext}
+      />
+    );
   return (
     <PosePresentationPanel
       presentation={presentation}

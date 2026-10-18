@@ -75,6 +75,7 @@ type BffAnalysisResult = {
     characterSelection?: boolean;
     bodyPreviews?: boolean;
     presentationBodyPreviews?: boolean;
+    semanticBodySelection?: boolean;
     bodyPreviewAssets?: boolean;
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
@@ -337,6 +338,7 @@ async function toAnalysisResult(
     capabilities: {
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
+      semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,
       bodyPreviews: !semantic && raw.capabilities?.bodyPreviews === true,
       bodyPreviewAssets: !semantic && raw.capabilities?.bodyPreviewAssets === true,
       refine: !semantic && raw.capabilities?.refine === true,
