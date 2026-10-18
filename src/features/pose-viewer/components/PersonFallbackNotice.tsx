@@ -1,3 +1,4 @@
+import { previewScope } from "../api/outputScope";
 import { PosePresentationPanel } from "./PosePresentationPanel";
 import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -30,7 +31,7 @@ type PersonFallbackNoticeProps = {
     | "coverageClass"
     | "routedSearch"
     | "posePresentation"
-  > & { candidates?: PersonResult["candidates"] };
+  > & { candidates?: PersonResult["candidates"]; outputScope?: PersonResult["outputScope"] };
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
   bodyPreviewJob?: string;
@@ -44,7 +45,7 @@ export function PersonFallbackNotice({
   if (person.posePresentation)
     return (
       <PosePresentationPanel
-        presentation={person.posePresentation}
+        presentation={{ ...person.posePresentation, output_scope: previewScope(person) }}
         compact={compact}
         selectableLibrary={person.candidates?.some(
           (c) => c.source === "library" && c.releaseAllowed === true,

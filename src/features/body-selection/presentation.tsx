@@ -16,6 +16,7 @@ export async function renderPresentationBody(
   candidate: PreviewCandidate,
   selection: BodySelection,
   signal: AbortSignal,
+  scope?: string | null,
 ) {
   const prefix = personPath(job, selection.personIndex) + "/pose-previews/";
   const url = prefix + candidate.candidate_id + "/" + candidate.asset.bvh_sha256;
@@ -26,6 +27,7 @@ export async function renderPresentationBody(
     signal,
   });
   const expected = {
+    ...(scope && response.headers.has("X-Standin-Output-Scope") ? { "Output-Scope": scope } : {}),
     "Body-Revision": String(selection.selectionRevision),
     "Character-SHA256": selection.resolvedBody.assetSha256,
     "Shape-SHA256": selection.shape?.shapeSha256 ?? "none",
@@ -94,6 +96,7 @@ export function usePresentationBody(job: string, presentation: PosePresentation)
             candidate,
             selection.data!,
             signal,
+            presentation.output_scope,
           );
         } catch (error) {
           signal.throwIfAborted();

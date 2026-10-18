@@ -5,6 +5,8 @@ export type CandidateModel = {
   sourceSha: string;
   characterSha256?: string;
   modelRevision?: string;
+  scope?: string;
+  version?: "posed-mesh-v1" | "framed-mesh-v1";
 };
 export function validRotation(value: unknown): value is number[][] {
   if (
@@ -38,8 +40,10 @@ export function validateModel(
   scopeOrExpected: string | CandidateModel = "full",
   version = "posed-mesh-v1",
 ) {
-  const scope = typeof scopeOrExpected === "string" ? scopeOrExpected : "full";
+  const scope =
+    typeof scopeOrExpected === "string" ? scopeOrExpected : (scopeOrExpected.scope ?? "full");
   const expected = typeof scopeOrExpected === "string" ? undefined : scopeOrExpected;
+  version = expected?.version ?? version;
   if (data.byteLength < 28 || data.byteLength > 8 * 1024 * 1024) throw new Error("model size");
   const v = new DataView(data);
   if (
@@ -57,6 +61,9 @@ export function validateModel(
     (expected?.characterSha256 !== undefined &&
       meta?.character_sha256 !== expected.characterSha256) ||
     (expected?.modelRevision !== undefined && meta?.revision !== expected.modelRevision) ||
+    (expected &&
+      version === "framed-mesh-v1" &&
+      JSON.stringify(meta?.camera_rotation) !== JSON.stringify(expected.rotation)) ||
     meta?.version !== version ||
     (sourceSha !== undefined && meta.source_bvh_sha256 !== sourceSha) ||
     !/^[a-f0-9]{64}$/.test(meta.source_bvh_sha256) ||
