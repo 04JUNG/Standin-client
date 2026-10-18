@@ -223,3 +223,15 @@ it("uses persisted body selection, hides the previous surface while changing and
   expect(state.selection?.selectionRevision).toBe(1);
   expect(screen.queryByRole("button", { name: "저장" })).toBeNull();
 });
+
+it("a cached ready teen selection shows retirement guidance without requesting a model", async () => {
+  state.selection = {
+    ...state.selection!,
+    manualCharacterId: "body-teen-male",
+    resolvedBody: { ...state.selection!.resolvedBody!, characterId: "body-teen-male" },
+  };
+  show();
+  expect(await screen.findByText(/이 체형은 지원이 종료/)).toBeTruthy();
+  expect(screen.getByText("지원 종료 체형")).toBeTruthy();
+  expect(loadSemanticModel).not.toHaveBeenCalled();
+});

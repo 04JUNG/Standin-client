@@ -45,14 +45,32 @@ describe("modelsHttp.list", () => {
     __resetApiClient();
   });
 
-  it("excludes six retired fixed adult bodies even if an older server still lists them", async () => {
-    const ids = ["body-female-athletic", "body-female-base", "body-female-muscular", "body-male-athletic", "body-male-base", "body-male-muscular", "female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"];
-    fetchMock.mockResolvedValue(jsonResponse({
-      characters: ids.map((characterId) => serverCharacter({ characterId })),
-      defaultCharacterId: "body-female-base",
-    }));
+  it("excludes retired adult and teen bodies even if an older server still lists them", async () => {
+    const ids = [
+      "body-female-athletic",
+      "body-female-base",
+      "body-female-muscular",
+      "body-male-athletic",
+      "body-male-base",
+      "body-male-muscular",
+      "female-base-v0-3-4",
+      "male-base-v0-7-2",
+      "body-teen-male",
+      "body-teen-female",
+      "body-child",
+    ];
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        characters: ids.map((characterId) => serverCharacter({ characterId })),
+        defaultCharacterId: "body-female-base",
+      }),
+    );
     const catalog = await modelsHttp.list({});
-    expect(catalog.characters.map((c) => c.characterId)).toEqual(["female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"]);
+    expect(catalog.characters.map((c) => c.characterId)).toEqual([
+      "female-base-v0-3-4",
+      "male-base-v0-7-2",
+      "body-child",
+    ]);
     expect(catalog.defaultCharacterId).toBe("female-base-v0-3-4");
   });
 
