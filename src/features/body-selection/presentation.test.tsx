@@ -139,3 +139,36 @@ it("hides the previous body immediately and ignores its late response after revi
   unmount();
   qc.clear();
 });
+it("keeps verified Top-5 body images when a generated reference cannot render", async () => {
+  useInstallationStore.setState({
+    credentials: { installationId: "owner", deviceToken: "token", consentVersion: "test" },
+  });
+  vi.mocked(getSelection).mockResolvedValue(selection);
+  vi.mocked(apiFetchResponse)
+    .mockImplementationOnce(() => response())
+    .mockRejectedValueOnce(Error("generated render failed"));
+  const reference = {
+    ...candidate,
+    candidate_id: "preview_" + "e".repeat(64),
+    asset: {
+      ...candidate.asset,
+      preview_bvh_url: candidate.asset.preview_bvh_url.replace(
+        "preview_" + "a".repeat(64),
+        "preview_" + "e".repeat(64),
+      ),
+    },
+  };
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client: qc }, children);
+  const { result, unmount } = renderHook(
+    () => usePresentationBody("job", { ...p, generated_candidates: [reference] }),
+    { wrapper },
+  );
+  await waitFor(() => expect(result.current.entry.error).toBeTruthy());
+  expect(result.current.images?.[candidate.candidate_id]).toMatch(/^data:image\/png;base64,/);
+  expect(result.current.images?.[reference.candidate_id]).toBeUndefined();
+  expect(apiFetchResponse).toHaveBeenCalledTimes(2);
+  unmount();
+  qc.clear();
+});

@@ -180,7 +180,8 @@ BFF는 공개 body-preferences GET/PUT에도 후보 bodyPreviews와 같은 활�
 후보의 소유권 검증된 `preview_bvh_url` 뒤에 `/body/{selectionRevision}`를 붙여 PNG를 요청한다.
 캐릭터·수치를 URL로 덮어쓰지 않는다. 응답의 체형/수치/원본 BVH/이미지 해시와 revision,
 `Preview-Only=true`, `Preview-Projection=orthographic`를 확인한다. 후보 그룹을 순서대로 렌더링하고
-완성된 동일 체형 그룹만 표시한다. 체형 변경·저장 중에는 이전 체형 이미지를 숨긴다.
+같은 선택으로 검증된 이미지만 표시한다. 참고·생성 후보의 렌더 실패는 정상 Top-5를 가리지 않으며,
+stale 선택·인증 실패는 그룹 전체를 폐기한다. 체형 변경·저장 중에는 이전 체형 이미지를 숨긴다.
 
 체형 참고 이미지는 정사영이며 검색 카메라와 동일하다고 표시하지 않는다. 기존 BVH 관절
 3D 보기를 열어 검색 카메라·사용자 회전을 확인할 수 있다. 조회 전용 후보의 저장·보정·자동

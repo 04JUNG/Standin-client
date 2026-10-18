@@ -1,5 +1,6 @@
 /** Preview-only poses share the persisted body/shape choice; they never enter export state. */
 import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@/shared/api/errors";
 import { apiFetchResponse } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import type {
@@ -83,23 +84,32 @@ export function usePresentationBody(job: string, presentation: PosePresentation)
       selection.data.previewOnly === true,
     queryFn: async ({ signal }) => {
       const images: Record<string, string> = {};
+      const failed: string[] = [];
       // Converter has one render slot: serialize the group and commit only a consistent body.
       for (const candidate of candidates) {
         signal.throwIfAborted();
-        images[candidate.candidate_id] = await renderPresentationBody(
-          job,
-          candidate,
-          selection.data!,
-          signal,
-        );
+        try {
+          images[candidate.candidate_id] = await renderPresentationBody(
+            job,
+            candidate,
+            selection.data!,
+            signal,
+          );
+        } catch (error) {
+          signal.throwIfAborted();
+          // A stale selection or auth loss invalidates the entire group. A failed reference
+          // candidate must not hide successfully verified Top-5 poses of the same body.
+          if (error instanceof ApiError && [401, 403, 409].includes(error.status)) throw error;
+          failed.push(candidate.candidate_id);
+        }
       }
-      return images;
+      return { images, failed };
     },
     retry: false,
     staleTime: 600_000,
     gcTime: 600_000,
   });
-  const ready =
+  const stable =
     !pending &&
     !selection.isFetching &&
     selection.isSuccess &&
@@ -109,10 +119,13 @@ export function usePresentationBody(job: string, presentation: PosePresentation)
     personIndex: index,
     selection: selection.data,
     group: undefined,
-    ready,
+    ready: stable && pictures.data.failed.length === 0,
     error:
       selection.error ??
       pictures.error ??
+      (stable && pictures.data.failed.length
+        ? Error("일부 포즈의 체형 미리보기를 준비하지 못했습니다.")
+        : null) ??
       (selection.data && selection.data.resolutionStatus !== "ready"
         ? Error("사용할 체형을 선택해 주세요.")
         : null),
@@ -121,5 +134,5 @@ export function usePresentationBody(job: string, presentation: PosePresentation)
       await qc.invalidateQueries({ queryKey: [...bodyKeys.person(owner, job, index), "images"] });
     },
   };
-  return { entry, images: ready ? pictures.data : undefined };
+  return { entry, images: stable ? pictures.data.images : undefined };
 }
