@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
@@ -162,9 +163,11 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
 export function PosePresentationPanel({
   presentation: p,
   compact = false,
+  renderCandidate,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
+  renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
 }) {
   return (
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
@@ -173,12 +176,7 @@ export function PosePresentationPanel({
           {labels[p.status] ?? "지원하지 않는 표시 상태"} · 검색: {p.search_status}
         </p>
         {p.search_reason && <p>검색 조건과 근거를 확인해 주세요.</p>}
-        {p.generation_status && (
-          <p>
-            생성: {generation[p.generation_status] ?? "판정 보류"}
-            
-          </p>
-        )}
+        {p.generation_status && <p>생성: {generation[p.generation_status] ?? "판정 보류"}</p>}
         {p.basic_model && <p>기본 인체 출력 계획 · 아직 3D 파일이 제공되지 않았습니다.</p>}
         {p.unobserved_body_is_default === true && (
           <p>보이지 않는 신체 부위에는 기본값이 포함되어 있습니다.</p>
@@ -199,9 +197,13 @@ export function PosePresentationPanel({
           </h3>
           {rows.length > 0 && (
             <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
-              {rows.map((c) => (
-                <Preview key={c.candidate_id} candidate={c} scope={p.output_scope} />
-              ))}
+              {rows.map((c) =>
+                renderCandidate ? (
+                  <div key={c.candidate_id}>{renderCandidate(c)}</div>
+                ) : (
+                  <Preview key={c.candidate_id} candidate={c} scope={p.output_scope} />
+                ),
+              )}
             </div>
           )}
         </div>

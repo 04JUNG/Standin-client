@@ -1,3 +1,4 @@
+import { SemanticModelPresentation } from "@/features/semantic-search/SemanticModelPresentation";
 import { ReferenceHands } from "@/features/hand-selection/ReferenceHands";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
@@ -107,13 +108,30 @@ export function BarCandidatesPage() {
     }
   }
 
-  if (data?.source === "semantic") return <BarShell title="문장 검색 결과">
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-      <p className="whitespace-pre-wrap break-words">{data.semantic?.query}</p>
-      <Button variant="ghost" onClick={()=>navigate("/app/search",{state:{query:data.semantic?.query}})}>문장을 바꿔 검색하기</Button>
-      {data.people.map(p=><div key={p.index}><PersonFallbackNotice person={p} compact/><ReferenceHands result={data} personIndex={p.index}/></div>)}
-    </div>
-  </BarShell>;
+  if (data?.source === "semantic")
+    return (
+      <BarShell title="문장 검색 결과">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+          <p className="whitespace-pre-wrap break-words">{data.semantic?.query}</p>
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/app/search", { state: { query: data.semantic?.query } })}
+          >
+            문장을 바꿔 검색하기
+          </Button>
+          {data.people.map((p) => (
+            <div key={p.index}>
+              {p.posePresentation ? (
+                <SemanticModelPresentation presentation={p.posePresentation} compact />
+              ) : (
+                <PersonFallbackNotice person={p} compact />
+              )}
+              <ReferenceHands result={data} personIndex={p.index} />
+            </div>
+          ))}
+        </div>
+      </BarShell>
+    );
 
   const goToPerson = (p: PersonResult) => {
     const at = people.findIndex((x) => x.index === p.index);
@@ -343,7 +361,9 @@ export function BarCandidatesPage() {
                 )}
                 <div className="min-h-0 overflow-y-auto">
                   <PersonFallbackNotice person={person} compact />
-                {person.posePresentation && <ReferenceHands result={data} personIndex={person.index}/>}
+                  {person.posePresentation && (
+                    <ReferenceHands result={data} personIndex={person.index} />
+                  )}
                 </div>
                 {/* 후보 칸: [원본 | 후보]. 원본과 포즈를 나란히 놓고 비교한다. */}
                 {/* 3×2: 원본이 첫 칸, 후보 5개가 나머지 칸. 모든 칸이 같은 크기·비율이라
@@ -365,7 +385,9 @@ export function BarCandidatesPage() {
                     {person.fallbackMode === "hard" ? (
                       <div className="flex items-center justify-center px-3">
                         <PersonFallbackNotice person={person} compact />
-                {person.posePresentation && <ReferenceHands result={data} personIndex={person.index}/>}
+                        {person.posePresentation && (
+                          <ReferenceHands result={data} personIndex={person.index} />
+                        )}
                       </div>
                     ) : (
                       <div className="relative min-h-0">

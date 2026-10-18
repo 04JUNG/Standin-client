@@ -8,6 +8,11 @@ export type ReviewModel = {
   characterId: string;
   scope: string;
   base?: CandidateModel;
+  version?: "posed-mesh-v1" | "framed-mesh-v1";
+  sourceSha?: string;
+  characterSha256?: string;
+  modelRevision?: string;
+  turnDegrees?: number;
 };
 
 /** Keep the validated surface on the GPU until review closes; draw only on resize. */
@@ -17,13 +22,18 @@ export async function mountReviewModel(
   signal: AbortSignal,
 ) {
   signal.throwIfAborted();
-  validateModel(
+  const meta = validateModel(
     model.data,
-    model.base?.sourceSha,
+    model.sourceSha ?? model.base?.sourceSha,
     model.characterId,
     model.scope,
-    model.base ? "posed-mesh-v1" : "framed-mesh-v1",
+    model.version ?? (model.base ? "posed-mesh-v1" : "framed-mesh-v1"),
   );
+  if (
+    (model.characterSha256 && meta.character_sha256 !== model.characterSha256) ||
+    (model.modelRevision && meta.revision !== model.modelRevision)
+  )
+    throw new Error("model identity changed");
   const loader = new GLTFLoader();
   loader.manager.setURLModifier(() => {
     throw new Error("external model resource");
@@ -68,6 +78,7 @@ export async function mountReviewModel(
         ),
       );
     }
+    if (model.turnDegrees) body.rotateY(THREE.MathUtils.degToRad(model.turnDegrees));
     body.updateMatrixWorld(true);
     const points: THREE.Vector3[] = [];
     body.traverse((o) => {
