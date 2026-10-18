@@ -5,7 +5,7 @@ import { endpoints } from "@/shared/api/endpoints";
 const capabilitiesSchema = z.object({
   available: z.boolean(),
   maxQueryLength: z.literal(500),
-  maxTopK: z.literal(10),
+  maxTopK: z.number().int().min(1).max(20),
 });
 const responseSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("ok"), jobId: z.string().regex(/^job_[0-9a-f-]{36}$/) }),
@@ -31,15 +31,16 @@ export async function searchCapabilities(signal?: AbortSignal) {
     await apiFetch<unknown>(endpoints.semantic.capabilities, { auth: false, signal }),
   );
 }
-export async function searchPoses(query: string, signal?: AbortSignal) {
+export async function searchPoses(query: string, signal?: AbortSignal, topK = 20) {
   const trimmed = query.trim();
-  if (!trimmed || trimmed.length > 500) throw new ApiError(400, "INVALID_INPUT", "invalid query");
+  if (!trimmed || trimmed.length > 500 || !Number.isInteger(topK) || topK < 1 || topK > 20)
+    throw new ApiError(400, "INVALID_INPUT", "invalid query");
   return parse(
     responseSchema,
     await apiFetch<unknown>(endpoints.semantic.search, {
       method: "POST",
       auth: false,
-      body: { query: trimmed, topK: 5 },
+      body: { query: trimmed, topK },
       signal,
     }),
   );
