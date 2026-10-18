@@ -236,7 +236,7 @@ async function toPoseCandidate(
     poseId: raw.poseId,
     rank: raw.rank,
     ...(semantic ? { semantic } : {}),
-    title: semantic ? semantic.description || `포즈 ${raw.rank}` : `포즈 ${raw.id}`,
+    title: semantic ? semantic.description || `포즈 ${raw.rank}` : raw.source === "library" ? `포즈 ${raw.rank}` : `포즈 ${raw.id}`,
     tags: raw.tags,
     matchLevel: raw.matchLevel,
     thumbnailUrl,

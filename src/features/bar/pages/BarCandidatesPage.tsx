@@ -284,7 +284,7 @@ export function BarCandidatesPage() {
                   </div>
                 ) : (
                   <span className="text-[11px] font-semibold text-text-secondary">
-                    {person.posePresentation
+                    {person.posePresentation && person.candidates.length === 0
                       ? "검수용 3D 미리보기"
                       : selectedByPerson[person.index]
                         ? "선택됨"
@@ -292,7 +292,7 @@ export function BarCandidatesPage() {
                   </span>
                 )}
                 {/* 후보가 없는 인물(hard)은 원래 내보낼 것이 없다. 스위치를 두지 않는다. */}
-                {selectable && !person.posePresentation && (
+                {selectable && person.candidates.length > 0 && (
                   <ExportSwitch
                     personIndex={person.index}
                     included={included}
@@ -305,7 +305,7 @@ export function BarCandidatesPage() {
                   ⚠ 후보가 없는 인물(hard fallback)에는 띄우지 않는다 — 저장될 포즈가
                   없는데 체형을 고르게 하면 고른 것이 어디에도 쓰이지 않는다. */}
               {selectable &&
-                !person.posePresentation &&
+                person.candidates.length > 0 &&
                 (bodies.enabled ? (
                   <BodyChip
                     job={data.jobId}
@@ -350,7 +350,7 @@ export function BarCandidatesPage() {
                     원본과 포즈를 같은 눈높이로 비교하고, 빈 칸이나 홀로 남는 줄이 없다. */}
                 {/* 후보 칸: [원본 | 후보 3 + 2]. 카드는 모두 같은 비율·크기이고 아래 두 장은
                     가운데에 둔다. 창이 커져도 카드가 찌그러지지 않는다(FitTile). */}
-                {!person.posePresentation && (
+                {person.candidates.length > 0 && (
                   <div className="grid min-h-0 flex-1 grid-cols-[minmax(180px,26%)_minmax(0,1fr)] gap-2">
                     <RoughPanel
                       url={roughUrl}
