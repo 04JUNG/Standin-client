@@ -14,13 +14,14 @@ import { FitTile } from "@/features/pose-viewer/components/FitTile";
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { PoseCandidateCard } from "@/features/pose-viewer/components/PoseCandidateCard";
+import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { PersonFallbackNotice } from "@/features/pose-viewer/components/PersonFallbackNotice";
 import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
@@ -228,7 +229,10 @@ export function BarCandidatesPage() {
       </div>
     ) : undefined;
   return (
-    <BarShell title={`포즈 후보 ${selectedCount}/${includedPeople.length}`} footer={footer}>
+    <BarShell
+      title={isPending ? "포즈 검색 중" : `포즈 후보 ${selectedCount}/${includedPeople.length}`}
+      footer={footer}
+    >
       {/* 창(720×560)에서 제목 줄·하단 줄·테두리(92px)를 뺀 높이에 맞춘다. BarShell은 내용
           높이를 재서 창을 키우므로, 후보 칸이 내용만큼 늘어나면 창이 자라 버린다. */}
       <div
@@ -239,10 +243,11 @@ export function BarCandidatesPage() {
       >
         {isPending && (
           <>
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
-              <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
-              <p className="text-[12px]">가까운 포즈 후보를 찾고 있습니다…</p>
-            </div>
+            <PoseSearchPending
+              preview={restoreOnly ? null : draft}
+              restoring={restoreOnly}
+              compact
+            />
             {/* 바에는 사이드바가 없다. 여기에 출구가 없으면 검색이 끝날 때까지 갇힌다.
                 분석은 서버에서 계속되고 결과는 작업 기록에 남는다. */}
             <div className="flex shrink-0 items-center border-t border-border pt-2">
