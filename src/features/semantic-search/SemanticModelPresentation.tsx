@@ -99,14 +99,17 @@ function Candidate({ candidate }: { candidate: PreviewCandidate }) {
 export function SemanticModelPresentation({
   presentation,
   compact = false,
+  bodyPreviewJob,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
+  bodyPreviewJob?: string;
 }) {
   return (
     <PosePresentationPanel
       presentation={presentation}
       compact={compact}
+      bodyPreviewJob={bodyPreviewJob}
       renderCandidate={(c) => <Candidate candidate={c} />}
     />
   );

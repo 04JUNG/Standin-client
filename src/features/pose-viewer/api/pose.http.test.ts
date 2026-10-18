@@ -212,6 +212,7 @@ describe("poseHttp", () => {
         outputScopeSelection: false,
         outputScopeCropping: false,
         bodyPreviews: false,
+        presentationBodyPreviews: false,
         bodyPreviewAssets: false,
         modelPreview: false,
         candidateRerun: false,

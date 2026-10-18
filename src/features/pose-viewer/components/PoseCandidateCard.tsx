@@ -46,7 +46,7 @@ export function PoseCandidateCard({
 }: PoseCandidateCardProps) {
   const fill = layout === "fill";
   const preview = useQuery(
-    !bodyPreview && candidate.quickThumbnailUrl
+    !bodyPreview && !characterId && candidate.quickThumbnailUrl
       ? quickCandidateThumbnailOptions(candidate.quickThumbnailUrl)
       : candidateThumbnailOptions(
           bodyPreview ? undefined : candidate.deferredThumbnailUrl,
@@ -54,7 +54,11 @@ export function PoseCandidateCard({
           characterId ?? undefined,
         ),
   );
-  const imageUrl = bodyPreview ? bodyPreview.url : candidate.thumbnailUrl || preview.data;
+  const imageUrl = bodyPreview
+    ? bodyPreview.url
+    : characterId
+      ? preview.data
+      : candidate.thumbnailUrl || preview.data;
   const pending = bodyPreview
     ? bodyPreview.pending
     : !!candidate.deferredThumbnailUrl && preview.isPending;
@@ -126,7 +130,11 @@ export function PoseCandidateCard({
             )}
           >
             {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
-            {reviewOnly(candidate) ? "검수용 · 보정·저장 불가" : candidate.semantic ? "문장 검색" : MATCH_LABEL[candidate.matchLevel]}
+            {reviewOnly(candidate)
+              ? "검수용 · 보정·저장 불가"
+              : candidate.semantic
+                ? "문장 검색"
+                : MATCH_LABEL[candidate.matchLevel]}
           </span>
           {!fill &&
             candidate.tags.map((tag) => (

@@ -34,7 +34,7 @@ function sourceLabel(selection?: BodySelection, card?: BodyCard) {
   }
 }
 
-function useBodyName(job: string, person: PersonResult, selection?: BodySelection) {
+function useBodyName(job: string, person: Pick<PersonResult, "index">, selection?: BodySelection) {
   const { options } = useBodyControls(job, person, selection);
   const catalog = useModelCatalog();
   return (id?: string) =>
@@ -45,7 +45,7 @@ function useBodyName(job: string, person: PersonResult, selection?: BodySelectio
 }
 
 /** 인물 줄에 적을 체형: 내 체형 카드와 같으면 카드 이름, 아니면 체형 이름(+ 수정). */
-function useBodyTitle(job: string, person: PersonResult, selection?: BodySelection) {
+function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selection?: BodySelection) {
   const { options } = useBodyControls(job, person, selection);
   const name = useBodyName(job, person, selection);
   const cards = cardsOf(useBodyPreferences().data);
@@ -68,7 +68,7 @@ export function BodyChip({
   className,
 }: {
   job: string;
-  person: PersonResult;
+  person: Pick<PersonResult, "index">;
   entry?: BodyEntry;
   className?: string;
 }) {
@@ -131,7 +131,7 @@ export function BodyLabel({
   entry,
 }: {
   job: string;
-  person: PersonResult;
+  person: Pick<PersonResult, "index">;
   entry?: BodyEntry;
 }) {
   const { source, title } = useBodyTitle(job, person, entry?.selection);
@@ -263,7 +263,7 @@ export function BodyExpand({
   variant,
 }: {
   job: string;
-  person: PersonResult;
+  person: Pick<PersonResult, "index">;
   entry?: BodyEntry;
   rough?: { url?: string; box?: PersonBox | null };
   variant: "bar" | "app";

@@ -108,7 +108,11 @@ export function useBodies(
   };
 }
 export type BodyEntry = ReturnType<typeof useBodies>["entries"][number];
-export function useBodyControls(job: string, person: PersonResult, selection?: BodySelection) {
+export function useBodyControls(
+  job: string,
+  person: Pick<PersonResult, "index">,
+  selection?: BodySelection,
+) {
   const owner = useBodyOwner(),
     qc = useQueryClient();
   const options = useQuery({
