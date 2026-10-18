@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
 import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selection/BodyCandidates";
@@ -57,28 +56,20 @@ function Preview({
   scope: string | null;
   body?: BodyPicture;
 }) {
-  const [open, setOpen] = useState(false),
-    [turn, setTurn] = useState(0);
   const data = useQuery({
     queryKey: ["pose-bvh-source", candidate.asset.preview_bvh_url],
     queryFn: ({ signal }) => source(candidate, signal),
-    enabled: !body || open,
+    enabled: !body,
     retry: false,
     staleTime: 600_000,
     gcTime: 600_000,
   });
   const picture = useQuery({
-    queryKey: [
-      "pose-bvh-render",
-      candidate.asset.preview_bvh_url,
-      scope,
-      candidate.render_camera,
-      open ? turn : 0,
-    ],
-    enabled: !!data.data && (!body || open),
+    queryKey: ["pose-bvh-render", candidate.asset.preview_bvh_url, scope, candidate.render_camera],
+    enabled: !!data.data && !body,
     queryFn: async () => {
       const { renderBvh } = await import("../preview/bvhPreview");
-      return renderBvh(data.data!, scope, candidate.render_camera, open ? turn : 0);
+      return renderBvh(data.data!, scope, candidate.render_camera, 0);
     },
     retry: false,
     staleTime: 600_000,
@@ -90,16 +81,7 @@ function Preview({
       data-presentation-candidate={candidate.candidate_id}
       className="rounded-lg border border-border bg-surface-0 p-2"
     >
-      <button
-        type="button"
-        className="w-full"
-        onClick={() => {
-          setTurn(0);
-          setOpen(true);
-        }}
-        disabled={!body && !picture.data}
-        aria-label={`${candidate.rank}번 ${candidate.kind} 3D 미리보기`}
-      >
+      <div className="w-full" aria-label={`${candidate.rank}번 ${candidate.kind} 3D 미리보기`}>
         {(body ? body.url : picture.data) ? (
           <img
             src={(body ? body.url : picture.data)!}
@@ -127,10 +109,9 @@ function Preview({
                 ? "근접 참고"
                 : "기하·구도 참고"}
         </span>
-      </button>
-      {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영 · 관절 3D 보기</p>}
+      </div>
+      {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영</p>}
       <p className="text-[11px] text-text-secondary">
-        {body ? "관절 보기: " : ""}
         {candidate.render_camera.projection_matches_search ? "검색 카메라" : "참고 카메라"} · 검수용
         · 저장 불가
       </p>
@@ -146,52 +127,20 @@ function Preview({
           미리보기 다시 시도
         </button>
       )}
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="포즈 3D 미리보기"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setOpen(false);
-          }}
-        >
-          <div className="max-h-[95vh] w-[min(90vw,640px)] overflow-auto rounded-xl bg-surface-0 p-4">
-            <p>BVH 관절 기반 3D 미리보기 · 보정·자동 적용·저장 불가</p>
-            {!picture.data && <p>{error ? "관절 미리보기 불가" : "관절 미리보기 준비 중"}</p>}
-            {picture.data && <img src={picture.data} alt="실제 BVH 3D 자세" className="w-full" />}
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setTurn((v) => v - 15)}>
-                왼쪽 회전
-              </button>
-              <button type="button" onClick={() => setTurn(0)}>
-                기준 시점
-              </button>
-              <button type="button" onClick={() => setTurn((v) => v + 15)}>
-                오른쪽 회전
-              </button>
-              <button type="button" onClick={() => setOpen(false)}>
-                닫기
-              </button>
-            </div>
-            <p className="text-xs">
-              {turn ? "사용자 회전 시점" : "서버가 제공한 시점"} · 출력 범위: {scope ?? "미확정"}
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 function PresentationContent({
   presentation: p,
   compact = false,
+  selectableLibrary = false,
   renderCandidate,
   bodyImages,
   bodyPending,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
+  selectableLibrary?: boolean;
   renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
   bodyImages?: Record<string, string>;
   bodyPending?: boolean;
@@ -225,7 +174,11 @@ function PresentationContent({
         {p.unobserved_body_is_default === true && (
           <p>보이지 않는 신체 부위에는 기본값이 포함되어 있습니다.</p>
         )}
-        <p>검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다.</p>
+        <p>
+          {selectableLibrary
+            ? "아래 검색 후보를 눌러 포즈를 선택하세요. 저장 전에 결과를 확인합니다."
+            : "검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다."}
+        </p>
         {p.issues.length > 0 && <p>일부 3D 미리보기를 확인하지 못했습니다.</p>}
       </div>
       {(
@@ -234,27 +187,29 @@ function PresentationContent({
           ["근접·기하·구도 참고", p.review_candidates],
           ["생성 검수 후보", p.generated_candidates],
         ] as const
-      ).map(([label, rows]) => (
-        <div key={label}>
-          <h3 className="text-xs font-semibold">
-            {label} {rows.length}개
-          </h3>
-          {rows.length > 0 &&
-            (semantic ? (
-              <CandidatePages
-                key={rows.map((c) => c.candidate_id).join(",")}
-                rows={rows}
-                label={label}
-                gridClass={gridClass}
-                render={render}
-              />
-            ) : (
-              <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
-                {rows.map(render)}
-              </div>
-            ))}
-        </div>
-      ))}
+      )
+        .filter(([label]) => !(selectableLibrary && label === "검색 후보"))
+        .map(([label, rows]) => (
+          <div key={label}>
+            <h3 className="text-xs font-semibold">
+              {label} {rows.length}개
+            </h3>
+            {rows.length > 0 &&
+              (semantic ? (
+                <CandidatePages
+                  key={rows.map((c) => c.candidate_id).join(",")}
+                  rows={rows}
+                  label={label}
+                  gridClass={gridClass}
+                  render={render}
+                />
+              ) : (
+                <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
+                  {rows.map(render)}
+                </div>
+              ))}
+          </div>
+        ))}
     </section>
   );
 }
@@ -263,10 +218,12 @@ function SelectedBodyPresentation({
   job,
   presentation,
   compact,
+  selectableLibrary,
 }: {
   job: string;
   presentation: PosePresentation;
   compact: boolean;
+  selectableLibrary: boolean;
 }) {
   const { entry, images } = usePresentationBody(job, presentation);
   const person = { index: presentation.person_index };
@@ -282,6 +239,7 @@ function SelectedBodyPresentation({
           <PresentationContent
             presentation={presentation}
             compact={compact}
+            selectableLibrary={selectableLibrary}
             bodyImages={images}
             bodyPending={!entry.error && !entry.ready}
           />
@@ -293,11 +251,13 @@ function SelectedBodyPresentation({
 export function PosePresentationPanel({
   presentation,
   compact = false,
+  selectableLibrary = false,
   bodyPreviewJob,
   renderCandidate,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
+  selectableLibrary?: boolean;
   bodyPreviewJob?: string;
   renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
 }) {
@@ -307,11 +267,17 @@ export function PosePresentationPanel({
     presentation.generated_candidates,
   ].some((g) => g.length > 0);
   return bodyPreviewJob && hasCandidates ? (
-    <SelectedBodyPresentation job={bodyPreviewJob} presentation={presentation} compact={compact} />
+    <SelectedBodyPresentation
+      job={bodyPreviewJob}
+      presentation={presentation}
+      compact={compact}
+      selectableLibrary={selectableLibrary}
+    />
   ) : (
     <PresentationContent
       presentation={presentation}
       compact={compact}
+      selectableLibrary={selectableLibrary}
       renderCandidate={renderCandidate}
     />
   );

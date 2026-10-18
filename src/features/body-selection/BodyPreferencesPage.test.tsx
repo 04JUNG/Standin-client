@@ -51,6 +51,12 @@ vi.mock("@/features/models/hooks/useModelCatalog", () => ({
           availability: "available",
           bodyRef: { characterId: "child" },
         },
+        ...["female", "male"].flatMap((gender) => ["athletic", "base", "muscular"].map((preset) => ({
+          characterId: `body-${gender}-${preset}`,
+          displayName: `구형 성인 ${gender} ${preset}`,
+          availability: "available",
+          bodyRef: { characterId: `body-${gender}-${preset}` },
+        }))),
       ],
     },
   }),
@@ -106,6 +112,13 @@ it("+ opens the custom editor; an adjustable preset starts from itself; presets 
   // 고정 체형(아동형)은 눌러서 커스텀할 수 없다.
   expect(screen.queryByRole("button", { name: /아동형/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /기본형 이름 변경|기본형 삭제/ })).toBeNull();
+});
+
+it("keeps adjustable bodies and child while excluding the six retired fixed adult models", () => {
+  show();
+  expect(screen.getByRole("button", { name: /기본형/ })).toBeTruthy();
+  expect(screen.getByText("아동형")).toBeTruthy();
+  expect(screen.queryByText(/구형 성인/)).toBeNull();
 });
 
 it("renames a card in place and deletes it after confirming", async () => {

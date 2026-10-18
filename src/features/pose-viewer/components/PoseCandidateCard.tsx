@@ -112,6 +112,9 @@ export function PoseCandidateCard({
           )}
         </div>
       )}
+      {bodyPreview && candidate.source === "library" && (
+        <span className="text-[11px] text-text-secondary">체형 참고 · 정사영</span>
+      )}
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
         <div className="flex items-center justify-between">
           <span

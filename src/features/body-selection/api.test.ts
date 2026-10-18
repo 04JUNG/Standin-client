@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { webcrypto, createHash } from "node:crypto";
 import { ApiError } from "@/shared/api/errors";
-import { getManifest, renderBodyCandidate } from "./api";
+import { getManifest, getOptions, renderBodyCandidate } from "./api";
 import { downloadBodyReview, loadBodyReview } from "./review";
 import type { BodyManifest, BodySelection } from "./contract";
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -65,6 +65,17 @@ beforeEach(() => {
   vi.stubGlobal("crypto", webcrypto);
 });
 afterEach(() => vi.unstubAllGlobals());
+it("removes six fixed adult bodies from options while retaining shape-key bodies and teens", async () => {
+  const ids = ["body-female-athletic", "body-female-base", "body-female-muscular", "body-male-athletic", "body-male-base", "body-male-muscular", "female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"];
+  fetcher.mockResolvedValue(new Response(JSON.stringify({
+    catalogRevision: "test",
+    characters: ids.map((characterId) => ({
+      characterId, bodyRef: { ...ref, characterId }, selectable: true, reasonCodes: [],
+    })),
+  })));
+  expect((await getOptions("job", 0)).characters.map((c) => c.characterId))
+    .toEqual(["female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"]);
+});
 it.each([409, 401, 404])(
   "stale/unauthorized GLB %s must not start PNG fallback",
   async (status) => {

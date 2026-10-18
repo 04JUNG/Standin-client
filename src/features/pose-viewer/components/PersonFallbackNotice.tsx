@@ -30,7 +30,7 @@ type PersonFallbackNoticeProps = {
     | "coverageClass"
     | "routedSearch"
     | "posePresentation"
-  >;
+  > & { candidates?: PersonResult["candidates"] };
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
   bodyPreviewJob?: string;
@@ -46,6 +46,9 @@ export function PersonFallbackNotice({
       <PosePresentationPanel
         presentation={person.posePresentation}
         compact={compact}
+        selectableLibrary={person.candidates?.some(
+          (c) => c.source === "library" && c.releaseAllowed === true,
+        )}
         bodyPreviewJob={bodyPreviewJob}
       />
     );

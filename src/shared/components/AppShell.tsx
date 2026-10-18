@@ -168,7 +168,8 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         {/* 전역 단축키가 죽어 있으면 모든 앱 화면에서 보이게 한다. 설정 화면에만 두면
             시연 중에 아무도 모른 채 지나간다(작가 인터뷰). */}
         <GlobalShortcutAlert />
-        <main className="flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
+        {/* sr-only처럼 absolute인 자식도 이 스크롤 영역 안에 둔다. */}
+        <main className="relative min-h-0 flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
       </div>
 
       <ShortcutCheatSheet />

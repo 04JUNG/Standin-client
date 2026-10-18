@@ -1,6 +1,7 @@
 import { apiFetch, apiFetchBlob, apiFetchResponse, ApiError } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { validRotation } from "@/features/pose-viewer/preview/modelContract";
+import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import {
   manifestSchema,
   optionsSchema,
@@ -46,10 +47,15 @@ export async function putSelection(
   return getSelection(job, person);
 }
 export async function getOptions(job: string, person: number, signal?: AbortSignal) {
-  if (bodyMockEnabled()) return bodyMock.getOptions();
-  return optionsSchema.parse(
-    await apiFetch(personPath(job, person) + "/body-options", { auth: false, signal }),
-  );
+  const options = bodyMockEnabled()
+    ? await bodyMock.getOptions()
+    : optionsSchema.parse(
+        await apiFetch(personPath(job, person) + "/body-options", { auth: false, signal }),
+      );
+  return {
+    ...options,
+    characters: options.characters.filter((c) => !isRetiredCharacter(c.characterId)),
+  };
 }
 export async function getPreferences(signal?: AbortSignal) {
   if (bodyMockEnabled()) return bodyMock.getPreferences();

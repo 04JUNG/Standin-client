@@ -2,7 +2,8 @@ import { createElement } from "react";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { LiveBodyView, ShapeThumb } from "./LiveBodyView";
+import { BODY_PREVIEWS } from "@/features/models/lib/previewImages";
+import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
 import type { BodyOption } from "./contract";
 
 const option = (shape: boolean): BodyOption => ({
@@ -34,6 +35,42 @@ const runtimeRef = (rules: string) => ({
   format: "standin-shape-runtime.v1" as const,
   rules,
   preset: "BASE",
+});
+
+describe("NeutralImage", () => {
+  it.each(Object.entries(BODY_PREVIEWS))(
+    "shows the reviewed still for %s without a neutral-preview URL",
+    (characterId, asset) => {
+      const client = new QueryClient();
+      const { container } = render(
+        createElement(QueryClientProvider, { client }, createElement(NeutralImage, {
+          option: {
+            characterId,
+            bodyRef: { ...option(false).bodyRef, characterId, assetSha256: asset.assetSha256 },
+          },
+        })),
+      );
+      expect(container.querySelector("img")).toHaveAttribute("src", asset.image);
+      expect(screen.queryByText("미리보기 없음")).toBeNull();
+    },
+  );
+
+  it("drops the still when the catalog changes to a different FBX revision", () => {
+    const client = new QueryClient();
+    const asset = BODY_PREVIEWS["body-child"]!;
+    const look = {
+      characterId: "body-child",
+      bodyRef: { ...option(false).bodyRef, characterId: "body-child", assetSha256: asset.assetSha256 },
+    };
+    const content = (assetSha256: string) => createElement(QueryClientProvider, { client },
+      createElement(NeutralImage, { option: { ...look, bodyRef: { ...look.bodyRef, assetSha256 } } }),
+    );
+    const { container, rerender } = render(content(asset.assetSha256));
+    expect(container.querySelector("img")).toBeTruthy();
+    rerender(content("0".repeat(64)));
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText("미리보기 없음")).toBeTruthy();
+  });
 });
 
 function view(props: Partial<Parameters<typeof LiveBodyView>[0]>) {

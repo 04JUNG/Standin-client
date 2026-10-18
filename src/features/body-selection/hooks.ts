@@ -32,7 +32,9 @@ export function useBodies(
     job = result?.jobId ?? "";
   const qc = useQueryClient();
   const enabled = bodyEnabled(result);
-  const people = enabled ? (result?.people.filter((p) => p.fallbackMode !== "hard") ?? []) : [];
+  const people = enabled
+    ? (result?.people.filter((p) => p.fallbackMode !== "hard" && p.candidates.length > 0) ?? [])
+    : [];
   const selections = useQueries({
     queries: people.map((p) => ({
       queryKey: bodyKeys.selection(owner, job, p.index),
