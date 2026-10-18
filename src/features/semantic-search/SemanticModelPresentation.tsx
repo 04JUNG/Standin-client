@@ -200,9 +200,11 @@ export function SemanticModelPresentation({
   presentation,
   compact = false,
   bodyContext,
+  bodyPreviewJob,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
+  bodyPreviewJob?: string;
   bodyContext?: { jobId: string; person: PersonResult };
 }) {
   if (bodyContext)
@@ -217,6 +219,7 @@ export function SemanticModelPresentation({
     <PosePresentationPanel
       presentation={presentation}
       compact={compact}
+      bodyPreviewJob={bodyPreviewJob}
       renderCandidate={(c) => <Candidate candidate={c} />}
     />
   );

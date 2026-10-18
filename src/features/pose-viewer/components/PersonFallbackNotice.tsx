@@ -33,11 +33,22 @@ type PersonFallbackNoticeProps = {
   >;
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
+  bodyPreviewJob?: string;
 };
 
-export function PersonFallbackNotice({ person, compact = false }: PersonFallbackNoticeProps) {
+export function PersonFallbackNotice({
+  person,
+  compact = false,
+  bodyPreviewJob,
+}: PersonFallbackNoticeProps) {
   if (person.posePresentation)
-    return <PosePresentationPanel presentation={person.posePresentation} compact={compact} />;
+    return (
+      <PosePresentationPanel
+        presentation={person.posePresentation}
+        compact={compact}
+        bodyPreviewJob={bodyPreviewJob}
+      />
+    );
   if (person.routedSearch) {
     const r = person.routedSearch;
     const route =

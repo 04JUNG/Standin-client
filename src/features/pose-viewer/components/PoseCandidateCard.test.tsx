@@ -94,3 +94,37 @@ it("never requests a legacy quick thumbnail while a selected-body preview is pen
   expect(screen.getByRole("button")).not.toBeDisabled();
   expect(apiFetchBlob).not.toHaveBeenCalled();
 });
+
+it("binds an explicit body to the aligned render and hides unbound quick/static images on change", async () => {
+  const finish: ((value: Blob) => void)[] = [];
+  vi.mocked(apiFetchBlob).mockImplementation(() => new Promise((resolve) => finish.push(resolve)));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const card = (body: string) => (
+    <QueryClientProvider client={client}>
+      <PoseCandidateCard
+        candidate={{
+          ...candidate,
+          quickThumbnailUrl: "/wrong-body.jpeg",
+          thumbnailUrl: "/old-body.png",
+        }}
+        characterId={body}
+        isSelected={false}
+        onSelect={() => {}}
+      />
+    </QueryClientProvider>
+  );
+  const { rerender } = render(card("male"));
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  await waitFor(() => expect(finish).toHaveLength(1));
+  await act(async () => finish[0](new Blob(["male"], { type: "image/png" })));
+  await screen.findByRole("img");
+  rerender(card("female"));
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  await waitFor(() => expect(finish).toHaveLength(2));
+  await act(async () => finish[1](new Blob(["female"], { type: "image/png" })));
+  expect(await screen.findByRole("img")).toHaveAttribute("src", "data:image/png;base64,ZmVtYWxl");
+  expect(vi.mocked(apiFetchBlob).mock.calls.map(([url]) => url)).toEqual([
+    candidate.deferredThumbnailUrl + "&characterId=male",
+    candidate.deferredThumbnailUrl + "&characterId=female",
+  ]);
+});

@@ -206,7 +206,17 @@ export function PoseViewerPage() {
           {data.people.map((person) => (
             <div key={person.index} className="flex flex-col gap-3">
               {person.posePresentation ? (
-                <SemanticModelPresentation presentation={person.posePresentation} bodyContext={data.capabilities.semanticBodySelection ? {jobId:data.jobId,person} : undefined} />
+                <SemanticModelPresentation
+                  presentation={person.posePresentation}
+                  bodyContext={
+                    data.capabilities.semanticBodySelection
+                      ? { jobId: data.jobId, person: person }
+                      : undefined
+                  }
+                  bodyPreviewJob={
+                    data.capabilities.presentationBodyPreviews ? data.jobId : undefined
+                  }
+                />
               ) : (
                 <PersonFallbackNotice person={person} />
               )}
@@ -291,6 +301,7 @@ export function PoseViewerPage() {
             people={people}
             roughUrl={roughUrl}
             bodiesEnabled={bodies.enabled}
+            presentationBodyPreviews={data.capabilities.presentationBodyPreviews}
             entry={bodies.entries.find((e) => e.personIndex === active.index)}
             expanded={expanded}
             excluded={excludedPeople}
@@ -411,6 +422,7 @@ function ActivePersonCard({
   people,
   roughUrl,
   bodiesEnabled,
+  presentationBodyPreviews,
   entry,
   expanded,
   excluded,
@@ -428,6 +440,7 @@ function ActivePersonCard({
   people: PersonResult[];
   roughUrl?: string;
   bodiesEnabled: boolean;
+  presentationBodyPreviews?: boolean;
   entry?: BodyEntry;
   expanded: boolean;
   excluded: Readonly<Record<number, unknown>>;
@@ -495,7 +508,10 @@ function ActivePersonCard({
         <>
           {bodiesEnabled && !hard && <BodyRenderStatus entry={entry} />}
           {/* soft·hard fallback 안내. */}
-          <PersonFallbackNotice person={person} />
+          <PersonFallbackNotice
+            bodyPreviewJob={presentationBodyPreviews ? jobId : undefined}
+            person={person}
+          />
           {!hard && !person.posePresentation && (
             <div className="grid grid-cols-[190px_minmax(0,1fr)] gap-3">
               <RoughPanel

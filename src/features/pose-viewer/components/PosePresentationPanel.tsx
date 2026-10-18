@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
+import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selection/BodyCandidates";
+import { useBodyPanel } from "@/features/body-selection/bodyPanel";
+import { usePresentationBody } from "@/features/body-selection/presentation";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
 
 const labels: Record<string, string> = {
@@ -43,12 +46,22 @@ async function source(candidate: PreviewCandidate, signal: AbortSignal) {
   if (hash !== candidate.asset.bvh_sha256) throw Error("BVH 해시가 변경되었습니다.");
   return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
-function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: string | null }) {
+type BodyPicture = { url?: string; pending: boolean };
+function Preview({
+  candidate,
+  scope,
+  body,
+}: {
+  candidate: PreviewCandidate;
+  scope: string | null;
+  body?: BodyPicture;
+}) {
   const [open, setOpen] = useState(false),
     [turn, setTurn] = useState(0);
   const data = useQuery({
     queryKey: ["pose-bvh-source", candidate.asset.preview_bvh_url],
     queryFn: ({ signal }) => source(candidate, signal),
+    enabled: !body || open,
     retry: false,
     staleTime: 600_000,
     gcTime: 600_000,
@@ -61,7 +74,7 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
       candidate.render_camera,
       open ? turn : 0,
     ],
-    enabled: !!data.data,
+    enabled: !!data.data && (!body || open),
     queryFn: async () => {
       const { renderBvh } = await import("../preview/bvhPreview");
       return renderBvh(data.data!, scope, candidate.render_camera, open ? turn : 0);
@@ -83,18 +96,24 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
           setTurn(0);
           setOpen(true);
         }}
-        disabled={!picture.data}
+        disabled={!body && !picture.data}
         aria-label={`${candidate.rank}번 ${candidate.kind} 3D 미리보기`}
       >
-        {picture.data ? (
+        {(body ? body.url : picture.data) ? (
           <img
-            src={picture.data}
-            alt="BVH 관절 기반 3D 미리보기"
+            src={(body ? body.url : picture.data)!}
+            alt={body ? "선택한 체형과 수치를 적용한 포즈" : "BVH 관절 기반 3D 미리보기"}
             className="aspect-square w-full object-contain"
           />
         ) : (
           <div className="flex aspect-square items-center justify-center text-xs">
-            {error ? "3D 미리보기 불가" : "3D 미리보기 준비 중"}
+            {body
+              ? body.pending
+                ? "선택한 체형으로 포즈 준비 중"
+                : "체형 미리보기 불가"
+              : error
+                ? "3D 미리보기 불가"
+                : "3D 미리보기 준비 중"}
           </div>
         )}
         <span className="text-xs">
@@ -108,7 +127,9 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
                 : "기하·구도 참고"}
         </span>
       </button>
+      {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영 · 관절 3D 보기</p>}
       <p className="text-[11px] text-text-secondary">
+        {body ? "관절 보기: " : ""}
         {candidate.render_camera.projection_matches_search ? "검색 카메라" : "참고 카메라"} · 검수용
         · 저장 불가
       </p>
@@ -136,6 +157,7 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
         >
           <div className="max-h-[95vh] w-[min(90vw,640px)] overflow-auto rounded-xl bg-surface-0 p-4">
             <p>BVH 관절 기반 3D 미리보기 · 보정·자동 적용·저장 불가</p>
+            {!picture.data && <p>{error ? "관절 미리보기 불가" : "관절 미리보기 준비 중"}</p>}
             {picture.data && <img src={picture.data} alt="실제 BVH 3D 자세" className="w-full" />}
             <div className="flex gap-3">
               <button type="button" onClick={() => setTurn((v) => v - 15)}>
@@ -160,14 +182,18 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
     </div>
   );
 }
-export function PosePresentationPanel({
+function PresentationContent({
   presentation: p,
   compact = false,
   renderCandidate,
+  bodyImages,
+  bodyPending,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
   renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
+  bodyImages?: Record<string, string>;
+  bodyPending?: boolean;
 }) {
   return (
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
@@ -201,7 +227,16 @@ export function PosePresentationPanel({
                 renderCandidate ? (
                   <div key={c.candidate_id}>{renderCandidate(c)}</div>
                 ) : (
-                  <Preview key={c.candidate_id} candidate={c} scope={p.output_scope} />
+                  <Preview
+                    key={c.candidate_id}
+                    candidate={c}
+                    scope={p.output_scope}
+                    body={
+                      bodyPending !== undefined
+                        ? { url: bodyImages?.[c.candidate_id], pending: bodyPending }
+                        : undefined
+                    }
+                  />
                 ),
               )}
             </div>
@@ -209,5 +244,63 @@ export function PosePresentationPanel({
         </div>
       ))}
     </section>
+  );
+}
+
+function SelectedBodyPresentation({
+  job,
+  presentation,
+  compact,
+}: {
+  job: string;
+  presentation: PosePresentation;
+  compact: boolean;
+}) {
+  const { entry, images } = usePresentationBody(job, presentation);
+  const person = { index: presentation.person_index };
+  const { open } = useBodyPanel(job, person.index);
+  return (
+    <div className="space-y-2">
+      <BodyChip job={job} person={person} entry={entry} />
+      {open ? (
+        <BodyExpand job={job} person={person} entry={entry} variant={compact ? "bar" : "app"} />
+      ) : (
+        <>
+          <BodyRenderStatus entry={entry} />
+          <PresentationContent
+            presentation={presentation}
+            compact={compact}
+            bodyImages={images}
+            bodyPending={!entry.error && !entry.ready}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+export function PosePresentationPanel({
+  presentation,
+  compact = false,
+  bodyPreviewJob,
+  renderCandidate,
+}: {
+  presentation: PosePresentation;
+  compact?: boolean;
+  bodyPreviewJob?: string;
+  renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
+}) {
+  const hasCandidates = [
+    presentation.library_candidates,
+    presentation.review_candidates,
+    presentation.generated_candidates,
+  ].some((g) => g.length > 0);
+  return bodyPreviewJob && hasCandidates ? (
+    <SelectedBodyPresentation job={bodyPreviewJob} presentation={presentation} compact={compact} />
+  ) : (
+    <PresentationContent
+      presentation={presentation}
+      compact={compact}
+      renderCandidate={renderCandidate}
+    />
   );
 }

@@ -123,7 +123,18 @@ export function BarCandidatesPage() {
           {data.people.map((p) => (
             <div key={p.index}>
               {p.posePresentation ? (
-                <SemanticModelPresentation presentation={p.posePresentation} compact bodyContext={data.capabilities.semanticBodySelection ? {jobId:data.jobId,person:p} : undefined} />
+                <SemanticModelPresentation
+                  presentation={p.posePresentation}
+                  bodyContext={
+                    data.capabilities.semanticBodySelection
+                      ? { jobId: data.jobId, person: p }
+                      : undefined
+                  }
+                  bodyPreviewJob={
+                    data.capabilities.presentationBodyPreviews ? data.jobId : undefined
+                  }
+                  compact
+                />
               ) : (
                 <PersonFallbackNotice person={p} compact />
               )}
@@ -365,7 +376,13 @@ export function BarCandidatesPage() {
                   />
                 )}
                 <div className="min-h-0 overflow-y-auto">
-                  <PersonFallbackNotice person={person} compact />
+                  <PersonFallbackNotice
+                    bodyPreviewJob={
+                      data?.capabilities.presentationBodyPreviews ? data.jobId : undefined
+                    }
+                    person={person}
+                    compact
+                  />
                   {person.posePresentation && (
                     <ReferenceHands result={data} personIndex={person.index} />
                   )}
@@ -389,7 +406,13 @@ export function BarCandidatesPage() {
                     />
                     {person.fallbackMode === "hard" ? (
                       <div className="flex items-center justify-center px-3">
-                        <PersonFallbackNotice person={person} compact />
+                        <PersonFallbackNotice
+                          bodyPreviewJob={
+                            data?.capabilities.presentationBodyPreviews ? data.jobId : undefined
+                          }
+                          person={person}
+                          compact
+                        />
                         {person.posePresentation && (
                           <ReferenceHands result={data} personIndex={person.index} />
                         )}

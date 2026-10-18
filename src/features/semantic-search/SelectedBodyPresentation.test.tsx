@@ -66,7 +66,9 @@ const presentation = {
   generated_candidates: [],
 } as unknown as PosePresentation;
 beforeEach(() => {
-  useInstallationStore.setState({ credentials: { installationId: "owner", deviceToken: "test", consentVersion:"2026-08-02" } });
+  useInstallationStore.setState({
+    credentials: { installationId: "owner", deviceToken: "test", consentVersion: "2026-08-02" },
+  });
   state.selection = {
     schemaVersion: "body-selection.v1",
     personIndex: 0,
@@ -114,6 +116,7 @@ it("uses persisted body selection, hides the previous surface while changing and
         <SemanticModelPresentation
           presentation={presentation}
           bodyContext={{ jobId: "job_test", person }}
+          bodyPreviewJob="job_test"
         />
       </QueryClientProvider>
     </MemoryRouter>,
