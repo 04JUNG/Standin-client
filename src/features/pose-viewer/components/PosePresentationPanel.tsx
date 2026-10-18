@@ -19,6 +19,22 @@ const labels: Record<string, string> = {
   undetermined: "판정 보류",
   not_run: "검색 미실행",
 };
+const search: Record<string, string> = {
+  ok: "검색 완료",
+  no_result: "일치 후보 없음",
+  partial_error: "일부 검색 오류",
+  error: "검색 오류",
+  blocked: "검색 제한",
+  undetermined: "판정 보류",
+  not_run: "검색 미실행",
+};
+const candidateLabel = (kind: string) =>
+  ({
+    library_match: "검색 후보",
+    mirror_reference: "반대손 참고",
+    generated_review: "생성 검수",
+    near_match: "근접 참고",
+  })[kind] ?? "기하·구도 참고";
 const generation: Record<string, string> = {
   not_requested: "미실행",
   preview_ready: "검수 후보 준비",
@@ -51,10 +67,12 @@ function Preview({
   candidate,
   scope,
   body,
+  originalRank,
 }: {
   candidate: PreviewCandidate;
   scope: string | null;
   body?: BodyPicture;
+  originalRank?: number;
 }) {
   const data = useQuery({
     queryKey: ["pose-bvh-source", candidate.asset.preview_bvh_url],
@@ -79,9 +97,14 @@ function Preview({
   return (
     <div
       data-presentation-candidate={candidate.candidate_id}
+      id={`pose-candidate-${candidate.candidate_id}`}
+      tabIndex={-1}
       className="rounded-lg border border-border bg-surface-0 p-2"
     >
-      <div className="w-full" aria-label={`${candidate.rank}번 ${candidate.kind} 3D 미리보기`}>
+      <div
+        className="w-full"
+        aria-label={`${candidate.rank}번 ${candidateLabel(candidate.kind)} 3D 미리보기`}
+      >
         {(body ? body.url : picture.data) ? (
           <img
             src={(body ? body.url : picture.data)!}
@@ -100,16 +123,31 @@ function Preview({
           </div>
         )}
         <span className="text-xs">
-          {candidate.rank}.{" "}
-          {candidate.kind === "library_match"
-            ? "검색 후보"
-            : candidate.kind === "generated_review"
-              ? "생성 검수"
-              : candidate.kind === "near_match"
-                ? "근접 참고"
-                : "기하·구도 참고"}
+          {candidate.rank}. {candidateLabel(candidate.kind)}
         </span>
       </div>
+      {candidate.mirror_comparison && (
+        <p className="text-[11px] font-semibold text-text-primary">
+          <a
+            className="underline"
+            href={`#pose-candidate-${candidate.mirror_comparison.original_candidate_id}`}
+          >
+            검색 후보 {originalRank}
+          </a>
+          의 반대손 참고
+        </p>
+      )}
+      {candidate.mirror_comparison && (
+        <p className="text-[11px] text-text-secondary">
+          인물의 {candidate.mirror_comparison.observed_side === "left" ? "왼손" : "오른손"} 관측 ·{" "}
+          {candidate.mirror_comparison.reference_side === "left" ? "왼손" : "오른손"} 자세 참고
+        </p>
+      )}
+      {candidate.mirror_comparison && (
+        <p className="text-[11px] text-text-secondary">
+          관측 조건과 다른 대안입니다. 보이지 않는 부위는 확인된 자세가 아닙니다.
+        </p>
+      )}
       {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영</p>}
       <p className="text-[11px] text-text-secondary">
         {candidate.render_camera.projection_matches_search ? "검색 카메라" : "참고 카메라"} · 검수용
@@ -153,6 +191,11 @@ function PresentationContent({
       <Preview
         key={c.candidate_id}
         candidate={c}
+        originalRank={
+          p.library_candidates.find(
+            (original) => original.candidate_id === c.mirror_comparison?.original_candidate_id,
+          )?.rank
+        }
         scope={p.output_scope}
         body={
           bodyPending !== undefined
@@ -166,7 +209,8 @@ function PresentationContent({
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
       <div role="status" className="rounded-lg bg-surface-2 p-2 text-xs">
         <p>
-          {labels[p.status] ?? "지원하지 않는 표시 상태"} · 검색: {p.search_status}
+          {labels[p.status] ?? "지원하지 않는 표시 상태"} ·{" "}
+          {search[p.search_status] ?? "검색 상태 확인 필요"}
         </p>
         {p.search_reason && <p>검색 조건과 근거를 확인해 주세요.</p>}
         {p.generation_status && <p>생성: {generation[p.generation_status] ?? "판정 보류"}</p>}
@@ -179,16 +223,32 @@ function PresentationContent({
             ? "아래 검색 후보를 눌러 포즈를 선택하세요. 저장 전에 결과를 확인합니다."
             : "검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다."}
         </p>
+        {p.mirror_comparison?.status === "ready" && (
+          <p>
+            전체 {p.library_candidates.length + p.review_candidates.length}개에 원본과 반대손 참고
+            한 쌍이 포함됩니다. 반대손 참고는 저장할 수 없습니다.
+          </p>
+        )}
+        {p.mirror_comparison?.status === "unavailable" && (
+          <p>
+            검증된 반대손 참고 후보를 준비하지 못했습니다. 검색 후보는 그대로 확인할 수 있습니다.
+          </p>
+        )}
         {p.issues.length > 0 && <p>일부 3D 미리보기를 확인하지 못했습니다.</p>}
       </div>
       {(
         [
           ["검색 후보", p.library_candidates],
-          ["근접·기하·구도 참고", p.review_candidates],
+          ["반대손 참고", p.review_candidates.filter((c) => c.kind === "mirror_reference")],
+          ["근접·기하·구도 참고", p.review_candidates.filter((c) => c.kind !== "mirror_reference")],
           ["생성 검수 후보", p.generated_candidates],
         ] as const
       )
-        .filter(([label]) => !(selectableLibrary && label === "검색 후보"))
+        .filter(
+          ([label, rows]) =>
+            !(selectableLibrary && label === "검색 후보") &&
+            (label !== "반대손 참고" || rows.length > 0),
+        )
         .map(([label, rows]) => (
           <div key={label}>
             <h3 className="text-xs font-semibold">

@@ -21,6 +21,17 @@ export interface PreviewCandidate {
   pose_id: string | null;
   source: "library" | "generation";
   kind: string;
+  mirror_comparison?: {
+    family_id: string;
+    original_pose_id: string;
+    original_candidate_id: string;
+    original_bvh_sha256: string;
+    is_mirror: boolean;
+    observed_side: "left" | "right";
+    reference_side: "left" | "right";
+    reason: "opposite_hand_reference";
+    matches_observed_side: false;
+  } | null;
   rank: number;
   camera_kind: string;
   render_camera: RenderCamera;
@@ -50,6 +61,10 @@ export interface PosePresentation {
   library_candidates: PreviewCandidate[];
   review_candidates: PreviewCandidate[];
   generated_candidates: PreviewCandidate[];
+  mirror_comparison?: {
+    status: "ready" | "unavailable" | "not_requested";
+    reason: string | null;
+  } | null;
   basic_model: { status: string; output_scope: string | null } | null;
   issues: string[];
   preview_status: string;

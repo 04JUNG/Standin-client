@@ -66,6 +66,7 @@ export function PoseCandidateCard({
   return (
     <button
       data-pose-candidate
+      id={`pose-candidate-${candidate.id}`}
       type="button"
       onClick={
         failed
