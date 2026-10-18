@@ -802,6 +802,11 @@ GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people
 검색 후보와 근접 참고 그룹은 각각 최대 20개를 5개씩 이전/다음으로 탐색한다. 총 개수·현재 범위를 표시하고
 현재 페이지의 3D 모델만 마운트한다. 결과가 적으면 실제 개수만 보여주며 러프 입력의 Top-5는 유지한다.
 
+자연어 작업의 체형 상태가 `intent=inherit`, `resolutionStatus=needs_selection`이고 선택한 체형·수치가 없으면,
+체형을 저장하기 전까지 기본 남성 참고 모델을 표시한다. 이때 `/model`에 `bodyRevision`을 보내지 않으며
+기본 참고임을 안내한다. 사용자 체형이 준비되면 해당 revision으로 전환한다. 수동 선택의 오류·사용 불가 상태나
+체형 조회 실패는 기본 모델로 대체하지 않는다.
+
 신규 후보는 조회 전용이다. BFF semantic-pose-presentation-v1은 정식/근접 후보를 분리하고
 명시적 정면 참고 카메라와 인증된 BVH preview URL을 제공한다. 구형 #87 내보내기 계약으로 해석하지 않는다.
 손 reference PNG는 기존 preview URL + /hands?revision=N이다. PNG-only/손 revision/library 헤더를 확인하고
