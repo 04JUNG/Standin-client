@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
+import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import type { BodyLook } from "./contract";
 import { useBodyPreferences } from "./preferences";
 
@@ -25,7 +26,7 @@ export function useBodyLooks() {
           bodyRef: c.bodyRef,
         });
       }
-    return [...out.values()];
+    return [...out.values()].filter((look) => !isRetiredCharacter(look.characterId));
   }, [prefs.data, catalog.data]);
   const find = (id?: string) => looks.find((l) => l.characterId === id);
   return {

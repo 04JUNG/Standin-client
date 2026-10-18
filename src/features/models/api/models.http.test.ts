@@ -45,6 +45,17 @@ describe("modelsHttp.list", () => {
     __resetApiClient();
   });
 
+  it("excludes six retired fixed adult bodies even if an older server still lists them", async () => {
+    const ids = ["body-female-athletic", "body-female-base", "body-female-muscular", "body-male-athletic", "body-male-base", "body-male-muscular", "female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"];
+    fetchMock.mockResolvedValue(jsonResponse({
+      characters: ids.map((characterId) => serverCharacter({ characterId })),
+      defaultCharacterId: "body-female-base",
+    }));
+    const catalog = await modelsHttp.list({});
+    expect(catalog.characters.map((c) => c.characterId)).toEqual(["female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"]);
+    expect(catalog.defaultCharacterId).toBe("female-base-v0-3-4");
+  });
+
   // 이 엔드포인트를 모르는 배포에서 화면이 통째로 오류가 되면 기본 남성 모델조차 못 본다.
   it.each([404, 501, 503])("%i는 '이 배포엔 없다'로 보고 폴백한다", async (status) => {
     fetchMock.mockResolvedValue(errorResponse(status));
