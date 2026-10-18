@@ -122,7 +122,13 @@ export function BarCandidatesPage() {
           {data.people.map((p) => (
             <div key={p.index}>
               {p.posePresentation ? (
-                <SemanticModelPresentation presentation={p.posePresentation} bodyPreviewJob={data.capabilities.presentationBodyPreviews ? data.jobId : undefined} compact />
+                <SemanticModelPresentation
+                  presentation={p.posePresentation}
+                  bodyPreviewJob={
+                    data.capabilities.presentationBodyPreviews ? data.jobId : undefined
+                  }
+                  compact
+                />
               ) : (
                 <PersonFallbackNotice person={p} compact />
               )}

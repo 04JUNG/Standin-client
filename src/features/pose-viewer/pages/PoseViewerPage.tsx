@@ -206,7 +206,12 @@ export function PoseViewerPage() {
           {data.people.map((person) => (
             <div key={person.index} className="flex flex-col gap-3">
               {person.posePresentation ? (
-                <SemanticModelPresentation presentation={person.posePresentation} bodyPreviewJob={data.capabilities.presentationBodyPreviews ? data.jobId : undefined} />
+                <SemanticModelPresentation
+                  presentation={person.posePresentation}
+                  bodyPreviewJob={
+                    data.capabilities.presentationBodyPreviews ? data.jobId : undefined
+                  }
+                />
               ) : (
                 <PersonFallbackNotice person={person} />
               )}

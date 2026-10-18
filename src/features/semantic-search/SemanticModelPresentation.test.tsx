@@ -60,3 +60,41 @@ it("reports a mesh failure without silently substituting a skeleton", async () =
   expect(screen.queryByAltText("BVH 관절 기반 3D 미리보기")).toBeNull();
   expect(screen.getAllByRole("button", { name: "미리보기 다시 불러오기" })).toHaveLength(2);
 });
+
+vi.mock("@/features/body-selection/presentation", () => ({
+  usePresentationBody: () => ({
+    entry: { ready: true },
+    images: { one: "/selected-female.png", near: "/selected-female-near.png" },
+  }),
+}));
+vi.mock("@/features/body-selection/BodyCandidates", () => ({
+  BodyChip: () => <span>여성 체형 수정</span>,
+  BodyExpand: () => <span>체형 수치</span>,
+  BodyRenderStatus: () => null,
+}));
+it("uses the selected body instead of fixed male surfaces when the server enables body previews", () => {
+  vi.mocked(loadSemanticModel).mockClear();
+  const presentation = {
+    ...p,
+    library_candidates: p.library_candidates.map((c) => ({
+      ...c,
+      render_camera: { ...c.render_camera, projection_matches_search: false },
+    })),
+    review_candidates: [],
+  } as PosePresentation;
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SemanticModelPresentation presentation={presentation} bodyPreviewJob="job" />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByText("여성 체형 수정")).toBeTruthy();
+  expect(screen.getByAltText("선택한 체형과 수치를 적용한 포즈")).toHaveAttribute(
+    "src",
+    "/selected-female.png",
+  );
+  expect(loadSemanticModel).not.toHaveBeenCalled();
+  expect(screen.queryByRole("img", { name: "기본 남성 모델 3D 미리보기" })).toBeNull();
+  expect(
+    screen.getByText("검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다."),
+  ).toBeTruthy();
+});

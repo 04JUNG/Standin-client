@@ -223,18 +223,22 @@ function PresentationContent({
           </h3>
           {rows.length > 0 && (
             <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
-              {rows.map((c) => renderCandidate ? <div key={c.candidate_id}>{renderCandidate(c)}</div> : (
-                <Preview
-                  key={c.candidate_id}
-                  candidate={c}
-                  scope={p.output_scope}
-                  body={
-                    bodyPending !== undefined
-                      ? { url: bodyImages?.[c.candidate_id], pending: bodyPending }
-                      : undefined
-                  }
-                />
-              ))}
+              {rows.map((c) =>
+                renderCandidate ? (
+                  <div key={c.candidate_id}>{renderCandidate(c)}</div>
+                ) : (
+                  <Preview
+                    key={c.candidate_id}
+                    candidate={c}
+                    scope={p.output_scope}
+                    body={
+                      bodyPending !== undefined
+                        ? { url: bodyImages?.[c.candidate_id], pending: bodyPending }
+                        : undefined
+                    }
+                  />
+                ),
+              )}
             </div>
           )}
         </div>
@@ -293,6 +297,10 @@ export function PosePresentationPanel({
   return bodyPreviewJob && hasCandidates ? (
     <SelectedBodyPresentation job={bodyPreviewJob} presentation={presentation} compact={compact} />
   ) : (
-    <PresentationContent presentation={presentation} compact={compact} renderCandidate={renderCandidate} />
+    <PresentationContent
+      presentation={presentation}
+      compact={compact}
+      renderCandidate={renderCandidate}
+    />
   );
 }
