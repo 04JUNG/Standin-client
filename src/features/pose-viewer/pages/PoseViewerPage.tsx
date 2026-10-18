@@ -18,7 +18,7 @@ import { useCandidateRerun } from "../hooks/useCandidateRerun";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { BodyEntry } from "@/features/body-selection/hooks";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Info, Loader2, RotateCw } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Info, RotateCw } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
@@ -30,6 +30,7 @@ import { tourAnchor } from "@/shared/lib/tourAnchor";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
+import { PoseSearchPending } from "../components/PoseSearchPending";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
@@ -147,10 +148,9 @@ export function PoseViewerPage() {
       <AppShell title="포즈 후보">
         <div
           {...tourAnchor("jobs.pending")}
-          className="flex h-full flex-col items-center justify-center gap-3 text-text-secondary"
+          className="flex min-h-full flex-col items-center justify-center gap-4"
         >
-          <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-          <p>가까운 포즈 후보를 찾고 있습니다...</p>
+          <PoseSearchPending preview={restoreOnly ? null : draft} restoring={restoreOnly} />
           {/* 분석은 서버에서 계속 진행되고 결과는 작업 기록에서 다시 열 수 있다.
               기다리는 것 말고 할 수 있는 일이 없는 화면을 만들지 않는다. */}
           <Button variant="secondary" onClick={() => navigate("/app/home")}>
