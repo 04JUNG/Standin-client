@@ -88,7 +88,7 @@ export function renderCandidate(
       });
       if (!points.length) throw new Error("empty model");
       const center = new THREE.Box3().setFromPoints(points).getCenter(new THREE.Vector3());
-      const radius = Math.max(...points.map((p) => p.distanceTo(center)));
+      const radius = points.reduce((r, p) => Math.max(r, p.distanceTo(center)), 0);
       if (!Number.isFinite(radius) || radius <= 0) throw new Error("invalid model bounds");
       const half = (radius * 2.25) / 2;
       const camera = new THREE.OrthographicCamera(-half, half, half, -half, 0.001, radius * 20);

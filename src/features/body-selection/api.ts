@@ -29,6 +29,9 @@ export async function getSelection(job: string, person: number, signal?: AbortSi
     await apiFetch(personPath(job, person) + "/body-selection", { auth: false, signal }),
   );
   if (value.personIndex !== person) throw new Error("체형 인물을 확인하지 못했습니다.");
+  // Older servers/history can still return a ready selection for a retired FBX.
+  if (value.resolvedBody && isRetiredCharacter(value.resolvedBody.characterId))
+    return { ...value, resolutionStatus: "unavailable" as const };
   return value;
 }
 export async function putSelection(

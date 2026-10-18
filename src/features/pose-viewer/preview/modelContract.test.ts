@@ -110,3 +110,23 @@ it("new body mesh verifies asset hash and exporter revision against embedded met
     validateModel(data, "a".repeat(64), "character", { ...expected, modelRevision: "wrong" }),
   ).toThrow();
 });
+
+it("accepts bounded static UInt16 parts and rejects active resources in every part", () => {
+  const parts = [
+    { attributes: { POSITION: 0, NORMAL: 1 }, indices: 2 },
+    { attributes: { POSITION: 3, NORMAL: 4 }, indices: 5 },
+  ];
+  expect(
+    validateModel(model({ meshes: [{ primitives: parts }] }), "a".repeat(64), "character").scope,
+  ).toBe("full");
+  for (const primitives of [
+    [],
+    Array.from({ length: 9 }, () => parts[0]),
+    [parts[0], { ...parts[1], targets: [] }],
+    [parts[0], { ...parts[1], extensions: {} }],
+  ]) {
+    expect(() =>
+      validateModel(model({ meshes: [{ primitives }] }), "a".repeat(64), "character"),
+    ).toThrow("unsupported mesh");
+  }
+});

@@ -802,6 +802,10 @@ GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people
 검색 후보와 근접 참고 그룹은 각각 최대 20개를 5개씩 이전/다음으로 탐색한다. 총 개수·현재 범위를 표시하고
 현재 페이지의 3D 모델만 마운트한다. 결과가 적으면 실제 개수만 보여주며 러프 입력의 Top-5는 유지한다.
 
+구형 고정 성인 6종과 구형 청소년 `body-teen-male`, `body-teen-female`은 카탈로그·체형 옵션에서 제외한다.
+아동 `body-child`는 유지한다. 이전 서버가 청소년 선택을 `ready`로 반환해도 앱은 `unavailable`로 처리하고
+사용자에게 다른 체형 선택을 요청한다.
+
 자연어 작업의 체형 상태가 `intent=inherit`, `resolutionStatus=needs_selection`이고 선택한 체형·수치가 없으면,
 체형을 저장하기 전까지 기본 남성 참고 모델을 표시한다. 이때 `/model`에 `bodyRevision`을 보내지 않으며
 기본 참고임을 안내한다. 사용자 체형이 준비되면 해당 revision으로 전환한다. 수동 선택의 오류·사용 불가 상태나
@@ -830,3 +834,8 @@ X-Standin-Body-Revision/Body-Shape-SHA256(none 또는 hash), Character-Id/Charac
 Model-Revision/Artifact-SHA256와 GLB 내부 source/character/revision/shape_sha256를 모두 검증한다.
 체형 저장·다시 읽기·새 모델 준비 중에는 이전 체형을 숨기고, revision을 포함한 query key로 늦은 응답을 격리한다.
 capability 없는 구형 BFF는 기존 고정 남성 표시를 유지한다. 모델 재시도 시 체형 선택도 새로 읽는다.
+
+정적 모델 GLB는 한 mesh와 내부 buffer 하나, 최대 8개의 정적 primitive를 허용한다.
+큰 아동 모델은 원본 정점·split normal·삼각형을 유지한 UInt16 인덱스 파트로 전달하며,
+8MiB 및 accessor별 50만 항목 제한은 유지한다. 외부 자산·스킨·애니메이션·확장·morph target은 계속 거절한다.
+이 앱을 먼저 배포한 뒤 새 Converter를 배포해야 기존 앱의 단일 primitive 검사와 충돌하지 않는다.

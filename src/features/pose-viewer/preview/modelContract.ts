@@ -86,7 +86,12 @@ export function validateModel(
   )
     throw new Error("unsupported model resources");
   const primitives = doc.meshes[0].primitives;
-  if (primitives?.length !== 1 || primitives[0].targets || primitives[0].extensions)
+  if (
+    !Array.isArray(primitives) ||
+    primitives.length < 1 ||
+    primitives.length > 8 ||
+    primitives.some((p) => p.targets || p.extensions)
+  )
     throw new Error("unsupported mesh");
   for (const accessor of doc.accessors ?? []) {
     if (

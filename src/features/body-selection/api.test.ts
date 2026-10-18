@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { webcrypto, createHash } from "node:crypto";
 import { ApiError } from "@/shared/api/errors";
-import { getManifest, getOptions, renderBodyCandidate } from "./api";
+import { getManifest, getOptions, getSelection, renderBodyCandidate } from "./api";
 import { downloadBodyReview, loadBodyReview } from "./review";
 import type { BodyManifest, BodySelection } from "./contract";
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -65,16 +65,38 @@ beforeEach(() => {
   vi.stubGlobal("crypto", webcrypto);
 });
 afterEach(() => vi.unstubAllGlobals());
-it("removes six fixed adult bodies from options while retaining shape-key bodies and teens", async () => {
-  const ids = ["body-female-athletic", "body-female-base", "body-female-muscular", "body-male-athletic", "body-male-base", "body-male-muscular", "female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"];
-  fetcher.mockResolvedValue(new Response(JSON.stringify({
-    catalogRevision: "test",
-    characters: ids.map((characterId) => ({
-      characterId, bodyRef: { ...ref, characterId }, selectable: true, reasonCodes: [],
-    })),
-  })));
-  expect((await getOptions("job", 0)).characters.map((c) => c.characterId))
-    .toEqual(["female-base-v0-3-4", "male-base-v0-7-2", "body-teen-female"]);
+it("removes fixed adult and teen bodies from options while retaining shape-key bodies and children", async () => {
+  const ids = [
+    "body-female-athletic",
+    "body-female-base",
+    "body-female-muscular",
+    "body-male-athletic",
+    "body-male-base",
+    "body-male-muscular",
+    "female-base-v0-3-4",
+    "male-base-v0-7-2",
+    "body-teen-male",
+    "body-teen-female",
+    "body-child",
+  ];
+  fetcher.mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        catalogRevision: "test",
+        characters: ids.map((characterId) => ({
+          characterId,
+          bodyRef: { ...ref, characterId },
+          selectable: true,
+          reasonCodes: [],
+        })),
+      }),
+    ),
+  );
+  expect((await getOptions("job", 0)).characters.map((c) => c.characterId)).toEqual([
+    "female-base-v0-3-4",
+    "male-base-v0-7-2",
+    "body-child",
+  ]);
 });
 it.each([409, 401, 404])(
   "stale/unauthorized GLB %s must not start PNG fallback",
@@ -151,3 +173,15 @@ it("review and FBX are bound to identical body revision and exact artifact bytes
   );
   await expect(downloadBodyReview(receipt)).rejects.toThrow();
 });
+
+it.each(["body-teen-male", "body-teen-female"])(
+  "old ready history for retired %s requires another body",
+  async (characterId) => {
+    fetcher.mockResolvedValue(
+      Response.json({ ...selection, resolvedBody: { ...selection.resolvedBody!, characterId } }),
+    );
+    const value = await getSelection("job", 0);
+    expect(value.resolutionStatus).toBe("unavailable");
+    expect(value.selectionRevision).toBe(selection.selectionRevision);
+  },
+);
