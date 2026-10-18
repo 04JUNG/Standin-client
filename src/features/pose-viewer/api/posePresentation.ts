@@ -22,7 +22,7 @@ export interface PreviewCandidate {
   source: "library" | "generation";
   kind: string;
   mirror_comparison?: {
-    family_id: string; original_pose_id: string; original_candidate_id: string;
+    family_id: string; original_pose_id: string; original_candidate_id: string; original_bvh_sha256: string;
     is_mirror: boolean; observed_side: "left" | "right"; reference_side: "left" | "right";
     reason: "opposite_hand_reference"; matches_observed_side: false;
   } | null;

@@ -114,7 +114,7 @@ it("shows one actual opposite-hand reference within five cards without granting 
     asset: { preview_bvh_url: `/v1/original_${i}`, bvh_sha256: "a".repeat(64) }, render_camera: camera })) as PreviewCandidate[];
   const mirror = { ...rows[0]!, candidate_id: "mirror", pose_id: "real_mirror", kind: "mirror_reference", rank:1,
     asset: { preview_bvh_url: "/v1/real_mirror", bvh_sha256: "b".repeat(64) },
-    mirror_comparison: { family_id:"pair", original_pose_id:"pose_0", original_candidate_id:"original_0", is_mirror:true,
+    mirror_comparison: { family_id:"pair", original_pose_id:"pose_0", original_bvh_sha256:"a".repeat(64), original_candidate_id:"original_0", is_mirror:true,
       observed_side:"left", reference_side:"right", reason:"opposite_hand_reference", matches_observed_side:false } } as PreviewCandidate;
   const client = new QueryClient();
   for (const row of [...rows,mirror]) {
