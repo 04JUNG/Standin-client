@@ -5,6 +5,7 @@ import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
 import { PoseCandidateCard } from "@/features/pose-viewer/components/PoseCandidateCard";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
+import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import type {
   PersonBox,
   PersonResult,
@@ -38,10 +39,12 @@ function useBodyName(job: string, person: Pick<PersonResult, "index">, selection
   const { options } = useBodyControls(job, person, selection);
   const catalog = useModelCatalog();
   return (id?: string) =>
-    options.data?.characters.find((c) => c.characterId === id)?.displayName ??
-    catalog.data?.characters.find((c) => c.characterId === id)?.displayName ??
-    id ??
-    (selection?.resolutionStatus === "needs_selection" ? "체형 미선택" : "체형 확인 중");
+    id && isRetiredCharacter(id)
+      ? "지원 종료 체형"
+      : (options.data?.characters.find((c) => c.characterId === id)?.displayName ??
+        catalog.data?.characters.find((c) => c.characterId === id)?.displayName ??
+        id ??
+        (selection?.resolutionStatus === "needs_selection" ? "체형 미선택" : "체형 확인 중"));
 }
 
 /** 인물 줄에 적을 체형: 내 체형 카드와 같으면 카드 이름, 아니면 체형 이름(+ 수정). */

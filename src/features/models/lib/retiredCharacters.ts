@@ -1,4 +1,4 @@
-/** 남녀 쉐이프키 모델로 대체한 2026-10-10 성인 고정 FBX. 청소년·아동은 별도 체형이다. */
+/** 구형 성인 고정 FBX 6종과 청소년 2종은 제외한다. 아동은 유지한다. */
 const retired = new Set([
   "body-female-athletic",
   "body-female-base",
@@ -6,6 +6,8 @@ const retired = new Set([
   "body-male-athletic",
   "body-male-base",
   "body-male-muscular",
+  "body-teen-female",
+  "body-teen-male",
 ]);
 
 export function isRetiredCharacter(characterId: string): boolean {

@@ -16,6 +16,7 @@ import type {
   PreviewCandidate,
 } from "@/features/pose-viewer/api/posePresentation";
 import { Modal } from "@/shared/components/Modal";
+import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 
 function Surface({ model, label = "기본 남성" }: { model: ReviewModel; label?: string }) {
   const [failed, setFailed] = useState(false);
@@ -39,12 +40,14 @@ function Candidate({
   waitForBody = false,
   label = "기본 남성",
   refreshSelection,
+  bodyNotice,
 }: {
   candidate: PreviewCandidate;
   refreshSelection?: () => Promise<unknown>;
   selection?: BodySelection;
   waitForBody?: boolean;
   label?: string;
+  bodyNotice?: string;
 }) {
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const [open, setOpen] = useState(false),
@@ -82,7 +85,7 @@ function Candidate({
         >
           {!waitForBody && q.error
             ? "체형 모델을 불러오지 못했습니다."
-            : "선택한 체형 모델 준비 중…"}
+            : (bodyNotice ?? "선택한 체형 모델 준비 중…")}
         </p>
       )}
       <p className="text-xs">
@@ -153,7 +156,10 @@ function SelectedBodyPresentation({
   const pending = useIsMutating({ mutationKey: ["body-change", owner, jobId] }) > 0;
   const { options } = useBodyControls(jobId, person, state.data);
   const settled = !pending && !state.isFetching && !state.error;
-  const ready = settled && state.data?.resolutionStatus === "ready" && !!state.data.resolvedBody;
+  const selectedId = state.data?.resolvedBody?.characterId ?? state.data?.manualCharacterId;
+  const retired = !!selectedId && isRetiredCharacter(selectedId);
+  const ready =
+    settled && !retired && state.data?.resolutionStatus === "ready" && !!state.data.resolvedBody;
   // A new text job can legitimately have no inherited body (for example after a
   // catalog default retires). Show the existing read-only reference without
   // persisting a choice. Explicit/unavailable choices and errors must stay blocked.
@@ -195,9 +201,16 @@ function SelectedBodyPresentation({
           체형 선택 전에는 기본 남성 참고 모델을 보여드려요. 체형 더보기에서 바꿀 수 있어요.
         </p>
       )}
-      {!state.isFetching && state.data && state.data.resolutionStatus !== "ready" && !reference && (
-        <p role="status">미리보기에 사용할 체형을 선택해 주세요.</p>
-      )}
+      {!state.isFetching &&
+        state.data &&
+        (retired || state.data.resolutionStatus !== "ready") &&
+        !reference && (
+          <p role="status">
+            {retired
+              ? "이 체형은 지원이 종료되었습니다. 체형 더보기에서 다른 체형을 선택해 주세요."
+              : "미리보기에 사용할 체형을 선택해 주세요."}
+          </p>
+        )}
       <PosePresentationPanel
         presentation={presentation}
         compact={compact}
@@ -207,6 +220,7 @@ function SelectedBodyPresentation({
             selection={reference ? undefined : state.data}
             waitForBody={!ready && !reference}
             label={reference ? "기본 남성 참고" : label}
+            bodyNotice={retired ? "다른 체형을 선택해 주세요." : undefined}
           />
         )}
       />
