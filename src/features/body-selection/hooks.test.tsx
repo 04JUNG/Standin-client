@@ -7,6 +7,7 @@ import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { useBodies, useBodyControls } from "./hooks";
 import { bodyKeys } from "./api";
 import type { BodySelection } from "./contract";
+import { readOutputScope } from "@/features/pose-viewer/api/outputScope";
 const api = vi.hoisted(() => ({
   getSelection: vi.fn(),
   putSelection: vi.fn(),
@@ -70,6 +71,7 @@ beforeEach(() => {
     selectionRevision: s.selectionRevision,
     resolvedBody: s.resolvedBody,
     renderKey: s.resolvedBody.characterId,
+    outputScope: "full",
     candidates: [{ candidateId: "p1" }, { candidateId: "p2" }],
   }));
   api.renderBodyCandidate.mockImplementation(
@@ -77,6 +79,67 @@ beforeEach(() => {
   );
 });
 describe("server body groups", () => {
+  it("scope and body/shape changes commit one consistent group and discard a late half render", async () => {
+    const { wrapper, qc } = setup();
+    let currentScope = "half";
+    let finish!: () => void;
+    const withScope = (scope: "half" | "head"): AnalysisResult => ({
+      ...result,
+      people: result.people.map((p) =>
+        p.index === 0
+          ? {
+              ...p,
+              outputScope: {
+                ...readOutputScope(undefined),
+                selection: scope,
+                resolved: scope,
+                resolutionSource: "user",
+              },
+            }
+          : p,
+      ),
+    });
+    api.getManifest.mockImplementation(async (_job, index, s) => ({
+      resolvedBody: s.resolvedBody,
+      outputScope: index === 0 ? currentScope : "full",
+      candidates: [{ candidateId: "p1" }, { candidateId: "p2" }],
+    }));
+    api.renderBodyCandidate.mockImplementation(async (m, c) => {
+      if (m.resolvedBody.characterId === "b" && m.outputScope === "half" && c.candidateId === "p2")
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+        });
+      return m.outputScope + ":" + m.resolvedBody.characterId + ":" + c.candidateId;
+    });
+    const h = renderHook(({ data }) => useBodies(data), {
+      wrapper,
+      initialProps: { data: withScope("half") },
+    });
+    await waitFor(() => expect(h.result.current.entries[0]?.group?.images.p1).toBe("half:a:p1"));
+    act(() =>
+      qc.setQueryData(bodyKeys.selection("owner", "server-job", 0), {
+        ...selection(1, "b"),
+        shape: {
+          schemaVersion: "body-shape.v1",
+          controls: { height: 186 },
+          shapeSha256: "c".repeat(64),
+        },
+      }),
+    );
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    expect(h.result.current.entries[0]?.group).toBeUndefined();
+    currentScope = "head";
+    h.rerender({ data: withScope("head") });
+    await waitFor(() => expect(h.result.current.entries[0]?.group?.images.p2).toBe("head:b:p2"));
+    act(() => finish());
+    await waitFor(() => expect(h.result.current.ready).toBe(true));
+    expect(h.result.current.entries[0]?.group?.images).toEqual({
+      p1: "head:b:p1",
+      p2: "head:b:p2",
+    });
+    expect(h.result.current.entries[1]?.group?.images.p1).toBe("full:a:p1");
+    expect(result.people[0]?.candidates).toHaveLength(2);
+  });
   it("does not select a pose, uses real person IDs and actual candidate count", async () => {
     const { wrapper } = setup();
     const h = renderHook(() => useBodies(result), { wrapper });

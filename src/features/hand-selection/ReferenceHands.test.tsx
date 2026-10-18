@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { ReferenceHands } from "./ReferenceHands";
+import { readOutputScope } from "@/features/pose-viewer/api/outputScope";
 const state = vi.hoisted(() => ({
   hand: { revision: 1, library_sha256: "a".repeat(64) },
   load: vi.fn(),
@@ -48,9 +49,9 @@ const result = {
 } as unknown as AnalysisResult;
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const view = () => (
+  const view = (data = result) => (
     <QueryClientProvider client={client}>
-      <ReferenceHands result={result} personIndex={0} />
+      <ReferenceHands result={data} personIndex={0} />
     </QueryClientProvider>
   );
   return { ...render(view()), view };
@@ -104,4 +105,28 @@ it("rejects a stale preview receipt instead of showing the old hand image", asyn
   fireEvent.click(screen.getByRole("button", { name: "손 적용 미리보기" }));
   await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
+});
+it("hides an old hand image after the output scope changes", async () => {
+  const { rerender, view } = mount();
+  fireEvent.change(screen.getByRole("combobox", { name: "손 미리보기 후보" }), {
+    target: { value: candidate.candidate_id },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "손 적용 미리보기" }));
+  await screen.findByRole("img");
+  rerender(
+    view({
+      ...result,
+      people: result.people.map((p) => ({
+        ...p,
+        outputScope: {
+          ...readOutputScope(undefined),
+          selection: "half",
+          resolved: "half",
+          resolutionSource: "user",
+        },
+      })),
+    }),
+  );
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  expect(state.load).toHaveBeenCalledTimes(1);
 });

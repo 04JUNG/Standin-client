@@ -27,6 +27,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     })),
   });
   const mutation = useMutation({
+    mutationKey: ["hand-change", owner, job],
     mutationFn: ({
       selection,
       patch,
@@ -36,14 +37,26 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     }) => putHandSelection(job, selection, patch),
     onMutate: async ({ selection }) => {
       await qc.cancelQueries({ queryKey: handKeys.selection(owner, job, selection.personIndex) });
+      await qc.cancelQueries({
+        queryKey: ["body", owner, job, selection.personIndex],
+        predicate: (q) => q.queryKey[4] === "images",
+      });
     },
-    onSuccess: (selection) => {
+    onSuccess: async (selection) => {
       qc.setQueryData(handKeys.selection(owner, job, selection.personIndex), selection);
+      await qc.invalidateQueries({
+        queryKey: ["body", owner, job, selection.personIndex],
+        predicate: (q) => q.queryKey[4] === "images",
+      });
     },
     onError: async (error, { selection }) => {
       if (error instanceof ApiError && error.status === 409) {
         await qc.invalidateQueries({ queryKey: handKeys.catalog(owner) });
       }
+      await qc.invalidateQueries({
+        queryKey: ["body", owner, job, selection.personIndex],
+        predicate: (q) => q.queryKey[4] === "images",
+      });
       // A lost PUT response may still have committed on the server.
       await qc.invalidateQueries({
         queryKey: handKeys.selection(owner, job, selection.personIndex),

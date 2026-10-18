@@ -839,3 +839,20 @@ capability 없는 구형 BFF는 기존 고정 남성 표시를 유지한다. 모
 큰 아동 모델은 원본 정점·split normal·삼각형을 유지한 UInt16 인덱스 파트로 전달하며,
 8MiB 및 accessor별 50만 항목 제한은 유지한다. 외부 자산·스킨·애니메이션·확장·morph target은 계속 거절한다.
 이 앱을 먼저 배포한 뒤 새 Converter를 배포해야 기존 앱의 단일 primitive 검사와 충돌하지 않는다.
+
+## 체형 Top-K 출력 범위 연결 (2026-10-18)
+
+body-previews.v1.outputScope는 full/half/bust/head를 받는다. 누락·미지원 값은 계약 오류다.
+사용자 선택을 반영한 인물 범위와 manifest 범위가 일치해야 이미지 묶음을 표시한다.
+후보 카드와 플로팅 바가 공유하는 useBodies 이미지 키에 scope를 포함하고, 범위/체형/수치 변경 중 이전 이미지 묶음을 표시하지 않는다.
+full GLB는 posed-mesh-v1이며 후보 rotation을 한 번 적용한다. 부분 GLB는 scope와 rotation이 이미 적용된 framed-mesh-v1이다.
+GLB 내장 scope·원본 BVH·체형 hash·exporter revision·camera rotation을 검증하고 rotation을 중복 적용하지 않는다.
+WebGL/모델 가용성 실패는 같은 manifest의 PNG를 사용한다. 권한·무결성·stale 4xx 또는 취소는 PNG 생성으로 이어지지 않는다.
+수치 조절 체형은 기존 검증된 PNG 경로를 유지한다. 손 적용 참고 미리보기도 범위 변경 시 이전 이미지를 숨긴다.
+shoulder_head를 새 사용자 범위로 추가하거나 bust와 새로 합치는 변경은 포함하지 않는다. 원본 BVH와 최종 Export 정책은 유지한다.
+새 앱과 부분 manifest를 반환하는 BFF를 함께 릴리스해야 한다. 자동 테스트는 실제 설치 앱·실제 체형 외형의 시각 E2E 검증과 구분한다.
+
+#### #99 추가분 통합
+#100의 범위별 framed GLB 검증과 회전 중복 방지, PNG fallback, Mock 처리를 유지한다. shoulder_head를 어깨~머리 선택으로 추가하고 vlm_description/observed_legs 및 선택적 meshScope를 수용한다. 자동 bust 판정은 팔 보존용 half 메시를 표시하며 수동 bust는 흉상 크롭이다. 카드와 바, presentation body·손 PNG가 같은 최종 범위를 사용한다.
+
+손 변경 시 body 이미지 요청을 취소/무효화하고 변경 중 이전 그룹을 숨긴다. manifest.hands가 있으면 hand revision/library hash를 검증한다. X-Standin-Output-Scope가 있는 새 BFF 응답은 이를 검증하며, 구 BFF는 기존 renderKey·digest 바인딩으로 호환한다. 청소년 제거와 multipart 지원은 독립 PR #98에서 유지한다.

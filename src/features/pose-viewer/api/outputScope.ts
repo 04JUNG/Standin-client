@@ -3,12 +3,26 @@ import { apiFetch } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
 import { env } from "@/shared/lib/env";
 
-export const bodyScopeSchema = z.enum(["full", "half", "bust", "head"]);
-export const scopeSelectionSchema = z.enum(["auto", "full", "half", "bust", "head"]);
+export const bodyScopeSchema = z.enum(["full", "half", "bust", "shoulder_head", "head"]);
+export const scopeSelectionSchema = z.enum([
+  "auto",
+  "full",
+  "half",
+  "bust",
+  "shoulder_head",
+  "head",
+]);
 const outputScopeSchema = z.object({
   selection: scopeSelectionSchema,
   detected: bodyScopeSchema.nullable(),
-  detectionSource: z.enum(["vlm_person", "legacy_shot", "unknown"]),
+  meshScope: bodyScopeSchema.nullable().optional(),
+  detectionSource: z.enum([
+    "vlm_person",
+    "vlm_description",
+    "legacy_shot",
+    "observed_legs",
+    "unknown",
+  ]),
   resolved: bodyScopeSchema,
   resolutionSource: z.enum(["auto", "user", "fallback"]),
 });
@@ -20,6 +34,7 @@ export const SCOPE_LABELS: Record<BodyScope, string> = {
   full: "전신",
   half: "반신",
   bust: "흉상",
+  shoulder_head: "어깨~머리",
   head: "두상",
 };
 export function readOutputScope(value: unknown): OutputScope {
@@ -59,7 +74,12 @@ export async function saveOutputScope(
     const value: OutputScope = {
       ...current,
       selection,
-      resolved: selection === "auto" ? (current.detected ?? "full") : selection,
+      resolved:
+        selection === "auto"
+          ? (current.meshScope ??
+            (current.detected === "bust" ? "half" : current.detected) ??
+            "full")
+          : selection,
       resolutionSource: selection !== "auto" ? "user" : current.detected ? "auto" : "fallback",
     };
     mockScopes.set(`${jobId}:${personIndex}`, value);
@@ -73,4 +93,14 @@ export async function saveOutputScope(
   return z
     .object({ personIndex: z.literal(personIndex), outputScope: outputScopeSchema })
     .parse(raw).outputScope;
+}
+
+/** Current BFF resolves preferences; older results may only carry presentation scope. */
+export function previewScope(person?: {
+  outputScope?: OutputScope;
+  posePresentation?: { output_scope: string | null } | null;
+}): BodyScope {
+  if (person?.outputScope) return readOutputScope(person.outputScope).resolved;
+  const parsed = bodyScopeSchema.safeParse(person?.posePresentation?.output_scope);
+  return parsed.success ? parsed.data : "full";
 }

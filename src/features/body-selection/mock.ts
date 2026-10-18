@@ -6,6 +6,7 @@
  * 테스트(MODE=test)에서는 꺼진다. 테스트는 HTTP 계약을 직접 검증한다.
  */
 import { env } from "@/shared/lib/env";
+import { mockOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import type { PersonResult, PoseCandidate } from "@/features/pose-viewer/api/pose.contract";
 import type { CardChange } from "./api";
 import type {
@@ -361,6 +362,7 @@ function drawBody(
   p: Preset & { controls?: Record<string, number> },
   pose: number | null,
   female: boolean,
+  scope: BodyScope = "full",
 ) {
   const canvas = document.createElement("canvas");
   canvas.width = 240;
@@ -441,7 +443,22 @@ function drawBody(
   ctx.fillText(label, cx, 272);
   ctx.font = "10px sans-serif";
   ctx.fillText("MOCK", 214, 14);
-  return canvas.toDataURL("image/png");
+  if (scope === "full") return canvas.toDataURL("image/png");
+  // Development silhouette only; production framing uses the verified converter surface.
+  const cropped = document.createElement("canvas");
+  cropped.width = 240;
+  cropped.height = 280;
+  const output = cropped.getContext("2d");
+  if (!output) return "";
+  const bottom = scope === "half" ? hipY : scope === "bust" ? neck + head : top + head;
+  output.fillStyle = "#e8ecf1";
+  output.fillRect(0, 0, 240, 280);
+  output.drawImage(canvas, 0, top, 240, bottom - top + 5, 0, 0, 240, 255);
+  output.fillStyle = "#4a5566";
+  output.font = "bold 13px sans-serif";
+  output.textAlign = "center";
+  output.fillText(label + " · MOCK", 120, 272);
+  return cropped.toDataURL("image/png");
 }
 
 /* ---------------------------------------------------------------- 상태 */
@@ -617,14 +634,15 @@ export const bodyMock = {
     const p = people.get(key(job, person));
     if (!p || !selection.resolvedBody) throw new Error("mock body manifest missing");
     const sha = hex("mock");
+    const scope = mockOutputScope(job, person, p.outputScope?.detected ?? "full").resolved;
     return {
       schemaVersion: "body-previews.v1",
       jobId: job,
       personIndex: person,
       selectionRevision: selection.selectionRevision,
       resolvedBody: selection.resolvedBody,
-      renderKey: hex(job + person + selection.selectionRevision),
-      outputScope: "full",
+      renderKey: hex(job + person + selection.selectionRevision + scope),
+      outputScope: scope,
       status: "renderable",
       runtime: { previewRevision: sha, modelRevision: sha },
       candidates: p.candidates.map((c: PoseCandidate) => ({
@@ -659,6 +677,7 @@ export const bodyMock = {
       { ...preset(id), controls: s?.shape?.controls },
       rank,
       id.includes("female"),
+      manifest.outputScope,
     );
   },
   /** 실시간 체형 미리보기 자산(standin-shape-runtime.v1) 바이트. */

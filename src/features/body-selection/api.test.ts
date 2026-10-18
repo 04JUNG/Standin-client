@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { webcrypto, createHash } from "node:crypto";
+import { Blob as NodeBlob } from "node:buffer";
 import { ApiError } from "@/shared/api/errors";
 import { getManifest, getOptions, getSelection, renderBodyCandidate } from "./api";
 import { downloadBodyReview, loadBodyReview } from "./review";
@@ -59,12 +60,82 @@ const manifest: BodyManifest = {
   ],
 };
 const fetcher = vi.fn();
+const renderMesh = vi.hoisted(() => vi.fn());
+vi.mock("@/features/pose-viewer/preview/renderCandidate", () => ({ renderCandidate: renderMesh }));
+vi.mock("@/features/pose-viewer/api/thumbnails", () => ({
+  blobToDataUrl: async () => "verified-png",
+}));
 beforeEach(() => {
   fetcher.mockReset();
+  renderMesh.mockReset().mockResolvedValue("verified-glb");
   vi.stubGlobal("fetch", fetcher);
   vi.stubGlobal("crypto", webcrypto);
+  vi.stubGlobal("Blob", NodeBlob);
 });
 afterEach(() => vi.unstubAllGlobals());
+
+function assetResponse(m: BodyManifest, type: string, data = "asset") {
+  return new Response(data, {
+    headers: {
+      "Content-Type": type,
+      "X-Standin-Body-Render-Key": m.renderKey,
+      "X-Standin-Body-Revision": String(m.selectionRevision),
+      "X-Standin-Character-SHA256": m.resolvedBody.assetSha256,
+      "X-Standin-Source-BVH-SHA256": m.candidates[0]!.sourceBvhSha256,
+      "X-Standin-Preview-Revision": m.runtime.previewRevision,
+      "X-Standin-Model-Revision": m.runtime.modelRevision,
+      "X-Standin-Artifact-SHA256": sha(data),
+    },
+  });
+}
+it.each(["full", "half", "bust", "head"] as const)(
+  "accepts %s and passes its model contract to the renderer",
+  async (scope) => {
+    const m = { ...manifest, outputScope: scope };
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify(m)));
+    expect((await getManifest("job", 0, selection)).outputScope).toBe(scope);
+    fetcher.mockResolvedValueOnce(assetResponse(m, "model/gltf-binary"));
+    expect(await renderBodyCandidate(m, m.candidates[0]!, new AbortController().signal)).toBe(
+      "verified-glb",
+    );
+    expect(renderMesh.mock.calls[0]![1]).toMatchObject({
+      scope,
+      version: scope === "full" ? "posed-mesh-v1" : "framed-mesh-v1",
+      characterSha256: ref.assetSha256,
+    });
+  },
+);
+it("rejects missing or unsupported manifest scopes", async () => {
+  for (const scope of [undefined, "waist", "invalid"]) {
+    fetcher.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ...manifest, outputScope: scope })),
+    );
+    await expect(getManifest("job", 0, selection)).rejects.toThrow();
+  }
+});
+it("half scope with a changed body revision uses the same verified PNG fallback", async () => {
+  const m: BodyManifest = {
+    ...manifest,
+    outputScope: "half",
+    selectionRevision: 7,
+    renderKey: sha("new-body"),
+  };
+  fetcher.mockResolvedValueOnce(new Response("", { status: 503 }));
+  fetcher.mockResolvedValueOnce(assetResponse(m, "image/png"));
+  expect(await renderBodyCandidate(m, m.candidates[0]!, new AbortController().signal)).toBe(
+    "verified-png",
+  );
+  expect(fetcher.mock.calls[1]![0]).toContain("/png");
+  expect(renderMesh).not.toHaveBeenCalled();
+});
+it("half PNG from a previous body revision is rejected", async () => {
+  const m = { ...manifest, outputScope: "half" as const, selectionRevision: 2 };
+  fetcher.mockResolvedValueOnce(new Response("", { status: 503 }));
+  fetcher.mockResolvedValueOnce(assetResponse(manifest, "image/png"));
+  await expect(
+    renderBodyCandidate(m, m.candidates[0]!, new AbortController().signal),
+  ).rejects.toThrow("버전");
+});
 it("removes fixed adult and teen bodies from options while retaining shape-key bodies and children", async () => {
   const ids = [
     "body-female-athletic",
@@ -185,3 +256,37 @@ it.each(["body-teen-male", "body-teen-female"])(
     expect(value.selectionRevision).toBe(selection.selectionRevision);
   },
 );
+
+it("accepts shoulder/head manifest and binds optional scope and selected hand receipts", async () => {
+  const scoped = { ...manifest, outputScope: "shoulder_head" as const };
+  fetcher.mockResolvedValueOnce(Response.json(scoped));
+  expect((await getManifest("job", 0, selection)).outputScope).toBe("shoulder_head");
+  const m = { ...manifest, hands: { revision: 2, library_sha256: sha("hands") } };
+  const candidate = m.candidates[0]!;
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const headers = {
+    "Content-Type": "image/png",
+    "X-Standin-Body-Render-Key": m.renderKey,
+    "X-Standin-Body-Revision": "1",
+    "X-Standin-Character-SHA256": ref.assetSha256,
+    "X-Standin-Source-BVH-SHA256": candidate.sourceBvhSha256,
+    "X-Standin-Preview-Revision": m.runtime.previewRevision,
+    "X-Standin-Model-Revision": m.runtime.modelRevision,
+    "X-Standin-Artifact-SHA256": createHash("sha256").update(png).digest("hex"),
+    "X-Standin-Output-Scope": "full",
+    "X-Standin-Hand-Revision": "2",
+    "X-Standin-Hand-Library-SHA256": sha("hands"),
+  };
+  fetcher
+    .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+    .mockResolvedValueOnce(new Response(png, { headers }));
+  expect(await renderBodyCandidate(m, candidate, new AbortController().signal)).toBe(
+    "verified-png",
+  );
+  fetcher
+    .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+    .mockResolvedValueOnce(
+      new Response(png, { headers: { ...headers, "X-Standin-Output-Scope": "half" } }),
+    );
+  await expect(renderBodyCandidate(m, candidate, new AbortController().signal)).rejects.toThrow();
+});
