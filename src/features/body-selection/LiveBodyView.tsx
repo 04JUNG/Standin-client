@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { RoughThumb } from "@/features/pose-viewer/components/RoughPanel";
 import type { PersonBox } from "@/features/pose-viewer/api/pose.contract";
+import { previewFor } from "@/features/models/lib/previewImages";
 import { useBodyOwner } from "./hooks";
 import { loadNeutralPreview } from "./api";
 import { bodyMock, bodyMockEnabled } from "./mock";
@@ -17,18 +18,22 @@ import {
 } from "./shapeRuntime/mountShapeBody";
 import { supportedRuntime, useShapeRuntime } from "./shapeRuntime/load";
 
-/** 프리셋 카드의 고정 그림(서버의 차렷/T 포즈 PNG). 조절 값과 무관하게 한 번만 받는다. */
+/** 서버의 차렷/T 포즈 PNG 또는 같은 모델 해시의 번들 이미지를 쓴다. */
 export function NeutralImage({ option }: { option: BodyLook }) {
   const owner = useBodyOwner();
   const query = useQuery({
-    queryKey: ["body", owner, "neutral", option.characterId, option.neutralPreview],
+    queryKey: [
+      "body", owner, "neutral", option.characterId,
+      option.bodyRef?.assetSha256, option.neutralPreview,
+    ],
     enabled: (!!option.neutralPreview && !!option.bodyRef) || bodyMockEnabled(),
     queryFn: ({ signal }) => loadNeutralPreview(option, signal),
     retry: false,
     staleTime: Infinity,
   });
-  return query.data ? (
-    <img src={query.data} className="h-full w-full object-contain" alt="" />
+  const src = query.data ?? previewFor(option.characterId, option.bodyRef?.assetSha256);
+  return src ? (
+    <img src={src} className="h-full w-full object-contain" alt="" />
   ) : (
     <span className="p-2 text-center text-[11px] text-text-secondary">
       {query.isPending && query.fetchStatus !== "idle" ? "미리보기 준비 중" : "미리보기 없음"}
