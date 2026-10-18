@@ -798,6 +798,10 @@ full/half/shoulder_head/head 범위를 적용하며 카메라 또는 범위가 �
 
 GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people/:index/hands를 사용한다.
 직접 검색은 GET /v1/semantic-search/capabilities와 POST /v1/semantic-search {query,topK?}이며,
+`topK`는 정수 1–20(서버 기본값 5)이다. 앱은 capabilities의 `maxTopK`를 요청하며 이전 서버의 10개 제한도 따른다.
+검색 후보와 근접 참고 그룹은 각각 최대 20개를 5개씩 이전/다음으로 탐색한다. 총 개수·현재 범위를 표시하고
+현재 페이지의 3D 모델만 마운트한다. 결과가 적으면 실제 개수만 보여주며 러프 입력의 Top-5는 유지한다.
+
 신규 후보는 조회 전용이다. BFF semantic-pose-presentation-v1은 정식/근접 후보를 분리하고
 명시적 정면 참고 카메라와 인증된 BVH preview URL을 제공한다. 구형 #87 내보내기 계약으로 해석하지 않는다.
 손 reference PNG는 기존 preview URL + /hands?revision=N이다. PNG-only/손 revision/library 헤더를 확인하고

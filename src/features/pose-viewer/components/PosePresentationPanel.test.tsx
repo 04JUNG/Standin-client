@@ -95,3 +95,15 @@ it("reference images do not open an enlargement or rotation dialog", () => {
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(screen.queryByRole("button", { name: /회전|3D 미리보기/ })).toBeNull();
 });
+
+it("keeps rough-search Top-5 visible without text-search pagination", () => {
+  const rows = Array.from({ length: 5 }, (_, i) => ({ candidate_id: `rough_${i}`, rank: i + 1 }));
+  render(
+    <PosePresentationPanel
+      presentation={{ ...p, library_candidates: rows } as PosePresentation}
+      renderCandidate={(c) => <span>러프 후보 {c.rank}</span>}
+    />,
+  );
+  expect(screen.getAllByText(/^러프 후보 \d$/)).toHaveLength(5);
+  expect(screen.queryByRole("navigation")).toBeNull();
+});

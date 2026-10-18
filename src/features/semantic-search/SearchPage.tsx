@@ -38,8 +38,16 @@ export function SearchPage() {
     staleTime: 30_000,
   });
   const search = useMutation({
-    mutationFn: ({ text, signal }: { text: string; signal: AbortSignal; generation: number }) =>
-      searchPoses(text, signal),
+    mutationFn: ({
+      text,
+      signal,
+      topK,
+    }: {
+      text: string;
+      signal: AbortSignal;
+      generation: number;
+      topK: number;
+    }) => searchPoses(text, signal, topK),
     onSuccess: (result, variables) => {
       if (variables.generation !== generation.current || variables.signal.aborted) return;
       if (result.status === "no_result") {
@@ -82,6 +90,7 @@ export function SearchPage() {
     setNoResult(false);
     search.mutate({
       text: query,
+      topK: availability.data.maxTopK,
       signal: controller.current.signal,
       generation: generation.current,
     });
@@ -94,6 +103,11 @@ export function SearchPage() {
           <p className="mt-2 text-[14px] text-text-secondary">
             동작과 팔·다리의 방향을 구체적으로 쓰면 후보를 고르기 쉬워요.
           </p>
+          {availability.data?.available && (
+            <p className="mt-2 text-[13px] text-text-secondary">
+              최대 {availability.data.maxTopK}개의 검색 후보를 5개씩 비교할 수 있어요.
+            </p>
+          )}
         </div>
         <form
           className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-5"
@@ -190,9 +204,9 @@ export function SearchPage() {
           </div>
         )}
         <p className="text-[12px] leading-relaxed text-text-secondary">
-          검색 후보와 근접 참고 후보를 구분해 3D로 확인할 수 있습니다. 신규 후보는 검수용이며
-          자동 적용·보정·내보내기를 지원하지 않습니다. 검색어는 결과가 있는 작업과 함께 작업
-          기록에 보관됩니다.
+          검색 후보와 근접 참고 후보를 구분해 3D로 확인할 수 있습니다. 신규 후보는 검수용이며 자동
+          적용·보정·내보내기를 지원하지 않습니다. 검색어는 결과가 있는 작업과 함께 작업 기록에
+          보관됩니다.
         </p>
       </div>
     </AppShell>

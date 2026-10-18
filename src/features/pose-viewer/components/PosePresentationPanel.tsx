@@ -5,6 +5,7 @@ import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selectio
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import { usePresentationBody } from "@/features/body-selection/presentation";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
+import { CandidatePages } from "./CandidatePages";
 
 const labels: Record<string, string> = {
   ready: "검색 후보 준비",
@@ -126,7 +127,6 @@ function Preview({
           미리보기 다시 시도
         </button>
       )}
-      {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영</p>}
     </div>
   );
 }
@@ -145,6 +145,23 @@ function PresentationContent({
   bodyImages?: Record<string, string>;
   bodyPending?: boolean;
 }) {
+  const semantic = p.version === "semantic-pose-presentation-v1";
+  const render = (c: PreviewCandidate) =>
+    renderCandidate ? (
+      <div key={c.candidate_id}>{renderCandidate(c)}</div>
+    ) : (
+      <Preview
+        key={c.candidate_id}
+        candidate={c}
+        scope={p.output_scope}
+        body={
+          bodyPending !== undefined
+            ? { url: bodyImages?.[c.candidate_id], pending: bodyPending }
+            : undefined
+        }
+      />
+    );
+  const gridClass = `grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
   return (
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
       <div role="status" className="rounded-lg bg-surface-2 p-2 text-xs">
@@ -177,26 +194,20 @@ function PresentationContent({
             <h3 className="text-xs font-semibold">
               {label} {rows.length}개
             </h3>
-            {rows.length > 0 && (
-              <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
-                {rows.map((c) =>
-                  renderCandidate ? (
-                    <div key={c.candidate_id}>{renderCandidate(c)}</div>
-                  ) : (
-                    <Preview
-                      key={c.candidate_id}
-                      candidate={c}
-                      scope={p.output_scope}
-                      body={
-                        bodyPending !== undefined
-                          ? { url: bodyImages?.[c.candidate_id], pending: bodyPending }
-                          : undefined
-                      }
-                    />
-                  ),
-                )}
-              </div>
-            )}
+            {rows.length > 0 &&
+              (semantic ? (
+                <CandidatePages
+                  key={rows.map((c) => c.candidate_id).join(",")}
+                  rows={rows}
+                  label={label}
+                  gridClass={gridClass}
+                  render={render}
+                />
+              ) : (
+                <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
+                  {rows.map(render)}
+                </div>
+              ))}
           </div>
         ))}
     </section>
