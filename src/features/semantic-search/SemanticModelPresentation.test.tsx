@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { SemanticModelPresentation } from "./SemanticModelPresentation";
 import { loadSemanticModel } from "./modelPreview";
 import type { PosePresentation } from "@/features/pose-viewer/api/posePresentation";
@@ -8,6 +8,9 @@ vi.mock("./modelPreview", () => ({ loadSemanticModel: vi.fn() }));
 vi.mock("@/features/pose-viewer/components/ReviewModelPreview", () => ({
   ReviewModelPreview: ({ label }: { label: string }) => <canvas role="img" aria-label={label} />,
 }));
+beforeEach(() => {
+  vi.mocked(loadSemanticModel).mockReset();
+});
 const p = {
   version: "semantic-pose-presentation-v1",
   person_index: 0,
@@ -59,6 +62,83 @@ it("reports a mesh failure without silently substituting a skeleton", async () =
   );
   expect(screen.queryByAltText("BVH 관절 기반 3D 미리보기")).toBeNull();
   expect(screen.getAllByRole("button", { name: "미리보기 다시 불러오기" })).toHaveLength(2);
+});
+
+it.each([false, true])(
+  "browses all twenty results five at a time (compact: %s)",
+  async (compact) => {
+    vi.mocked(loadSemanticModel).mockResolvedValue({
+      data: new ArrayBuffer(0),
+      scope: "full",
+      characterId: "standin-master-v2",
+    });
+    const candidates = Array.from({ length: 20 }, (_, i) => ({
+      ...p.library_candidates[0]!,
+      candidate_id: `match_${i + 1}`,
+      rank: i + 1,
+      asset: { ...p.library_candidates[0]!.asset, preview_bvh_url: `/match_${i + 1}` },
+    }));
+    const presentation = { ...p, library_candidates: candidates, review_candidates: [] };
+    const view = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SemanticModelPresentation presentation={presentation} compact={compact} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(loadSemanticModel).toHaveBeenCalledTimes(5));
+    expect(screen.getByText("검색 후보 20개")).toBeTruthy();
+    expect(screen.getByText("검색 후보 1–5 / 20개")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "검색 후보 이전 5개" })).toBeDisabled();
+    for (const end of [10, 15, 20]) {
+      fireEvent.click(screen.getByRole("button", { name: "검색 후보 다음 5개" }));
+      await waitFor(() => expect(loadSemanticModel).toHaveBeenCalledTimes(end));
+      await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(5));
+      expect(screen.getByText(`검색 후보 ${end - 4}–${end} / 20개`)).toBeTruthy();
+    }
+    expect(screen.getByRole("button", { name: "검색 후보 다음 5개" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "검색 후보 이전 5개" }));
+    expect(screen.getByText("검색 후보 11–15 / 20개")).toBeTruthy();
+    expect(loadSemanticModel).toHaveBeenCalledTimes(20);
+    // Opening another history job resets the range, without borrowing the old page.
+    view.rerender(
+      <QueryClientProvider client={new QueryClient()}>
+        <SemanticModelPresentation
+          presentation={{
+            ...presentation,
+            library_candidates: candidates.map((c) => ({
+              ...c,
+              candidate_id: `new_${c.candidate_id}`,
+            })),
+          }}
+          compact={compact}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("검색 후보 1–5 / 20개")).toBeTruthy();
+  },
+);
+
+it("keeps a short final page and near references separate from search matches", async () => {
+  vi.mocked(loadSemanticModel).mockResolvedValue({
+    data: new ArrayBuffer(0),
+    scope: "full",
+    characterId: "standin-master-v2",
+  });
+  const library = Array.from({ length: 7 }, (_, i) => ({
+    ...p.library_candidates[0]!,
+    candidate_id: `match_${i}`,
+    rank: i + 1,
+    asset: { ...p.library_candidates[0]!.asset, preview_bvh_url: `/match_${i}` },
+  }));
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SemanticModelPresentation presentation={{ ...p, library_candidates: library }} />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "검색 후보 다음 5개" }));
+  expect(screen.getByText("검색 후보 6–7 / 7개")).toBeTruthy();
+  expect(screen.getByText("근접·기하·구도 참고 1개")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "검색 후보 다음 5개" })).toBeDisabled();
+  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(3));
 });
 
 vi.mock("@/features/body-selection/presentation", () => ({

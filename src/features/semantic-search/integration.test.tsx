@@ -65,7 +65,7 @@ it("text search uses authenticated BFF JSON, never the inference server", async 
   await searchPoses(" 던지기 ");
   expect(fetcher.mock.calls[0]![0]).toMatch(/\/v1\/semantic-search$/);
   expect(fetcher.mock.calls[0]![1].headers["X-Device-Token"]).toBe("device");
-  expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toEqual({ query: "던지기", topK: 5 });
+  expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toEqual({ query: "던지기", topK: 20 });
   expect(fetcher.mock.calls[0]![1].headers.Authorization).toBeUndefined();
 });
 it("rejects empty/overlong query before network and malformed capabilities/results", async () => {
@@ -78,6 +78,25 @@ it("rejects empty/overlong query before network and malformed capabilities/resul
   expect(fetcher).not.toHaveBeenCalled();
   await expect(searchPoses("던지기")).rejects.toMatchObject({ code: "SEMANTIC_CONTRACT" });
   await expect(searchCapabilities()).rejects.toMatchObject({ code: "SEMANTIC_CONTRACT" });
+});
+it("accepts current and previous server limits and preserves the negotiated request size", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  for (const maxTopK of [10, 20]) {
+    fetcher.mockResolvedValueOnce(Response.json({ available: true, maxQueryLength: 500, maxTopK }));
+    const capabilities = await searchCapabilities();
+    fetcher.mockResolvedValueOnce(Response.json({ status: "no_result", jobId: null }));
+    await searchPoses("던지기", undefined, capabilities.maxTopK);
+    expect(JSON.parse(fetcher.mock.calls[fetcher.mock.calls.length - 1]![1].body).topK).toBe(
+      maxTopK,
+    );
+  }
+  for (const topK of [0, 21, 1.5]) {
+    await expect(searchPoses("던지기", undefined, topK)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+  }
+  expect(fetcher).toHaveBeenCalledTimes(4);
 });
 it("history loads a text job without uploading and keeps both source ids for export", async () => {
   const fetcher = vi.fn().mockResolvedValue(Response.json(result()));
