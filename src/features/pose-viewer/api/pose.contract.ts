@@ -96,6 +96,7 @@ export type AnalysisResult = {
      */
     characterSelection: boolean;
     bodyPreviews?: boolean;
+    semanticBodySelection?: boolean;
     bodyPreviewAssets?: boolean;
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;

@@ -55,7 +55,7 @@ it("reports a mesh failure without silently substituting a skeleton", async () =
   vi.mocked(loadSemanticModel).mockRejectedValue(Error("offline"));
   show();
   await waitFor(() =>
-    expect(screen.getAllByText("기본 남성 모델을 불러오지 못했습니다.")).toHaveLength(2),
+    expect(screen.getAllByText("체형 모델을 불러오지 못했습니다.")).toHaveLength(2),
   );
   expect(screen.queryByAltText("BVH 관절 기반 3D 미리보기")).toBeNull();
   expect(screen.getAllByRole("button", { name: "미리보기 다시 불러오기" })).toHaveLength(2);

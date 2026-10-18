@@ -206,6 +206,7 @@ describe("poseHttp", () => {
       jobId: "server-job",
       capabilities: {
         handSelection: false,
+        semanticBodySelection: false,
         refine: false,
         fbxExport: false,
         characterSelection: false,

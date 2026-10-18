@@ -34,6 +34,7 @@ export const bodyShapeSchema = z.object({
 export const shapeDefaultSchema = z.object({ characterId: id, controls: controlsSchema });
 export const selectionSchema = z.object({
   schemaVersion: z.literal("body-selection.v1"),
+  previewOnly: z.literal(true).optional(),
   personIndex: z.number().int().nonnegative(),
   intent: z.enum(["inherit", "manual", "auto"]),
   manualCharacterId: id.nullable(),
