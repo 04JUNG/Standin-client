@@ -51,10 +51,12 @@ function Preview({
   candidate,
   scope,
   body,
+  originalRank,
 }: {
   candidate: PreviewCandidate;
   scope: string | null;
   body?: BodyPicture;
+  originalRank?: number;
 }) {
   const data = useQuery({
     queryKey: ["pose-bvh-source", candidate.asset.preview_bvh_url],
@@ -101,7 +103,9 @@ function Preview({
         )}
         <span className="text-xs">
           {candidate.rank}.{" "}
-          {candidate.kind === "library_match"
+          {candidate.kind === "mirror_reference"
+            ? "반대손 참고"
+            : candidate.kind === "library_match"
             ? "검색 후보"
             : candidate.kind === "generated_review"
               ? "생성 검수"
@@ -110,6 +114,11 @@ function Preview({
                 : "기하·구도 참고"}
         </span>
       </div>
+      {candidate.mirror_comparison && <p className="text-[11px] font-semibold text-text-primary">검색 후보 {originalRank}의 반대손 참고</p>}
+      {candidate.mirror_comparison && <p className="text-[11px] text-text-secondary">
+        인물의 {candidate.mirror_comparison.observed_side === "left" ? "왼손" : "오른손"} 관측 · {candidate.mirror_comparison.reference_side === "left" ? "왼손" : "오른손"} 자세 참고
+      </p>}
+      {candidate.mirror_comparison && <p className="text-[11px] text-text-secondary">관측 조건과 다른 대안입니다. 보이지 않는 부위는 확인된 자세가 아닙니다.</p>}
       {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영</p>}
       <p className="text-[11px] text-text-secondary">
         {candidate.render_camera.projection_matches_search ? "검색 카메라" : "참고 카메라"} · 검수용
@@ -153,6 +162,7 @@ function PresentationContent({
       <Preview
         key={c.candidate_id}
         candidate={c}
+        originalRank={p.library_candidates.find((original) => original.candidate_id === c.mirror_comparison?.original_candidate_id)?.rank}
         scope={p.output_scope}
         body={
           bodyPending !== undefined
@@ -179,12 +189,14 @@ function PresentationContent({
             ? "아래 검색 후보를 눌러 포즈를 선택하세요. 저장 전에 결과를 확인합니다."
             : "검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다."}
         </p>
+        {p.mirror_comparison?.status === "ready" && <p>전체 {p.library_candidates.length + p.review_candidates.length}개에 원본과 반대손 참고 한 쌍이 포함됩니다. 반대손 참고는 저장할 수 없습니다.</p>}
+        {p.mirror_comparison?.status === "unavailable" && <p>검증된 반대손 참고 후보를 준비하지 못했습니다. 검색 후보는 그대로 확인할 수 있습니다.</p>}
         {p.issues.length > 0 && <p>일부 3D 미리보기를 확인하지 못했습니다.</p>}
       </div>
       {(
         [
           ["검색 후보", p.library_candidates],
-          ["근접·기하·구도 참고", p.review_candidates],
+          [p.review_candidates.some((c) => c.kind === "mirror_reference") ? "반대손 참고" : "근접·기하·구도 참고", p.review_candidates],
           ["생성 검수 후보", p.generated_candidates],
         ] as const
       )
