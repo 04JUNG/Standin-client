@@ -165,13 +165,22 @@ async function bodyBytes(
     "Source-BVH-SHA256": candidate.sourceBvhSha256,
     "Preview-Revision": manifest.runtime.previewRevision,
     "Model-Revision": manifest.runtime.modelRevision,
+    ...(headers.has("X-Standin-Output-Scope") ? { "Output-Scope": manifest.outputScope } : {}),
+    ...(manifest.hands
+      ? {
+          "Hand-Revision": String(manifest.hands.revision),
+          "Hand-Library-SHA256": manifest.hands.library_sha256,
+        }
+      : {}),
   };
   for (const [key, value] of Object.entries(expected))
     if (headers.get("X-Standin-" + key) !== value)
       throw new Error("체형 미리보기 버전이 다릅니다.");
-  const blob = await response.blob();
-  await verifyDigest(await blob.arrayBuffer(), headers.get("X-Standin-Artifact-SHA256") ?? "");
-  return blob;
+  const bytes = await response.arrayBuffer();
+  if (!bytes.byteLength || bytes.byteLength > 8 * 1024 * 1024)
+    throw new Error("미리보기 크기를 확인하지 못했습니다.");
+  await verifyDigest(bytes, headers.get("X-Standin-Artifact-SHA256") ?? "");
+  return new Blob([bytes], { type: headers.get("Content-Type")?.split(";")[0] ?? "" });
 }
 export async function renderBodyCandidate(
   manifest: BodyManifest,

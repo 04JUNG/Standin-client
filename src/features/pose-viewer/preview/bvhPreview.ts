@@ -13,7 +13,7 @@ export function bvhGeometry(text: string, scope: string | null, c: RenderCamera,
     !text.startsWith("HIERARCHY") ||
     text.length > 2_000_000 ||
     (text.match(/\bJOINT\b/g)?.length ?? 0) > 500 ||
-    !["full", "half", "shoulder_head", "head"].includes(scope ?? "")
+    !["full", "half", "bust", "shoulder_head", "head"].includes(scope ?? "")
   )
     throw Error("지원하지 않는 BVH 또는 출력 범위입니다.");
   const frames = Number(text.match(/Frames:\s*(\d+)/)?.[1]);
@@ -81,7 +81,8 @@ export function bvhGeometry(text: string, scope: string | null, c: RenderCamera,
   const visible = (name: string) =>
     scope === "full" ||
     (scope === "half" && !/upleg|hip$|leg|foot|toe/.test(name)) ||
-    (scope === "shoulder_head" && /spine2|neck|head|shoulder|^(left|right)arm$/.test(name)) ||
+    ((scope === "shoulder_head" || scope === "bust") &&
+      /spine2|neck|head|shoulder|^(left|right)arm$/.test(name)) ||
     (scope === "head" && /neck|head/.test(name));
   const points = new Map<THREE.Bone, THREE.Vector3>();
   for (const b of bones) {

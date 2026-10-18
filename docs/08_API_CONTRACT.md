@@ -843,3 +843,8 @@ WebGL/모델 가용성 실패는 같은 manifest의 PNG를 사용한다. 권한�
 수치 조절 체형은 기존 검증된 PNG 경로를 유지한다. 손 적용 참고 미리보기도 범위 변경 시 이전 이미지를 숨긴다.
 shoulder_head를 새 사용자 범위로 추가하거나 bust와 새로 합치는 변경은 포함하지 않는다. 원본 BVH와 최종 Export 정책은 유지한다.
 새 앱과 부분 manifest를 반환하는 BFF를 함께 릴리스해야 한다. 자동 테스트는 실제 설치 앱·실제 체형 외형의 시각 E2E 검증과 구분한다.
+
+#### #99 추가분 통합
+#100의 범위별 framed GLB 검증과 회전 중복 방지, PNG fallback, Mock 처리를 유지한다. shoulder_head를 어깨~머리 선택으로 추가하고 vlm_description/observed_legs 및 선택적 meshScope를 수용한다. 자동 bust 판정은 팔 보존용 half 메시를 표시하며 수동 bust는 흉상 크롭이다. 카드와 바, presentation body·손 PNG가 같은 최종 범위를 사용한다.
+
+손 변경 시 body 이미지 요청을 취소/무효화하고 변경 중 이전 그룹을 숨긴다. manifest.hands가 있으면 hand revision/library hash를 검증한다. X-Standin-Output-Scope가 있는 새 BFF 응답은 이를 검증하며, 구 BFF는 기존 renderKey·digest 바인딩으로 호환한다. 청소년 제거와 multipart 지원은 독립 PR #98에서 유지한다.

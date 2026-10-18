@@ -36,6 +36,7 @@ export function ReferenceHands({
     hand?.revision,
     hand?.library_sha256,
     scope,
+    candidate?.render_camera,
   ]);
   const preview = useQuery({
     queryKey: ["hands", owner, "pose-preview", binding],
@@ -47,6 +48,8 @@ export function ReferenceHands({
       );
       if (
         response.headers.get("Content-Type")?.split(";")[0] !== "image/png" ||
+        (response.headers.has("X-Standin-Output-Scope") &&
+          response.headers.get("X-Standin-Output-Scope") !== scope) ||
         response.headers.get("X-Standin-Preview-Only") !== "true" ||
         response.headers.get("X-Standin-Hand-Revision") !== String(hand!.revision) ||
         response.headers.get("X-Standin-Hand-Library-SHA256") !== hand!.library_sha256

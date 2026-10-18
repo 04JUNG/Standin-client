@@ -106,7 +106,7 @@ it.each(["full", "half", "bust", "head"] as const)(
   },
 );
 it("rejects missing or unsupported manifest scopes", async () => {
-  for (const scope of [undefined, "waist", "shoulder_head"]) {
+  for (const scope of [undefined, "waist", "invalid"]) {
     fetcher.mockResolvedValueOnce(
       new Response(JSON.stringify({ ...manifest, outputScope: scope })),
     );
@@ -241,4 +241,38 @@ it("review and FBX are bound to identical body revision and exact artifact bytes
     new Response("fbx", { headers: { ...headers, "X-Standin-Body-Revision": "2" } }),
   );
   await expect(downloadBodyReview(receipt)).rejects.toThrow();
+});
+
+it("accepts shoulder/head manifest and binds optional scope and selected hand receipts", async () => {
+  const scoped = { ...manifest, outputScope: "shoulder_head" as const };
+  fetcher.mockResolvedValueOnce(Response.json(scoped));
+  expect((await getManifest("job", 0, selection)).outputScope).toBe("shoulder_head");
+  const m = { ...manifest, hands: { revision: 2, library_sha256: sha("hands") } };
+  const candidate = m.candidates[0]!;
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const headers = {
+    "Content-Type": "image/png",
+    "X-Standin-Body-Render-Key": m.renderKey,
+    "X-Standin-Body-Revision": "1",
+    "X-Standin-Character-SHA256": ref.assetSha256,
+    "X-Standin-Source-BVH-SHA256": candidate.sourceBvhSha256,
+    "X-Standin-Preview-Revision": m.runtime.previewRevision,
+    "X-Standin-Model-Revision": m.runtime.modelRevision,
+    "X-Standin-Artifact-SHA256": createHash("sha256").update(png).digest("hex"),
+    "X-Standin-Output-Scope": "full",
+    "X-Standin-Hand-Revision": "2",
+    "X-Standin-Hand-Library-SHA256": sha("hands"),
+  };
+  fetcher
+    .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+    .mockResolvedValueOnce(new Response(png, { headers }));
+  expect(await renderBodyCandidate(m, candidate, new AbortController().signal)).toMatch(
+    /^data:image/,
+  );
+  fetcher
+    .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+    .mockResolvedValueOnce(
+      new Response(png, { headers: { ...headers, "X-Standin-Output-Scope": "half" } }),
+    );
+  await expect(renderBodyCandidate(m, candidate, new AbortController().signal)).rejects.toThrow();
 });

@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { bodyScopeSchema } from "@/features/pose-viewer/api/outputScope";
+import { z } from "zod";
 const id = z.string().min(1).max(200);
 export const sha = z.string().regex(/^[a-f0-9]{64}$/);
 export const bodyRefSchema = z.object({
@@ -159,6 +159,11 @@ export const manifestSchema = z.object({
   resolvedBody: bodyRefSchema,
   renderKey: sha,
   outputScope: bodyScopeSchema,
+  hands: z
+    .object({ revision: z.number().int().nonnegative(), library_sha256: sha })
+    .passthrough()
+    .nullable()
+    .optional(),
   status: z.literal("renderable"),
   runtime: z.object({ previewRevision: sha, modelRevision: sha }),
   candidates: z

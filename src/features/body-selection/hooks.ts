@@ -52,7 +52,13 @@ export function useBodies(
         ? readOutputScope(person.outputScope).resolved
         : (bodyScopeSchema.safeParse(person.posePresentation?.output_scope).data ?? "full");
       return {
-        queryKey: [...bodyKeys.person(owner, job, person.index), "images", selection, scope],
+        queryKey: [
+          ...bodyKeys.person(owner, job, person.index),
+          "images",
+          selection,
+          scope,
+          person.candidates,
+        ],
         enabled: !!owner && selection?.resolutionStatus === "ready",
         queryFn: async ({ signal }: { signal: AbortSignal }) => {
           const manifest = await getManifest(job, person.index, selection!, signal);
@@ -76,7 +82,9 @@ export function useBodies(
       };
     }),
   });
-  const pending = useIsMutating({ mutationKey: ["body-change", owner, job] }) > 0;
+  const bodyPending = useIsMutating({ mutationKey: ["body-change", owner, job] }) > 0;
+  const handPending = useIsMutating({ mutationKey: ["hand-change", owner, job] }) > 0;
+  const pending = bodyPending || handPending;
   const entries = people.map((person, i) => ({
     personIndex: person.index,
     selection: selections[i]?.data,
