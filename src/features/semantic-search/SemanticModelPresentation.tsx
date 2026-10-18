@@ -152,11 +152,18 @@ function SelectedBodyPresentation({
   });
   const pending = useIsMutating({ mutationKey: ["body-change", owner, jobId] }) > 0;
   const { options } = useBodyControls(jobId, person, state.data);
-  const ready =
-    !pending &&
-    !state.isFetching &&
-    state.data?.resolutionStatus === "ready" &&
-    !!state.data.resolvedBody;
+  const settled = !pending && !state.isFetching && !state.error;
+  const ready = settled && state.data?.resolutionStatus === "ready" && !!state.data.resolvedBody;
+  // A new text job can legitimately have no inherited body (for example after a
+  // catalog default retires). Show the existing read-only reference without
+  // persisting a choice. Explicit/unavailable choices and errors must stay blocked.
+  const reference =
+    settled &&
+    state.data?.resolutionStatus === "needs_selection" &&
+    state.data.intent === "inherit" &&
+    !state.data.manualCharacterId &&
+    !state.data.resolvedBody &&
+    !state.data.shape;
   const label =
     options.data?.characters.find((c) => c.characterId === state.data?.resolvedBody?.characterId)
       ?.displayName ?? "선택한 체형";
@@ -183,14 +190,24 @@ function SelectedBodyPresentation({
           <button onClick={() => void state.refetch()}>다시 시도</button>
         </p>
       )}
-      {!state.isFetching && state.data && state.data.resolutionStatus !== "ready" && (
+      {reference && (
+        <p role="status" className="text-sm text-text-secondary">
+          체형 선택 전에는 기본 남성 참고 모델을 보여드려요. 체형 더보기에서 바꿀 수 있어요.
+        </p>
+      )}
+      {!state.isFetching && state.data && state.data.resolutionStatus !== "ready" && !reference && (
         <p role="status">미리보기에 사용할 체형을 선택해 주세요.</p>
       )}
       <PosePresentationPanel
         presentation={presentation}
         compact={compact}
         renderCandidate={(c) => (
-          <Candidate candidate={c} selection={state.data} waitForBody={!ready} label={label} />
+          <Candidate
+            candidate={c}
+            selection={reference ? undefined : state.data}
+            waitForBody={!ready && !reference}
+            label={reference ? "기본 남성 참고" : label}
+          />
         )}
       />
     </div>

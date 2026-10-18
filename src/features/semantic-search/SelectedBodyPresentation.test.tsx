@@ -8,14 +8,24 @@ import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import type { PosePresentation } from "@/features/pose-viewer/api/posePresentation";
 import { SemanticModelPresentation } from "./SemanticModelPresentation";
 import { loadSemanticModel } from "./modelPreview";
-const state = vi.hoisted(() => ({ selection: null as BodySelection | null }));
+import { putSelection } from "@/features/body-selection/api";
+const state = vi.hoisted(() => ({
+  selection: null as BodySelection | null,
+  error: null as Error | null,
+}));
 vi.mock("./modelPreview", () => ({ loadSemanticModel: vi.fn() }));
 vi.mock("@/features/body-selection/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/body-selection/api")>()),
-  getSelection: vi.fn(async () => state.selection),
+  getSelection: vi.fn(async () => {
+    if (state.error) throw state.error;
+    return state.selection;
+  }),
   putSelection: vi.fn(async (_j, _p, change) => {
     state.selection = {
       ...state.selection!,
+      intent: "manual",
+      manualCharacterId: change.characterId,
+      resolutionStatus: "ready",
       selectionRevision: state.selection!.selectionRevision + 1,
       resolvedBody: { ...state.selection!.resolvedBody!, characterId: change.characterId },
     };
@@ -66,6 +76,9 @@ const presentation = {
   generated_candidates: [],
 } as unknown as PosePresentation;
 beforeEach(() => {
+  state.error = null;
+  vi.mocked(putSelection).mockClear();
+  vi.mocked(loadSemanticModel).mockClear();
   useInstallationStore.setState({
     credentials: { installationId: "owner", deviceToken: "test", consentVersion: "2026-08-02" },
   });
@@ -90,10 +103,88 @@ beforeEach(() => {
   };
   vi.mocked(loadSemanticModel).mockImplementation(async (_c, _s, selection) => ({
     data: new ArrayBuffer(0),
-    characterId: selection!.resolvedBody!.characterId,
+    characterId: selection?.resolvedBody?.characterId ?? "standin-master-v2",
     scope: "full",
   }));
 });
+
+let nextJob = 0;
+function show(compact = false) {
+  const jobId = `job_first_search_${nextJob++}`;
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: { queries: { retry: false } },
+          })
+        }
+      >
+        <SemanticModelPresentation
+          presentation={presentation}
+          compact={compact}
+          bodyContext={{ jobId, person }}
+        />
+      </QueryClientProvider>
+    </MemoryRouter>,
+  );
+}
+function unselected() {
+  state.selection = {
+    ...state.selection!,
+    intent: "inherit",
+    manualCharacterId: null,
+    resolvedBody: null,
+    resolvedSource: null,
+    resolutionStatus: "needs_selection",
+    shape: null,
+  };
+}
+
+it.each([false, true])(
+  "shows a reference for a first search and switches to the chosen body (compact: %s)",
+  async (compact) => {
+    unselected();
+    show(compact);
+    expect(
+      await screen.findByRole("img", { name: "기본 남성 참고 모델 3D 미리보기" }),
+    ).toBeTruthy();
+    expect(vi.mocked(loadSemanticModel).mock.calls[0]![2]).toBeUndefined();
+    expect(putSelection).not.toHaveBeenCalled();
+    expect(screen.getByText("체형 미선택")).toBeTruthy();
+    expect(screen.getByText(/체형 선택 전에는 기본 남성 참고 모델/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^여성$/ }));
+    fireEvent.click(await screen.findByRole("radio", { name: /테스트 여성/ }));
+    expect(await screen.findByRole("img", { name: "테스트 여성 모델 3D 미리보기" })).toBeTruthy();
+    expect(screen.queryByRole("img", { name: "기본 남성 참고 모델 3D 미리보기" })).toBeNull();
+    expect(state.selection!.manualCharacterId).toBe("female-test");
+  },
+);
+
+it.each(["unavailable", "manual", "error"])(
+  "does not replace a failed or explicit body with a reference (%s)",
+  async (reason) => {
+    unselected();
+    if (reason === "unavailable") state.selection!.resolutionStatus = "unavailable";
+    if (reason === "manual") {
+      state.selection!.intent = "manual";
+      state.selection!.manualCharacterId = "female-test";
+    }
+    if (reason === "error") state.error = Error("selection unavailable");
+    show();
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          reason === "error"
+            ? "체형 선택을 불러오지 못했습니다."
+            : "미리보기에 사용할 체형을 선택해 주세요.",
+        ),
+      ).toBeTruthy(),
+    );
+    expect(loadSemanticModel).not.toHaveBeenCalled();
+  },
+);
 afterEach(() => useInstallationStore.setState({ credentials: null }));
 it("uses persisted body selection, hides the previous surface while changing and renders the chosen female body", async () => {
   let finish!: () => void;
