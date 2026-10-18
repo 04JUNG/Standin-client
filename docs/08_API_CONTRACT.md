@@ -811,3 +811,13 @@ GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people
 Source-BVH-SHA256, Character-SHA256, Model-Revision, Artifact-SHA256 헤더(X-Standin- prefix)를 검증한다.
 기본 남성 standin-master-v2의 posed-mesh-v1 또는 framed-mesh-v1만 표시한다.
 기존 export/refine API에 대한 허용을 의미하지 않는다. bodyPreviews/characterSelection capability를 열지 않는다.
+
+### 자연어 검색 체형 선택 확장
+
+`capabilities.semanticBodySelection === true`일 때 기존 인물별 body-options/body-selection API를 사용한다.
+선택은 previewOnly이며 refine/export/release 허용으로 해석하지 않는다. bodyPreviews는 legacy 이미지 경로용으로 계속 false다.
+`{preview_bvh_url}/model?bodyRevision={selectionRevision}`은 저장된 resolvedBody/shape만 사용한다.
+X-Standin-Body-Revision/Body-Shape-SHA256(none 또는 hash), Character-Id/Character-SHA256,
+Model-Revision/Artifact-SHA256와 GLB 내부 source/character/revision/shape_sha256를 모두 검증한다.
+체형 저장·다시 읽기·새 모델 준비 중에는 이전 체형을 숨기고, revision을 포함한 query key로 늦은 응답을 격리한다.
+capability 없는 구형 BFF는 기존 고정 남성 표시를 유지한다. 모델 재시도 시 체형 선택도 새로 읽는다.
