@@ -23,3 +23,11 @@
 카드가 동시에 나타나도 모델 요청은 순차 처리하며 취소된 요청은 시작하지 않는다.
 기본 남성/기본 손 고정이다. 손 선택은 별도 손 적용 참고 렌더에 반영된다. 체형 선택은 후속 범위다.
 신규 후보의 자동 적용·refine·export·release 및 actualMeshValidated=false는 유지한다.
+
+## 자연어 검색의 체형 선택
+
+새 `semanticBodySelection` capability가 있으면 기존 체형 더보기·내 체형 카드·수치 조절을 표시한다.
+선택한 체형은 인물별로 저장하고 검색 후보/근접 참고의 3D 모델과 확대·회전에 반영한다.
+선택 revision/body/shape를 query key와 응답·GLB 검증에 포함해 이전 체형 모델의 늦은 응답을 표시하지 않는다.
+구형 서버의 고정 남성 모드와 신규 후보 refine/export/release 금지는 유지한다.
+손 적용 참고 PNG는 기본 체형을 사용하는 별도 렌더다.

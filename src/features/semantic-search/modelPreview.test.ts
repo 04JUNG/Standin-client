@@ -1,3 +1,4 @@
+import type { BodySelection } from "@/features/body-selection/contract";
 import { expect, it, vi } from "vitest";
 import { apiFetchResponse } from "@/shared/api/client";
 import type { PreviewCandidate } from "@/features/pose-viewer/api/posePresentation";
@@ -84,4 +85,78 @@ it("rejects embedded lineage even when the response digest is correct", async ()
     await response({}, { character_sha256: "e".repeat(64) }),
   );
   await expect(loadSemanticModel(candidate, new AbortController().signal)).rejects.toThrow();
+});
+
+const selection = {
+  schemaVersion: "body-selection.v1",
+  personIndex: 0,
+  intent: "manual",
+  manualCharacterId: "female-test",
+  recommendation: { status: "disabled", body: null, reasonCodes: [] },
+  resolvedBody: {
+    bodyId: "female-test",
+    characterId: "female-test",
+    assetSha256: characterSha,
+    bodyVersion: "v1",
+    rigVersion: "v1",
+    measurementVersion: "v1",
+  },
+  resolvedSource: "manual",
+  resolutionStatus: "ready",
+  selectionRevision: 7,
+  previewOnly: true,
+} as BodySelection;
+it("requests and validates the persisted female body revision without sending a character override", async () => {
+  vi.mocked(apiFetchResponse).mockResolvedValueOnce(
+    await response(
+      {
+        "X-Standin-Character-Id": "female-test",
+        "X-Standin-Body-Revision": "7",
+        "X-Standin-Body-Shape-SHA256": "none",
+      },
+      { character_id: "female-test" },
+    ),
+  );
+  const m = await loadSemanticModel(candidate, new AbortController().signal, selection);
+  expect(m.characterId).toBe("female-test");
+  expect(apiFetchResponse).toHaveBeenLastCalledWith(
+    candidate.asset.preview_bvh_url + "/model?bodyRevision=7",
+    expect.objectContaining({ auth: false }),
+  );
+});
+it("rejects a stale body revision or a different shape even with a valid model digest", async () => {
+  vi.mocked(apiFetchResponse).mockResolvedValueOnce(
+    await response(
+      {
+        "X-Standin-Character-Id": "female-test",
+        "X-Standin-Body-Revision": "6",
+        "X-Standin-Body-Shape-SHA256": "none",
+      },
+      { character_id: "female-test" },
+    ),
+  );
+  await expect(
+    loadSemanticModel(candidate, new AbortController().signal, selection),
+  ).rejects.toThrow();
+  const shaped = {
+    ...selection,
+    shape: {
+      schemaVersion: "body-shape.v1" as const,
+      controls: { height: 175 },
+      shapeSha256: "f".repeat(64),
+    },
+  };
+  vi.mocked(apiFetchResponse).mockResolvedValueOnce(
+    await response(
+      {
+        "X-Standin-Character-Id": "female-test",
+        "X-Standin-Body-Revision": "7",
+        "X-Standin-Body-Shape-SHA256": "f".repeat(64),
+      },
+      { character_id: "female-test", shape_sha256: "e".repeat(64) },
+    ),
+  );
+  await expect(
+    loadSemanticModel(candidate, new AbortController().signal, shaped),
+  ).rejects.toThrow();
 });

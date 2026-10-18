@@ -32,7 +32,9 @@ export function useBodies(
     job = result?.jobId ?? "";
   const qc = useQueryClient();
   const enabled = bodyEnabled(result);
-  const people = enabled ? (result?.people.filter((p) => p.fallbackMode !== "hard") ?? []) : [];
+  const people = enabled
+    ? (result?.people.filter((p) => p.fallbackMode !== "hard" && p.candidates.length > 0) ?? [])
+    : [];
   const selections = useQueries({
     queries: people.map((p) => ({
       queryKey: bodyKeys.selection(owner, job, p.index),
@@ -108,7 +110,11 @@ export function useBodies(
   };
 }
 export type BodyEntry = ReturnType<typeof useBodies>["entries"][number];
-export function useBodyControls(job: string, person: PersonResult, selection?: BodySelection) {
+export function useBodyControls(
+  job: string,
+  person: Pick<PersonResult, "index">,
+  selection?: BodySelection,
+) {
   const owner = useBodyOwner(),
     qc = useQueryClient();
   const options = useQuery({

@@ -33,12 +33,25 @@ type PersonFallbackNoticeProps = {
   > & { candidates?: PersonResult["candidates"] };
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
+  bodyPreviewJob?: string;
 };
 
-export function PersonFallbackNotice({ person, compact = false }: PersonFallbackNoticeProps) {
+export function PersonFallbackNotice({
+  person,
+  compact = false,
+  bodyPreviewJob,
+}: PersonFallbackNoticeProps) {
   if (person.posePresentation)
-    return <PosePresentationPanel presentation={person.posePresentation} compact={compact}
-      selectableLibrary={person.candidates?.some((c) => c.source === "library" && c.releaseAllowed === true)} />;
+    return (
+      <PosePresentationPanel
+        presentation={person.posePresentation}
+        compact={compact}
+        selectableLibrary={person.candidates?.some(
+          (c) => c.source === "library" && c.releaseAllowed === true,
+        )}
+        bodyPreviewJob={bodyPreviewJob}
+      />
+    );
   if (person.routedSearch) {
     const r = person.routedSearch;
     const route =

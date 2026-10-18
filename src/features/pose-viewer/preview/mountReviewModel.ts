@@ -13,6 +13,7 @@ export type ReviewModel = {
   characterSha256?: string;
   modelRevision?: string;
   turnDegrees?: number;
+  shapeSha256?: string | null;
 };
 
 /** Keep the validated surface on the GPU until review closes; draw only on resize. */
@@ -34,6 +35,8 @@ export async function mountReviewModel(
     (model.modelRevision && meta.revision !== model.modelRevision)
   )
     throw new Error("model identity changed");
+  if (model.shapeSha256 !== undefined && (meta.shape_sha256 ?? null) !== model.shapeSha256)
+    throw new Error("body shape changed");
   const loader = new GLTFLoader();
   loader.manager.setURLModifier(() => {
     throw new Error("external model resource");

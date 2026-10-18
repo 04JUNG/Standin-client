@@ -46,7 +46,7 @@ export function PoseCandidateCard({
 }: PoseCandidateCardProps) {
   const fill = layout === "fill";
   const preview = useQuery(
-    !bodyPreview && candidate.quickThumbnailUrl
+    !bodyPreview && !characterId && candidate.quickThumbnailUrl
       ? quickCandidateThumbnailOptions(candidate.quickThumbnailUrl)
       : candidateThumbnailOptions(
           bodyPreview ? undefined : candidate.deferredThumbnailUrl,
@@ -54,7 +54,11 @@ export function PoseCandidateCard({
           characterId ?? undefined,
         ),
   );
-  const imageUrl = bodyPreview ? bodyPreview.url : candidate.thumbnailUrl || preview.data;
+  const imageUrl = bodyPreview
+    ? bodyPreview.url
+    : characterId
+      ? preview.data
+      : candidate.thumbnailUrl || preview.data;
   const pending = bodyPreview
     ? bodyPreview.pending
     : !!candidate.deferredThumbnailUrl && preview.isPending;
@@ -108,6 +112,9 @@ export function PoseCandidateCard({
           )}
         </div>
       )}
+      {bodyPreview && candidate.source === "library" && (
+        <span className="text-[11px] text-text-secondary">체형 참고 · 정사영</span>
+      )}
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
         <div className="flex items-center justify-between">
           <span
@@ -126,7 +133,11 @@ export function PoseCandidateCard({
             )}
           >
             {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
-            {reviewOnly(candidate) ? "검수용 · 보정·저장 불가" : candidate.semantic ? "문장 검색" : MATCH_LABEL[candidate.matchLevel]}
+            {reviewOnly(candidate)
+              ? "검수용 · 보정·저장 불가"
+              : candidate.semantic
+                ? "문장 검색"
+                : MATCH_LABEL[candidate.matchLevel]}
           </span>
           {!fill &&
             candidate.tags.map((tag) => (

@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
+import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selection/BodyCandidates";
+import { useBodyPanel } from "@/features/body-selection/bodyPanel";
+import { usePresentationBody } from "@/features/body-selection/presentation";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
 
 const labels: Record<string, string> = {
@@ -42,22 +45,27 @@ async function source(candidate: PreviewCandidate, signal: AbortSignal) {
   if (hash !== candidate.asset.bvh_sha256) throw Error("BVH 해시가 변경되었습니다.");
   return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
-function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: string | null }) {
+type BodyPicture = { url?: string; pending: boolean };
+function Preview({
+  candidate,
+  scope,
+  body,
+}: {
+  candidate: PreviewCandidate;
+  scope: string | null;
+  body?: BodyPicture;
+}) {
   const data = useQuery({
     queryKey: ["pose-bvh-source", candidate.asset.preview_bvh_url],
     queryFn: ({ signal }) => source(candidate, signal),
+    enabled: !body,
     retry: false,
     staleTime: 600_000,
     gcTime: 600_000,
   });
   const picture = useQuery({
-    queryKey: [
-      "pose-bvh-render",
-      candidate.asset.preview_bvh_url,
-      scope,
-      candidate.render_camera,
-    ],
-    enabled: !!data.data,
+    queryKey: ["pose-bvh-render", candidate.asset.preview_bvh_url, scope, candidate.render_camera],
+    enabled: !!data.data && !body,
     queryFn: async () => {
       const { renderBvh } = await import("../preview/bvhPreview");
       return renderBvh(data.data!, scope, candidate.render_camera, 0);
@@ -72,19 +80,22 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
       data-presentation-candidate={candidate.candidate_id}
       className="rounded-lg border border-border bg-surface-0 p-2"
     >
-      <div
-        className="w-full"
-        aria-label={`${candidate.rank}번 ${candidate.kind} 3D 미리보기`}
-      >
-        {picture.data ? (
+      <div className="w-full" aria-label={`${candidate.rank}번 ${candidate.kind} 3D 미리보기`}>
+        {(body ? body.url : picture.data) ? (
           <img
-            src={picture.data}
-            alt="BVH 관절 기반 3D 미리보기"
+            src={(body ? body.url : picture.data)!}
+            alt={body ? "선택한 체형과 수치를 적용한 포즈" : "BVH 관절 기반 3D 미리보기"}
             className="aspect-square w-full object-contain"
           />
         ) : (
           <div className="flex aspect-square items-center justify-center text-xs">
-            {error ? "3D 미리보기 불가" : "3D 미리보기 준비 중"}
+            {body
+              ? body.pending
+                ? "선택한 체형으로 포즈 준비 중"
+                : "체형 미리보기 불가"
+              : error
+                ? "3D 미리보기 불가"
+                : "3D 미리보기 준비 중"}
           </div>
         )}
         <span className="text-xs">
@@ -98,6 +109,7 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
                 : "기하·구도 참고"}
         </span>
       </div>
+      {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영</p>}
       <p className="text-[11px] text-text-secondary">
         {candidate.render_camera.projection_matches_search ? "검색 카메라" : "참고 카메라"} · 검수용
         · 저장 불가
@@ -114,19 +126,24 @@ function Preview({ candidate, scope }: { candidate: PreviewCandidate; scope: str
           미리보기 다시 시도
         </button>
       )}
+      {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영</p>}
     </div>
   );
 }
-export function PosePresentationPanel({
+function PresentationContent({
   presentation: p,
   compact = false,
   selectableLibrary = false,
   renderCandidate,
+  bodyImages,
+  bodyPending,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
   selectableLibrary?: boolean;
   renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
+  bodyImages?: Record<string, string>;
+  bodyPending?: boolean;
 }) {
   return (
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
@@ -140,9 +157,11 @@ export function PosePresentationPanel({
         {p.unobserved_body_is_default === true && (
           <p>보이지 않는 신체 부위에는 기본값이 포함되어 있습니다.</p>
         )}
-        <p>{selectableLibrary
-          ? "아래 검색 후보를 눌러 포즈를 선택하세요. 저장 전에 결과를 확인합니다."
-          : "검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다."}</p>
+        <p>
+          {selectableLibrary
+            ? "아래 검색 후보를 눌러 포즈를 선택하세요. 저장 전에 결과를 확인합니다."
+            : "검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다."}
+        </p>
         {p.issues.length > 0 && <p>일부 3D 미리보기를 확인하지 못했습니다.</p>}
       </div>
       {(
@@ -151,24 +170,104 @@ export function PosePresentationPanel({
           ["근접·기하·구도 참고", p.review_candidates],
           ["생성 검수 후보", p.generated_candidates],
         ] as const
-      ).filter(([label]) => !(selectableLibrary && label === "검색 후보")).map(([label, rows]) => (
-        <div key={label}>
-          <h3 className="text-xs font-semibold">
-            {label} {rows.length}개
-          </h3>
-          {rows.length > 0 && (
-            <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
-              {rows.map((c) =>
-                renderCandidate ? (
-                  <div key={c.candidate_id}>{renderCandidate(c)}</div>
-                ) : (
-                  <Preview key={c.candidate_id} candidate={c} scope={p.output_scope} />
-                ),
-              )}
-            </div>
-          )}
-        </div>
-      ))}
+      )
+        .filter(([label]) => !(selectableLibrary && label === "검색 후보"))
+        .map(([label, rows]) => (
+          <div key={label}>
+            <h3 className="text-xs font-semibold">
+              {label} {rows.length}개
+            </h3>
+            {rows.length > 0 && (
+              <div className={`grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-3"}`}>
+                {rows.map((c) =>
+                  renderCandidate ? (
+                    <div key={c.candidate_id}>{renderCandidate(c)}</div>
+                  ) : (
+                    <Preview
+                      key={c.candidate_id}
+                      candidate={c}
+                      scope={p.output_scope}
+                      body={
+                        bodyPending !== undefined
+                          ? { url: bodyImages?.[c.candidate_id], pending: bodyPending }
+                          : undefined
+                      }
+                    />
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+        ))}
     </section>
+  );
+}
+
+function SelectedBodyPresentation({
+  job,
+  presentation,
+  compact,
+  selectableLibrary,
+}: {
+  job: string;
+  presentation: PosePresentation;
+  compact: boolean;
+  selectableLibrary: boolean;
+}) {
+  const { entry, images } = usePresentationBody(job, presentation);
+  const person = { index: presentation.person_index };
+  const { open } = useBodyPanel(job, person.index);
+  return (
+    <div className="space-y-2">
+      <BodyChip job={job} person={person} entry={entry} />
+      {open ? (
+        <BodyExpand job={job} person={person} entry={entry} variant={compact ? "bar" : "app"} />
+      ) : (
+        <>
+          <BodyRenderStatus entry={entry} />
+          <PresentationContent
+            presentation={presentation}
+            compact={compact}
+            selectableLibrary={selectableLibrary}
+            bodyImages={images}
+            bodyPending={!entry.error && !entry.ready}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+export function PosePresentationPanel({
+  presentation,
+  compact = false,
+  selectableLibrary = false,
+  bodyPreviewJob,
+  renderCandidate,
+}: {
+  presentation: PosePresentation;
+  compact?: boolean;
+  selectableLibrary?: boolean;
+  bodyPreviewJob?: string;
+  renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
+}) {
+  const hasCandidates = [
+    presentation.library_candidates,
+    presentation.review_candidates,
+    presentation.generated_candidates,
+  ].some((g) => g.length > 0);
+  return bodyPreviewJob && hasCandidates ? (
+    <SelectedBodyPresentation
+      job={bodyPreviewJob}
+      presentation={presentation}
+      compact={compact}
+      selectableLibrary={selectableLibrary}
+    />
+  ) : (
+    <PresentationContent
+      presentation={presentation}
+      compact={compact}
+      selectableLibrary={selectableLibrary}
+      renderCandidate={renderCandidate}
+    />
   );
 }
