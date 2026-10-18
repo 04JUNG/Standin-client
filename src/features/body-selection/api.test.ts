@@ -266,8 +266,8 @@ it("accepts shoulder/head manifest and binds optional scope and selected hand re
   fetcher
     .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
     .mockResolvedValueOnce(new Response(png, { headers }));
-  expect(await renderBodyCandidate(m, candidate, new AbortController().signal)).toMatch(
-    /^data:image/,
+  expect(await renderBodyCandidate(m, candidate, new AbortController().signal)).toBe(
+    "verified-png",
   );
   fetcher
     .mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
