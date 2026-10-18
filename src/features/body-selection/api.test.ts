@@ -185,3 +185,57 @@ it.each(["body-teen-male", "body-teen-female"])(
     expect(value.selectionRevision).toBe(selection.selectionRevision);
   },
 );
+
+it.each(["half", "bust", "shoulder_head", "head"] as const)(
+  "accepts bound %s framed model, rejects old full manifest",
+  async (scope) => {
+    const value = structuredClone(manifest);
+    value.outputScope = scope;
+    Object.assign(value.candidates[0]!.previewModel, {
+      scope,
+      version: "framed-mesh-v1",
+      cameraApplied: true,
+      modelRevision: sha("framed"),
+    });
+    fetcher.mockResolvedValueOnce(Response.json(value));
+    expect((await getManifest("job", 0, selection, undefined, scope)).outputScope).toBe(scope);
+    fetcher.mockResolvedValueOnce(Response.json(manifest));
+    await expect(getManifest("job", 0, selection, undefined, scope)).rejects.toThrow();
+    value.candidates[0]!.previewModel.cameraApplied = false;
+    fetcher.mockResolvedValueOnce(Response.json(value));
+    await expect(getManifest("job", 0, selection, undefined, scope)).rejects.toThrow();
+  },
+);
+it("GLB failure falls back to PNG bound to the same half scope and digest", async () => {
+  const value = structuredClone(manifest);
+  value.outputScope = "half";
+  Object.assign(value.candidates[0]!.previewModel, {
+    scope: "half",
+    version: "framed-mesh-v1",
+    cameraApplied: true,
+  });
+  const c = value.candidates[0]!;
+  const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const headers = {
+    "Content-Type": "image/png",
+    "X-Standin-Body-Render-Key": value.renderKey,
+    "X-Standin-Body-Revision": "1",
+    "X-Standin-Character-SHA256": ref.assetSha256,
+    "X-Standin-Source-BVH-SHA256": c.sourceBvhSha256,
+    "X-Standin-Preview-Revision": value.runtime.previewRevision,
+    "X-Standin-Model-Revision": c.previewModel.modelRevision,
+    "X-Standin-Artifact-SHA256": createHash("sha256").update(bytes).digest("hex"),
+    "X-Standin-Output-Scope": "half",
+  };
+  fetcher
+    .mockResolvedValueOnce(new Response("offline", { status: 503 }))
+    .mockResolvedValueOnce(new Response(bytes, { headers }));
+  expect(await renderBodyCandidate(value, c, new AbortController().signal)).toMatch(/^data:image/);
+  expect(fetcher.mock.calls[1]![0]).toContain("/pose/png");
+  fetcher
+    .mockResolvedValueOnce(new Response("offline", { status: 503 }))
+    .mockResolvedValueOnce(
+      new Response(bytes, { headers: { ...headers, "X-Standin-Output-Scope": "full" } }),
+    );
+  await expect(renderBodyCandidate(value, c, new AbortController().signal)).rejects.toThrow();
+});

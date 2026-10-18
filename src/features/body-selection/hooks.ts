@@ -1,3 +1,4 @@
+import { previewScope } from "@/features/pose-viewer/api/outputScope";
 import {
   useIsMutating,
   useMutation,
@@ -48,10 +49,22 @@ export function useBodies(
     queries: people.map((person, i) => {
       const selection = selections[i]?.data;
       return {
-        queryKey: [...bodyKeys.person(owner, job, person.index), "images", selection],
+        queryKey: [
+          ...bodyKeys.person(owner, job, person.index),
+          "images",
+          selection,
+          previewScope(person),
+          person.candidates,
+        ],
         enabled: !!owner && selection?.resolutionStatus === "ready",
         queryFn: async ({ signal }: { signal: AbortSignal }) => {
-          const manifest = await getManifest(job, person.index, selection!, signal);
+          const manifest = await getManifest(
+            job,
+            person.index,
+            selection!,
+            signal,
+            previewScope(person),
+          );
           if (
             manifest.candidates.length !== person.candidates.length ||
             manifest.candidates.some((c, i) => c.candidateId !== person.candidates[i]?.id)
@@ -71,7 +84,9 @@ export function useBodies(
       };
     }),
   });
-  const pending = useIsMutating({ mutationKey: ["body-change", owner, job] }) > 0;
+  const bodyPending = useIsMutating({ mutationKey: ["body-change", owner, job] }) > 0;
+  const handPending = useIsMutating({ mutationKey: ["hand-change", owner, job] }) > 0;
+  const pending = bodyPending || handPending;
   const entries = people.map((person, i) => ({
     personIndex: person.index,
     selection: selections[i]?.data,

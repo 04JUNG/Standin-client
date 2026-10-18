@@ -49,26 +49,27 @@ export function renderCandidate(
     try {
       signal?.throwIfAborted();
       const m = model.rotation;
-      body.applyMatrix4(
-        new THREE.Matrix4().set(
-          m[0]![0]!,
-          m[0]![1]!,
-          m[0]![2]!,
-          0,
-          m[1]![0]!,
-          m[1]![1]!,
-          m[1]![2]!,
-          0,
-          m[2]![0]!,
-          m[2]![1]!,
-          m[2]![2]!,
-          0,
-          0,
-          0,
-          0,
-          1,
-        ),
-      );
+      if (!model.cameraApplied)
+        body.applyMatrix4(
+          new THREE.Matrix4().set(
+            m[0]![0]!,
+            m[0]![1]!,
+            m[0]![2]!,
+            0,
+            m[1]![0]!,
+            m[1]![1]!,
+            m[1]![2]!,
+            0,
+            m[2]![0]!,
+            m[2]![1]!,
+            m[2]![2]!,
+            0,
+            0,
+            0,
+            0,
+            1,
+          ),
+        );
       body.updateMatrixWorld(true);
       const points: THREE.Vector3[] = [];
       body.traverse((obj) => {

@@ -38,6 +38,7 @@ const result = {
     {
       index: 0,
       posePresentation: {
+        output_scope: "half",
         library_candidates: [candidate],
         review_candidates: [],
         generated_candidates: [],
@@ -64,6 +65,7 @@ beforeEach(() => {
         headers: {
           "Content-Type": "image/png",
           "X-Standin-Preview-Only": "true",
+          "X-Standin-Output-Scope": "half",
           "X-Standin-Hand-Revision": "1",
           "X-Standin-Hand-Library-SHA256": "a".repeat(64),
         },
@@ -92,6 +94,7 @@ it("rejects a stale preview receipt instead of showing the old hand image", asyn
       headers: {
         "Content-Type": "image/png",
         "X-Standin-Preview-Only": "true",
+        "X-Standin-Output-Scope": "half",
         "X-Standin-Hand-Revision": "0",
         "X-Standin-Hand-Library-SHA256": "a".repeat(64),
       },

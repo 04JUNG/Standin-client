@@ -71,7 +71,7 @@ export function OutputScopeSelect({
       </span>
       <span className="basis-full text-text-secondary">
         {cropping
-          ? "FBX와 저장 전 확인 화면에 적용됩니다. BVH는 전신 뼈대를 유지합니다."
+          ? "후보 미리보기와 FBX에 적용됩니다. BVH는 전신 뼈대를 유지합니다."
           : "범위 설정만 저장됩니다. 현재 미리보기와 파일은 전신입니다."}
       </span>
       {mutation.isError && (

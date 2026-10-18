@@ -1,3 +1,4 @@
+import type { BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { apiFetch, apiFetchBlob, apiFetchResponse, ApiError } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { validRotation } from "@/features/pose-viewer/preview/modelContract";
@@ -118,12 +119,14 @@ export async function getManifest(
   person: number,
   selection: BodySelection,
   signal?: AbortSignal,
+  expectedScope?: BodyScope,
 ) {
   if (bodyMockEnabled()) return bodyMock.getManifest(job, person, selection);
   const manifest = manifestSchema.parse(
     await apiFetch(personPath(job, person) + "/body-previews", { auth: false, signal }),
   );
   if (
+    (expectedScope !== undefined && manifest.outputScope !== expectedScope) ||
     manifest.jobId !== job ||
     manifest.personIndex !== person ||
     manifest.selectionRevision !== selection.selectionRevision ||
@@ -139,7 +142,13 @@ export async function getManifest(
       c.previewModel.sourceSha !== c.sourceBvhSha256 ||
       c.previewModel.characterId !== manifest.resolvedBody.characterId ||
       c.previewModel.characterSha256 !== manifest.resolvedBody.assetSha256 ||
-      c.previewModel.modelRevision !== manifest.runtime.modelRevision ||
+      (c.previewModel.version === "framed-mesh-v1" && c.previewModel.cameraApplied !== true) ||
+      (c.previewModel.version === "posed-mesh-v1" && c.previewModel.cameraApplied === true) ||
+      (c.previewModel.scope !== undefined && c.previewModel.scope !== manifest.outputScope) ||
+      (manifest.outputScope !== "full" &&
+        (c.previewModel.version !== "framed-mesh-v1" || !c.previewModel.cameraApplied)) ||
+      (c.previewModel.version !== "framed-mesh-v1" &&
+        c.previewModel.modelRevision !== manifest.runtime.modelRevision) ||
       c.previewModel.previewRevision !== manifest.runtime.previewRevision
     )
       throw new Error("체형 미리보기 계약을 확인하지 못했습니다.");
@@ -167,14 +176,25 @@ async function bodyBytes(
     "Character-SHA256": manifest.resolvedBody.assetSha256,
     "Source-BVH-SHA256": candidate.sourceBvhSha256,
     "Preview-Revision": manifest.runtime.previewRevision,
-    "Model-Revision": manifest.runtime.modelRevision,
+    "Model-Revision": candidate.previewModel.modelRevision,
+    ...(candidate.previewModel.scope !== undefined || manifest.outputScope !== "full"
+      ? { "Output-Scope": manifest.outputScope }
+      : {}),
+    ...(manifest.hands
+      ? {
+          "Hand-Revision": String(manifest.hands.revision),
+          "Hand-Library-SHA256": manifest.hands.library_sha256,
+        }
+      : {}),
   };
   for (const [key, value] of Object.entries(expected))
     if (headers.get("X-Standin-" + key) !== value)
       throw new Error("체형 미리보기 버전이 다릅니다.");
-  const blob = await response.blob();
-  await verifyDigest(await blob.arrayBuffer(), headers.get("X-Standin-Artifact-SHA256") ?? "");
-  return blob;
+  const bytes = await response.arrayBuffer();
+  if (!bytes.byteLength || bytes.byteLength > 8 * 1024 * 1024)
+    throw new Error("미리보기 크기를 확인하지 못했습니다.");
+  await verifyDigest(bytes, headers.get("X-Standin-Artifact-SHA256") ?? "");
+  return new Blob([bytes], { type: headers.get("Content-Type")?.split(";")[0] ?? "" });
 }
 export async function renderBodyCandidate(
   manifest: BodyManifest,

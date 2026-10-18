@@ -130,3 +130,47 @@ it("accepts bounded static UInt16 parts and rejects active resources in every pa
     ).toThrow("unsupported mesh");
   }
 });
+
+it("framed parts validate scope and baked camera without permitting a second rotation", () => {
+  const rotation = [
+    [0, 0, -1],
+    [0, 1, 0],
+    [1, 0, 0],
+  ];
+  const expected = {
+    url: "/v1/model",
+    sourceSha: "a".repeat(64),
+    rotation,
+    scope: "shoulder_head",
+    version: "framed-mesh-v1" as const,
+    cameraApplied: true,
+  };
+  const data = model({
+    asset: {
+      extras: {
+        version: "framed-mesh-v1",
+        source_bvh_sha256: expected.sourceSha,
+        character_id: "character",
+        coordinates: "Y-up-hips-origin",
+        scope: expected.scope,
+        camera_rotation: rotation,
+      },
+    },
+  });
+  expect(validateModel(data, expected.sourceSha, "character", expected).scope).toBe(
+    "shoulder_head",
+  );
+  expect(() =>
+    validateModel(data, expected.sourceSha, "character", { ...expected, scope: "bust" }),
+  ).toThrow();
+  expect(() =>
+    validateModel(data, expected.sourceSha, "character", {
+      ...expected,
+      rotation: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+    }),
+  ).toThrow();
+});

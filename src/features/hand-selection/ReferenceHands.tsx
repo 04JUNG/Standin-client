@@ -1,3 +1,4 @@
+import { previewScope } from "@/features/pose-viewer/api/outputScope";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
@@ -20,7 +21,9 @@ export function ReferenceHands({
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const [candidateId, setCandidateId] = useState("");
   const [requested, setRequested] = useState("");
-  const p = result.people.find((p) => p.index === personIndex)?.posePresentation;
+  const person = result.people.find((p) => p.index === personIndex);
+  const p = person?.posePresentation;
+  const scope = previewScope(person);
   const groups = p ? [p.library_candidates, p.review_candidates, p.generated_candidates] : [];
   const candidates = groups.flat();
   const candidate = candidates.find((c) => c.candidate_id === candidateId);
@@ -30,6 +33,8 @@ export function ReferenceHands({
     candidate?.asset.preview_bvh_url,
     hand?.revision,
     hand?.library_sha256,
+    scope,
+    candidate?.render_camera,
   ]);
   const preview = useQuery({
     queryKey: ["hands", owner, "pose-preview", binding],
@@ -41,6 +46,7 @@ export function ReferenceHands({
       );
       if (
         response.headers.get("Content-Type")?.split(";")[0] !== "image/png" ||
+        response.headers.get("X-Standin-Output-Scope") !== scope ||
         response.headers.get("X-Standin-Preview-Only") !== "true" ||
         response.headers.get("X-Standin-Hand-Revision") !== String(hand!.revision) ||
         response.headers.get("X-Standin-Hand-Library-SHA256") !== hand!.library_sha256

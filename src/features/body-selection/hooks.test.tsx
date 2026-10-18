@@ -173,3 +173,44 @@ describe("server body groups", () => {
     expect(h.result.current.entries[0]?.selection).toBeUndefined();
   });
 });
+
+it("scope change switches the image group and ignores late previous framing", async () => {
+  const { wrapper } = setup();
+  const scoped = (scope: "half" | "head"): AnalysisResult => ({
+    ...result,
+    people: result.people
+      .slice(0, 1)
+      .map((p) => ({
+        ...p,
+        outputScope: {
+          selection: scope,
+          detected: "half",
+          detectionSource: "vlm_person",
+          resolved: scope,
+          resolutionSource: "user",
+        },
+      })),
+  });
+  let finish!: () => void;
+  api.getManifest.mockImplementation(async (_job, _index, s, _signal, scope) => ({
+    resolvedBody: s.resolvedBody,
+    outputScope: scope,
+    candidates: [{ candidateId: "p1" }, { candidateId: "p2" }],
+  }));
+  api.renderBodyCandidate.mockImplementation(async (m, c) => {
+    if (m.outputScope === "half")
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+    return m.outputScope + c.candidateId;
+  });
+  const h = renderHook(({ data }) => useBodies(data), {
+    wrapper,
+    initialProps: { data: scoped("half") },
+  });
+  await waitFor(() => expect(finish).toBeTypeOf("function"));
+  h.rerender({ data: scoped("head") });
+  await waitFor(() => expect(h.result.current.entries[0]?.group?.images.p1).toBe("headp1"));
+  await act(async () => finish());
+  expect(h.result.current.entries[0]?.group?.images.p1).toBe("headp1");
+});

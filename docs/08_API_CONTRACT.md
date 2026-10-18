@@ -839,3 +839,10 @@ capability 없는 구형 BFF는 기존 고정 남성 표시를 유지한다. 모
 큰 아동 모델은 원본 정점·split normal·삼각형을 유지한 UInt16 인덱스 파트로 전달하며,
 8MiB 및 accessor별 50만 항목 제한은 유지한다. 외부 자산·스킨·애니메이션·확장·morph target은 계속 거절한다.
 이 앱을 먼저 배포한 뒤 새 Converter를 배포해야 기존 앱의 단일 primitive 검사와 충돌하지 않는다.
+
+### 후보 미리보기의 최종 출력 범위
+BFF body manifest는 `full|half|bust|shoulder_head|head`를 제공한다. 인물별 수동 범위 > 검출 범위 > presentation 범위 > full 순서이며 `bust`와 `shoulder_head`를 합치지 않는다. 후보 카드·플로팅 바는 같은 manifest/이미지 그룹을 공유한다. 범위·후보 변경은 쿼리 키를 바꾸고, 손 변경 시 기존 그룹을 취소/무효화한다. 다른 범위의 늦은 결과를 현재 화면에 표시하지 않는다.
+
+previewModel.scope/version/cameraApplied가 framed 자산을 가리키면 모델 metadata의 범위·카메라·원본·체형·exporter revision을 검증하고 회전을 다시 적용하지 않는다. 잘린 실제 메시 bounds로 fit하며 CSS 자르기를 사용하지 않는다. 모델을 읽지 못하면 동일 범위·identity·digest를 검증한 PNG로 대체한다. 손 적용 및 presentation-body PNG도 X-Standin-Output-Scope를 검증한다. 원본 BVH·검색 순위·자동 적용/refine/export 권한은 바꾸지 않는다. 표시용 orthographic projection은 기존 Converter 계약을 따른다.
+
+BFF의 범위 manifest 지원과 함께 배포해야 한다. 이전 BFF가 half 결과에 full manifest를 주면 잘못된 전신을 조용히 표시하지 않고 재시도 오류를 표시한다. 이전 앱 설치본은 새 범위를 허용하지 않으므로 앱 업데이트가 필요하다.
