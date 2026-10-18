@@ -37,7 +37,7 @@ export function renderCandidate(
 ): Promise<string> {
   const render = async () => {
     signal?.throwIfAborted();
-    validateModel(data, model.sourceSha, characterId, model);
+    const meta = validateModel(data, model.sourceSha, characterId, model);
     if (!validRotation(model.rotation)) throw new Error("invalid candidate camera");
     const loader = new GLTFLoader();
     // Fail closed even if a future parser adds an external glTF resource type.
@@ -49,26 +49,28 @@ export function renderCandidate(
     try {
       signal?.throwIfAborted();
       const m = model.rotation;
-      body.applyMatrix4(
-        new THREE.Matrix4().set(
-          m[0]![0]!,
-          m[0]![1]!,
-          m[0]![2]!,
-          0,
-          m[1]![0]!,
-          m[1]![1]!,
-          m[1]![2]!,
-          0,
-          m[2]![0]!,
-          m[2]![1]!,
-          m[2]![2]!,
-          0,
-          0,
-          0,
-          0,
-          1,
-        ),
-      );
+      // Framed meshes already contain the converter's camera rotation and scope crop.
+      if (meta.version === "posed-mesh-v1")
+        body.applyMatrix4(
+          new THREE.Matrix4().set(
+            m[0]![0]!,
+            m[0]![1]!,
+            m[0]![2]!,
+            0,
+            m[1]![0]!,
+            m[1]![1]!,
+            m[1]![2]!,
+            0,
+            m[2]![0]!,
+            m[2]![1]!,
+            m[2]![2]!,
+            0,
+            0,
+            0,
+            0,
+            1,
+          ),
+        );
       body.updateMatrixWorld(true);
       const points: THREE.Vector3[] = [];
       body.traverse((obj) => {
@@ -88,7 +90,7 @@ export function renderCandidate(
       });
       if (!points.length) throw new Error("empty model");
       const center = new THREE.Box3().setFromPoints(points).getCenter(new THREE.Vector3());
-      const radius = Math.max(...points.map((p) => p.distanceTo(center)));
+      const radius = points.reduce((r, p) => Math.max(r, p.distanceTo(center)), 0);
       if (!Number.isFinite(radius) || radius <= 0) throw new Error("invalid model bounds");
       const half = (radius * 2.25) / 2;
       const camera = new THREE.OrthographicCamera(-half, half, half, -half, 0.001, radius * 20);

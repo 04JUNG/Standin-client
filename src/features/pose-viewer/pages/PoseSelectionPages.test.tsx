@@ -35,6 +35,7 @@ vi.mock("@/features/body-selection/api", async (original) => ({
   ...(await original<typeof import("@/features/body-selection/api")>()),
   getSelection: vi.fn(async () => bodySelection),
   getManifest: vi.fn(async () => ({
+    outputScope: "full",
     candidates: Array.from({ length: 5 }, (_, i) => ({ candidateId: `pick-${i}` })),
   })),
   renderBodyCandidate: vi.fn(async (_m, c) => `data:image/png;base64,${btoa(c.candidateId)}`),

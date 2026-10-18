@@ -5,6 +5,7 @@ import { apiFetchResponse } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { Button } from "@/shared/components/Button";
 import { useInstallationStore } from "@/features/installation/installationStore";
+import { readOutputScope } from "@/features/pose-viewer/api/outputScope";
 import { useHands } from "./hooks";
 import { HandChips } from "./HandChips";
 
@@ -20,7 +21,11 @@ export function ReferenceHands({
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const [candidateId, setCandidateId] = useState("");
   const [requested, setRequested] = useState("");
-  const p = result.people.find((p) => p.index === personIndex)?.posePresentation;
+  const person = result.people.find((p) => p.index === personIndex);
+  const p = person?.posePresentation;
+  const scope = person?.outputScope
+    ? readOutputScope(person.outputScope).resolved
+    : p?.output_scope;
   const groups = p ? [p.library_candidates, p.review_candidates, p.generated_candidates] : [];
   const candidates = groups.flat();
   const candidate = candidates.find((c) => c.candidate_id === candidateId);
@@ -30,6 +35,7 @@ export function ReferenceHands({
     candidate?.asset.preview_bvh_url,
     hand?.revision,
     hand?.library_sha256,
+    scope,
   ]);
   const preview = useQuery({
     queryKey: ["hands", owner, "pose-preview", binding],

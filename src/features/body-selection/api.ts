@@ -185,7 +185,11 @@ export async function renderBodyCandidate(
     const { renderCandidate } = await import("@/features/pose-viewer/preview/renderCandidate");
     return await renderCandidate(
       await blob.arrayBuffer(),
-      candidate.previewModel,
+      {
+        ...candidate.previewModel,
+        scope: manifest.outputScope,
+        version: manifest.outputScope === "full" ? "posed-mesh-v1" : "framed-mesh-v1",
+      },
       manifest.resolvedBody.characterId,
       signal,
     );
