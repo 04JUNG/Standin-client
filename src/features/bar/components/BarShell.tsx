@@ -7,6 +7,7 @@ import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { appRouteForBarPath } from "@/shared/lib/modeRoutes";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { CompactPoseLayout } from "./CompactPoseLayout";
 import { useWindowModeStore } from "../stores/windowModeStore";
 
 type BarShellProps = {
@@ -106,7 +107,13 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
 
       <div className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]">
         {/* 내용 높이를 재기 위한 래퍼. 스크롤 영역 자체는 창 크기를 따라가므로 잴 수 없다. */}
-        <div ref={contentRef}>{children}</div>
+        <div ref={contentRef}>
+          {pathname === "/bar/candidates" ? (
+            <CompactPoseLayout>{children}</CompactPoseLayout>
+          ) : (
+            children
+          )}
+        </div>
       </div>
       {footer && <div className="shrink-0 border-t border-border bg-surface-0 px-2">{footer}</div>}
     </div>
