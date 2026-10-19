@@ -63,6 +63,8 @@ export function BarCandidatesPage() {
     isError,
     error,
     restoreOnly,
+    roughUrl,
+    refetch,
     draft,
     sourceFile,
     people,
@@ -155,7 +157,6 @@ export function BarCandidatesPage() {
   };
   const included = person ? !(person.index in excludedPeople) : false;
   const selectable = person ? person.fallbackMode !== "hard" : false;
-  const roughUrl = draft?.previewUrl ?? data?.inputPreviewUrl;
 
   /** 주 버튼: 이 인물이 남았으면 막고, 다른 인물이 남았으면 그 인물로, 다 됐으면 확정. */
   let primary: JSX.Element;
@@ -276,10 +277,15 @@ export function BarCandidatesPage() {
         {isError && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 text-center">
             <p className="text-[12px] text-text-secondary">{analysisFailure(error).message}</p>
-            {/* 재시도 가능한 실패는 같은 입력으로 다시 분석한다(/bar/progress가 새 화면 job을
-                만들어 후보 화면으로 넘긴다). 그렇지 않으면 입력부터 다시 받는다. */}
+            {/* 기록은 같은 job 조회만, live 실패만 입력을 다시 분석한다. */}
             {analysisFailure(error).retryable ? (
-              <Button size="md" onClick={() => navigate("/bar/progress", { replace: true })}>
+              <Button
+                size="md"
+                onClick={() => {
+                  if (restoreOnly) void refetch();
+                  else navigate("/bar/progress", { replace: true });
+                }}
+              >
                 다시 시도
               </Button>
             ) : (
@@ -439,6 +445,7 @@ export function BarCandidatesPage() {
                             <FitTile key={candidate.id} className={candidateSpan(i)}>
                               {bodies.enabled ? (
                                 <BodyCandidateCard
+                                  job={data.jobId}
                                   candidate={candidate}
                                   entry={bodies.entries.find((e) => e.personIndex === person.index)}
                                   selected={selectedByPerson[person.index]}

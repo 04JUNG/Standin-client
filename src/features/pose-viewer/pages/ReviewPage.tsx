@@ -59,7 +59,11 @@ export function ReviewPage() {
                   ) : item.previewUrl ? (
                     <img
                       src={item.previewUrl}
-                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`}
+                      alt={
+                        item.previewReference
+                          ? `인물 ${item.personIndex + 1}의 원본 BVH 포즈 참고`
+                          : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
+                      }
                       className="aspect-square w-full bg-surface-2 object-contain"
                     />
                   ) : (
@@ -75,6 +79,11 @@ export function ReviewPage() {
                     <span className="truncate text-[12px] text-text-secondary">
                       {item.candidate.title}
                     </span>
+                    {item.previewReference && (
+                      <p className="px-2 text-[10px] text-text-secondary">
+                        포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장
+                      </p>
+                    )}
                     {/* 조정 여부는 그림만 봐서는 알 수 없다. 러프에 맞춰 손댄 결과라는 것을
                         알아야 "후보와 조금 다른데"가 오류로 읽히지 않는다. */}
                     {item.refined && (

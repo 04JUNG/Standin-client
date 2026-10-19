@@ -1,11 +1,14 @@
+import { renderPresentationBody } from "@/features/body-selection/presentation";
+import { previewRequests } from "@/features/pose-viewer/preview/requestQueue";
+import { DefaultPoseImage } from "@/features/pose-viewer/components/DefaultPoseImage";
 import { BodyChip, BodyExpand } from "@/features/body-selection/BodyCandidates";
 import { useBodyControls, type BodyEntry } from "@/features/body-selection/hooks";
 import { bodyKeys, getSelection } from "@/features/body-selection/api";
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import type { BodySelection } from "@/features/body-selection/contract";
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
-import { useState } from "react";
-import { useIsMutating, useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
 import { loadSemanticModel } from "./modelPreview";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { PosePresentationPanel } from "@/features/pose-viewer/components/PosePresentationPanel";
@@ -41,6 +44,7 @@ function Candidate({
   label = "기본 남성",
   refreshSelection,
   bodyNotice,
+  scope,
 }: {
   candidate: PreviewCandidate;
   refreshSelection?: () => Promise<unknown>;
@@ -48,63 +52,77 @@ function Candidate({
   waitForBody?: boolean;
   label?: string;
   bodyNotice?: string;
+  scope?: string | null;
 }) {
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const [open, setOpen] = useState(false),
     [turn, setTurn] = useState(0);
+  const qc = useQueryClient();
+  const queryKey = [
+    "semantic-body-model",
+    owner,
+    candidate.asset.preview_bvh_url,
+    selection?.selectionRevision,
+    selection?.resolvedBody,
+    selection?.shape?.shapeSha256,
+    candidate.asset.bvh_sha256,
+    candidate.render_camera,
+    scope,
+  ];
   const q = useQuery({
-    queryKey: [
-      "semantic-body-model",
-      owner,
-      candidate.asset.preview_bvh_url,
-      selection?.selectionRevision,
-      selection?.resolvedBody,
-      selection?.shape?.shapeSha256,
-    ],
-    enabled: !waitForBody,
-    queryFn: ({ signal }) => loadSemanticModel(candidate, signal, selection),
+    queryKey,
+    enabled: open && !waitForBody,
+    queryFn: async ({ signal }) => {
+      if (scope && scope !== "full") {
+        if (!selection) throw Error("이 범위의 체형 상세에는 체형 선택이 필요합니다.");
+        const prefix = candidate.asset.preview_bvh_url.match(/^\/v1\/analysis\/jobs\/([^/]+)\//);
+        if (!prefix) throw Error("포즈 경로를 확인하지 못했습니다.");
+        return {
+          png: await previewRequests.run(signal, () =>
+            renderPresentationBody(
+              decodeURIComponent(prefix[1]),
+              candidate,
+              selection,
+              signal,
+              scope,
+            ),
+          ),
+          model: undefined,
+        };
+      }
+      return { model: await loadSemanticModel(candidate, signal, selection), png: undefined };
+    },
     retry: false,
     staleTime: 300_000,
     gcTime: 60_000,
   });
+  const modalModel = useMemo(
+    () => (q.data?.model ? { ...q.data.model, turnDegrees: turn } : undefined),
+    [q.data?.model, turn],
+  );
   return (
     <article
       className="rounded-lg border border-border bg-surface-0 p-2"
       data-semantic-model={candidate.candidate_id}
     >
-      {!waitForBody && q.data ? (
-        <Surface
-          key={q.data.modelRevision + String(q.data.data.byteLength)}
-          model={q.data}
-          label={label}
-        />
-      ) : (
-        <p
-          className="flex aspect-square items-center justify-center text-xs"
-          role={!waitForBody && q.error ? "alert" : "status"}
-        >
-          {!waitForBody && q.error
-            ? "체형 모델을 불러오지 못했습니다."
-            : (bodyNotice ?? "선택한 체형 모델 준비 중…")}
-        </p>
-      )}
+      <DefaultPoseImage candidate={candidate} scope={scope} />
       <p className="text-xs">
-        {candidate.rank}. {candidate.kind === "library_match" ? "검색 후보" : "근접 참고"} · {label}
+        {candidate.rank}. {candidate.kind === "library_match" ? "검색 후보" : "근접 참고"}
       </p>
       <button
         className="text-xs underline"
-        disabled={waitForBody || !q.data}
+        disabled={waitForBody}
         onClick={() => {
           setTurn(0);
           setOpen(true);
         }}
         aria-label={`${candidate.rank}번 ${label} 모델 확대`}
       >
-        3D 확대
+        {label}으로 이 포즈 보기
       </button>
       <button
         className="ml-3 text-xs underline"
-        disabled={waitForBody || q.isFetching}
+        disabled={waitForBody || !open || q.isFetching}
         onClick={() => {
           if (refreshSelection) void refreshSelection().then(() => q.refetch());
           else void q.refetch();
@@ -115,17 +133,46 @@ function Candidate({
       <p className="text-[11px] text-text-secondary">정면 참고 · 검수용 · 보정·저장 불가</p>
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          setOpen(false);
+          void qc.cancelQueries({ queryKey, exact: true });
+        }}
         title={`${label} 모델 3D 미리보기`}
         width="lg"
       >
-        {!waitForBody && q.data && (
-          <Surface key={turn} model={{ ...q.data, turnDegrees: turn }} label={label} />
+        {!waitForBody && q.data && !q.isFetching ? (
+          modalModel ? (
+            <Surface key={turn} model={modalModel} label={label} />
+          ) : (
+            <img
+              src={q.data.png}
+              alt="선택한 체형과 출력 범위를 적용한 단일 포즈"
+              className="max-h-[55vh] w-full object-contain"
+            />
+          )
+        ) : (
+          <p role="status">
+            {bodyNotice ??
+              (q.error
+                ? "지금은 선택 체형 미리보기를 준비하지 못했어요. 기본 이미지는 유지됩니다."
+                : "이 포즈의 체형 모델을 준비하는 중…")}
+          </p>
+        )}
+        {q.error && (
+          <button className="text-sm underline" onClick={() => void q.refetch()}>
+            다시 시도
+          </button>
         )}
         <div className="flex gap-3">
-          <button onClick={() => setTurn((v) => v - 15)}>왼쪽 회전</button>
-          <button onClick={() => setTurn(0)}>정면</button>
-          <button onClick={() => setTurn((v) => v + 15)}>오른쪽 회전</button>
+          <button disabled={!q.data?.model} onClick={() => setTurn((v) => v - 15)}>
+            왼쪽 회전
+          </button>
+          <button disabled={!q.data?.model} onClick={() => setTurn(0)}>
+            정면
+          </button>
+          <button disabled={!q.data?.model} onClick={() => setTurn((v) => v + 15)}>
+            오른쪽 회전
+          </button>
         </div>
         <p className="text-xs">
           {label}·기본 손의 참고 모델입니다. 자동 적용·refine·내보내기는 지원하지 않습니다. 손 선택
@@ -221,6 +268,7 @@ function SelectedBodyPresentation({
             waitForBody={!ready && !reference}
             label={reference ? "기본 남성 참고" : label}
             bodyNotice={retired ? "다른 체형을 선택해 주세요." : undefined}
+            scope={presentation.output_scope}
           />
         )}
       />
@@ -251,7 +299,7 @@ export function SemanticModelPresentation({
       presentation={presentation}
       compact={compact}
       bodyPreviewJob={bodyPreviewJob}
-      renderCandidate={(c) => <Candidate candidate={c} />}
+      renderCandidate={(c) => <Candidate candidate={c} scope={presentation.output_scope} />}
     />
   );
 }

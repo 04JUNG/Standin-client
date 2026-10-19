@@ -257,6 +257,7 @@ export function useFramedReview(jobId: string | undefined) {
       ...item,
       previewUrl: enabled ? (queries[index]?.data?.image ?? "") : item.previewUrl,
       previewModel: enabled ? displays[index]?.model : undefined,
+      previewReference: !enabled && item.previewReference,
       onModelStatus: (status: "ready" | "failed") =>
         setModelStatus((current) => {
           const key = status === "failed" ? requests[index]!.modelKey : displays[index]!.key;

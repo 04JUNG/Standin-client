@@ -5,7 +5,6 @@ import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
 import { AnalysisError } from "./pose.contract";
-import { loadThumbnail } from "./thumbnails";
 import type {
   AnalysisResult,
   CoverageClass,
@@ -220,6 +219,7 @@ async function toPoseCandidate(
   jobId: string,
   personIndex: number,
   signal: AbortSignal,
+  posterScope: import("./outputScope").BodyScope = "full",
 ): Promise<PoseCandidate> {
   const semantic =
     raw.semantic === undefined ? undefined : semanticCandidateSchema.parse(raw.semantic);
@@ -230,20 +230,38 @@ async function toPoseCandidate(
       `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/thumbnail?view=front`
   )
     throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid thumbnail path");
-  const deferred = raw.camera?.version === "candidate-camera-v1" && !!raw.thumbnailUrl;
-  const thumbnailUrl = deferred ? "" : await loadThumbnail(raw.thumbnailUrl, signal);
+  const deferred = !!raw.camera && !!raw.thumbnailUrl;
+  // Do not fetch aligned images or wait for all 20 thumbnails before returning
+  // search results. Visible cards load their source-bound static poster lazily.
+  signal.throwIfAborted();
+  const thumbnailUrl = "";
+  const posterParams = new URLSearchParams({
+    jobId,
+    personIndex: String(personIndex),
+    candidateId: raw.id,
+  });
   return {
     ...readCandidatePolicy(raw),
     id: raw.id,
     poseId: raw.poseId,
     rank: raw.rank,
     ...(semantic ? { semantic } : {}),
-    title: semantic ? semantic.description || `포즈 ${raw.rank}` : raw.source === "library" ? `포즈 ${raw.rank}` : `포즈 ${raw.id}`,
+    title: semantic
+      ? semantic.description || `포즈 ${raw.rank}`
+      : raw.source === "library"
+        ? `포즈 ${raw.rank}`
+        : `포즈 ${raw.id}`,
     tags: raw.tags,
     matchLevel: raw.matchLevel,
     thumbnailUrl,
+    posterScope,
+    posterUrl: `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/poster?${posterParams}`,
     ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
-    ...(deferred && raw.quickThumbnailUrl ? { quickThumbnailUrl: raw.quickThumbnailUrl } : {}),
+    ...(raw.quickThumbnailUrl || (!deferred && raw.thumbnailUrl)
+      ? {
+          quickThumbnailUrl: raw.quickThumbnailUrl || raw.thumbnailUrl,
+        }
+      : {}),
     ...(deferred &&
     raw.previewModelUrl &&
     validRotation(raw.camera?.rotation) &&
@@ -305,7 +323,13 @@ async function toAnalysisResult(
         box: readPersonBox(person.box),
         candidates: await Promise.all(
           person.candidates.map((candidate) =>
-            toPoseCandidate(candidate, raw.jobId, person.personIndex, signal),
+            toPoseCandidate(
+              candidate,
+              raw.jobId,
+              person.personIndex,
+              signal,
+              readOutputScope(person.outputScope).resolved,
+            ),
           ),
         ),
         confidence,

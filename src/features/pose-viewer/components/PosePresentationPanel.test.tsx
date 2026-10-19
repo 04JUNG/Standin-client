@@ -4,6 +4,11 @@ import { expect, it, vi } from "vitest";
 import { PosePresentationPanel } from "./PosePresentationPanel";
 import type { PosePresentation } from "../api/posePresentation";
 import type { PreviewCandidate } from "../api/posePresentation";
+vi.mock("./DefaultPoseImage", () => ({
+  DefaultPoseImage: ({ candidate }: { candidate: PreviewCandidate }) => (
+    <img src={candidate.asset.preview_bvh_url + "/poster"} alt="기본 포즈 참고 이미지" />
+  ),
+}));
 vi.mock("@/shared/api/client", () => ({ apiFetchBytes: vi.fn(() => new Promise(() => {})) }));
 const p: PosePresentation = {
   version: "dynamic-pose-presentation-v1",
@@ -91,7 +96,7 @@ it("reference images do not open an enlargement or rotation dialog", () => {
       <PosePresentationPanel presentation={{ ...p, library_candidates: [candidate] }} />
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByAltText("BVH 관절 기반 3D 미리보기"));
+  fireEvent.click(screen.getByAltText("기본 포즈 참고 이미지"));
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(screen.queryByRole("button", { name: /회전|3D 미리보기/ })).toBeNull();
 });

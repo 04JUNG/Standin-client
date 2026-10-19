@@ -65,6 +65,8 @@ export function PoseViewerPage() {
     isError,
     error,
     restoreOnly,
+    roughUrl,
+    refetch,
     sourceFile,
     selectablePeople,
     includedPeople,
@@ -175,11 +177,13 @@ export function PoseViewerPage() {
         >
           <p>{failure.message}</p>
           <div className="flex items-center gap-2">
-            {/* 같은 입력으로 다시 분석한다. 새 화면 job이라 서버 Job도 새로 만들어진다 —
-                앞선 Job은 이미 끝났으므로 동시 분석 한도에 걸리지 않는다. */}
+            {/* 기록은 같은 job 조회만 재시도한다. live 재분석만 새 화면 job을 만든다. */}
             {failure.retryable && (
               <Button
-                onClick={() => navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true })}
+                onClick={() => {
+                  if (restoreOnly) void refetch();
+                  else navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true });
+                }}
               >
                 다시 시도
               </Button>
@@ -231,7 +235,6 @@ export function PoseViewerPage() {
       </AppShell>
     );
 
-  const roughUrl = draft?.previewUrl ?? data.inputPreviewUrl;
   const pick = (index: number) => setActiveIndex(index);
   const progressText =
     includedPeople.length === 0
@@ -276,7 +279,7 @@ export function PoseViewerPage() {
             ) : (
               <p className="p-3 text-center text-[12px] text-text-secondary">
                 {restoreOnly
-                  ? "원본 이미지는 보관 기간(90일)이 지나 제공되지 않습니다."
+                  ? "이 작업의 원본 이미지가 없거나 보관 기간이 지나 제공되지 않습니다."
                   : "원본 미리보기가 없습니다."}
               </p>
             )}
@@ -540,6 +543,7 @@ function ActivePersonCard({
                 >
                   {bodiesEnabled ? (
                     <BodyCandidateCards
+                      job={jobId}
                       person={person}
                       entry={entry}
                       selected={selectedId}

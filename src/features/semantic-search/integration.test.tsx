@@ -1,3 +1,5 @@
+import { useInstallationStore } from "@/features/installation/installationStore";
+import { posterResponse } from "@/test/posePosterFixture";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -52,6 +54,9 @@ function result() {
 }
 beforeEach(() => {
   __resetApiClient();
+  useInstallationStore.setState({
+    credentials: { installationId: "owner", deviceToken: "device", consentVersion: "test" },
+  });
   setInstallationCredentials({ installationId: "owner", deviceToken: "device" });
   refine.mockReset();
 });
@@ -117,7 +122,14 @@ it("history loads a text job without uploading and keeps both source ids for exp
   expect(refine).not.toHaveBeenCalled();
 });
 it("groups variants in one card and switches to an actual alternate id, with no implicit selection", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(result())));
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockImplementation((url: string) =>
+        url.includes("/poster?") ? posterResponse() : Promise.resolve(Response.json(result())),
+      ),
+  );
   const data = await poseHttp.loadResult({ jobId: "job_saved" });
   const select = vi.fn();
   render(
@@ -130,6 +142,7 @@ it("groups variants in one card and switches to an actual alternate id, with no 
   expect(select).not.toHaveBeenCalled();
   fireEvent.change(screen.getByRole("combobox"), { target: { value: "throw_mirror::front" } });
   expect(select).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByRole("button")).toBeEnabled());
   act(() => fireEvent.click(screen.getByRole("button")));
   expect(select).toHaveBeenCalledWith("throw_mirror::front");
 });

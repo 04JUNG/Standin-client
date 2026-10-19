@@ -1,130 +1,113 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PoseCandidateCard } from "./PoseCandidateCard";
 import type { PoseCandidate } from "../api/pose.contract";
-import { apiFetchBlob } from "@/shared/api/client";
-
-vi.mock("@/shared/api/client", () => ({ apiFetchBlob: vi.fn() }));
+import { apiFetchResponse } from "@/shared/api/client";
+import { useInstallationStore } from "@/features/installation/installationStore";
+import { POSTER_SOURCE, POSTER_URL, posterResponse } from "@/test/posePosterFixture";
+vi.mock("@/shared/api/client", () => ({ apiFetchResponse: vi.fn() }));
 const candidate: PoseCandidate = {
-  id: "pose::back",
+  id: "pose",
   poseId: "pose",
   rank: 1,
   title: "포즈",
-  tags: ["front"],
+  tags: [],
   matchLevel: "medium",
   thumbnailUrl: "",
+  posterUrl: POSTER_URL,
+  sourceBvhSha256: POSTER_SOURCE,
   previewImages: [],
   bvhAvailable: true,
-  deferredThumbnailUrl: "/v1/pose-candidates/pose/aligned?jobId=test",
 };
-afterEach(() => vi.clearAllMocks());
-it("shows an independently loading camera and enables selection only after the image arrives", async () => {
-  let finish!: (value: Blob) => void;
-  vi.mocked(apiFetchBlob).mockImplementation(
+beforeEach(() => {
+  vi.mocked(apiFetchResponse).mockReset();
+  useInstallationStore.setState({
+    credentials: { installationId: "owner", deviceToken: "test", consentVersion: "test" },
+  });
+});
+afterEach(() => useInstallationStore.setState({ credentials: null }));
+it("waits only for its poster, then permits selection without invoking aligned/body/model conversion", async () => {
+  let finish!: (r: Response) => void;
+  vi.mocked(apiFetchResponse).mockImplementation(
     () =>
-      new Promise((resolve) => {
-        finish = resolve;
+      new Promise((r) => {
+        finish = r;
       }),
   );
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const select = vi.fn();
+  const qc = new QueryClient();
+  const choose = vi.fn();
   render(
-    <QueryClientProvider client={client}>
-      <PoseCandidateCard candidate={candidate} isSelected={false} onSelect={select} />
+    <QueryClientProvider client={qc}>
+      <PoseCandidateCard candidate={candidate} isSelected={false} onSelect={choose} />
     </QueryClientProvider>,
   );
-  expect(screen.getByText("각도 맞추는 중")).toBeInTheDocument();
   expect(screen.getByRole("button")).toBeDisabled();
-  await act(async () =>
-    finish(new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" })),
-  );
-  await waitFor(() => expect(screen.getByRole("img")).toBeInTheDocument());
-  expect(screen.getByRole("button")).not.toBeDisabled();
-  expect(apiFetchBlob).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(finish).toBeTypeOf("function"));
+  await act(async () => finish(await posterResponse()));
+  await screen.findByRole("img");
+  fireEvent.click(screen.getByRole("button"));
+  expect(choose).toHaveBeenCalledOnce();
+  expect(vi.mocked(apiFetchResponse).mock.calls.map(([url]) => url)).toEqual([
+    POSTER_URL + "&scope=full",
+  ]);
 });
-it("uses the approximate library image before requesting any aligned preview", async () => {
-  vi.mocked(apiFetchBlob).mockResolvedValue(new Blob(["jpeg"], { type: "image/jpeg" }));
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
-    <QueryClientProvider client={client}>
+it("body changes keep the same default image and issue zero new render requests", async () => {
+  vi.mocked(apiFetchResponse).mockImplementation(() => posterResponse());
+  const qc = new QueryClient();
+  const view = (body: string) => (
+    <QueryClientProvider client={qc}>
       <PoseCandidateCard
-        candidate={{ ...candidate, quickThumbnailUrl: "/quick?view=front" }}
+        candidate={candidate}
+        characterId={body}
+        bodyPreview={{ pending: true }}
         isSelected={false}
         onSelect={() => {}}
       />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
-  expect(screen.getByText("미리보기 불러오는 중")).toBeInTheDocument();
-  await waitFor(() => expect(screen.getByRole("img")).toBeInTheDocument());
-  expect(vi.mocked(apiFetchBlob).mock.calls.map(([url]) => url)).toEqual(["/quick?view=front"]);
+  const r = render(view("child"));
+  await screen.findByRole("img");
+  const url = screen.getByRole("img").getAttribute("src");
+  r.rerender(view("female-muscle"));
+  expect(screen.getByRole("img")).toHaveAttribute("src", url);
+  expect(screen.getByRole("button")).toBeEnabled();
+  expect(apiFetchResponse).toHaveBeenCalledOnce();
+  expect(screen.getByText(/선택 체형·손·검색 시점 미적용/)).toBeTruthy();
 });
-it("offers retry instead of silently showing a legacy view", async () => {
-  vi.mocked(apiFetchBlob).mockRejectedValue(new Error("render failed"));
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+it("a malformed source-bound poster fails closed and never starts an expensive fallback", async () => {
+  vi.mocked(apiFetchResponse).mockImplementation(() =>
+    posterResponse({ "X-Standin-Source-BVH-SHA256": "d".repeat(64) }),
+  );
   render(
-    <QueryClientProvider client={client}>
+    <QueryClientProvider client={new QueryClient()}>
       <PoseCandidateCard candidate={candidate} isSelected={false} onSelect={() => {}} />
     </QueryClientProvider>,
   );
-  expect(await screen.findByText("미리보기 다시 시도")).toBeInTheDocument();
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  await screen.findByText("미리보기 다시 시도");
+  expect(screen.queryByRole("img")).toBeNull();
+  expect(apiFetchResponse).toHaveBeenCalledOnce();
 });
-it("never requests a legacy quick thumbnail while a selected-body preview is pending or ready", async () => {
-  const client = new QueryClient();
-  const card = (pending: boolean) => (
-    <QueryClientProvider client={client}>
+it("scope changes require that exact scope, while a delayed old response cannot replace it", async () => {
+  const finish: ((r: Response) => void)[] = [];
+  vi.mocked(apiFetchResponse).mockImplementation(() => new Promise((r) => finish.push(r)));
+  const qc = new QueryClient();
+  const card = (scope: "full" | "half") => (
+    <QueryClientProvider client={qc}>
       <PoseCandidateCard
-        candidate={{
-          ...candidate,
-          quickThumbnailUrl: "/quick-wrong-body",
-          thumbnailUrl: "/old-body.png",
-        }}
-        bodyPreview={{ pending, url: pending ? undefined : "data:image/png;base64,Ym9keQ==" }}
+        candidate={{ ...candidate, posterScope: scope }}
         isSelected={false}
         onSelect={() => {}}
       />
     </QueryClientProvider>
   );
-  const { rerender } = render(card(true));
-  expect(screen.getByRole("button")).toBeDisabled();
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
-  rerender(card(false));
-  expect(screen.getByRole("img")).toHaveAttribute("src", "data:image/png;base64,Ym9keQ==");
-  expect(screen.getByRole("button")).not.toBeDisabled();
-  expect(apiFetchBlob).not.toHaveBeenCalled();
-});
-
-it("binds an explicit body to the aligned render and hides unbound quick/static images on change", async () => {
-  const finish: ((value: Blob) => void)[] = [];
-  vi.mocked(apiFetchBlob).mockImplementation(() => new Promise((resolve) => finish.push(resolve)));
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const card = (body: string) => (
-    <QueryClientProvider client={client}>
-      <PoseCandidateCard
-        candidate={{
-          ...candidate,
-          quickThumbnailUrl: "/wrong-body.jpeg",
-          thumbnailUrl: "/old-body.png",
-        }}
-        characterId={body}
-        isSelected={false}
-        onSelect={() => {}}
-      />
-    </QueryClientProvider>
-  );
-  const { rerender } = render(card("male"));
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  const r = render(card("full"));
   await waitFor(() => expect(finish).toHaveLength(1));
-  await act(async () => finish[0](new Blob(["male"], { type: "image/png" })));
-  await screen.findByRole("img");
-  rerender(card("female"));
-  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  r.rerender(card("half"));
   await waitFor(() => expect(finish).toHaveLength(2));
-  await act(async () => finish[1](new Blob(["female"], { type: "image/png" })));
-  expect(await screen.findByRole("img")).toHaveAttribute("src", "data:image/png;base64,ZmVtYWxl");
-  expect(vi.mocked(apiFetchBlob).mock.calls.map(([url]) => url)).toEqual([
-    candidate.deferredThumbnailUrl + "&characterId=male",
-    candidate.deferredThumbnailUrl + "&characterId=female",
-  ]);
+  await act(async () => finish[0](await posterResponse()));
+  expect(screen.queryByRole("img")).toBeNull();
+  await act(async () => finish[1](await posterResponse({}, "half")));
+  await screen.findByRole("img");
+  expect(screen.getByText(/정면 반신 참고/)).toBeTruthy();
 });

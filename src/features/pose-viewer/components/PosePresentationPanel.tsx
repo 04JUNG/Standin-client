@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetchBytes } from "@/shared/api/client";
+import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
+import { bodyKeys, getSelection } from "@/features/body-selection/api";
+import { SinglePoseDetail } from "@/features/body-selection/SinglePoseDetail";
+import type { BodySelection } from "@/features/body-selection/contract";
+import { DefaultPoseImage } from "./DefaultPoseImage";
 import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selection/BodyCandidates";
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
-import { usePresentationBody } from "@/features/body-selection/presentation";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
 import { CandidatePages } from "./CandidatePages";
 
@@ -44,56 +47,17 @@ const generation: Record<string, string> = {
   unsupported: "미지원",
   no_result: "정상 완료 · 후보 없음",
 };
-async function source(candidate: PreviewCandidate, signal: AbortSignal) {
-  const url = candidate.asset.preview_bvh_url;
-  if (
-    !/^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/pose-previews\/preview_[a-f0-9]{64}\/[a-f0-9]{64}$/.test(
-      url,
-    )
-  )
-    throw Error("미리보기 경로를 확인하지 못했습니다.");
-  const bytes = await apiFetchBytes(url, { auth: false, signal });
-  if (bytes.length > 2_000_000) throw Error("미리보기 크기를 확인하지 못했습니다.");
-  const hash = [
-    ...new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes).buffer)),
-  ]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  if (hash !== candidate.asset.bvh_sha256) throw Error("BVH 해시가 변경되었습니다.");
-  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-}
-type BodyPicture = { url?: string; pending: boolean };
 function Preview({
   candidate,
   scope,
-  body,
+  bodyContext,
   originalRank,
 }: {
   candidate: PreviewCandidate;
   scope: string | null;
-  body?: BodyPicture;
+  bodyContext?: { job: string; selection?: BodySelection };
   originalRank?: number;
 }) {
-  const data = useQuery({
-    queryKey: ["pose-bvh-source", candidate.asset.preview_bvh_url],
-    queryFn: ({ signal }) => source(candidate, signal),
-    enabled: !body,
-    retry: false,
-    staleTime: 600_000,
-    gcTime: 600_000,
-  });
-  const picture = useQuery({
-    queryKey: ["pose-bvh-render", candidate.asset.preview_bvh_url, scope, candidate.render_camera],
-    enabled: !!data.data && !body,
-    queryFn: async () => {
-      const { renderBvh } = await import("../preview/bvhPreview");
-      return renderBvh(data.data!, scope, candidate.render_camera, 0);
-    },
-    retry: false,
-    staleTime: 600_000,
-    gcTime: 60_000,
-  });
-  const error = data.error || picture.error;
   return (
     <div
       data-presentation-candidate={candidate.candidate_id}
@@ -105,23 +69,7 @@ function Preview({
         className="w-full"
         aria-label={`${candidate.rank}번 ${candidateLabel(candidate.kind)} 3D 미리보기`}
       >
-        {(body ? body.url : picture.data) ? (
-          <img
-            src={(body ? body.url : picture.data)!}
-            alt={body ? "선택한 체형과 수치를 적용한 포즈" : "BVH 관절 기반 3D 미리보기"}
-            className="aspect-square w-full object-contain"
-          />
-        ) : (
-          <div className="flex aspect-square items-center justify-center text-xs">
-            {body
-              ? body.pending
-                ? "선택한 체형으로 포즈 준비 중"
-                : "체형 미리보기 불가"
-              : error
-                ? "3D 미리보기 불가"
-                : "3D 미리보기 준비 중"}
-          </div>
-        )}
+        <DefaultPoseImage candidate={candidate} scope={scope} />
         <span className="text-xs">
           {candidate.rank}. {candidateLabel(candidate.kind)}
         </span>
@@ -148,22 +96,16 @@ function Preview({
           관측 조건과 다른 대안입니다. 보이지 않는 부위는 확인된 자세가 아닙니다.
         </p>
       )}
-      {body && <p className="text-[11px] text-text-secondary">체형 참고 · 정사영</p>}
-      <p className="text-[11px] text-text-secondary">
-        {candidate.render_camera.projection_matches_search ? "검색 카메라" : "참고 카메라"} · 검수용
-        · 저장 불가
-      </p>
-      {error && (
-        <button
-          type="button"
-          className="text-xs"
-          onClick={() => {
-            void data.refetch();
-            void picture.refetch();
-          }}
-        >
-          미리보기 다시 시도
-        </button>
+
+      <p className="text-[11px] text-text-secondary">기본 정면 참고 · 검수용 · 저장 불가</p>
+      {bodyContext && (
+        <SinglePoseDetail
+          job={bodyContext.job}
+          selection={bodyContext.selection}
+          candidateId={candidate.candidate_id}
+          candidate={candidate}
+          scope={scope}
+        />
       )}
     </div>
   );
@@ -173,15 +115,13 @@ function PresentationContent({
   compact = false,
   selectableLibrary = false,
   renderCandidate,
-  bodyImages,
-  bodyPending,
+  bodyContext,
 }: {
   presentation: PosePresentation;
   compact?: boolean;
   selectableLibrary?: boolean;
   renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
-  bodyImages?: Record<string, string>;
-  bodyPending?: boolean;
+  bodyContext?: { job: string; selection?: BodySelection };
 }) {
   const semantic = p.version === "semantic-pose-presentation-v1";
   const render = (c: PreviewCandidate) =>
@@ -197,11 +137,7 @@ function PresentationContent({
           )?.rank
         }
         scope={p.output_scope}
-        body={
-          bodyPending !== undefined
-            ? { url: bodyImages?.[c.candidate_id], pending: bodyPending }
-            : undefined
-        }
+        bodyContext={bodyContext}
       />
     );
   const gridClass = `grid gap-2 ${compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
@@ -285,7 +221,23 @@ function SelectedBodyPresentation({
   compact: boolean;
   selectableLibrary: boolean;
 }) {
-  const { entry, images } = usePresentationBody(job, presentation);
+  const owner = useBodyOwner();
+  const state = useQuery({
+    queryKey: bodyKeys.selection(owner, job, presentation.person_index),
+    queryFn: ({ signal }) => getSelection(job, presentation.person_index, signal),
+    enabled: !!owner,
+    retry: false,
+  });
+  const entry: BodyEntry = {
+    personIndex: presentation.person_index,
+    selection: state.data,
+    group: undefined,
+    ready: state.data?.resolutionStatus === "ready" && !state.isFetching,
+    error: state.error,
+    retry: async () => {
+      await state.refetch();
+    },
+  };
   const person = { index: presentation.person_index };
   const { open } = useBodyPanel(job, person.index);
   return (
@@ -300,8 +252,7 @@ function SelectedBodyPresentation({
             presentation={presentation}
             compact={compact}
             selectableLibrary={selectableLibrary}
-            bodyImages={images}
-            bodyPending={!entry.error && !entry.ready}
+            bodyContext={{ job, selection: state.data }}
           />
         </>
       )}

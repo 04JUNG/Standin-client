@@ -1,3 +1,4 @@
+import { SinglePoseDetail } from "./SinglePoseDetail";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -147,8 +148,9 @@ export function BodyLabel({
 
 /* ------------------------------------------------------------------ Top-5 카드 */
 
-/** 선택한 체형으로 그린 후보 카드들. 그리드는 화면이 정한다. */
+/** 기본 체형 참고 카드. 선택 체형은 명시한 단일 후보 상세에서만 렌더한다. */
 export function BodyCandidateCards({
+  job,
   person,
   entry,
   selected,
@@ -157,6 +159,7 @@ export function BodyCandidateCards({
   disabled,
   cardClassName,
 }: {
+  job?: string;
   person: PersonResult;
   entry?: BodyEntry;
   selected?: string;
@@ -165,7 +168,6 @@ export function BodyCandidateCards({
   disabled?: boolean;
   cardClassName?: (index: number) => string | undefined;
 }) {
-  const ready = entry?.ready === true;
   return (
     <>
       {person.candidates.map((candidate, i) => (
@@ -176,44 +178,57 @@ export function BodyCandidateCards({
             onSelect={() => onSelect(candidate.id)}
             layout={layout}
             disabled={disabled}
-            bodyPreview={{
-              url: ready ? entry?.group?.images[candidate.id] : undefined,
-              pending: !ready,
-            }}
           />
+          {job && (
+            <SinglePoseDetail
+              job={job}
+              selection={entry?.selection}
+              candidateId={candidate.id}
+              scope={candidate.posterScope ?? person.outputScope?.resolved ?? "full"}
+              sourceIdentity={candidate}
+            />
+          )}
         </div>
       ))}
     </>
   );
 }
 
-/** 선택한 체형으로 그린 후보 카드 한 장(바의 칸 배치처럼 화면이 칸을 직접 정할 때). */
+/** 플로팅 바의 기본 참고 카드와 별도 단일 후보 상세 요청. */
 export function BodyCandidateCard({
+  job,
   candidate,
   entry,
   selected,
   onSelect,
   disabled,
 }: {
+  job?: string;
   candidate: PoseCandidate;
   entry?: BodyEntry;
   selected?: string;
   onSelect: (id: string) => void;
   disabled?: boolean;
 }) {
-  const ready = entry?.ready === true;
   return (
-    <PoseCandidateCard
-      candidate={candidate}
-      isSelected={candidate.id === selected}
-      onSelect={() => onSelect(candidate.id)}
-      layout="fill"
-      disabled={disabled}
-      bodyPreview={{
-        url: ready ? entry?.group?.images[candidate.id] : undefined,
-        pending: !ready,
-      }}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      <PoseCandidateCard
+        candidate={candidate}
+        isSelected={candidate.id === selected}
+        onSelect={() => onSelect(candidate.id)}
+        layout="fill"
+        disabled={disabled}
+      />
+      {job && (
+        <SinglePoseDetail
+          job={job}
+          selection={entry?.selection}
+          candidateId={candidate.id}
+          scope={candidate.posterScope ?? "full"}
+          sourceIdentity={candidate}
+        />
+      )}
+    </div>
   );
 }
 
@@ -240,7 +255,7 @@ export function BodyRenderStatus({ entry }: { entry?: BodyEntry }) {
       ) : (
         <>
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#b7791f]" aria-hidden />
-          선택한 체형으로 후보를 다시 그리는 중…
+          체형 선택을 확인하는 중…
         </>
       )}
     </div>

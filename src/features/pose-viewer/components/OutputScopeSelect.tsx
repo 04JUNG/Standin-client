@@ -33,7 +33,19 @@ export function OutputScopeSelect({
           ? {
               ...previous,
               people: previous.people.map((item) =>
-                item.index === person.index ? { ...item, outputScope } : item,
+                item.index === person.index
+                  ? {
+                      ...item,
+                      outputScope,
+                      candidates: item.candidates.map((c) => ({
+                        ...c,
+                        posterScope: outputScope.resolved,
+                      })),
+                      posePresentation: item.posePresentation
+                        ? { ...item.posePresentation, output_scope: outputScope.resolved }
+                        : undefined,
+                    }
+                  : item,
               ),
             }
           : previous,

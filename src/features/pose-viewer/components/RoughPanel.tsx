@@ -11,6 +11,23 @@ import { cropRect, useImageSize, type ImageSize } from "../lib/roughCrop";
  * viewBox로 자른다 — 컨테이너 크기가 바뀌어도 비율을 지키며 맞춰진다.
  */
 
+/** 만료·조회 실패는 다른 작업 이미지로 대체하지 않는다. 실패 상태도 URL에 묶는다. */
+function OriginalImage({ url, className }: { url: string; className?: string }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  return failedUrl === url ? (
+    <p role="status" className="p-3 text-center text-[12px] text-text-secondary">
+      원본 이미지를 불러올 수 없습니다.
+    </p>
+  ) : (
+    <img
+      src={url}
+      alt="분석에 사용한 원본"
+      className={className}
+      onError={() => setFailedUrl(url)}
+    />
+  );
+}
+
 function Cropped({
   url,
   size,
@@ -96,8 +113,7 @@ export function RoughOverview({
   className?: string;
 }) {
   const size = useImageSize(url);
-  if (!size)
-    return <img src={url} alt="분석에 사용한 원본" className={cn("object-contain", className)} />;
+  if (!size) return <OriginalImage url={url} className={cn("object-contain", className)} />;
   const stroke = Math.max(2, Math.min(size.width, size.height) / 220);
   const font = Math.max(12, Math.min(size.width, size.height) / 28);
   return (
@@ -251,11 +267,7 @@ export function RoughPanel({
               원본 미리보기가 없습니다
             </span>
           ) : !size ? (
-            <img
-              src={url}
-              alt="분석에 사용한 원본"
-              className="max-h-full max-w-full object-contain"
-            />
+            <OriginalImage url={url} className="max-h-full max-w-full object-contain" />
           ) : view === "person" ? (
             <Cropped
               url={url}

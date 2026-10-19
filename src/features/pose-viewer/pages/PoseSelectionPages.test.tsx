@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -170,15 +170,8 @@ it.each([
     );
     await screen.findByAltText("포즈 1");
     if (bodyMode) {
-      await waitFor(() => expect(getManifest).toHaveBeenCalled());
-      expect(vi.mocked(getManifest).mock.calls[0][2]).toMatchObject({
-        resolvedBody: { characterId: "female-new" },
-        shape: { controls: { height: 168 } },
-      });
-      expect(screen.getByAltText("포즈 1")).toHaveAttribute(
-        "src",
-        `data:image/png;base64,${btoa("pick-0")}`,
-      );
+      expect(getManifest).not.toHaveBeenCalled();
+      expect(screen.getByAltText("포즈 1")).toHaveAttribute("src", "data:image/png;base64,AA==");
     }
     for (let i = 0; i < 5; i++) {
       fireEvent.click(screen.getByAltText(`포즈 ${i + 1}`));

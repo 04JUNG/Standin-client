@@ -1,3 +1,4 @@
+import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import {
   useIsMutating,
   useMutation,
@@ -28,6 +29,7 @@ export const bodyEnabled = (result?: AnalysisResult) => result?.capabilities?.bo
 export function useBodies(
   result: AnalysisResult | undefined,
   excluded: Readonly<Record<number, unknown>> = {},
+  renderPreviews = false,
 ) {
   const owner = useBodyOwner(),
     job = result?.jobId ?? "";
@@ -59,7 +61,7 @@ export function useBodies(
           scope,
           person.candidates,
         ],
-        enabled: !!owner && selection?.resolutionStatus === "ready",
+        enabled: renderPreviews && !!owner && selection?.resolutionStatus === "ready",
         queryFn: async ({ signal }: { signal: AbortSignal }) => {
           const manifest = await getManifest(job, person.index, selection!, signal);
           if (
@@ -93,8 +95,10 @@ export function useBodies(
       !pending &&
       selections[i]?.isSuccess === true &&
       !selections[i]?.isFetching &&
-      groups[i]?.isSuccess === true &&
-      !groups[i]?.isFetching,
+      selections[i]?.data?.resolutionStatus === "ready" &&
+      !!selections[i]?.data?.resolvedBody &&
+      !isRetiredCharacter(selections[i]!.data!.resolvedBody!.characterId) &&
+      (!renderPreviews || (groups[i]?.isSuccess === true && !groups[i]?.isFetching)),
     error:
       selections[i]?.error ??
       groups[i]?.error ??
