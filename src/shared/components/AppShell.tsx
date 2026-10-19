@@ -66,7 +66,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
   const { pathname } = useLocation();
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0 overflow-hidden">
       <aside
         {...tourAnchor("shell.sidebar")}
         className="flex w-sidebar flex-col bg-brand-ink text-white/90"
@@ -112,8 +112,8 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         )}
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-topbar items-center justify-between border-b border-border bg-surface-0 px-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex h-topbar shrink-0 items-center justify-between border-b border-border bg-surface-0 px-6">
           <h1 className="text-[16px] font-bold text-text-primary">{title}</h1>
           <div className="flex items-center gap-3">
             <button
