@@ -1,3 +1,4 @@
+import { setAnalyticsConsent } from "@/features/analytics/analyticsClient";
 import { createElement, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -69,6 +70,7 @@ function wrapperFor(client: QueryClient) {
 
 describe("useAnalysisResult 실패 계측", () => {
   beforeEach(() => {
+    setAnalyticsConsent("test-consent");
     safeStorage.removeItem(QUEUE_KEY);
     safeStorage.removeItem("standin.analytics.sequence.v1");
     useUploadStore.setState({ draft: draftFixture(), origin: "app" });
@@ -335,6 +337,7 @@ describe("useAnalysisResult 실패 계측", () => {
 
 describe("작업 기록 재진입", () => {
   beforeEach(() => {
+    setAnalyticsConsent("test-consent");
     safeStorage.removeItem(QUEUE_KEY);
     safeStorage.removeItem("standin.analytics.sequence.v1");
     analyze.mockReset();
