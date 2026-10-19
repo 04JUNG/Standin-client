@@ -40,6 +40,7 @@ it("normal selection cards keep approximation visible without wrapping the image
     matchLevel: "low",
     thumbnailUrl: "",
     bvhAvailable: true,
+    previewImages: [],
     posterScope: "half",
   } as PoseCandidate;
   render(
