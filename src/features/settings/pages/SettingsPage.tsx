@@ -1,3 +1,4 @@
+import { QualityConsentSection } from "@/features/installation/QualityConsentSection";
 import { useState } from "react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
@@ -16,7 +17,12 @@ export function SettingsPage() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   async function withdrawData() {
-    if (!window.confirm("수집 동의를 철회하고 이 설치와 연결된 데이터를 삭제할까요?")) return;
+    if (
+      !window.confirm(
+        "이 설치의 모든 원본·작업 결과와 연결 데이터를 삭제할까요? 품질 검토 참여만 중단하려면 위의 선택 항목을 해제하고 저장하세요.",
+      )
+    )
+      return;
     setIsWithdrawing(true);
     try {
       // 실패는 store의 error로 들어온다. 삭제 요청이 실패했는데 화면이 조용하면
@@ -37,6 +43,7 @@ export function SettingsPage() {
         <AppUpdateSection />
         <TourSettingsSection />
 
+        <QualityConsentSection />
         <section>
           <h2 className="text-[15px] font-bold text-text-primary">베타 데이터</h2>
           <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-0 p-4">
@@ -44,7 +51,8 @@ export function SettingsPage() {
               <p className="text-[14px] text-text-primary">설치 ID</p>
               <p className="truncate text-[12px] text-text-secondary">{installationId ?? "-"}</p>
               <p className="mt-1 text-[12px] text-text-secondary">
-                원본은 90일, 연결 가능한 분석 데이터는 1년 보관됩니다.
+                기본 원본·작업 이력은 최대 90일 보관됩니다. 품질 검토에 별도 동의한 평가정보는 최대
+                365일 보관됩니다.
               </p>
             </div>
             <Button
@@ -53,7 +61,7 @@ export function SettingsPage() {
               disabled={isWithdrawing}
               onClick={() => void withdrawData()}
             >
-              {isWithdrawing ? "삭제 요청 중…" : "동의 철회 및 삭제"}
+              {isWithdrawing ? "삭제 요청 중…" : "전체 데이터 삭제"}
             </Button>
           </div>
           {withdrawError && (

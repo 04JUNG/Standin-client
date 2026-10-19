@@ -5,6 +5,7 @@ export const endpoints = {
   semantic: { search: "/v1/semantic-search", capabilities: "/v1/semantic-search/capabilities" },
   installations: {
     register: "/v1/installations",
+    qualityConsent: "/v1/installations/current/quality-consent",
     currentData: "/v1/installations/current/data",
   },
   events: { batch: "/v1/events/batch" },
