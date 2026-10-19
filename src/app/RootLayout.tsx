@@ -29,7 +29,7 @@ export function RootLayout() {
     <>
       <WindowModeSync />
       {isAppMode ? (
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col overflow-hidden">
           <AppTitleBar />
           <UpdateBanner />
           <div className="min-h-0 flex-1">

@@ -84,6 +84,55 @@ export function BodyPreferencesPage() {
         )}
 
         {value && (
+          <section
+            aria-labelledby="new-work-body-title"
+            className="space-y-3 rounded-xl border border-border bg-surface-0 p-4"
+          >
+            <h3 id="new-work-body-title" className="text-base font-bold">
+              새 작업을 시작할 때
+            </h3>
+            <p className="text-xs text-text-secondary">
+              다음 분석부터 적용됩니다. 각 인물의 체형은 후보 화면의 ‘체형 더보기’에서 따로 바꿀 수
+              있어요.
+            </p>
+            <fieldset disabled={mode.isPending} className="space-y-2">
+              <legend className="sr-only">새 작업의 체형</legend>
+              <ModeOption
+                checked={value.mode === "last_used"}
+                onChange={() => mode.mutate("last_used")}
+                title="마지막으로 쓴 체형 (기본)"
+                description={
+                  lastLabel
+                    ? `후보 화면에서 마지막으로 고른 체형으로 시작해요 · 지금은 ‘${lastLabel}’. 그 포즈에 쓸 수 없으면 자동 추천을 써요.`
+                    : "후보 화면에서 마지막으로 고른 체형·카드로 시작해요. 아직 고른 적이 없으면 자동 추천을 써요."
+                }
+              />
+              <ModeOption
+                checked={value.mode === "auto"}
+                onChange={() => mode.mutate("auto")}
+                title="자동 추천"
+                description="러프에 맞춰 매번 추천한 체형으로 시작해요."
+              />
+              {value.mode === "fixed_default" && (
+                <ModeOption
+                  checked
+                  onChange={() => undefined}
+                  title={`예전 설정 · 내 기본값으로 시작${
+                    value.defaultCharacterId ? ` (${name(value.defaultCharacterId)})` : ""
+                  }`}
+                  description="이전 버전에서 고른 설정이에요. 위 두 가지 중 하나를 고르면 바뀝니다."
+                />
+              )}
+            </fieldset>
+            {mode.isError && (
+              <p role="alert" className="text-[12px] text-brand-coral">
+                설정을 저장하지 못했습니다. 현재 값을 확인하고 다시 시도해 주세요.
+              </p>
+            )}
+          </section>
+        )}
+
+        {value && (
           <section aria-labelledby="my-bodies-title">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 id="my-bodies-title" className="text-[15px] font-bold text-text-primary">
@@ -195,50 +244,6 @@ export function BodyPreferencesPage() {
           <p role="alert" className="text-xs text-text-secondary">
             사용 가능한 체형 목록을 확인하지 못했습니다.
           </p>
-        )}
-
-        {value && (
-          <section className="space-y-3 rounded-xl border border-border bg-surface-0 p-4">
-            <h3 className="text-base font-bold">새 작업을 시작할 때</h3>
-            <p className="text-xs text-text-secondary">
-              다음 분석부터 적용됩니다. 각 인물의 체형은 후보 화면의 ‘체형 더보기’에서 따로 바꿀 수
-              있어요.
-            </p>
-            <fieldset disabled={mode.isPending} className="space-y-2">
-              <legend className="sr-only">새 작업의 체형</legend>
-              <ModeOption
-                checked={value.mode === "last_used"}
-                onChange={() => mode.mutate("last_used")}
-                title="마지막으로 쓴 체형 (기본)"
-                description={
-                  lastLabel
-                    ? `후보 화면에서 마지막으로 고른 체형으로 시작해요 · 지금은 ‘${lastLabel}’. 그 포즈에 쓸 수 없으면 자동 추천을 써요.`
-                    : "후보 화면에서 마지막으로 고른 체형·카드로 시작해요. 아직 고른 적이 없으면 자동 추천을 써요."
-                }
-              />
-              <ModeOption
-                checked={value.mode === "auto"}
-                onChange={() => mode.mutate("auto")}
-                title="자동 추천"
-                description="러프에 맞춰 매번 추천한 체형으로 시작해요."
-              />
-              {value.mode === "fixed_default" && (
-                <ModeOption
-                  checked
-                  onChange={() => undefined}
-                  title={`예전 설정 · 내 기본값으로 시작${
-                    value.defaultCharacterId ? ` (${name(value.defaultCharacterId)})` : ""
-                  }`}
-                  description="이전 버전에서 고른 설정이에요. 위 두 가지 중 하나를 고르면 바뀝니다."
-                />
-              )}
-            </fieldset>
-            {mode.isError && (
-              <p role="alert" className="text-[12px] text-brand-coral">
-                설정을 저장하지 못했습니다. 현재 값을 확인하고 다시 시도해 주세요.
-              </p>
-            )}
-          </section>
         )}
       </div>
       <ConfirmDialog
