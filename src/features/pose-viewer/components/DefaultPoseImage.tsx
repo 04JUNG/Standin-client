@@ -22,6 +22,13 @@ export function DefaultPoseImage({
     candidate,
     scope,
   });
+  const provenance =
+    q.data?.method === "reference-skinning-v1"
+      ? "기본 체형 · 근사 포즈"
+      : q.data?.kind === "default-body"
+        ? "기본 체형"
+        : "관절 기반";
+  const caption = `${provenance} · 정면 ${SCOPE_LABELS[scope]} 참고`;
   return (
     <div className={className}>
       {q.data ? (
@@ -47,9 +54,8 @@ export function DefaultPoseImage({
           {q.error ? "참고 이미지를 불러오지 못했어요" : "포즈 이미지 불러오는 중…"}
         </div>
       )}
-      <p className="text-[11px] text-text-secondary">
-        {q.data?.kind === "default-body" ? "기본 체형" : "관절 기반"} · 정면 {SCOPE_LABELS[scope]}{" "}
-        참고
+      <p title={caption} className="truncate whitespace-nowrap text-[11px] text-text-secondary">
+        {caption}
       </p>
       {!inFloatingBar && (
         <p className="text-[11px] text-text-secondary">선택 체형·손·검색 시점 미적용</p>
