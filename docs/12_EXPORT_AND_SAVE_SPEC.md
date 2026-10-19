@@ -299,3 +299,25 @@ Windows 브라우저의 앱·바 실제 컴포넌트+격리 Mock API, 실패 시
 ## 체형 선택 UX 확장 (2026-10-08)
 
 새 계약을 지원하는 작업의 기본 설정·인물별 선택·Top-K·최종 확인·저장 기준은 [BODY_SELECTION_UI.md](BODY_SELECTION_UI.md)를 따른다. 구 계약 설명보다 이 확장이 우선한다.
+
+
+## 직접 선택한 참고 포즈 저장 (2026-10-19)
+
+자동 검색 실패와 사용자가 고른 실제 포즈 파일의 저장 가능 여부를 분리한다. BFF가 설치 소유 작업의
+등록 BVH·해시·후보 연결을 확인해 `manualExportAllowed=true`를 명시한 library/semantic 후보는
+근접·구도·반대손 참고 그룹에서도 직접 선택할 수 있다. `releaseAllowed=false`, `actualMeshValidated=false`,
+`refineAllowed=false`는 유지하며 자동 일치 성공이나 자동 보정 대상으로 승격하지 않는다.
+동일 그룹에서 선택 상태를 표시하고 인물별 선택 수·확정 요청·앱/바 최종 확인·저장으로 이어진다.
+등록 파일이 확인되지 않은 생성 inline 후보와 구 BFF의 권한 없는 후보는 계속 미리보기 전용이다.
+
+문장 검색도 동일한 선택 확정과 최종 확인 흐름을 사용한다. 저장 전 실제 선택 체형·손·출력 범위가 적용된
+FBX 미리보기를 확인하며, 실패·이전 revision·원본 해시 불일치는 저장을 차단한다. 체형/손 리뷰 경로는
+기존 receipt를 재사용한다. 체형/손 선택 없는 수동 FBX 경로도 `X-Standin-Review-Key`, Source-BVH,
+Character, Preview-Artifact 및 최종 Artifact SHA256를 확인하고 동일 reviewKey로 저장한다.
+Preview-Artifact는 표시 PNG/GLB의 해시이며 Artifact는 짝지어진 최종 FBX의 해시다.
+BVH는 원본 전체 관절 파일이며 체형·손·부분 메시를 담지 않는다고 계속 안내한다.
+초기 후보 그리드는 사전 포스터만 사용하며 후보별 Converter 일괄 호출을 하지 않는다.
+
+검증 범위: 앱/바에서 근접·실제 mirror·문장 후보의 직접 선택 → 정확한 candidateId 확정 → 검토 화면 이동,
+수동 권한/해시 누락 거부, 최종 미리보기 source·응답 바이트·receipt 검증 및 변경 거부.
+설치 앱의 네이티브 파일 저장과 스테이징 E2E는 이 단위 테스트만으로 완료라고 보고하지 않는다.

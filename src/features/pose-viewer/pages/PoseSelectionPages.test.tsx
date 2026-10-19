@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -8,6 +8,7 @@ import { BarCandidatesPage } from "@/features/bar/pages/BarCandidatesPage";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { useInstallationStore } from "@/features/installation/installationStore";
+import { confirmSelections } from "@/features/analytics/analyticsClient";
 import { getManifest } from "@/features/body-selection/api";
 import { poseQueryKeys } from "../queryKeys";
 import type { AnalysisResult } from "../api/pose.contract";
@@ -67,6 +68,7 @@ vi.mock("@/features/bar/components/BarShell", () => ({
 }));
 
 beforeEach(() => {
+  vi.mocked(confirmSelections).mockClear();
   useInstallationStore.setState({ credentials: null });
   vi.mocked(getManifest).mockClear();
   usePoseSelectionStore.getState().startJob("click-test", null);
@@ -183,5 +185,116 @@ it.each([
       expect(screen.queryByRole("dialog")).toBeNull();
     }
     expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeEnabled();
+  },
+);
+
+it.each([
+  ["app", "near_match", false],
+  ["bar", "near_match", false],
+  ["app", "mirror_reference", false],
+  ["bar", "mirror_reference", false],
+  ["app", "library_match", true],
+  ["bar", "library_match", true],
+] as const)(
+  "%s manually selects %s (text=%s), confirms the actual id, and reaches final review",
+  async (mode, kind, semantic) => {
+    const id = "preview-manual",
+      hash = "d".repeat(64);
+    const presentation = {
+      version: semantic ? "semantic-pose-presentation-v1" : "dynamic-pose-presentation-v1",
+      person_index: 0,
+      route: "hybrid",
+      status: "partial_error",
+      search_status: "partial_error",
+      search_reason: "hand_skin_screen_unavailable_no_generation",
+      generation_status: "not_requested",
+      generation_reason: null,
+      output_scope: "half",
+      unobserved_body_is_default: true,
+      library_candidates: [],
+      generated_candidates: [],
+      review_candidates: [
+        {
+          candidate_id: id,
+          pose_id: "real-bvh",
+          kind,
+          source: "library",
+          rank: 1,
+          asset: { transport: "library_bvh", bvh_sha256: hash, preview_bvh_url: "/v1/manual" },
+          render_camera: {},
+        },
+      ],
+      basic_model: null,
+      issues: [],
+      preview_status: "ready",
+    } as unknown as import("../api/posePresentation").PosePresentation;
+    const data = {
+      jobId: "job_manual",
+      ...(semantic ? { source: "semantic", semantic: { query: "팔을 든 자세", index: {} } } : {}),
+      capabilities: { refine: false, fbxExport: true, characterSelection: false },
+      people: [
+        {
+          index: 0,
+          candidates: [
+            {
+              id,
+              poseId: "real-bvh",
+              source: semantic ? "semantic" : "library",
+              rank: 1,
+              title: "직접 선택 포즈",
+              tags: [],
+              matchLevel: "low",
+              thumbnailUrl: "",
+              previewImages: [],
+              bvhAvailable: true,
+              sourceBvhSha256: hash,
+              lookupAllowed: true,
+              releaseAllowed: false,
+              manualExportAllowed: true,
+              refineAllowed: false,
+              presentationKind: kind,
+            },
+          ],
+          fallbackMode: "soft",
+          confidence: "low",
+          skeletonState: "missing",
+          skeletonSource: "none",
+          coverageClass: "insufficient",
+          refineAllowed: false,
+          refinableLimbs: [],
+          posePresentation: presentation,
+        },
+      ],
+    } as AnalysisResult;
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(poseQueryKeys.result("click-test"), data);
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/app/jobs/click-test"]}>
+          <Routes>
+            <Route
+              path="/app/jobs/:jobId"
+              element={mode === "app" ? <PoseViewerPage /> : <BarCandidatesPage />}
+            />
+            <Route path="/app/jobs/:jobId/review" element={<p>최종 파일 확인</p>} />
+            <Route path="/bar/review" element={<p>최종 파일 확인</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const pick = await screen.findByRole("button", { name: /1번 .* 직접 선택/ });
+    expect(screen.queryByText(/이 장면에는 사용할 수 있는/)).toBeNull();
+    expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
+    fireEvent.click(pick);
+    expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBe(id);
+    expect(pick).toHaveAttribute("aria-pressed", "true");
+    expect(getManifest).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /이 포즈 사용/ }));
+    await waitFor(() =>
+      expect(confirmSelections).toHaveBeenCalledWith("job_manual", [
+        { personIndex: 0, candidateId: id },
+      ]),
+    );
+    await screen.findByText("최종 파일 확인");
   },
 );

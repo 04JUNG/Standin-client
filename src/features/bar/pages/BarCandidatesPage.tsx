@@ -1,4 +1,4 @@
-import { SemanticModelPresentation } from "@/features/semantic-search/SemanticModelPresentation";
+import { PosePresentationPanel } from "@/features/pose-viewer/components/PosePresentationPanel";
 import { ReferenceHands } from "@/features/hand-selection/ReferenceHands";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
@@ -85,6 +85,7 @@ export function BarCandidatesPage() {
   }, [people.length, personCursor]);
 
   const person = people[personCursor];
+  const gridCandidates = person?.candidates.filter((c) => !c.manualExportAllowed) ?? [];
   const panel = useBodyPanel(data?.jobId ?? "", person?.index ?? -1);
   const expanded =
     bodies.enabled &&
@@ -117,7 +118,29 @@ export function BarCandidatesPage() {
 
   if (data?.source === "semantic")
     return (
-      <BarShell title="문장 검색 결과">
+      <BarShell
+        title="문장 검색 결과"
+        footer={
+          <div className="flex items-center justify-between gap-2 border-t border-border bg-surface-0 py-2">
+            <p className="text-xs" aria-live="polite">
+              포즈 선택 {selectedCount}/{includedPeople.length} · 저장 전 확인
+            </p>
+            <Button
+              size="md"
+              disabled={!allSelected || isConfirming}
+              loading={isConfirming}
+              onClick={() => void confirmAndContinue()}
+            >
+              이 포즈 사용
+            </Button>
+            {confirmError && (
+              <p role="alert" className="text-xs text-brand-coral">
+                {confirmError}
+              </p>
+            )}
+          </div>
+        }
+      >
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
           <p className="whitespace-pre-wrap break-words">{data.semantic?.query}</p>
           <Button
@@ -129,16 +152,18 @@ export function BarCandidatesPage() {
           {data.people.map((p) => (
             <div key={p.index}>
               {p.posePresentation ? (
-                <SemanticModelPresentation
+                <PosePresentationPanel
                   presentation={p.posePresentation}
-                  bodyContext={
-                    data.capabilities.semanticBodySelection
-                      ? { jobId: data.jobId, person: p }
+                  bodyPreviewJob={
+                    data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
+                      ? data.jobId
                       : undefined
                   }
-                  bodyPreviewJob={
-                    data.capabilities.presentationBodyPreviews ? data.jobId : undefined
-                  }
+                  selection={{
+                    candidates: p.candidates,
+                    selected: selectedByPerson[p.index],
+                    onSelect: (id) => selectCandidate(p.index, id),
+                  }}
                   compact
                 />
               ) : (
@@ -385,7 +410,7 @@ export function BarCandidatesPage() {
                     entry={bodies.entries.find((e) => e.personIndex === person.index)}
                   />
                 )}
-                <div className="min-h-0 overflow-y-auto">
+                <div className={cn("min-h-0 overflow-y-auto", person.posePresentation && "flex-1")}>
                   <PersonFallbackNotice
                     bodyPreviewJob={
                       (!bodies.enabled || !person.candidates.length) &&
@@ -394,6 +419,13 @@ export function BarCandidatesPage() {
                         : undefined
                     }
                     person={person}
+                    selection={{
+                      candidates: person.candidates,
+                      selected: selectedByPerson[person.index],
+                      onSelect: (id) => selectCandidate(person.index, id),
+                      disabled: !included,
+                      hiddenCandidateIds: gridCandidates.map((c) => c.id),
+                    }}
                     compact
                   />
                   {person.posePresentation && (
@@ -405,7 +437,7 @@ export function BarCandidatesPage() {
                     원본과 포즈를 같은 눈높이로 비교하고, 빈 칸이나 홀로 남는 줄이 없다. */}
                 {/* 후보 칸: [원본 | 후보 3 + 2]. 카드는 모두 같은 비율·크기이고 아래 두 장은
                     가운데에 둔다. 창이 커져도 카드가 찌그러지지 않는다(FitTile). */}
-                {person.candidates.length > 0 && (
+                {gridCandidates.length > 0 && (
                   <div className="grid min-h-0 flex-1 grid-cols-[minmax(180px,26%)_minmax(0,1fr)] gap-2">
                     <RoughPanel
                       url={roughUrl}
@@ -441,7 +473,7 @@ export function BarCandidatesPage() {
                             !included && "pointer-events-none opacity-40 grayscale",
                           )}
                         >
-                          {person.candidates.map((candidate, i) => (
+                          {gridCandidates.map((candidate, i) => (
                             <FitTile key={candidate.id} className={candidateSpan(i)}>
                               {bodies.enabled ? (
                                 <BodyCandidateCard

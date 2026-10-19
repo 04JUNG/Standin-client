@@ -59,6 +59,23 @@ npm run tauri icon path/to/logo.png
 | `VITE_USE_MOCK_POSE_API` | `VITE_USE_MOCK_API`를 따름 | 포즈 분석 서버만 먼저 붙일 때 `false` |
 | `VITE_APP_ENV` | `development` | `development` / `production` / `test` |
 
+## 릴리스 서명 Secrets
+
+릴리스 워크플로(`release-desktop.yml`)가 쓰는 GitHub Secrets 이름이다. 값은 문서에 남기지 않는다(ADR-011).
+
+| Secret | 용도 |
+|---|---|
+| `ES_USERNAME` | SSL.com 계정 아이디. Windows 코드서명(eSigner) |
+| `ES_PASSWORD` | SSL.com 계정 비밀번호 |
+| `ES_CREDENTIAL_ID` | 인증서 주문 화면의 **SHOW MY SIGNING CREDENTIALS**에 나오는 Credential ID |
+| `ES_TOTP_SECRET` | eSigner 등록 때 QR 코드와 함께 받은 Secret Code |
+| `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 자동 업데이트 패키지 서명(minisign) |
+| `APPLE_*` | macOS 서명·공증 |
+
+- `ES_*` 네 개는 전부 있거나 전부 없어야 한다. 일부만 있으면 빌드 전에 멈춘다. 전부 없으면 Windows 설치 파일은 서명 없이 나간다.
+- Windows 서명은 프로덕션 릴리스에만 붙는다. staging과 dev 빌드는 서명하지 않는다(eSigner 서명 횟수 절약).
+- 릴리스 한 번에 eSigner 서명이 **8회** 쓰인다: 앱 exe 1, NSIS 플러그인 DLL 5, 언인스톨러 1, 설치 파일 1. 실패한 서명은 최대 3번까지 다시 시도한다. eSigner 요금제의 월 서명 횟수를 이 기준으로 계산한다.
+
 ## 인증
 
 - 회원가입·비밀번호 찾기는 **앱이 아니라 웹**에서 진행한다(docs/06 §1). 로그인 화면의 링크가 `VITE_WEB_BASE_URL`로 열린다.
