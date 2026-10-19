@@ -1,3 +1,4 @@
+import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { PosePresentationPanel } from "../components/PosePresentationPanel";
 import { ReferenceHands } from "@/features/hand-selection/ReferenceHands";
 import { useExportStore } from "@/features/export/store/exportStore";
@@ -201,16 +202,9 @@ export function PoseViewerPage() {
     return (
       <AppShell title="문장 검색 결과">
         <div className="flex flex-col gap-4 p-4">
-          <section className="rounded-xl border border-border bg-surface-0 p-4">
-            <h2 className="text-sm font-semibold">검색 문장</h2>
-            <p className="whitespace-pre-wrap break-words">{data.semantic?.query}</p>
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/app/search", { state: { query: data.semantic?.query } })}
-            >
-              문장 바꿔 검색하기
-            </Button>
-          </section>
+          <div className="sticky -top-6 z-10 border-b border-border bg-surface-0 p-3">
+            <SemanticSearchBar resultKey={data.jobId} initialQuery={data.semantic?.query ?? ""} />
+          </div>
           {data.people.map((person) => (
             <div key={person.index} className="flex flex-col gap-3">
               {person.posePresentation ? (

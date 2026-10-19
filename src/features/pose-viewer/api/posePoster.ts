@@ -25,6 +25,7 @@ export async function loadPosePoster(
   signal: AbortSignal,
   expectedSource?: string,
   scope = "full",
+  allowReferenceRendering = true,
 ): Promise<PosePoster> {
   if (!validPosterPath(url)) throw Error("잘못된 포즈 이미지 경로입니다.");
   const response = await apiFetchResponse(url, { auth: false, signal });
@@ -95,6 +96,7 @@ export async function loadPosePoster(
   )
     throw Error("인체 참고 방식의 출처를 확인하지 못했습니다.");
   if (kind === "pose-only") {
+    if (!allowReferenceRendering) throw Error("저장된 인체 포즈 이미지가 없습니다.");
     // A verified skeleton is still an unfinished human preview, including in
     // direct save-review consumers of this loader. Render the exact source mesh.
     const parsed = new URL(url, "https://standin.invalid");
@@ -122,12 +124,16 @@ export function useDefaultPosePoster({
   fallbackUrl,
   candidate,
   scope = "full",
+  enabled = true,
+  savedOnly = false,
 }: {
   url?: string;
   source?: string;
   fallbackUrl?: string;
   candidate?: PreviewCandidate;
   scope?: string;
+  enabled?: boolean;
+  savedOnly?: boolean;
 }) {
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const posterUrl = url ?? (candidate ? candidate.asset.preview_bvh_url + "/poster" : undefined);
@@ -145,8 +151,9 @@ export function useDefaultPosePoster({
       fallbackUrl,
       candidate?.asset.preview_bvh_url,
       scope,
+      savedOnly,
     ],
-    enabled: !!owner && (!!url || !!fallbackUrl || !!candidate),
+    enabled: enabled && !!owner && (!!url || !!fallbackUrl || !!candidate),
     queryFn: async ({ signal }): Promise<PosePoster> => {
       if (posterUrl) {
         try {
@@ -155,6 +162,7 @@ export function useDefaultPosePoster({
             signal,
             source ?? candidate?.asset.bvh_sha256,
             scope,
+            !savedOnly,
           );
           if (poster.kind === "default-body") return poster;
         } catch (error) {
@@ -162,6 +170,7 @@ export function useDefaultPosePoster({
           if (!(error instanceof ApiError) || [401, 403, 409].includes(error.status)) throw error;
         }
       }
+      if (savedOnly) throw Error("저장된 포즈 이미지를 불러오지 못했어요.");
       // A pose-only image is not completed human preview. Use the shared real
       // human mesh with this exact owned BVH, never a card-triggered Converter.
       const sourceUrl =

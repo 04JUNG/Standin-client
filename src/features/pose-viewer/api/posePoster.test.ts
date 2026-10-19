@@ -59,3 +59,18 @@ it("exposes the approximate reference method only for actual approved human post
   expect(poster.kind).toBe("default-body");
   expect(poster.method).toBe("reference-skinning-v1");
 });
+
+it("saved-only semantic lists reject a skeleton without fetching BVH or starting a render", async () => {
+  vi.mocked(apiFetchResponse).mockImplementation(() =>
+    posterResponse({
+      "X-Standin-Poster-Kind": "pose-only",
+      "X-Standin-Character-Id": "none",
+      "X-Standin-Character-SHA256": "none",
+      "X-Standin-Preview-Method": "pose-only",
+    }),
+  );
+  await expect(
+    loadPosePoster(POSTER_URL, new AbortController().signal, POSTER_SOURCE, "full", false),
+  ).rejects.toThrow("저장된");
+  expect(apiFetchResponse).toHaveBeenCalledOnce();
+});
