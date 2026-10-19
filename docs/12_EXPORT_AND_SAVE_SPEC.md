@@ -301,6 +301,20 @@ Windows 브라우저의 앱·바 실제 컴포넌트+격리 Mock API, 실패 시
 새 계약을 지원하는 작업의 기본 설정·인물별 선택·Top-K·최종 확인·저장 기준은 [BODY_SELECTION_UI.md](BODY_SELECTION_UI.md)를 따른다. 구 계약 설명보다 이 확장이 우선한다.
 
 
+## 러프 배치가 포함된 통합 FBX (로컬 검증, 기본 꺼짐)
+
+이미지 작업에서 BFF가 `capabilities.sceneExport=true`를 명시하면, FBX 저장 시 기존
+최종 체형·손·범위 검수 다운로드를 먼저 수행합니다. 받은 파일의 SHA와 정확한 검수 URL,
+job/person/candidate ID만 `/v1/analysis/jobs/:jobId/scene`으로 보내고, 서버가 소유 작업의
+러프 관측으로 배치한 통합 FBX를 반환합니다. 앱은 인원 수·버전·파일 SHA를 검증한 뒤
+기존 native writer로 `{기본명}_scene.fbx` 한 파일을 저장합니다. 합성 실패 시 저장 실패를
+표시하며 개별 파일로 조용히 대체하지 않습니다. BVH·문장 검색·구 BFF 흐름은 유지합니다.
+
+검증 범위: 최신 develop 기반 타입 검사·웹 빌드·저장 계약 회귀, 로컬 BFF 핸들러와 실제
+HTTP Converter/Blender, T001·p0718 CSP 실제 import. 설치된 Tauri 앱이나 운영 서버는
+업데이트하지 않았습니다. **CSP 자체 카메라가 원본 구도/절대 크기를 다시 맞추는 문제가
+남아 있어 BFF flag는 기본 false이고, CSP 구도 기능이 완료됐다고 판단하지 않습니다.**
+
 ## 직접 선택한 참고 포즈 저장 (2026-10-19)
 
 자동 검색 실패와 사용자가 고른 실제 포즈 파일의 저장 가능 여부를 분리한다. BFF가 설치 소유 작업의

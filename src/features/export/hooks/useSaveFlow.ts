@@ -25,6 +25,7 @@ import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 import { exportService } from "../api/export.service";
+import { downloadScene, sceneReference } from "../api/scene";
 import { ExportError } from "../api/export.contract";
 import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
 import { mockBvhContent } from "../lib/mockBvhContent";
@@ -60,6 +61,7 @@ async function resolvePoseBytes(
   scope?: BodyScope,
   modelPreview = false,
   refined = false,
+  onDownloadPath?: (path: string) => void,
 ): Promise<Uint8Array> {
   // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
   // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
@@ -89,6 +91,7 @@ async function resolvePoseBytes(
             framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`,
           )
         : url;
+    onDownloadPath?.(pinnedUrl);
     const bytes = await apiFetchBytes(pinnedUrl, { auth: false });
     const digest =
       scope && format === "fbx"
@@ -358,6 +361,7 @@ export function useSaveFlow(jobId: string | undefined) {
               handKeys.selection(handOwner, analysisResult.jobId, personIndex),
             );
             let content: Uint8Array;
+            let downloadPath = "";
             if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
               if (options.forceDefaultCharacter)
                 throw new Error("체형은 후보 화면에서 변경해 주세요.");
@@ -388,6 +392,7 @@ export function useSaveFlow(jobId: string | undefined) {
               if (!owner || !receipt || body?.resolutionStatus !== "ready")
                 throw new Error("저장 전 확인 화면에서 현재 체형의 결과를 확인해 주세요.");
               content = await downloadBodyReview(receipt);
+              downloadPath = receipt.downloadUrl;
               bodyNames.add(receipt.selection.resolvedBody!.characterId);
             } else if (analysisResult.capabilities.handSelection && format === "fbx") {
               const scope = readOutputScope(
@@ -419,6 +424,7 @@ export function useSaveFlow(jobId: string | undefined) {
               if (!receipt)
                 throw new Error("저장 전 확인 화면에서 현재 손의 결과를 확인해 주세요.");
               content = await downloadHandReview(receipt);
+              downloadPath = receipt.downloadUrl;
             } else {
               content = await resolvePoseBytes(
                 exportUrl,
@@ -432,16 +438,45 @@ export function useSaveFlow(jobId: string | undefined) {
                   : undefined,
                 analysisResult.capabilities.modelPreview === true,
                 currentOutcome?.refined === true,
+                (path) => {
+                  downloadPath = path;
+                },
               ).catch((error) => {
                 // Returning to review must fetch fresh lineage after a rejected save.
                 void queryClient.invalidateQueries({ queryKey: ["framed-preview"] });
                 throw error;
               });
             }
-            return { fileName: personFileName(name, personIndex, picks.length), content };
+            return {
+              fileName: personFileName(name, personIndex, picks.length),
+              content,
+              personIndex,
+              candidateId,
+              downloadPath,
+            };
           }),
         );
-        const results = await exportService.saveCandidates({ folder: targetFolder, files });
+        let saveFiles: { fileName: string; content: Uint8Array }[] = files;
+        if (
+          format === "fbx" &&
+          analysisResult.source !== "semantic" &&
+          analysisResult.capabilities.sceneExport === true &&
+          !env.useMockPoseApi
+        ) {
+          if (files.some((f) => !f.downloadPath))
+            throw new Error("장면에 사용할 최종 파일을 확인하지 못했습니다.");
+          const references = await Promise.all(
+            files.map((f) =>
+              sceneReference(f.personIndex, f.candidateId, f.downloadPath, f.content),
+            ),
+          );
+          const content = await downloadScene(analysisResult.jobId, references);
+          saveFiles = [{ fileName: name.replace(/\.fbx$/i, "_scene.fbx"), content }];
+        }
+        const results = await exportService.saveCandidates({
+          folder: targetFolder,
+          files: saveFiles,
+        });
         const paths = results.map((r) => r.path);
         if (options.append) addSaved(paths);
         else setSaved(paths);
