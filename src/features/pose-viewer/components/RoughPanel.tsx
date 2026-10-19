@@ -131,7 +131,7 @@ export function RoughOverview({
         const on = person.index === current;
         const off = person.index in excluded || person.fallbackMode === "hard";
         const color = on ? "var(--brand-coral)" : off ? "#9aa5b4" : "var(--brand-sky)";
-        const label = `인물 ${person.index + 1}${off ? " · 선택 안 함" : ""}`;
+        const label = `인물 ${person.index + 1}${off ? " · 내보내기 제외" : ""}`;
         return (
           <g
             key={person.index}

@@ -9,10 +9,12 @@ export function SemanticSearchBar({
   initialQuery,
   surface = "app",
   resultKey,
+  hasResults = true,
 }: {
   initialQuery: string;
   surface?: "app" | "bar";
   resultKey?: string;
+  hasResults?: boolean;
 }) {
   const id = useId();
   const root = useRef<HTMLElement>(null);
@@ -80,7 +82,7 @@ export function SemanticSearchBar({
           disabled={!query.trim() || pending || !ready}
           loading={pending}
         >
-          {pending ? "찾는 중…" : "다시 검색"}
+          {pending ? "찾는 중…" : hasResults ? "다시 검색" : "포즈 찾기"}
         </Button>
       </form>
       <p id={`${id}-hint`} className="text-xs text-text-secondary">
@@ -88,13 +90,17 @@ export function SemanticSearchBar({
       </p>
       {pending ? (
         <p role="status" className="text-xs text-text-secondary">
-          새 포즈를 찾고 있어요. 아래는 이전 검색 결과예요.
+          {hasResults
+            ? "새 포즈를 찾고 있어요. 아래는 이전 검색 결과예요."
+            : "문장에 가까운 포즈를 찾고 있어요."}
         </p>
       ) : noResult ? (
         <p role="status" className="text-xs text-text-secondary">
-          새 검색어에 맞는 포즈가 없어요. 아래는 이전 검색 결과예요. 다른 동작으로 다시 찾아보세요.
+          {hasResults
+            ? "새 검색어에 맞는 포즈가 없어요. 아래는 이전 검색 결과예요. 다른 동작으로 다시 찾아보세요."
+            : "맞는 포즈가 없어요. 다른 동작으로 다시 찾아보세요."}
         </p>
-      ) : query !== initialQuery ? (
+      ) : hasResults && query !== initialQuery ? (
         <p className="text-xs text-text-secondary">아래는 이전 검색 결과예요.</p>
       ) : null}
       {availability.isPending && (

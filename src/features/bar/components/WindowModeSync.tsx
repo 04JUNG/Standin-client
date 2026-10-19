@@ -1,4 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
+import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
+import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { useLocation } from "react-router-dom";
 import { useCaptureStore } from "@/features/capture/store/captureStore";
 import type { WindowMode, WindowPosition, WindowSize } from "../api/windowMode.contract";
@@ -32,6 +36,22 @@ const MOVE_TOLERANCE = 1;
  */
 export function WindowModeSync() {
   const { pathname } = useLocation();
+  const jobId = usePoseSelectionStore((state) => state.jobId);
+  const queryClient = useQueryClient();
+  // Subscribe without a query observer: sizing cannot replace an analysis queryFn,
+  // trigger an analysis, or refetch a restored result.
+  const resultKey = poseQueryKeys.result(jobId ?? "");
+  const readSource = () => queryClient.getQueryData<AnalysisResult>(resultKey)?.source;
+  const subscribe = useCallback(
+    (notify: () => void) => queryClient.getQueryCache().subscribe(notify),
+    [queryClient],
+  );
+  const source = useSyncExternalStore(subscribe, readSource, readSource);
+  const semanticBar =
+    pathname === "/bar/search" ||
+    (pathname.startsWith("/bar/") &&
+      source === "semantic" &&
+      ["/bar/candidates", "/bar/review", "/bar/save"].includes(pathname));
   // 바 내용이 표보다 크면 창을 키운다. 측정은 BarShell이 하고, 창에 적용하는 곳은
   // 여기 하나로 유지한다 — 크기를 쓰는 곳이 둘이 되면 서로 덮어쓴다.
   const contentHeight = useWindowModeStore((s) => s.barContentHeight);
@@ -43,7 +63,10 @@ export function WindowModeSync() {
   const queue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
-    const base = windowTargetForPath(pathname);
+    const routeTarget = windowTargetForPath(pathname);
+    const base = semanticBar
+      ? { ...routeTarget, size: { ...routeTarget.size, maxWidthFraction: 0.49 } }
+      : routeTarget;
     const barState = barStateForPath(pathname);
     const target: WindowTarget =
       barState && barState !== "candidates" && contentHeight
@@ -71,7 +94,7 @@ export function WindowModeSync() {
     return () => {
       superseded = true;
     };
-  }, [pathname, contentHeight]);
+  }, [pathname, contentHeight, semanticBar]);
 
   return null;
 }
@@ -124,7 +147,7 @@ async function adoptUserMove(state: Placement) {
 }
 
 function sameSize(a: WindowSize, b: WindowSize) {
-  return a.width === b.width && a.height === b.height;
+  return a.width === b.width && a.height === b.height && a.maxWidthFraction === b.maxWidthFraction;
 }
 
 function moved(a: WindowPosition, b: WindowPosition) {

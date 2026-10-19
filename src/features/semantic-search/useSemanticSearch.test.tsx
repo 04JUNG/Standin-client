@@ -1,3 +1,4 @@
+import { clearSearchDrafts } from "./searchDraft";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, useLocation } from "react-router-dom";
@@ -30,6 +31,7 @@ function setup(surface: "app" | "bar" = "app") {
   return { ...hook, qc };
 }
 beforeEach(() => {
+  clearSearchDrafts();
   vi.useRealTimers();
   api.searchCapabilities.mockResolvedValue({
     available: true,

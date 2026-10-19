@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
+import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import type { WindowModeService, WindowPosition, WindowSize } from "../api/windowMode.contract";
 import { BAR_SIZES } from "../lib/barSizes";
@@ -50,12 +53,16 @@ function Navigator() {
   return null;
 }
 
+let queryClient: QueryClient;
+
 function renderAt(path: string) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <WindowModeSync />
-      <Navigator />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <WindowModeSync />
+        <Navigator />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -75,6 +82,9 @@ async function setContentHeight(height: number | null) {
 }
 
 beforeEach(() => {
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  usePoseSelectionStore.setState({ jobId: null, serverJobId: null });
+  usePoseSelectionStore.getState().clearSelection();
   windowAt = { x: 200, y: 200 };
   service.setMode.mockReset().mockImplementation(async (_mode, size) => {
     if (size) windowAt = clamp(windowAt, size);
@@ -261,5 +271,71 @@ describe("WindowModeSync 바 위치", () => {
 
     expect(service.setPosition).not.toHaveBeenCalled();
     expect(useWindowModeStore.getState().barPosition).toEqual({ x: 200, y: 200 });
+  });
+});
+
+describe("semantic bar monitor-width policy", () => {
+  it("새 문장 검색 화면은 모니터 절반 미만의 너비를 요청한다", async () => {
+    renderAt("/bar/search");
+    await settle();
+    expect(service.setMode).toHaveBeenLastCalledWith(
+      "bar",
+      expect.objectContaining({ maxWidthFraction: 0.49 }),
+      undefined,
+    );
+  });
+
+  it("문장 검색 결과·확인·저장까지 같은 너비 제한을 전달한다", async () => {
+    usePoseSelectionStore.getState().startJob("semantic-job", null);
+    queryClient.setQueryData(poseQueryKeys.result("semantic-job"), { source: "semantic" });
+    useWindowModeStore.getState().setBarPosition({ x: 200, y: 200 });
+    renderAt("/bar/candidates");
+    await settle();
+    for (const path of ["/bar/candidates", "/bar/review", "/bar/save"]) {
+      if (path !== "/bar/candidates") await go(path);
+      expect(service.setMode).toHaveBeenLastCalledWith(
+        "bar",
+        expect.objectContaining({ maxWidthFraction: 0.49 }),
+        undefined,
+      );
+      expect(service.setPosition).toHaveBeenLastCalledWith(
+        expect.anything(),
+        expect.objectContaining({ maxWidthFraction: 0.49 }),
+      );
+    }
+  });
+
+  it("같은 화면에서 결과 출처가 확인되면 크기 정책도 다시 적용한다", async () => {
+    usePoseSelectionStore.getState().startJob("restored-job", null);
+    renderAt("/bar/candidates");
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined();
+    act(() =>
+      queryClient.setQueryData(poseQueryKeys.result("restored-job"), { source: "semantic" }),
+    );
+    await waitFor(() => expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBe(0.49));
+    act(() => queryClient.setQueryData(poseQueryKeys.result("restored-job"), { source: "image" }));
+    await waitFor(() =>
+      expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined(),
+    );
+  });
+
+  it("러프 바와 앱에는 너비 제한을 추가하지 않는다", async () => {
+    usePoseSelectionStore.getState().startJob("rough-job", null);
+    queryClient.setQueryData(poseQueryKeys.result("rough-job"), { source: "image" });
+    renderAt("/bar/candidates");
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined();
+    await go("/app/home");
+    expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined();
+  });
+
+  it("창 크기 구독은 분석이나 결과 네트워크 요청을 만들지 않는다", async () => {
+    usePoseSelectionStore.getState().startJob("uncached-job", null);
+    const queryFn = vi.fn();
+    queryClient.setDefaultOptions({ queries: { queryFn, retry: false } });
+    renderAt("/bar/candidates");
+    await settle();
+    expect(queryFn).not.toHaveBeenCalled();
   });
 });

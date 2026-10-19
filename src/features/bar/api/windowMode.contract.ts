@@ -7,7 +7,12 @@
  */
 export type WindowMode = "app" | "bar" | "overlay";
 
-export type WindowSize = { width: number; height: number };
+export type WindowSize = {
+  width: number;
+  height: number;
+  /** Optional bar-only limit, relative to the current monitor's logical work area. */
+  maxWidthFraction?: number;
+};
 
 export type WindowPosition = { x: number; y: number };
 

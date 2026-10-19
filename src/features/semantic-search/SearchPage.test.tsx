@@ -1,3 +1,4 @@
+import { clearSearchDrafts } from "./searchDraft";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -30,6 +31,7 @@ function setup() {
   );
 }
 beforeEach(() => {
+  clearSearchDrafts();
   api.searchCapabilities.mockResolvedValue({
     available: true,
     maxQueryLength: 500,

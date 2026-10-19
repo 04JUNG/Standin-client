@@ -52,6 +52,13 @@ pub fn run() {
         // Tauri v2에는 Minimized 이벤트가 없어 Resized에서 상태를 확인한다.
         .on_window_event(|window, event| {
             #[cfg(desktop)]
+            if matches!(
+                event,
+                tauri::WindowEvent::Moved(_) | tauri::WindowEvent::ScaleFactorChanged { .. }
+            ) {
+                commands::window_mode::enforce_bar_width_for_monitor(window);
+            }
+            #[cfg(desktop)]
             if let tauri::WindowEvent::Resized(_) = event {
                 if window.is_minimized().unwrap_or(false) {
                     use tauri::Emitter;

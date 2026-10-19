@@ -209,7 +209,7 @@ export function BarCandidatesPage() {
         loading={isConfirming}
         onClick={() => void confirmAndContinue()}
       >
-        {includedPeople.length === 0 ? "선택한 인물이 없어요" : "이 포즈 사용"}
+        {includedPeople.length === 0 ? "내보낼 인물이 없어요" : "이 포즈 사용"}
         {includedPeople.length > 0 && (
           <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
         )}
@@ -219,10 +219,10 @@ export function BarCandidatesPage() {
 
   const progressText =
     includedPeople.length === 0
-      ? "선택한 인물이 없어요 · 한 명 이상 선택해 주세요"
+      ? "내보낼 인물이 없어요 · 한 명 이상 포함해 주세요"
       : pendingPeople.length > 0
-        ? `포즈 안 고른 인물 ${pendingPeople.map((p) => p.index + 1).join(", ")} · 필요 없으면 선택 끄기`
-        : `선택한 인물 ${includedPeople.length}명 모두 골랐어요`;
+        ? `포즈 안 고른 인물 ${pendingPeople.map((p) => p.index + 1).join(", ")} · 저장하지 않으려면 내보내기에서 제외하세요`
+        : `내보낼 인물 ${includedPeople.length}명의 포즈를 모두 골랐어요`;
 
   const footer =
     !isPending && !isError && person ? (

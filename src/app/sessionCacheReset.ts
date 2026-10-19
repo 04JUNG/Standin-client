@@ -1,3 +1,4 @@
+import { clearSearchDrafts } from "@/features/semantic-search/searchDraft";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import type { QueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/features/auth/store/authStore";
@@ -14,6 +15,7 @@ import { useAuthStore } from "@/features/auth/store/authStore";
 export function clearQueryCacheOnSessionEnd(queryClient: QueryClient): () => void {
   const unsubscribeAuth = useAuthStore.subscribe((state, prev) => {
     if (prev.status === "authenticated" && state.status !== "authenticated") {
+      clearSearchDrafts();
       queryClient.clear();
     }
   });
@@ -22,6 +24,7 @@ export function clearQueryCacheOnSessionEnd(queryClient: QueryClient): () => voi
       prev.credentials?.installationId &&
       prev.credentials.installationId !== state.credentials?.installationId
     ) {
+      clearSearchDrafts();
       void queryClient.cancelQueries({ queryKey: ["body"] });
       queryClient.removeQueries({ queryKey: ["body"] });
     }
