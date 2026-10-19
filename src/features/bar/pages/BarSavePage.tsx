@@ -20,6 +20,7 @@ import { useSaveFlow } from "@/features/export/hooks/useSaveFlow";
 import { characterNotice } from "@/features/export/lib/characterNotice";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
+import { useQualityConsentStore } from "@/features/installation/qualityConsentStore";
 import { submitFeedback } from "@/features/analytics/analyticsClient";
 
 /**
@@ -36,6 +37,9 @@ export function BarSavePage() {
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const bindings = useShortcutStore((s) => s.bindings);
   const serverJobId = usePoseSelectionStore((s) => s.serverJobId);
+  const qualityEnabled = useQualityConsentStore(
+    (state) => state.loaded && !state.pendingChoices && Boolean(state.consent.consentId),
+  );
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState(false);
 
@@ -178,7 +182,7 @@ export function BarSavePage() {
             </div>
 
             {/* 서버 job이 없으면 보낼 곳이 없다(SavePage와 같은 이유). */}
-            {serverJobId && (
+            {serverJobId && qualityEnabled && (
               <label className="flex shrink-0 items-center gap-2 text-[10px] text-text-secondary">
                 {feedbackError ? (
                   <span role="alert" className="shrink-0 text-brand-coral">

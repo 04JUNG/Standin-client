@@ -11,7 +11,8 @@ vi.mock("./api/analytics.service", async () => ({
   analyticsService: (await import("./api/analytics.http")).analyticsHttp,
 }));
 
-const { flushEvents, resetAnalyticsQueue, trackEvent } = await import("./analyticsClient");
+const { flushEvents, resetAnalyticsQueue, trackEvent, setAnalyticsConsent, confirmSelections } =
+  await import("./analyticsClient");
 
 const QUEUE_KEY = "standin.analytics.queue.v1";
 
@@ -56,6 +57,7 @@ describe("analyticsClient", () => {
   beforeEach(() => {
     __resetApiClient();
     resetAnalyticsQueue();
+    setAnalyticsConsent("test-consent");
     setInstallationCredentials({ installationId: "inst_1", deviceToken: "device-token" });
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -67,9 +69,63 @@ describe("analyticsClient", () => {
     __resetApiClient();
   });
 
+  it("미동의는 수집하지 않아도 저장을 위한 후보 확정은 사용할 수 있다", async () => {
+    setAnalyticsConsent(null);
+    trackEvent("app_started", {});
+    await flushEvents();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(queuedNames()).toEqual([]);
+    fetchMock.mockResolvedValue(accepted());
+    await confirmSelections("job_1", [{ personIndex: 0, candidateId: "candidate_1" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/selections");
+  });
+
+  it("철회·재동의는 이전 동의의 오프라인 큐를 재전송하지 않는다", async () => {
+    fetchMock.mockRejectedValue(new Error("offline"));
+    trackEvent("input_confirmed", { source: "file" });
+    await flushEvents();
+    expect(queuedNames()).toEqual(["input_confirmed"]);
+    setAnalyticsConsent(null);
+    setAnalyticsConsent("new-consent");
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValue(accepted());
+    await flushEvents();
+    expect(fetchMock).not.toHaveBeenCalled();
+    trackEvent("app_started", {});
+    await flushEvents();
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body.qualityConsentId).toBe("new-consent");
+    expect(body.events[0].qualityConsentId).toBe("new-consent");
+  });
+
+  it("느린 PC 시계로 동의 직후 이벤트가 동의 이전으로 기록되지 않는다", async () => {
+    const grant = "2026-10-19T09:00:00.500Z";
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse(grant) - 350);
+    try {
+      setAnalyticsConsent("server-grant", grant);
+      fetchMock.mockResolvedValue(accepted());
+      trackEvent("app_started", {});
+      await flushEvents();
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).events[0].occurredAt).toBe(
+        grant,
+      );
+      clock.mockReturnValue(Date.parse(grant) + 1000);
+      trackEvent("input_confirmed", { source: "file" });
+      await flushEvents();
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).events[0].occurredAt).toBe(
+        "2026-10-19T09:00:01.500Z",
+      );
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("전송 중에 쌓인 이벤트를 덮어쓰지 않는다", async () => {
     const first = deferred<Response>();
-    fetchMock.mockImplementationOnce(() => first.promise).mockImplementation(async () => accepted());
+    fetchMock
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementation(async () => accepted());
 
     // 첫 이벤트가 flush를 시작하고, 응답을 기다리는 사이에 두 번째가 큐에 들어간다.
     trackEvent("app_started", { locale: "ko-KR" });

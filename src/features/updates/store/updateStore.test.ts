@@ -1,3 +1,4 @@
+import { setAnalyticsConsent } from "@/features/analytics/analyticsClient";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { safeStorage } from "@/shared/lib/safeStorage";
 
@@ -35,6 +36,7 @@ function queued(): QueuedEvent[] {
 }
 
 beforeEach(() => {
+  setAnalyticsConsent("test-consent");
   vi.clearAllMocks();
   safeStorage.removeItem(QUEUE_KEY);
   useUpdateStore.getState().reset();

@@ -22,6 +22,7 @@ import { SavedFileList } from "../components/SavedFileList";
 import { useSaveFlow } from "../hooks/useSaveFlow";
 import { characterNotice } from "../lib/characterNotice";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { useQualityConsentStore } from "@/features/installation/qualityConsentStore";
 import { submitFeedback } from "@/features/analytics/analyticsClient";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
 
@@ -36,6 +37,9 @@ export function SavePage() {
   const navigate = useNavigate();
   const bindings = useShortcutStore((s) => s.bindings);
   const serverJobId = usePoseSelectionStore((s) => s.serverJobId);
+  const qualityEnabled = useQualityConsentStore(
+    (state) => state.loaded && !state.pendingChoices && Boolean(state.consent.consentId),
+  );
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState(false);
 
@@ -224,7 +228,7 @@ export function SavePage() {
 
             {/* 서버 job이 없으면(Mock 후보 등) 보낼 곳이 없다. 눌러도 아무 일이 없는
                 버튼을 두느니 섹션을 감춘다. */}
-            {serverJobId && (
+            {serverJobId && qualityEnabled && (
               <div className="rounded-xl border border-border p-4">
                 <p className="text-[13px] font-semibold text-text-primary">결과는 어땠나요?</p>
                 {feedback ? (
