@@ -6,7 +6,7 @@ import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import { trackEvent } from "@/features/analytics/analyticsClient";
 import { updateService } from "../api/update.service";
 import { useUpdateStore } from "../store/updateStore";
-import { updateFailureReason } from "../lib/updateFailure";
+import { updateFailureReason, updateFailureMessage } from "../lib/updateFailure";
 
 /**
  * 설정의 버전·업데이트 섹션(ADR-011).
@@ -28,8 +28,7 @@ type InstallPhase =
   | { kind: "error"; message: string };
 
 function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return "업데이트를 설치하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  return updateFailureMessage(error, "install");
 }
 
 export function AppUpdateSection() {
@@ -91,7 +90,7 @@ export function AppUpdateSection() {
             <p className="text-[14px] text-text-primary">Standin {version ?? "불러오는 중…"}</p>
             {configured === false && (
               <p className="mt-1 text-[12px] text-text-secondary">
-                이 빌드는 자동 업데이트를 사용하지 않습니다. 새 버전은 직접 내려받아 설치해 주세요.
+                이 버전은 자동으로 업데이트되지 않아요. 새 설치 파일을 내려받아 설치해 주세요.
               </p>
             )}
           </div>

@@ -202,8 +202,8 @@ export function BarSavePage() {
                   </option>
                   <option value="good">좋아요</option>
                   <option value="person_missing">인물 누락</option>
-                  <option value="skeleton_wrong">스켈레톤 오류</option>
-                  <option value="candidates_irrelevant">후보 불일치</option>
+                  <option value="skeleton_wrong">팔다리 인식 문제</option>
+                  <option value="candidates_irrelevant">러프와 다른 포즈</option>
                   <option value="export_problem">저장 문제</option>
                   <option value="other">기타</option>
                 </select>

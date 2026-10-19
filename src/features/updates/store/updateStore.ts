@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { trackEvent } from "@/features/analytics/analyticsClient";
 import { updateService } from "../api/update.service";
 import type { UpdateAvailability } from "../api/update.contract";
-import { updateFailureReason } from "../lib/updateFailure";
+import { updateFailureReason, updateFailureMessage } from "../lib/updateFailure";
 
 /**
  * 업데이트 확인 결과를 앱 전역에서 공유한다(ADR-011).
@@ -41,8 +41,7 @@ type UpdateState = {
 };
 
 function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return "업데이트를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  return updateFailureMessage(error, "check");
 }
 
 const initial = {

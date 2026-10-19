@@ -31,3 +31,17 @@ export function updateFailureReason(error: unknown): string {
   }
   return "UNKNOWN";
 }
+
+/** Product copy only: native updater details can contain paths and internal errors. */
+export function updateFailureMessage(error: unknown, phase: "check" | "install"): string {
+  switch (updateFailureReason(error)) {
+    case "SIGNATURE":
+      return "업데이트 파일을 확인하지 못했어요. 새 설치 파일을 내려받아 설치해 주세요.";
+    case "NETWORK":
+      return "업데이트에 연결하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.";
+    default:
+      return phase === "check"
+        ? "새 버전 정보를 불러오지 못했어요. 잠시 후 다시 확인해 주세요."
+        : "업데이트를 설치하지 못했어요. 잠시 후 다시 시도해 주세요.";
+  }
+}

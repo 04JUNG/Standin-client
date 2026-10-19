@@ -14,7 +14,7 @@ import type { PersonResult } from "../api/pose.contract";
  */
 const NOTICE: Record<"soft" | "hard", { text: string; tone: "warn" | "info" }> = {
   soft: {
-    text: "스켈레톤 인식이 불확실해 참고용 후보입니다. 보정이 필요할 수 있습니다.",
+    text: "그림 속 자세를 정확히 읽기 어려웠어요. 러프와 비교해 포즈를 골라 주세요.",
     tone: "info",
   },
   hard: {
@@ -61,24 +61,24 @@ export function PersonFallbackNotice({
     const route =
       (
         {
-          hybrid: "기하·의미 통합 검색",
-          geometric: "기하 검색",
-          semantic: "의미 검색",
-          basic_model: "기본 인체 구도",
+          hybrid: "자세와 동작으로 찾은 포즈",
+          geometric: "자세로 찾은 포즈",
+          semantic: "동작 설명으로 찾은 포즈",
+          basic_model: "기본 자세",
         } as Record<string, string>
-      )[r.route] ?? "검색 경로 판정";
+      )[r.route] ?? "포즈 검색";
     const status =
       (
         {
-          ok: "검색 완료",
-          no_result: "일치 후보 없음",
-          error: "검색 오류",
-          partial_error: "일부 검색 오류",
-          blocked: "검색 제한",
-          undetermined: "판정 보류",
-          not_run: "검색 생략",
+          ok: "포즈를 찾았어요",
+          no_result: "비슷한 포즈가 없어요",
+          error: "검색을 마치지 못했어요",
+          partial_error: "일부 포즈를 찾지 못했어요",
+          blocked: "지금은 포즈를 찾을 수 없어요",
+          undetermined: "이 장면의 자세를 확인하기 어려워요",
+          not_run: "검색을 진행하지 않았어요",
         } as Record<string, string>
-      )[r.status] ?? "판정 보류";
+      )[r.status] ?? "이 장면의 자세를 확인하기 어려워요";
     return (
       <div
         role="status"
@@ -87,28 +87,24 @@ export function PersonFallbackNotice({
           compact ? "text-[11px]" : "text-[12px]",
         )}
       >
-        <p>
-          {route} · {status}
-        </p>
+        <p>{r.basicModel ? "기본 자세를 참고해 보세요" : `${route} · ${status}`}</p>
         <p>
           {r.basicModel
-            ? "기본 인체 구도 참고이며 포즈 검색 결과가 아닙니다."
-            : "검수용 후보입니다. 자동 보정과 파일 저장은 지원하지 않습니다. 이미지는 정면 참고이며 검색 시점과 다를 수 있습니다."}
+            ? "찾은 포즈 대신 기본 자세를 참고용으로 보여드려요."
+            : "이 포즈는 참고용으로만 볼 수 있어요. 러프에 맞춰 자동으로 바꾸거나 파일로 저장할 수는 없어요. 러프와 보는 각도가 다를 수 있어요."}
         </p>
-        {r.nearCandidateCount > 0 && (
-          <p>세부 조건이 다른 근접 참고 {r.nearCandidateCount}개 · 정식 후보에서 제외</p>
-        )}
+        {r.nearCandidateCount > 0 && <p>러프와 일부 다른 포즈 {r.nearCandidateCount}개 · 참고용</p>}
         {r.framingReferenceCount > 0 && (
-          <p>구도 참고 {r.framingReferenceCount}개 · 포즈 후보와 별도</p>
+          <p>구도를 참고할 포즈 {r.framingReferenceCount}개 · 참고용</p>
         )}
         {r.generationStatus && (
           <p>
-            별도 생성 검수:{" "}
+            새로 만든 포즈:{" "}
             {r.generationStatus === "preview_ready"
               ? `미리보기 후보 ${r.generatedCandidateCount}개 (저장 불가)`
               : r.generationStatus === "rejected"
-                ? "검증 미통과"
-                : "생성 결과 없음"}
+                ? "사용할 수 있는 포즈를 만들지 못했어요"
+                : "새로 만든 포즈가 없어요"}
           </p>
         )}
       </div>
@@ -119,11 +115,11 @@ export function PersonFallbackNotice({
   const { text, tone } = NOTICE[person.fallbackMode];
   const message =
     person.candidateShortfallReason === "HEAD_SEARCH_UNSUPPORTED"
-      ? "두상 방향에 맞는 포즈 검색은 아직 지원하지 않습니다."
+      ? "얼굴만 보이는 장면에서는 아직 포즈를 찾을 수 없어요. 어깨와 팔이 보이는 장면으로 다시 시도해 주세요."
       : person.candidateShortfallReason === "ANALYSIS_ROUTE_SKIPPED"
-        ? "이 구도의 포즈 검색은 아직 지원하지 않습니다."
+        ? "이 장면에서는 아직 포즈를 찾기 어려워요. 다른 러프로 다시 시도해 주세요."
         : person.fallbackMode === "soft" && person.coverageClass === "upper_only"
-          ? "보이는 어깨와 팔을 기준으로 찾은 참고용 후보입니다. 자동 보정은 지원하지 않습니다."
+          ? "보이는 어깨와 팔을 보고 찾은 포즈예요. 러프에 맞춘 자동 조정은 하지 않아요."
           : text;
   const Icon = tone === "warn" ? AlertTriangle : Info;
   return (

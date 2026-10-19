@@ -77,8 +77,8 @@ export function ShortcutCheatSheet() {
                         {inactive && (
                           <span className="text-[11px] text-brand-coral">
                             {globalStatus === "unavailable"
-                              ? "브라우저 개발 모드에서는 사용할 수 없습니다."
-                              : "전역 등록 전이라 앱이 활성일 때만 동작합니다."}
+                              ? "설치한 앱에서 사용할 수 있어요."
+                              : "지금은 Standin 창을 선택한 상태에서만 쓸 수 있어요."}
                           </span>
                         )}
                       </div>

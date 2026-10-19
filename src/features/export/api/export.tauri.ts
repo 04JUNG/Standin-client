@@ -22,16 +22,21 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-const KNOWN_CODES: ExportErrorCode[] = ["CANCELLED", "INVALID_FOLDER", "WRITE_FAILED", "UNSUPPORTED"];
+const ERROR_MESSAGES: Record<ExportErrorCode, string> = {
+  CANCELLED: "폴더 선택을 취소했어요.",
+  INVALID_FOLDER: "저장할 폴더를 열 수 없어요. 다른 폴더를 골라 주세요.",
+  WRITE_FAILED: "파일을 저장하지 못했어요. 폴더의 쓰기 권한과 남은 저장 공간을 확인해 주세요.",
+  UNSUPPORTED: "파일을 저장하지 못했어요. 앱을 다시 열고 시도해 주세요.",
+};
 
 function toExportError(raw: unknown): ExportError {
   // Rust command는 { code, message } 형태로 오류를 반환한다(capture.tauri.ts와 동일 패턴).
   if (typeof raw === "object" && raw !== null && "code" in raw) {
     const code = (raw as { code: string }).code as ExportErrorCode;
-    const message = (raw as { message?: string }).message ?? "저장에 실패했습니다.";
-    if (KNOWN_CODES.includes(code)) return new ExportError(code, message);
+    if (Object.prototype.hasOwnProperty.call(ERROR_MESSAGES, code))
+      return new ExportError(code, ERROR_MESSAGES[code]);
   }
-  return new ExportError("UNSUPPORTED", "저장에 실패했습니다.");
+  return new ExportError("UNSUPPORTED", ERROR_MESSAGES.UNSUPPORTED);
 }
 
 export const exportTauri: ExportService = {
@@ -60,7 +65,10 @@ export const exportTauri: ExportService = {
     }
   },
 
-  async saveCandidates(input: { folder: string; files: SaveCandidateInput[] }): Promise<SavedFile[]> {
+  async saveCandidates(input: {
+    folder: string;
+    files: SaveCandidateInput[];
+  }): Promise<SavedFile[]> {
     // 네이티브 fs 쓰기는 브라우저 다운로드 매니저를 거치지 않으므로 여러 파일을 그대로 각각 저장한다.
     const results: SavedFile[] = [];
     for (const file of input.files) {

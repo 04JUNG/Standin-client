@@ -312,9 +312,9 @@ export function useFramedReview(jobId: string | undefined) {
     /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: enabled
-      ? "선택한 범위와 체형으로 저장될 FBX입니다. 뼈대는 전신 구조를 유지합니다."
+      ? "고른 체형과 손 모양으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요."
       : format === "bvh"
-        ? "BVH는 전신 뼈대의 동작 파일입니다. 출력 범위는 FBX에 적용됩니다."
+        ? "BVH에는 전체 동작만 저장돼요. 고른 체형·손 모양과 잘라낼 범위는 FBX에만 적용돼요."
         : "",
     retryPreview: async () => {
       if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));

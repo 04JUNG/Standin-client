@@ -20,23 +20,22 @@ const GUIDANCE: Readonly<Record<string, FailureGuidance>> = {
   },
   ANALYSIS_RATE_LIMITED: {
     code: "UPSTREAM_RATE_LIMITED",
-    message: "AI 분석 요청 한도에 일시적으로 도달했습니다. 잠시 기다린 뒤 다시 시도해 주세요.",
+    message: "잠시 사용할 수 있는 분석 횟수를 모두 썼어요. 조금 뒤에 다시 시도해 주세요.",
     retryable: true,
   },
   ANALYSIS_DAILY_QUOTA_EXHAUSTED: {
     code: "UPSTREAM_DAILY_QUOTA_EXHAUSTED",
-    message:
-      "AI 제공 서비스의 일일 사용 한도가 소진되어 지금은 분석할 수 없습니다. 한도 복구 또는 운영자 확인이 필요합니다.",
+    message: "오늘 사용할 수 있는 분석 횟수를 모두 썼어요. 지금은 새 분석을 할 수 없어요.",
     retryable: false,
   },
   ANALYSIS_UPSTREAM_TIMEOUT: {
     code: "UPSTREAM_TIMEOUT",
-    message: "AI 분석 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.",
+    message: "분석에 시간이 너무 오래 걸렸어요. 잠시 후 다시 시도해 주세요.",
     retryable: true,
   },
   ANALYSIS_UPSTREAM_ERROR: {
     code: "UPSTREAM_ERROR",
-    message: "AI 제공 서비스에 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    message: "분석 중 잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요.",
     retryable: true,
   },
 };

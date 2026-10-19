@@ -48,7 +48,7 @@ export function SettingsPage() {
           <h2 className="text-[15px] font-bold text-text-primary">베타 데이터</h2>
           <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-0 p-4">
             <div className="min-w-0">
-              <p className="text-[14px] text-text-primary">설치 ID</p>
+              <p className="text-[14px] text-text-primary">문의용 기기 번호</p>
               <p className="truncate text-[12px] text-text-secondary">{installationId ?? "-"}</p>
               <p className="mt-1 text-[12px] text-text-secondary">
                 기본 원본·작업 이력은 최대 90일 보관됩니다. 품질 검토에 별도 동의한 평가정보는 최대

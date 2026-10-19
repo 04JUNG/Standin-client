@@ -25,8 +25,8 @@ export function HandLibraryPage() {
     <AppShell title="손 라이브러리">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-text-secondary">
-          {all.length ? `${all.length}종 · ` : ""}좌우는 인물 자신의 기준입니다. 손 선택은 포즈 결과
-          화면에서 할 수 있습니다.
+          {all.length ? `${all.length}종 · ` : ""}좌우는 인물 자신의 기준입니다. 포즈를 고른 뒤
+          ‘저장할 포즈 확인’ 화면에서 손 모양을 선택할 수 있어요.
         </p>
         {catalog.isPending && <p role="status">손 목록을 불러오는 중…</p>}
         {catalog.isError && (

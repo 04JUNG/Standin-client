@@ -25,9 +25,9 @@ it("presentation cards label the approximate body and retain a single compact ca
     asset: { preview_bvh_url: "/v1/poster", bvh_sha256: "a".repeat(64) },
   } as PreviewCandidate;
   render(<DefaultPoseImage candidate={candidate} scope="half" compact />);
-  const caption = screen.getByText("기본 체형 · 근사 포즈 · 정면 반신 참고");
+  const caption = screen.getByText("기본 체형 · 대략적인 포즈 · 정면 반신 참고");
   expect(caption).toHaveClass("truncate", "whitespace-nowrap");
-  expect(caption).toHaveAttribute("title", "기본 체형 · 근사 포즈 · 정면 반신 참고");
+  expect(caption).toHaveAttribute("title", "기본 체형 · 대략적인 포즈 · 정면 반신 참고");
   expect(screen.getByRole("img")).toHaveClass("h-[110px]");
 });
 it("normal selection cards keep approximation visible without wrapping the image area", () => {
@@ -51,9 +51,9 @@ it("normal selection cards keep approximation visible without wrapping the image
       layout="fill"
     />,
   );
-  const caption = screen.getByText("기본 체형 · 근사 포즈 · 정면 반신 참고");
+  const caption = screen.getByText("기본 체형 · 대략적인 포즈 · 정면 반신 참고");
   expect(caption).toHaveClass("truncate", "whitespace-nowrap");
-  expect(caption).toHaveAttribute("title", "기본 체형 · 근사 포즈 · 정면 반신 참고");
+  expect(caption).toHaveAttribute("title", "기본 체형 · 대략적인 포즈 · 정면 반신 참고");
 });
 it("a frozen body poster does not claim to use approximate reference skinning", () => {
   poster.method = undefined;

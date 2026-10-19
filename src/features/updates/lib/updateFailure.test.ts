@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { updateFailureReason } from "./updateFailure";
+import { updateFailureReason, updateFailureMessage } from "./updateFailure";
 
 /**
  * 지표에 자유 텍스트가 새지 않는지, 그리고 확실하지 않은 것을 억지로 분류하지
@@ -33,4 +33,19 @@ describe("updateFailureReason", () => {
     const leaky = new Error("failed to write C:\\Users\\someone\\AppData\\Standin.exe");
     expect(updateFailureReason(leaky)).toBe("UNKNOWN");
   });
+});
+
+describe("updateFailureMessage", () => {
+  it.each(["signature failed", "network error", "404 Not Found", "unknown failure"])(
+    "keeps native diagnostics out of product copy: %s",
+    (reason) => {
+      const raw = `${reason}: /Users/private/update.bin at https://internal.invalid/package`;
+      for (const phase of ["check", "install"] as const) {
+        const message = updateFailureMessage(new Error(raw), phase);
+        expect(message).not.toContain(raw);
+        expect(message).not.toMatch(/\/Users\/|https:\/\/|internal\.invalid|signature|404/);
+        expect(message).toMatch(/확인|설치|연결/);
+      }
+    },
+  );
 });

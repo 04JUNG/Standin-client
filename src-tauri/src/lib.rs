@@ -40,6 +40,10 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|_app| {
+            // A context-menu failure must not prevent the main app from opening.
+            if let Err(error) = commands::window_mode::init_bar_context_menu(_app) {
+                eprintln!("Could not initialize floating bar menu: {error}");
+            }
             // Windows/Linux 개발 환경에선 런타임에 스킴을 등록해야 딥링크가 잡힌다.
             #[cfg(any(windows, target_os = "linux"))]
             {

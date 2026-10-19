@@ -27,7 +27,10 @@ async function applyGlobalBinding(accel: Accelerator | undefined): Promise<void>
 
   const native = toTauriAccelerator(accel);
   if (!native) {
-    store.setGlobalStatus("failed", "이 키 조합은 전역 단축키로 등록할 수 없습니다.");
+    store.setGlobalStatus(
+      "failed",
+      "이 키 조합은 캡처 단축키로 쓸 수 없어요. 다른 키를 골라 주세요.",
+    );
     return;
   }
 
@@ -43,7 +46,7 @@ async function applyGlobalBinding(accel: Accelerator | undefined): Promise<void>
         ? "다른 프로그램이 이미 이 단축키를 사용하고 있습니다. 다른 키로 변경해 주세요."
         : err instanceof GlobalShortcutError
           ? err.message
-          : "전역 단축키를 등록하지 못했습니다.";
+          : "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요.";
     useShortcutStore.getState().setGlobalStatus(status, message);
   }
 }
@@ -64,7 +67,10 @@ export async function initCaptureShortcut(): Promise<void> {
     // 브라우저 개발 모드: 전역 등록 불가. 앱 내 대체 경로(home.startCapture)가 살아난다.
     useShortcutStore
       .getState()
-      .setGlobalStatus("unavailable", "브라우저 개발 모드에서는 전역 단축키를 사용할 수 없습니다.");
+      .setGlobalStatus(
+        "unavailable",
+        "다른 프로그램에서 쓸 캡처 단축키는 설치한 앱에서 설정할 수 있어요.",
+      );
     return;
   }
 

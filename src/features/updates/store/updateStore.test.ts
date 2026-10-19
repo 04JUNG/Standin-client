@@ -81,7 +81,9 @@ describe("updateStore", () => {
     await useUpdateStore.getState().check("manual");
 
     expect(useUpdateStore.getState().phase).toBe("error");
-    expect(useUpdateStore.getState().error).toBe("업데이트 서버에 연결하지 못했습니다.");
+    expect(useUpdateStore.getState().error).toBe(
+      "새 버전 정보를 불러오지 못했어요. 잠시 후 다시 확인해 주세요.",
+    );
   });
 
   it("닫은 배너는 다음 확인에서 되살아난다", async () => {

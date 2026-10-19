@@ -37,7 +37,7 @@ export function ShortcutSettingsSection() {
         <div>
           <h2 className="text-[15px] font-bold text-text-primary">단축키</h2>
           <p className="mt-0.5 text-[12px] text-text-secondary">
-            전역 단축키는 다른 프로그램을 쓰는 중에도 동작합니다.
+            다른 프로그램을 쓰는 중에도 캡처 바를 여는 단축키를 쓸 수 있어요.
           </p>
         </div>
         <Button variant="ghost" size="md" onClick={openCheatSheet}>
@@ -156,11 +156,7 @@ function GlobalStatusRow({
   }
 
   if (status === "unavailable") {
-    return (
-      <p className="text-[11px] text-text-secondary">
-        데스크톱 앱에서만 사용할 수 있습니다. (브라우저 개발 모드)
-      </p>
-    );
+    return <p className="text-[11px] text-text-secondary">설치한 앱에서 사용할 수 있어요.</p>;
   }
 
   if (status === "failed") {
@@ -168,7 +164,7 @@ function GlobalStatusRow({
       <div className="flex flex-col gap-2 rounded-lg bg-brand-coral/10 p-2.5">
         <p role="alert" className="flex items-start gap-1.5 text-[12px] text-brand-coral">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          {error ?? "전역 단축키를 등록하지 못했습니다."}
+          {error ?? "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요."}
         </p>
         {canRevert && (
           <Button variant="ghost" size="md" onClick={onRevert}>

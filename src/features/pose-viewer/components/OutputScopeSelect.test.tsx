@@ -84,11 +84,11 @@ describe("output framing selection", () => {
       resolved: selection === "auto" ? "half" : selection,
       resolutionSource: selection === "auto" ? "auto" : "user",
     }));
-    const first = screen.getByRole("combobox", { name: "인물 1의 출력 범위" });
+    const first = screen.getByRole("combobox", { name: "인물 1에서 저장할 부분" });
     fireEvent.change(first, { target: { value: "head" } });
     await waitFor(() => expect(first).toHaveValue("head"));
     expect(save).toHaveBeenCalledWith("job_test", 0, "head", detection);
-    expect(screen.getByRole("combobox", { name: "인물 2의 출력 범위" })).toHaveValue("auto");
+    expect(screen.getByRole("combobox", { name: "인물 2에서 저장할 부분" })).toHaveValue("auto");
     expect(
       client.getQueryData<AnalysisResult>(poseQueryKeys.result("job_test"))?.people[0].outputScope
         ?.selection,
@@ -108,7 +108,7 @@ describe("output framing selection", () => {
   it("retains the saved value on failure and lets the user retry", async () => {
     setup();
     save.mockRejectedValueOnce(new Error("offline"));
-    const first = screen.getByRole("combobox", { name: "인물 1의 출력 범위" });
+    const first = screen.getByRole("combobox", { name: "인물 1에서 저장할 부분" });
     fireEvent.change(first, { target: { value: "bust" } });
     await screen.findByRole("alert");
     expect(first).toHaveValue("auto");
@@ -131,7 +131,7 @@ describe("output framing selection", () => {
         finish = resolve;
       }),
     );
-    const first = screen.getByRole("combobox", { name: "인물 1의 출력 범위" });
+    const first = screen.getByRole("combobox", { name: "인물 1에서 저장할 부분" });
     fireEvent.change(first, { target: { value: "full" } });
     await waitFor(() => expect(first).toBeDisabled());
     finish({ ...detection, selection: "full", resolved: "full", resolutionSource: "user" });

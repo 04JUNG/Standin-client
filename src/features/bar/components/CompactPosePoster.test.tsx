@@ -48,26 +48,21 @@ afterEach(() => {
   useInstallationStore.setState({ credentials: null });
   vi.unstubAllGlobals();
 });
-it("bar enlargement reuses a verified poster without fetching any body/model artifact", async () => {
-  const client = new QueryClient();
+it("bar poster has no enlargement action or extra body/model request", async () => {
   render(
-    <QueryClientProvider client={client}>
+    <QueryClientProvider client={new QueryClient()}>
       <CompactPoseLayout>
         <DefaultPoseImage candidate={candidate} />
       </CompactPoseLayout>
     </QueryClientProvider>,
   );
-  const enlarge = await screen.findByRole("button", {
-    name: "4번 기본 체형 포즈 참고 이미지 확대",
-  });
+  const image = await screen.findByAltText("4번 기본 체형 포즈 참고");
   expect(apiFetchResponse).toHaveBeenCalledTimes(1);
   expect(vi.mocked(apiFetchResponse).mock.calls[0][0]).toContain("/poster?scope=full");
-  const src = screen.getByAltText("4번 기본 체형 포즈 참고").getAttribute("src");
-  fireEvent.click(enlarge);
-  expect(screen.getByAltText("4번 기본 체형 포즈 참고 확대")).toHaveAttribute("src", src);
+  fireEvent.click(image);
+  expect(screen.queryByRole("button", { name: /이미지 확대/ })).toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
   expect(apiFetchResponse).toHaveBeenCalledTimes(1);
-  fireEvent.keyDown(document, { key: "Escape" });
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 it("desktop presentation keeps its existing plain image without the compact enlargement action", async () => {
   render(
@@ -79,7 +74,7 @@ it("desktop presentation keeps its existing plain image without the compact enla
   expect(screen.queryByRole("button", { name: /이미지 확대/ })).not.toBeInTheDocument();
 });
 
-it("Escape from an enlarged bar poster preserves the candidate route and focus", async () => {
+it("clicking the poster does not navigate the bar or open a dialog", async () => {
   function Location() {
     return <p data-testid="route">{useLocation().pathname}</p>;
   }
@@ -93,15 +88,9 @@ it("Escape from an enlarged bar poster preserves the candidate route and focus",
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  const enlarge = await screen.findByRole("button", {
-    name: "4번 기본 체형 포즈 참고 이미지 확대",
-  });
-  enlarge.focus();
-  fireEvent.click(enlarge);
-  fireEvent.keyDown(document, { key: "Escape" });
+  fireEvent.click(await screen.findByAltText("4번 기본 체형 포즈 참고"));
   expect(screen.getByTestId("route")).toHaveTextContent("/bar/candidates");
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  expect(enlarge).toHaveFocus();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 
 it("compact detail keeps unavailable body rendering disabled and shows one shared reference notice", () => {
@@ -112,8 +101,10 @@ it("compact detail keeps unavailable body rendering disabled and shows one share
       </CompactPoseLayout>
     </QueryClientProvider>,
   );
-  expect(screen.getByRole("button", { name: "선택 체형으로 이 포즈만 보기" })).toBeDisabled();
-  expect(screen.getByText("선택 체형 상세")).toBeInTheDocument();
-  expect(screen.getByText("정면 참고 · 선택 체형·손·검색 시점 미적용")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "고른 체형으로 이 포즈 보기" })).toBeDisabled();
+  expect(screen.getByText("고른 체형으로 보기")).toBeInTheDocument();
+  expect(
+    screen.getByText("기본 체형의 정면 모습이에요. 저장할 모습과 다를 수 있어요."),
+  ).toBeInTheDocument();
   expect(apiFetchResponse).not.toHaveBeenCalled();
 });

@@ -32,10 +32,10 @@ export function DefaultPoseImage({
   });
   const provenance =
     q.data?.method === "reference-skinning-v1"
-      ? "기본 체형 · 근사 포즈"
+      ? "기본 체형 · 대략적인 포즈"
       : q.data?.kind === "default-body"
         ? "기본 체형"
-        : "관절 기반";
+        : "뼈대로 본 포즈";
   const caption = `${provenance} · 정면 ${SCOPE_LABELS[scope]} 참고`;
   return (
     <div ref={ref} className={className}>
@@ -43,14 +43,14 @@ export function DefaultPoseImage({
         inFloatingBar ? (
           <CompactPoseImage
             src={q.data.url}
-            alt={`${candidate.rank}번 ${q.data.kind === "default-body" ? "기본 체형 포즈 참고" : "관절 기반 포즈 참고"}`}
+            alt={`${candidate.rank}번 ${q.data.kind === "default-body" ? "기본 체형 포즈 참고" : "포즈 뼈대 참고"}`}
           />
         ) : (
           <img
             loading={lazy ? "lazy" : undefined}
             decoding="async"
             src={q.data.url}
-            alt={q.data.kind === "default-body" ? "기본 체형 포즈 참고" : "관절 기반 포즈 참고"}
+            alt={q.data.kind === "default-body" ? "기본 체형 포즈 참고" : "포즈 뼈대 참고"}
             className={
               compact ? "h-[110px] w-full object-contain" : "aspect-square w-full object-contain"
             }
@@ -72,7 +72,9 @@ export function DefaultPoseImage({
         {caption}
       </p>
       {!inFloatingBar && (
-        <p className="text-[11px] text-text-secondary">선택 체형·손·검색 시점 미적용</p>
+        <p className="text-[11px] text-text-secondary">
+          체형·손·보는 각도는 최종 결과와 다를 수 있어요
+        </p>
       )}
     </div>
   );

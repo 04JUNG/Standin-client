@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Camera } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
+import { windowModeService } from "../api/windowMode.service";
 import { useDragOrClick } from "../hooks/useDragOrClick";
 
 /**
@@ -22,8 +23,19 @@ export function BarCollapsedPage() {
       <button
         type="button"
         {...handlers}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void windowModeService.control("showBarMenu");
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+            event.preventDefault();
+            void windowModeService.control("showBarMenu");
+          }
+        }}
         aria-label="Standin 열기"
-        title="눌러서 열기 · 끌어서 옮기기"
+        title="눌러서 열기 · 끌어서 옮기기 · 우클릭으로 닫기"
         className={cn(
           "flex h-full w-full cursor-pointer items-center justify-center rounded-full",
           // 창이 원과 같은 크기라 그림자는 잘려 네모 얼룩으로 보인다. ring만 쓴다(실측).

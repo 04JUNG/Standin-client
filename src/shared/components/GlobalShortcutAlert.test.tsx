@@ -30,10 +30,10 @@ describe("GlobalShortcutAlert", () => {
     renderAlert();
 
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("전역 단축키가 등록되지 않았습니다.");
+    expect(alert).toHaveTextContent("다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요.");
     expect(alert).toHaveTextContent("다른 프로그램이 이미 이 단축키를 사용하고 있습니다.");
     // 지금 무엇이 되는지도 함께 말해야 사용자가 막히지 않는다.
-    expect(alert).toHaveTextContent("Standin 창이 활성일 때만");
+    expect(alert).toHaveTextContent("Standin 창을 선택한 상태에서만");
     expect(screen.getByRole("button", { name: "단축키 변경" })).toBeInTheDocument();
   });
 
@@ -65,7 +65,9 @@ describe("GlobalShortcutIndicator", () => {
         <GlobalShortcutIndicator />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("button", { name: /전역 단축키가 등록되지 않았습니다/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요/ }),
+    ).toBeInTheDocument();
     unmount();
 
     useShortcutStore.getState().setGlobalStatus("registered");
