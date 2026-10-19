@@ -132,6 +132,78 @@ jobs:
             echo "::warning::No updater signing key; building without auto-update assets (ADR-011)."
           fi
 
+      # Windows code signing (ADR-011 F): Tauri's signCommand calls SSL.com eSigner
+      # through scripts/sign-windows.mjs for every binary it signs.
+      #
+      # The signCommand config is generated here instead of living in the repo because
+      # it needs an absolute script path (Tauri runs it from src-tauri), and local and
+      # dev builds must not pick it up.
+      #
+      # staging은 서명하지 않는다. 테스터 빌드에 eSigner 서명 횟수를 쓰지 않는다.
+      - name: Resolve Windows code signing
+        id: winsign
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
+          ES_CREDENTIAL_ID: ${{ secrets.ES_CREDENTIAL_ID }}
+          ES_TOTP_SECRET: ${{ secrets.ES_TOTP_SECRET }}
+          # Pinned so a changed download cannot run with the signing credentials.
+          CODESIGNTOOL_URL: https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.2/CodeSignTool-v1.3.2.zip
+          CODESIGNTOOL_SHA256: f14b1e1ef14bfa1fd00279c363aab0debbf5dcfba0e4bcdce5d22bb771de0e3a
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ($env:TARGET_ENV -eq 'staging') {
+            Add-Content $env:GITHUB_OUTPUT 'enabled=false'
+            Write-Host 'staging build: Windows code signing skipped.'
+            exit 0
+          }
+
+          $names = 'ES_USERNAME', 'ES_PASSWORD', 'ES_CREDENTIAL_ID', 'ES_TOTP_SECRET'
+          $missing = @($names | Where-Object { -not [Environment]::GetEnvironmentVariable($_) })
+          if ($missing.Count -eq $names.Count) {
+            Add-Content $env:GITHUB_OUTPUT 'enabled=false'
+            Write-Host '::warning::No eSigner secrets; the Windows installer will be unsigned (ADR-011).'
+            exit 0
+          }
+          # A partial set fails on the first file, after the slow Rust build. Stop now.
+          if ($missing.Count -gt 0) {
+            Write-Host "Windows signing secrets are incomplete. Missing: $($missing -join ', ')"
+            exit 1
+          }
+
+          # CodeSignTool's Windows zip bundles a JDK (200MB+). The runner already has one.
+          $java = Join-Path "$env:JAVA_HOME_17_X64" 'bin\java.exe'
+          if (-not $env:JAVA_HOME_17_X64 -or -not (Test-Path $java)) {
+            Write-Host 'JDK 17 (JAVA_HOME_17_X64) not found on the runner; CodeSignTool needs Java 11+.'
+            exit 1
+          }
+
+          $zip = Join-Path $env:RUNNER_TEMP 'codesigntool.zip'
+          Invoke-WebRequest -Uri $env:CODESIGNTOOL_URL -OutFile $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:CODESIGNTOOL_SHA256) {
+            Write-Host "CodeSignTool checksum mismatch: $hash"
+            exit 1
+          }
+          $tool = Join-Path $env:RUNNER_TEMP 'codesigntool'
+          Expand-Archive $zip -DestinationPath $tool -Force
+
+          $script = Join-Path $env:GITHUB_WORKSPACE 'scripts\sign-windows.mjs'
+          $config = @{ bundle = @{ windows = @{ signCommand = @{ cmd = 'node'; args = @($script, '%1') } } } }
+          # Forward slashes: tauri-action splits `args` as a command line.
+          $configPath = (Join-Path $env:RUNNER_TEMP 'windows-signing.conf.json') -replace '\\', '/'
+          $config | ConvertTo-Json -Depth 6 | Set-Content $configPath -Encoding utf8NoBOM
+
+          Add-Content $env:GITHUB_ENV "CODESIGNTOOL_DIR=$tool"
+          Add-Content $env:GITHUB_ENV "CODESIGNTOOL_JAVA=$java"
+          Add-Content $env:GITHUB_OUTPUT 'enabled=true'
+          Add-Content $env:GITHUB_OUTPUT "extraArgs=--config $configPath"
+          Write-Host 'Windows code signing enabled (SSL.com eSigner).'
+
       # App Store Connect API key is the notarization credential.
       - name: Prepare Apple notarization key
         id: apple-key
@@ -247,6 +319,12 @@ jobs:
           # the Apple ID fallback. Gating it on the API key being absent left it empty
           # and notarization failed with "Team ID must be at least 3 characters".
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+          # Windows code signing (ADR-011 F), read by scripts/sign-windows.mjs.
+          # Only passed when the Resolve Windows code signing step enabled it.
+          ES_USERNAME: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_USERNAME || '' }}
+          ES_PASSWORD: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_PASSWORD || '' }}
+          ES_CREDENTIAL_ID: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_CREDENTIAL_ID || '' }}
+          ES_TOTP_SECRET: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_TOTP_SECRET || '' }}
         with:
           # staging 태그를 분리한다. 같은 태그를 쓰면 staging 빌드가 프로덕션
           # 릴리스에 자산을 얹고, 사용자가 그걸 내려받을 수 있다.
@@ -271,7 +349,7 @@ jobs:
             ## 알아두실 점
 
             - 새 버전이 나오면 앱이 알려드립니다. 0.1.1-beta.4보다 이전 버전을 쓰고 계시다면 이번 한 번만 직접 내려받아 주세요.
-            - Windows에서 "알 수 없는 게시자" 경고가 뜰 수 있습니다. 코드서명 인증서를 발급받는 중입니다. `추가 정보` → `실행`으로 진행하실 수 있습니다.
+            - Windows에서 SmartScreen 경고("Windows의 PC 보호")가 뜰 수 있습니다. 새로 발급받은 인증서라 다운로드가 쌓이기 전까지 경고가 남을 수 있습니다. `추가 정보` → `실행`으로 진행하실 수 있습니다.
             - macOS는 서명·공증돼 있어 내려받아 바로 여시면 됩니다.
             - 현재 버전은 **설정 화면**에서 확인할 수 있습니다. 문의하실 때 함께 알려주시면 원인을 찾기 쉽습니다.
 
@@ -295,7 +373,45 @@ jobs:
           # "Unexpected input(s) 'includeUpdaterJson'" and fell back to its default of
           # true, so latest.json shipped by luck rather than through the updater gate.
           uploadUpdaterJson: ${{ steps.updater.outputs.enabled }}
-          args: ${{ matrix.args }} ${{ steps.updater.outputs.extraArgs }}
+          args: ${{ matrix.args }} ${{ steps.updater.outputs.extraArgs }} ${{ steps.winsign.outputs.extraArgs }}
+
+      - name: Verify Windows signature
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SIGNING_ENABLED: ${{ steps.winsign.outputs.enabled }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = 'src-tauri/target/x86_64-pc-windows-msvc/release'
+          $files = @(
+            Get-Item "$release/standin-desktop.exe"
+            Get-ChildItem "$release/bundle/nsis" -Filter '*-setup.exe'
+          )
+          if ($files.Count -lt 2) {
+            Write-Host "Expected the app exe and an NSIS installer under $release"
+            exit 1
+          }
+
+          $bad = 0
+          foreach ($file in $files) {
+            $sig = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            $timestamped = [bool]$sig.TimeStamperCertificate
+            Write-Host "$($file.Name): $($sig.Status) | $($sig.SignerCertificate.Subject) | timestamped=$timestamped"
+            if ($sig.Status -ne 'Valid' -or -not $timestamped) { $bad++ }
+          }
+
+          if ($env:SIGNING_ENABLED -ne 'true') {
+            Write-Host ''
+            Write-Host 'Windows code signing was not enabled (staging build, or no ES_* secrets), so this build is UNSIGNED.'
+            Write-Host 'SmartScreen will show "Unknown publisher". For production, register the ES_* secrets and re-run.'
+            exit 0
+          }
+          # Without a timestamp the signature dies when the certificate expires.
+          if ($bad -gt 0) {
+            Write-Host "$bad file(s) are not validly signed and timestamped."
+            exit 1
+          }
+          Write-Host 'Windows signing verified.'
 
       - name: Verify macOS signature
         if: runner.os == 'macOS'

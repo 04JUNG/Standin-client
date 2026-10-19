@@ -29,6 +29,74 @@ describe("poseHttp", () => {
     __resetAnalysisJobs();
   });
 
+  it.each(["library", "semantic"])(
+    "loads owned manual %s assets for save without upgrading search validation",
+    async (source) => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_saved",
+          ...(source === "semantic" ? { source, semantic: { query: "던지기", index: {} } } : {}),
+          notes: [],
+          capabilities: { bodyPreviews: true, refine: true },
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              box: null,
+              tags: {},
+              fallbackMode: "hard",
+              refineAllowed: false,
+              routedSearch: {
+                status: "partial_error",
+                reason: "hand_skin_screen_unavailable_no_generation",
+              },
+              candidates: [
+                {
+                  id: "preview-owned",
+                  poseId: "real-mirror",
+                  rank: 1,
+                  view: "front",
+                  tags: [],
+                  matchLevel: "low",
+                  source,
+                  manualExportAllowed: true,
+                  releaseAllowed: false,
+                  lookupAllowed: true,
+                  sourceBvhSha256: "f".repeat(64),
+                  bvhAvailable: true,
+                  presentationKind: "mirror_reference",
+                  ...(source === "semantic"
+                    ? { semantic: { familyId: "pose", alternate: true, description: "반대 방향" } }
+                    : {}),
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const result = await poseHttp.loadResult({ jobId: "job_saved" });
+      const person = result.people[0],
+        candidate = person.candidates[0];
+      expect(candidate).toMatchObject({
+        manualExportAllowed: true,
+        releaseAllowed: false,
+        actualMeshValidated: false,
+        refineAllowed: false,
+        bvhAvailable: true,
+        source,
+        sourceBvhSha256: "f".repeat(64),
+        presentationKind: "mirror_reference",
+      });
+      expect(candidate.bvhUrl).toContain(
+        "real-mirror/export?jobId=job_saved&personIndex=0&candidateId=preview-owned",
+      );
+      expect(person.fallbackMode).toBe("soft");
+      expect(person.routedSearch?.status).toBe("partial_error");
+      expect(result.capabilities.bodyPreviews).toBe(true);
+      expect(person.refineAllowed).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("preserves routed results but refuses refined/export URLs despite contradictory legacy permissions", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({

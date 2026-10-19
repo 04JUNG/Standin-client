@@ -183,7 +183,7 @@ MVP에서도 “자동으로 학습에 사용”한다고 가정하지 않는다
 - 서명·공증(ADR-011)
   - macOS: Developer ID 서명과 공증. 릴리스 워크플로의 서명 검증 스텝이 통과해야 한다
   - macOS dmg는 universal 하나다. 다운로드 안내에 칩별 선택을 쓰지 않는다
-  - Windows: 미적용. SSL.com eSigner 배선 전까지 SmartScreen 경고와 진행 방법을 다운로드 안내에 적는다
+  - Windows: SSL.com eSigner 서명(IV). 릴리스 워크플로의 Windows 서명 검증 스텝이 통과해야 한다. IV 인증서는 SmartScreen 평판이 쌓이기 전까지 경고가 남을 수 있으니 다운로드 안내에 진행 방법을 계속 적는다
   - Apple Developer ID·SSL.com 인증서 만료일 확인
 - 설치·삭제 확인
   - macOS는 빌드하지 않은 다른 기계에서 브라우저로 내려받아 더블클릭으로 연다. 우클릭 열기로 확인하면 Gatekeeper를 우회해 검증이 무효가 된다

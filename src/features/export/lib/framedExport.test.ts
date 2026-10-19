@@ -12,11 +12,14 @@ describe("framed export URL", () => {
       sourceSha: "a".repeat(64),
       characterSha: "b".repeat(64),
       revision: "c".repeat(64),
+      reviewKey: "d".repeat(64),
+      artifactSha256: "e".repeat(64),
     });
     const url = new URL(reviewedExportUrl("/framed?format=fbx", key), "https://test.invalid");
     expect(url.searchParams.get("expectedBvhSha256")).toBe("a".repeat(64));
     expect(url.searchParams.get("expectedCharacterSha256")).toBe("b".repeat(64));
     expect(url.searchParams.get("expectedModelRevision")).toBe("c".repeat(64));
+    expect(url.searchParams.get("reviewKey")).toBe("d".repeat(64));
     rememberFramedFormat(key, false);
     expect(reviewedModelFormat(key, true)).toBe(false);
     expect(reviewedExportUrl("/framed?format=fbx", key)).toBe("/framed?format=fbx");

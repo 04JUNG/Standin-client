@@ -28,6 +28,7 @@ export function currentSurface(): Surface {
 }
 
 interface QueuedEvent {
+  qualityConsentId: string;
   eventId: string;
   sequence: number;
   name: EventName;
@@ -46,11 +47,24 @@ const MAX_QUEUE = 500;
 const DEFAULT_BACKOFF_SECONDS = 60;
 let inflight: Promise<void> | null = null;
 let queueGeneration = 0;
+let qualityConsentId: string | null = null;
+let consentNotBeforeMs = 0;
+
+export function setAnalyticsConsent(consentId: string | null, grantedAt?: string | null): void {
+  if (qualityConsentId !== consentId || !consentId) resetAnalyticsQueue();
+  qualityConsentId = consentId;
+  const grantedAtMs = grantedAt ? Date.parse(grantedAt) : 0;
+  consentNotBeforeMs = consentId && Number.isFinite(grantedAtMs) ? grantedAtMs : 0;
+}
 
 function readQueue(): QueuedEvent[] {
   try {
     const parsed = JSON.parse(safeStorage.getItem(QUEUE_KEY) ?? "[]") as unknown;
-    return Array.isArray(parsed) ? (parsed as QueuedEvent[]).slice(-MAX_QUEUE) : [];
+    return Array.isArray(parsed)
+      ? (parsed as QueuedEvent[])
+          .filter((event) => event.qualityConsentId === qualityConsentId)
+          .slice(-MAX_QUEUE)
+      : [];
   } catch {
     return [];
   }
@@ -112,12 +126,16 @@ export function trackEvent(
   properties: QueuedEvent["properties"],
   jobId?: string,
 ): void {
+  if (!qualityConsentId) return;
   const queue = readQueue();
   queue.push({
+    qualityConsentId,
     eventId: `evt_${crypto.randomUUID()}`,
     sequence: nextSequence(),
     name,
-    occurredAt: new Date().toISOString(),
+    // A slightly slow device clock must not date a newly collected event before its server grant.
+    // Existing queued events are never retimestamped or moved to another consent ID.
+    occurredAt: new Date(Math.max(Date.now(), consentNotBeforeMs)).toISOString(),
     jobId,
     properties,
   });
@@ -126,6 +144,10 @@ export function trackEvent(
 }
 
 export function flushEvents(): Promise<void> {
+  if (!qualityConsentId) {
+    resetAnalyticsQueue();
+    return Promise.resolve();
+  }
   if (inflight) return inflight;
   // 제한에 걸린 동안은 조용히 쉰다. 큐는 그대로 남아 다음 기회에 나간다(at-least-once).
   if (Date.now() < retryAfterMs) return Promise.resolve();
@@ -135,7 +157,10 @@ export function flushEvents(): Promise<void> {
       const generation = queueGeneration;
       const batch = queue.slice(0, BATCH_SIZE);
       try {
-        await analyticsService.sendEvents({ events: batch });
+        await analyticsService.sendEvents({
+          events: batch,
+          qualityConsentId: batch[0].qualityConsentId,
+        });
       } catch (err) {
         // 동의 철회 등으로 큐가 비워졌으면 그 뒤 상태를 건드리지 않는다.
         if (generation !== queueGeneration) return;
@@ -201,5 +226,6 @@ export async function confirmSelections(
 }
 
 export async function submitFeedback(jobId: string, reason: string): Promise<void> {
-  await analyticsService.submitFeedback({ jobId, reason });
+  if (!qualityConsentId) throw new Error("품질 검토 동의가 필요합니다.");
+  await analyticsService.submitFeedback({ jobId, reason, qualityConsentId });
 }

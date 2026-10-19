@@ -1,5 +1,5 @@
 import { SCOPE_LABELS } from "../api/outputScope";
-import { reviewOnly } from "../api/routedSearch";
+import { reviewOnly, canRelease } from "../api/routedSearch";
 import { useDefaultPosePoster } from "../api/posePoster";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -67,7 +67,7 @@ export function PoseCandidateCard({
             }
           : onSelect
       }
-      disabled={pending || disabled}
+      disabled={pending || disabled || !canRelease(candidate)}
       aria-busy={pending}
       aria-pressed={isSelected}
       className={cn(
@@ -130,11 +130,13 @@ export function PoseCandidateCard({
             )}
           >
             {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
-            {reviewOnly(candidate)
-              ? "검수용 · 보정·저장 불가"
-              : candidate.semantic
-                ? "문장 검색"
-                : MATCH_LABEL[candidate.matchLevel]}
+            {candidate.manualExportAllowed
+              ? "직접 선택 · 확인 후 저장"
+              : reviewOnly(candidate)
+                ? "미리보기 전용"
+                : candidate.semantic
+                  ? "문장 검색"
+                  : MATCH_LABEL[candidate.matchLevel]}
           </span>
           {!fill &&
             candidate.tags.map((tag) => (

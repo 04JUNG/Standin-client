@@ -17,11 +17,11 @@ export type AnalyticsEventPayload = {
 
 export interface AnalyticsService {
   /** 이벤트 배치 전송. 실패는 호출측이 재시도 가능/영구 거절로 갈라 처리한다. */
-  sendEvents(input: { events: AnalyticsEventPayload[] }): Promise<void>;
+  sendEvents(input: { events: AnalyticsEventPayload[]; qualityConsentId: string }): Promise<void>;
   /** 인물별 최종 선택 확정. 저장 화면으로 넘어가기 전 관문이다. */
   confirmSelections(input: {
     jobId: string;
     selections: Array<{ personIndex: number; candidateId: string }>;
   }): Promise<void>;
-  submitFeedback(input: { jobId: string; reason: string }): Promise<void>;
+  submitFeedback(input: { jobId: string; reason: string; qualityConsentId: string }): Promise<void>;
 }

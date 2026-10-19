@@ -8,6 +8,8 @@ import {
 import { trackEvent } from "@/features/analytics/analyticsClient";
 import { useStartupUpdateCheck } from "@/features/updates/hooks/useStartupUpdateCheck";
 
+import { useQualityConsentStore } from "@/features/installation/qualityConsentStore";
+
 let startedInstallationId: string | null = null;
 
 /** 전역 Provider(docs/02 §4). */
@@ -37,6 +39,14 @@ function InstallationBootstrap() {
   useEffect(() => {
     void initialize();
   }, [initialize]);
+  useEffect(() => {
+    const refresh = () => {
+      if (useInstallationStore.getState().status === "registered")
+        void useQualityConsentStore.getState().refresh();
+    };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
   useEffect(() => {
     if (status !== "registered" || !installationId || startedInstallationId === installationId)
       return;

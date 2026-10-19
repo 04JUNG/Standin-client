@@ -7,10 +7,12 @@ export function DefaultPoseImage({
   candidate,
   scope: rawScope,
   className = "",
+  compact = false,
 }: {
   candidate: PreviewCandidate;
   scope?: string | null;
   className?: string;
+  compact?: boolean;
 }) {
   const inFloatingBar = useCompactPoseLayout();
   const scope = bodyScopeSchema.safeParse(rawScope).data ?? "full";
@@ -32,12 +34,14 @@ export function DefaultPoseImage({
           <img
             src={q.data.url}
             alt={q.data.kind === "default-body" ? "기본 체형 포즈 참고" : "관절 기반 포즈 참고"}
-            className="aspect-square w-full object-contain"
+            className={
+              compact ? "h-[110px] w-full object-contain" : "aspect-square w-full object-contain"
+            }
           />
         )
       ) : (
         <div
-          className={`flex items-center justify-center text-xs ${inFloatingBar ? "h-[112px]" : "aspect-square"}`}
+          className={`flex items-center justify-center text-xs ${inFloatingBar ? "h-[112px]" : compact ? "h-[110px]" : "aspect-square"}`}
           role="status"
         >
           {q.error ? "참고 이미지를 불러오지 못했어요" : "포즈 이미지 불러오는 중…"}

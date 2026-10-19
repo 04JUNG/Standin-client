@@ -39,7 +39,7 @@ import { validRotation } from "../preview/modelContract";
 
 import {
   readCandidatePolicy,
-  reviewOnly,
+  canRelease,
   type CandidatePolicy,
   type RoutedSearch,
 } from "./routedSearch";
@@ -235,13 +235,16 @@ async function toPoseCandidate(
   // search results. Visible cards load their source-bound static poster lazily.
   signal.throwIfAborted();
   const thumbnailUrl = "";
+  const policy = readCandidatePolicy(raw);
+  const downloadable =
+    canRelease({ ...policy, bvhAvailable: raw.bvhAvailable } as PoseCandidate) && raw.bvhAvailable;
   const posterParams = new URLSearchParams({
     jobId,
     personIndex: String(personIndex),
     candidateId: raw.id,
   });
   return {
-    ...readCandidatePolicy(raw),
+    ...policy,
     id: raw.id,
     poseId: raw.poseId,
     rank: raw.rank,
@@ -276,11 +279,10 @@ async function toPoseCandidate(
       : {}),
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
-    bvhAvailable: !reviewOnly(raw) && raw.bvhAvailable,
-    bvhUrl:
-      !reviewOnly(raw) && raw.bvhAvailable
-        ? endpoints.poseCandidates.export(raw.poseId, jobId, personIndex, raw.id)
-        : undefined,
+    bvhAvailable: downloadable,
+    bvhUrl: downloadable
+      ? endpoints.poseCandidates.export(raw.poseId, jobId, personIndex, raw.id)
+      : undefined,
   };
 }
 
@@ -363,8 +365,12 @@ async function toAnalysisResult(
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
       semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,
-      bodyPreviews: !semantic && raw.capabilities?.bodyPreviews === true,
-      bodyPreviewAssets: !semantic && raw.capabilities?.bodyPreviewAssets === true,
+      bodyPreviews:
+        (!semantic || people.some((p) => p.candidates.some((c) => c.manualExportAllowed))) &&
+        raw.capabilities?.bodyPreviews === true,
+      bodyPreviewAssets:
+        (!semantic || people.some((p) => p.candidates.some((c) => c.manualExportAllowed))) &&
+        raw.capabilities?.bodyPreviewAssets === true,
       refine: !semantic && raw.capabilities?.refine === true,
       // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
       fbxExport: raw.capabilities?.fbxExport === true,
