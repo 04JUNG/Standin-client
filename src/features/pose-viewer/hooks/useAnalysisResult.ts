@@ -201,6 +201,13 @@ export function useAnalysisResult(jobId: string | undefined) {
   return {
     ...query,
     bodies,
+    // 기록은 다른 live draft와 수명이 겹친다. 원본도 조회한 job에만 묶고,
+    // 없거나 결과 identity가 다르면 다른 입력으로 대체하지 않는다.
+    roughUrl: restoreOnly
+      ? query.data && query.data.jobId === jobId
+        ? query.data.inputPreviewUrl
+        : undefined
+      : (draft?.previewUrl ?? query.data?.inputPreviewUrl),
     /** 기록에서 열어 저장된 결과를 보고 있는가. 화면이 안내 문구를 고를 때 쓴다. */
     restoreOnly,
     draft,
