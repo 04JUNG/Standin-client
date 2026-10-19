@@ -105,7 +105,7 @@ function Candidate({
       className="rounded-lg border border-border bg-surface-0 p-2"
       data-semantic-model={candidate.candidate_id}
     >
-      <DefaultPoseImage candidate={candidate} scope={scope} />
+      <DefaultPoseImage candidate={candidate} scope={scope} savedOnly lazy />
       <p className="text-xs">
         {candidate.rank}. {candidate.kind === "library_match" ? "검색 후보" : "근접 참고"}
       </p>

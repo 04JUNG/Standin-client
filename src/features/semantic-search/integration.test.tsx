@@ -70,7 +70,7 @@ it("text search uses authenticated BFF JSON, never the inference server", async 
   await searchPoses(" 던지기 ");
   expect(fetcher.mock.calls[0]![0]).toMatch(/\/v1\/semantic-search$/);
   expect(fetcher.mock.calls[0]![1].headers["X-Device-Token"]).toBe("device");
-  expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toEqual({ query: "던지기", topK: 20 });
+  expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toEqual({ query: "던지기", topK: null });
   expect(fetcher.mock.calls[0]![1].headers.Authorization).toBeUndefined();
 });
 it("rejects empty/overlong query before network and malformed capabilities/results", async () => {
@@ -96,7 +96,7 @@ it("accepts current and previous server limits and preserves the negotiated requ
       maxTopK,
     );
   }
-  for (const topK of [0, 21, 1.5]) {
+  for (const topK of [0, -1, 1.5, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
     await expect(searchPoses("던지기", undefined, topK)).rejects.toMatchObject({
       code: "INVALID_INPUT",
     });
@@ -145,4 +145,21 @@ it("groups variants in one card and switches to an actual alternate id, with no 
   await waitFor(() => expect(screen.getByRole("button")).toBeEnabled());
   act(() => fireEvent.click(screen.getByRole("button")));
   expect(select).toHaveBeenCalledWith("throw_mirror::front");
+});
+
+it("loads the full result once without slicing, thumbnail fetches or conversion", async () => {
+  const raw = result();
+  const first = raw.candidatesByPerson[0].candidates[0];
+  raw.candidatesByPerson[0].candidates = Array.from({ length: 92 }, (_, i) => ({
+    ...first,
+    id: `pose${i}::front`,
+    poseId: `pose${i}`,
+    rank: i + 1,
+  }));
+  const fetcher = vi.fn().mockResolvedValue(Response.json(raw));
+  vi.stubGlobal("fetch", fetcher);
+  const data = await poseHttp.loadResult({ jobId: "job_saved" });
+  expect(data.people[0].candidates).toHaveLength(92);
+  expect(data.people[0].candidates.at(-1)?.id).toBe("pose91::front");
+  expect(fetcher).toHaveBeenCalledOnce();
 });

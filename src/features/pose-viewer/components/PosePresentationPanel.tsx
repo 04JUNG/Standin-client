@@ -1,7 +1,7 @@
 import { canRelease } from "../api/routedSearch";
 import type { PoseCandidate } from "../api/pose.contract";
 import { cn } from "@/shared/lib/cn";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
 import { bodyKeys, getSelection } from "@/features/body-selection/api";
@@ -11,6 +11,7 @@ import { DefaultPoseImage } from "./DefaultPoseImage";
 import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selection/BodyCandidates";
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
+import { SemanticCandidateList } from "@/features/semantic-search/SemanticCandidateList";
 import { CandidatePages } from "./CandidatePages";
 
 export type PresentationSelection = {
@@ -64,6 +65,8 @@ function Preview({
   originalRank,
   selection,
   compact,
+  savedOnly = false,
+  pick,
 }: {
   candidate: PreviewCandidate;
   scope: string | null;
@@ -71,8 +74,9 @@ function Preview({
   originalRank?: number;
   selection?: PresentationSelection;
   compact?: boolean;
+  savedOnly?: boolean;
+  pick?: PoseCandidate;
 }) {
-  const pick = selection?.candidates.find((c) => c.id === candidate.candidate_id);
   const selectable = canRelease(pick);
   const selected = selection?.selected === candidate.candidate_id;
   return (
@@ -89,7 +93,13 @@ function Preview({
         className="w-full"
         aria-label={`${candidate.rank}번 ${candidateLabel(candidate.kind)} 3D 미리보기`}
       >
-        <DefaultPoseImage candidate={candidate} scope={scope} compact={compact} />
+        <DefaultPoseImage
+          candidate={candidate}
+          scope={scope}
+          compact={compact}
+          savedOnly={savedOnly}
+          lazy={savedOnly}
+        />
         <span className="text-xs">
           {candidate.rank}. {candidateLabel(candidate.kind)}
         </span>
@@ -166,6 +176,14 @@ function PresentationContent({
   bodyContext?: { job: string; selection?: BodySelection };
 }) {
   const semantic = p.version === "semantic-pose-presentation-v1";
+  const candidatesById = useMemo(
+    () => new Map(selection?.candidates.map((c) => [c.id, c])),
+    [selection?.candidates],
+  );
+  const ranksById = useMemo(
+    () => new Map(p.library_candidates.map((c) => [c.candidate_id, c.rank])),
+    [p.library_candidates],
+  );
   const render = (c: PreviewCandidate) =>
     renderCandidate ? (
       <div key={c.candidate_id}>{renderCandidate(c)}</div>
@@ -174,14 +192,14 @@ function PresentationContent({
         key={c.candidate_id}
         candidate={c}
         originalRank={
-          p.library_candidates.find(
-            (original) => original.candidate_id === c.mirror_comparison?.original_candidate_id,
-          )?.rank
+          c.mirror_comparison ? ranksById.get(c.mirror_comparison.original_candidate_id) : undefined
         }
+        pick={candidatesById.get(c.candidate_id)}
         scope={p.output_scope}
         bodyContext={bodyContext}
         selection={selection}
         compact={compact}
+        savedOnly={semantic}
       />
     );
   const gridClass = `grid gap-2 ${compact ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
@@ -244,7 +262,15 @@ function PresentationContent({
               {label} {rows.length}개
             </h3>
             {rows.length > 0 &&
-              (semantic || compact ? (
+              (semantic ? (
+                <SemanticCandidateList
+                  key={rows.map((c) => c.candidate_id).join(",")}
+                  rows={rows}
+                  label={label}
+                  gridClass={gridClass}
+                  render={render}
+                />
+              ) : compact ? (
                 <CandidatePages
                   key={rows.map((c) => c.candidate_id).join(",")}
                   rows={rows}

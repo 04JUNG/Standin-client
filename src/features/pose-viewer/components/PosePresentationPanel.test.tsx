@@ -203,3 +203,66 @@ it("not-requested mirror adds no unavailable notice or empty mirror section", ()
   );
   expect(screen.queryByText(/검증된 반대손|반대손 참고 0개/)).toBeNull();
 });
+
+it.each([false, true])(
+  "semantic appends all returned candidates and keeps near references separate (compact=%s)",
+  (compact) => {
+    const candidate = {
+      candidate_id: "template",
+      pose_id: "pose",
+      source: "library",
+      kind: "library_match",
+      rank: 1,
+      asset: {
+        transport: "library_bvh",
+        bvh_sha256: "b".repeat(64),
+        preview_bvh_url: "/v1/preview",
+      },
+    } as PreviewCandidate;
+    const library = Array.from({ length: 65 }, (_, i) => ({
+      ...candidate,
+      candidate_id: `regular${i}`,
+      rank: i + 1,
+    }));
+    const near = Array.from({ length: 27 }, (_, i) => ({
+      ...candidate,
+      candidate_id: `near${i}`,
+      kind: "near_match",
+      rank: i + 1,
+    }));
+    const onSelect = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <PosePresentationPanel
+          compact={compact}
+          presentation={{
+            ...p,
+            version: "semantic-pose-presentation-v1",
+            library_candidates: library,
+            review_candidates: near,
+          }}
+          selection={{
+            candidates: [...library, ...near].map((c) => ({
+              id: c.candidate_id,
+              source: "semantic",
+              manualExportAllowed: true,
+              bvhAvailable: true,
+              lookupAllowed: true,
+              sourceBvhSha256: "b".repeat(64),
+            })) as never[],
+            onSelect,
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("검색 후보 65개")).toBeInTheDocument();
+    expect(screen.getByText("근접·기하·구도 참고 27개")).toBeInTheDocument();
+    expect(screen.getAllByAltText("기본 포즈 참고 이미지")).toHaveLength(40);
+    for (let i = 0; i < 3; i++)
+      fireEvent.click(screen.getByRole("button", { name: "검색 후보 20개 더 보기" }));
+    fireEvent.click(screen.getByRole("button", { name: "근접·기하·구도 참고 20개 더 보기" }));
+    expect(screen.getAllByAltText("기본 포즈 참고 이미지")).toHaveLength(92);
+    fireEvent.click(screen.getByRole("button", { name: "65번 검색 후보 직접 선택" }));
+    expect(onSelect).toHaveBeenCalledWith("regular64");
+  },
+);

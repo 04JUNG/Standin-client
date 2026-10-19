@@ -150,3 +150,9 @@
     line-height: 12px;
   }
 }
+
+/* Continuous text results use the shell's single scroll area. A viewport-height
+   wrapper would end the sticky search field after its first screen. */
+.compact-pose-layout:has([data-semantic-results]) > [data-semantic-results] {
+  height: auto;
+}

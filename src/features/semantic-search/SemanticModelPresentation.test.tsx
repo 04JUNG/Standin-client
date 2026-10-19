@@ -38,23 +38,29 @@ beforeEach(() => {
   vi.mocked(loadSemanticModel).mockReset();
 });
 it.each([false, true])(
-  "all 20 candidates use 5 posters per page with zero GLB conversion (bar=%s)",
+  "appends all 65 saved posters in groups of 20 with zero GLB conversion (bar=%s)",
   async (compact) => {
     const qc = new QueryClient();
+    const many = {
+      ...p,
+      library_candidates: Array.from({ length: 65 }, (_, i) => ({
+        ...p.library_candidates[0],
+        candidate_id: `pose${i}`,
+        rank: i + 1,
+      })),
+    };
     const r = render(
       <QueryClientProvider client={qc}>
-        <SemanticModelPresentation presentation={p} compact={compact} />
+        <SemanticModelPresentation presentation={many} compact={compact} />
       </QueryClientProvider>,
     );
-    expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
-    for (const end of [10, 15, 20]) {
-      fireEvent.click(screen.getByRole("button", { name: "검색 후보 다음 5개" }));
-      expect(screen.getByText(`검색 후보 ${end - 4}–${end} / 20개`)).toBeTruthy();
-      expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
+    expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(20);
+    for (const end of [40, 60, 65]) {
+      fireEvent.click(screen.getByRole("button", { name: "검색 후보 20개 더 보기" }));
+      expect(screen.getByText(`검색 후보 ${end} / 65개`)).toBeTruthy();
+      expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(end);
     }
-    expect(screen.getByRole("button", { name: "검색 후보 다음 5개" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "검색 후보 이전 5개" }));
-    expect(screen.getByText("검색 후보 11–15 / 20개")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "검색 후보 20개 더 보기" })).toBeNull();
     expect(loadSemanticModel).not.toHaveBeenCalled();
     r.unmount();
     qc.clear();
@@ -77,10 +83,10 @@ it("only the explicitly enlarged pose requests a model; slow and preempted detai
   fireEvent.click(screen.getByRole("button", { name: "2번 기본 남성 모델 확대" }));
   await waitFor(() => expect(loadSemanticModel).toHaveBeenCalledOnce());
   expect(vi.mocked(loadSemanticModel).mock.calls[0][0].candidate_id).toBe("pose1");
-  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(20);
   await act(async () => reject(Error("PREVIEW_PREEMPTED")));
   await screen.findByText(/기본 이미지는 유지됩니다/);
-  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(20);
   expect(loadSemanticModel).toHaveBeenCalledOnce();
   expect(screen.getByRole("button", { name: "다시 시도" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "닫기" }));
@@ -100,10 +106,10 @@ it("an explicitly loaded model retains rotation controls and never grants save",
   await screen.findByRole("img", { name: "기본 남성 모델 3D 미리보기" });
   expect(screen.getByRole("button", { name: "오른쪽 회전" })).toBeEnabled();
   expect(screen.queryByRole("button", { name: "저장" })).toBeNull();
-  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(20);
   fireEvent.click(screen.getByRole("button", { name: "닫기" }));
 });
-it("short final pages retain independent near-reference posters", () => {
+it("short results retain independent near-reference posters", () => {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <SemanticModelPresentation
@@ -117,8 +123,7 @@ it("short final pages retain independent near-reference posters", () => {
       />
     </QueryClientProvider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "검색 후보 다음 5개" }));
-  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(3);
-  expect(screen.getByText("검색 후보 6–7 / 7개")).toBeTruthy();
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(8);
+  expect(screen.getByText("검색 후보 7 / 7개")).toBeTruthy();
   expect(loadSemanticModel).not.toHaveBeenCalled();
 });
