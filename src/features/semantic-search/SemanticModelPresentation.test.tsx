@@ -1,16 +1,21 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import { SemanticModelPresentation } from "./SemanticModelPresentation";
 import { loadSemanticModel } from "./modelPreview";
-import type { PosePresentation } from "@/features/pose-viewer/api/posePresentation";
+import type {
+  PosePresentation,
+  PreviewCandidate,
+} from "@/features/pose-viewer/api/posePresentation";
 vi.mock("./modelPreview", () => ({ loadSemanticModel: vi.fn() }));
+vi.mock("@/features/pose-viewer/components/DefaultPoseImage", () => ({
+  DefaultPoseImage: ({ candidate }: { candidate: PreviewCandidate }) => (
+    <img src={"/poster/" + candidate.candidate_id} alt="기본 체형 포즈 참고" />
+  ),
+}));
 vi.mock("@/features/pose-viewer/components/ReviewModelPreview", () => ({
   ReviewModelPreview: ({ label }: { label: string }) => <canvas role="img" aria-label={label} />,
 }));
-beforeEach(() => {
-  vi.mocked(loadSemanticModel).mockReset();
-});
 const p = {
   version: "semantic-pose-presentation-v1",
   person_index: 0,
@@ -19,162 +24,101 @@ const p = {
   generation_status: "not_requested",
   output_scope: "full",
   issues: [],
-  library_candidates: [
-    { candidate_id: "one", kind: "library_match", rank: 1, asset: { preview_bvh_url: "/one" } },
-  ],
-  review_candidates: [
-    { candidate_id: "near", kind: "near_match", rank: 1, asset: { preview_bvh_url: "/near" } },
-  ],
+  library_candidates: Array.from({ length: 20 }, (_, i) => ({
+    candidate_id: "pose" + i,
+    rank: i + 1,
+    source: "library",
+    kind: "library_match",
+    asset: { preview_bvh_url: "/test/" + i },
+  })),
+  review_candidates: [],
   generated_candidates: [],
 } as unknown as PosePresentation;
-function show() {
-  render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
-      <SemanticModelPresentation presentation={p} />
-    </QueryClientProvider>,
-  );
-}
-it("shows fixed male surfaces for search and near candidates and enlarges with rotation controls", async () => {
-  vi.mocked(loadSemanticModel).mockResolvedValue({
-    data: new ArrayBuffer(0),
-    characterId: "standin-master-v2",
-    scope: "full",
-  });
-  show();
-  await waitFor(() =>
-    expect(screen.getAllByRole("img", { name: "기본 남성 모델 3D 미리보기" })).toHaveLength(2),
-  );
-  expect(screen.getByText("검색 후보 1개")).toBeTruthy();
-  expect(screen.getByText("근접·기하·구도 참고 1개")).toBeTruthy();
-  expect(screen.queryByAltText("BVH 관절 기반 3D 미리보기")).toBeNull();
-  fireEvent.click(screen.getAllByRole("button", { name: "1번 기본 남성 모델 확대" })[0]!);
-  expect(await screen.findByRole("button", { name: "오른쪽 회전" })).toBeTruthy();
-  expect(screen.getByText(/자동 적용·refine·내보내기는 지원하지/)).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "저장" })).toBeNull();
+beforeEach(() => {
+  vi.mocked(loadSemanticModel).mockReset();
 });
-it("reports a mesh failure without silently substituting a skeleton", async () => {
-  vi.mocked(loadSemanticModel).mockRejectedValue(Error("offline"));
-  show();
-  await waitFor(() =>
-    expect(screen.getAllByText("체형 모델을 불러오지 못했습니다.")).toHaveLength(2),
-  );
-  expect(screen.queryByAltText("BVH 관절 기반 3D 미리보기")).toBeNull();
-  expect(screen.getAllByRole("button", { name: "미리보기 다시 불러오기" })).toHaveLength(2);
-});
-
 it.each([false, true])(
-  "browses all twenty results five at a time (compact: %s)",
+  "all 20 candidates use 5 posters per page with zero GLB conversion (bar=%s)",
   async (compact) => {
-    vi.mocked(loadSemanticModel).mockResolvedValue({
-      data: new ArrayBuffer(0),
-      scope: "full",
-      characterId: "standin-master-v2",
-    });
-    const candidates = Array.from({ length: 20 }, (_, i) => ({
-      ...p.library_candidates[0]!,
-      candidate_id: `match_${i + 1}`,
-      rank: i + 1,
-      asset: { ...p.library_candidates[0]!.asset, preview_bvh_url: `/match_${i + 1}` },
-    }));
-    const presentation = { ...p, library_candidates: candidates, review_candidates: [] };
-    const view = render(
-      <QueryClientProvider client={new QueryClient()}>
-        <SemanticModelPresentation presentation={presentation} compact={compact} />
+    const qc = new QueryClient();
+    const r = render(
+      <QueryClientProvider client={qc}>
+        <SemanticModelPresentation presentation={p} compact={compact} />
       </QueryClientProvider>,
     );
-    await waitFor(() => expect(loadSemanticModel).toHaveBeenCalledTimes(5));
-    expect(screen.getByText("검색 후보 20개")).toBeTruthy();
-    expect(screen.getByText("검색 후보 1–5 / 20개")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "검색 후보 이전 5개" })).toBeDisabled();
+    expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
     for (const end of [10, 15, 20]) {
       fireEvent.click(screen.getByRole("button", { name: "검색 후보 다음 5개" }));
-      await waitFor(() => expect(loadSemanticModel).toHaveBeenCalledTimes(end));
-      await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(5));
       expect(screen.getByText(`검색 후보 ${end - 4}–${end} / 20개`)).toBeTruthy();
+      expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
     }
     expect(screen.getByRole("button", { name: "검색 후보 다음 5개" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "검색 후보 이전 5개" }));
     expect(screen.getByText("검색 후보 11–15 / 20개")).toBeTruthy();
-    expect(loadSemanticModel).toHaveBeenCalledTimes(20);
-    // Opening another history job resets the range, without borrowing the old page.
-    view.rerender(
-      <QueryClientProvider client={new QueryClient()}>
-        <SemanticModelPresentation
-          presentation={{
-            ...presentation,
-            library_candidates: candidates.map((c) => ({
-              ...c,
-              candidate_id: `new_${c.candidate_id}`,
-            })),
-          }}
-          compact={compact}
-        />
-      </QueryClientProvider>,
-    );
-    expect(screen.getByText("검색 후보 1–5 / 20개")).toBeTruthy();
+    expect(loadSemanticModel).not.toHaveBeenCalled();
+    r.unmount();
+    qc.clear();
   },
 );
-
-it("keeps a short final page and near references separate from search matches", async () => {
+it("only the explicitly enlarged pose requests a model; slow and preempted detail never erase posters", async () => {
+  let reject!: (e: Error) => void;
+  vi.mocked(loadSemanticModel).mockImplementation(
+    () =>
+      new Promise((_, r) => {
+        reject = r;
+      }),
+  );
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SemanticModelPresentation presentation={p} />
+    </QueryClientProvider>,
+  );
+  expect(loadSemanticModel).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "2번 기본 남성 모델 확대" }));
+  await waitFor(() => expect(loadSemanticModel).toHaveBeenCalledOnce());
+  expect(vi.mocked(loadSemanticModel).mock.calls[0][0].candidate_id).toBe("pose1");
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
+  await act(async () => reject(Error("PREVIEW_PREEMPTED")));
+  await screen.findByText(/기본 이미지는 유지됩니다/);
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
+  expect(loadSemanticModel).toHaveBeenCalledOnce();
+  expect(screen.getByRole("button", { name: "다시 시도" })).toBeEnabled();
+  fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+});
+it("an explicitly loaded model retains rotation controls and never grants save", async () => {
   vi.mocked(loadSemanticModel).mockResolvedValue({
     data: new ArrayBuffer(0),
     scope: "full",
     characterId: "standin-master-v2",
   });
-  const library = Array.from({ length: 7 }, (_, i) => ({
-    ...p.library_candidates[0]!,
-    candidate_id: `match_${i}`,
-    rank: i + 1,
-    asset: { ...p.library_candidates[0]!.asset, preview_bvh_url: `/match_${i}` },
-  }));
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <SemanticModelPresentation presentation={{ ...p, library_candidates: library }} />
+      <SemanticModelPresentation presentation={p} />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "1번 기본 남성 모델 확대" }));
+  await screen.findByRole("img", { name: "기본 남성 모델 3D 미리보기" });
+  expect(screen.getByRole("button", { name: "오른쪽 회전" })).toBeEnabled();
+  expect(screen.queryByRole("button", { name: "저장" })).toBeNull();
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(5);
+  fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+});
+it("short final pages retain independent near-reference posters", () => {
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SemanticModelPresentation
+        presentation={{
+          ...p,
+          library_candidates: p.library_candidates.slice(0, 7),
+          review_candidates: [
+            { ...p.library_candidates[0], candidate_id: "near", kind: "near_match" },
+          ],
+        }}
+      />
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "검색 후보 다음 5개" }));
+  expect(screen.getAllByAltText("기본 체형 포즈 참고")).toHaveLength(3);
   expect(screen.getByText("검색 후보 6–7 / 7개")).toBeTruthy();
-  expect(screen.getByText("근접·기하·구도 참고 1개")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "검색 후보 다음 5개" })).toBeDisabled();
-  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(3));
-});
-
-vi.mock("@/features/body-selection/presentation", () => ({
-  usePresentationBody: () => ({
-    entry: { ready: true },
-    images: { one: "/selected-female.png", near: "/selected-female-near.png" },
-  }),
-}));
-vi.mock("@/features/body-selection/BodyCandidates", () => ({
-  BodyChip: () => <span>여성 체형 수정</span>,
-  BodyExpand: () => <span>체형 수치</span>,
-  BodyRenderStatus: () => null,
-}));
-it("uses the selected body instead of fixed male surfaces when the server enables body previews", () => {
-  vi.mocked(loadSemanticModel).mockClear();
-  const presentation = {
-    ...p,
-    library_candidates: p.library_candidates.map((c) => ({
-      ...c,
-      render_camera: { ...c.render_camera, projection_matches_search: false },
-    })),
-    review_candidates: [],
-  } as PosePresentation;
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <SemanticModelPresentation presentation={presentation} bodyPreviewJob="job" />
-    </QueryClientProvider>,
-  );
-  expect(screen.getByText("여성 체형 수정")).toBeTruthy();
-  expect(screen.getByAltText("선택한 체형과 수치를 적용한 포즈")).toHaveAttribute(
-    "src",
-    "/selected-female.png",
-  );
   expect(loadSemanticModel).not.toHaveBeenCalled();
-  expect(screen.queryByRole("img", { name: "기본 남성 모델 3D 미리보기" })).toBeNull();
-  expect(
-    screen.getByText("검수용입니다. 자동 적용·보정·내보내기를 지원하지 않습니다."),
-  ).toBeTruthy();
 });

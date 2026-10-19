@@ -1,9 +1,6 @@
+import { SCOPE_LABELS } from "../api/outputScope";
 import { reviewOnly } from "../api/routedSearch";
-import { useQuery } from "@tanstack/react-query";
-import {
-  candidateThumbnailOptions,
-  quickCandidateThumbnailOptions,
-} from "../api/candidateThumbnail";
+import { useDefaultPosePoster } from "../api/posePoster";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { MatchLevel, PoseCandidate } from "../api/pose.contract";
@@ -45,24 +42,19 @@ export function PoseCandidateCard({
   disabled,
 }: PoseCandidateCardProps) {
   const fill = layout === "fill";
-  const preview = useQuery(
-    !bodyPreview && !characterId && candidate.quickThumbnailUrl
-      ? quickCandidateThumbnailOptions(candidate.quickThumbnailUrl)
-      : candidateThumbnailOptions(
-          bodyPreview ? undefined : candidate.deferredThumbnailUrl,
-          candidate.previewModel,
-          characterId ?? undefined,
-        ),
-  );
-  const imageUrl = bodyPreview
-    ? bodyPreview.url
-    : characterId
-      ? preview.data
-      : candidate.thumbnailUrl || preview.data;
-  const pending = bodyPreview
-    ? bodyPreview.pending
-    : !!candidate.deferredThumbnailUrl && preview.isPending;
-  const failed = !bodyPreview && !!candidate.deferredThumbnailUrl && preview.isError;
+  // Card identity is independent of the selected body. Only final review and
+  // explicit detail may load the chosen-body artifact.
+  void characterId;
+  const preview = useDefaultPosePoster({
+    url: candidate.posterUrl,
+    scope: candidate.posterScope,
+    source: candidate.sourceBvhSha256 ?? candidate.previewModel?.sourceSha,
+    fallbackUrl: candidate.quickThumbnailUrl,
+  });
+  const imageUrl = candidate.thumbnailUrl || preview.data?.url;
+  const pending = !imageUrl && preview.isPending;
+  const failed = !imageUrl && preview.isError;
+  void bodyPreview;
   return (
     <button
       data-pose-candidate
@@ -104,7 +96,7 @@ export function PoseCandidateCard({
           {pending ? (
             <span className="flex flex-col items-center gap-2 text-xs" role="status">
               <LoaderCircle className="h-6 w-6 animate-spin" aria-hidden />
-              {candidate.quickThumbnailUrl ? "미리보기 불러오는 중" : "각도 맞추는 중"}
+              포즈 이미지 불러오는 중
             </span>
           ) : failed ? (
             <span className="text-xs">미리보기 다시 시도</span>
@@ -113,9 +105,11 @@ export function PoseCandidateCard({
           )}
         </div>
       )}
-      {bodyPreview && candidate.source === "library" && (
-        <span className="text-[11px] text-text-secondary">체형 참고 · 정사영</span>
-      )}
+      <span className="px-2 text-[11px] text-text-secondary">
+        {preview.data?.kind === "default-body" ? "기본 체형" : "관절 기반"} · 정면{" "}
+        {SCOPE_LABELS[candidate.posterScope ?? "full"]} 참고
+      </span>
+      <span className="px-2 text-[10px] text-text-secondary">선택 체형·손·검색 시점 미적용</span>
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
         <div className="flex items-center justify-between">
           <span

@@ -445,6 +445,7 @@ export function BarCandidatesPage() {
                             <FitTile key={candidate.id} className={candidateSpan(i)}>
                               {bodies.enabled ? (
                                 <BodyCandidateCard
+                                  job={data.jobId}
                                   candidate={candidate}
                                   entry={bodies.entries.find((e) => e.personIndex === person.index)}
                                   selected={selectedByPerson[person.index]}

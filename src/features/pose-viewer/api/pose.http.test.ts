@@ -173,7 +173,7 @@ describe("poseHttp", () => {
       height: 1,
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[0][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs`);
     const createInit = fetchMock.mock.calls[0][1] as RequestInit;
     expect(createInit.body).toBeInstanceOf(FormData);
@@ -182,14 +182,7 @@ describe("poseHttp", () => {
     expect((createInit.headers as Record<string, string>)["X-Installation-Id"]).toBe("inst_1");
     expect(fetchMock.mock.calls[1][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs/server-job`);
     expect(fetchMock.mock.calls[2][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs/server-job/result`);
-    expect(fetchMock.mock.calls[3][0]).toBe(
-      `${env.apiBaseUrl}/v1/pose-candidates/wave%20pose/thumbnail?view=front`,
-    );
-    expect(
-      ((fetchMock.mock.calls[3][1] as RequestInit).headers as Record<string, string>)[
-        "Authorization"
-      ],
-    ).toBeUndefined();
+    expect(result.people[0].candidates[0].posterUrl).toContain("/poster?jobId=server-job");
     const requestSignals = fetchMock.mock.calls.map(
       (call) => (call[1] as RequestInit).signal as AbortSignal,
     );
@@ -245,8 +238,12 @@ describe("poseHttp", () => {
               title: "포즈 wave pose",
               tags: ["standing", "solo"],
               matchLevel: "high",
-              thumbnailUrl: "data:image/png;base64,iVBORw==",
-              previewImages: [{ view: "front", url: "data:image/png;base64,iVBORw==" }],
+              thumbnailUrl: "",
+              posterUrl:
+                "/v1/pose-candidates/wave%20pose/poster?jobId=server-job&personIndex=0&candidateId=wave+pose",
+              posterScope: "full",
+              quickThumbnailUrl: "/v1/pose-candidates/wave%20pose/thumbnail?view=front",
+              previewImages: [],
               modelUrl: null,
               bvhAvailable: true,
               bvhUrl:

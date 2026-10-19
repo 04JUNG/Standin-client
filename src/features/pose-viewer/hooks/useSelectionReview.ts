@@ -1,3 +1,5 @@
+import { loadPosePoster } from "../api/posePoster";
+import { useInstallationStore } from "@/features/installation/installationStore";
 import { useQueries } from "@tanstack/react-query";
 import { useExportStore } from "@/features/export/store/exportStore";
 import { candidateThumbnailOptions } from "../api/candidateThumbnail";
@@ -20,6 +22,7 @@ export type ReviewItem = {
    * 비어 있을 수도 있다 — 그때 화면은 자리표시자를 그린다.
    */
   previewUrl: string;
+  previewReference?: boolean;
   /** 조정본이 만들어졌는가. false면 베이스 포즈가 그대로 저장된다. */
   refined: boolean;
   /** refine을 아예 시도하지 않은 선택(저신뢰 인물, 기능 off 등). */
@@ -40,7 +43,10 @@ export function useSelectionReview(jobId: string | undefined) {
   const { data, selectedByPerson } = analysis;
   const format = useExportStore((s) => s.format);
   const framed =
-    format === "fbx" && data?.capabilities.fbxExport && data.capabilities.outputScopeCropping;
+    format === "fbx" &&
+    data?.capabilities.fbxExport &&
+    (analysis.bodies.enabled || data.capabilities.outputScopeCropping);
+  const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
 
   const items = useMemo((): ReviewItem[] => {
     if (!data) return [];
@@ -74,25 +80,65 @@ export function useSelectionReview(jobId: string | undefined) {
   }, [data, selectedByPerson, refineByPerson]);
 
   const previews = useQueries({
-    queries: items.map((item) => ({
-      ...candidateThumbnailOptions(
+    queries: items.map((item) => {
+      const reference =
+        !item.candidate.deferredThumbnailUrl || format === "bvh" || analysis.bodies.enabled;
+      const scope = item.candidate.posterScope ?? "full";
+      const params = new URLSearchParams({
+        jobId: data?.jobId ?? "",
+        personIndex: String(item.personIndex),
+        candidateId: item.candidate.id,
+        scope,
+      });
+      const rawUrl =
+        item.candidate.posterUrl ??
+        `/v1/pose-candidates/${encodeURIComponent(item.candidate.poseId)}/poster?${params}`;
+      const parsed = new URL(rawUrl, "https://standin.invalid");
+      parsed.searchParams.set("scope", scope);
+      const url = parsed.pathname + parsed.search;
+      const legacy = candidateThumbnailOptions(
         item.candidate.deferredThumbnailUrl,
         item.candidate.previewModel,
         byPerson[item.personIndex] ?? characterId ?? undefined,
-      ),
-      enabled:
-        !analysis.bodies.enabled &&
-        !framed &&
-        !item.refined &&
-        !!item.candidate.deferredThumbnailUrl &&
-        !item.previewUrl,
-    })),
+      );
+      return {
+        ...(reference
+          ? {
+              queryKey: [
+                "selection-pose-reference",
+                owner,
+                url,
+                item.candidate.sourceBvhSha256 ?? item.candidate.previewModel?.sourceSha,
+              ],
+              queryFn: async ({ signal }: { signal: AbortSignal }) =>
+                (
+                  await loadPosePoster(
+                    url,
+                    signal,
+                    item.candidate.sourceBvhSha256 ?? item.candidate.previewModel?.sourceSha,
+                    scope,
+                  )
+                ).url,
+              retry: false,
+              staleTime: 600_000,
+              gcTime: 600_000,
+            }
+          : legacy),
+        enabled:
+          !framed &&
+          !item.refined &&
+          !item.previewUrl &&
+          (data?.source === "semantic" || status === "done"),
+      };
+    }),
   });
+
   return {
     ...analysis,
     items: items.map((item, i) => ({
       ...item,
       previewUrl: item.previewUrl || previews[i]?.data || "",
+      previewReference: !item.refined && !framed && format === "bvh",
     })),
     /**
      * 조정이 끝나지 않았다 — 저장 대상 URL이 아직 바뀔 수 있다.

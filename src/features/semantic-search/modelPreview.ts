@@ -1,3 +1,4 @@
+import { previewRequests } from "@/features/pose-viewer/preview/requestQueue";
 import type { BodySelection } from "@/features/body-selection/contract";
 import { apiFetchResponse } from "@/shared/api/client";
 import { validateModel } from "@/features/pose-viewer/preview/modelContract";
@@ -93,23 +94,11 @@ async function readSemanticModel(
   };
 }
 
-// Keep fallback Blender work bounded when all candidate cards mount together.
-let pending = Promise.resolve();
-export async function loadSemanticModel(
+// Cached queries remain immediate; new optional renders share one cancellable slot.
+export function loadSemanticModel(
   candidate: PreviewCandidate,
   signal: AbortSignal,
   selection?: BodySelection,
 ): Promise<ReviewModel> {
-  const previous = pending;
-  let release!: () => void;
-  pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await previous;
-  try {
-    signal.throwIfAborted();
-    return await readSemanticModel(candidate, signal, selection);
-  } finally {
-    release();
-  }
+  return previewRequests.run(signal, () => readSemanticModel(candidate, signal, selection));
 }

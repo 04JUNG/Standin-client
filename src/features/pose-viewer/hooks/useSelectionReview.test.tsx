@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook as renderHookBase } from "@testing-library/react";
+import { waitFor, renderHook as renderHookBase } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult, PoseCandidate } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
@@ -12,7 +12,11 @@ function renderHook<T>(hook: () => T) {
   });
 }
 
+const poster = vi.hoisted(() => vi.fn());
+vi.mock("../api/posePoster", () => ({ loadPosePoster: poster }));
+
 const analysisState: {
+  bodyMode?: boolean;
   data: AnalysisResult | undefined;
   selectedByPerson: Record<number, string>;
 } = { data: undefined, selectedByPerson: {} };
@@ -24,7 +28,7 @@ const refineState: { status: string; refineByPerson: Record<number, RefineOutcom
 vi.mock("./useAnalysisResult", () => ({
   useAnalysisResult: () => ({
     ...analysisState,
-    bodies: { enabled: false, entries: [], ready: true },
+    bodies: { enabled: analysisState.bodyMode ?? false, entries: [], ready: true },
   }),
 }));
 vi.mock("./useRefineSelection", () => ({ useRefineSelection: () => refineState }));
@@ -63,6 +67,8 @@ function outcome(overrides: Partial<RefineOutcome> = {}): RefineOutcome {
 
 describe("useSelectionReview", () => {
   beforeEach(() => {
+    poster.mockReset();
+    analysisState.bodyMode = false;
     analysisState.data = {
       jobId: "server-job",
       people: [
@@ -114,5 +120,55 @@ describe("useSelectionReview", () => {
     const { result } = renderHook(() => useSelectionReview("job-1"));
     expect(result.current.items[0]?.previewUrl).toBe("data:image/png;base64,CANDIDATE");
     expect(result.current.items[0]?.exportUrl).toBe("/v1/base.bvh");
+  });
+});
+
+describe("selected original BVH reference", () => {
+  beforeEach(() => {
+    poster.mockReset();
+  });
+  it.each([false, true])(
+    "legacy history without a camera loads only the selected original poster (body=%s)",
+    async (bodyMode) => {
+      const { useExportStore } = await import("@/features/export/store/exportStore");
+      useExportStore.setState({ format: "bvh" });
+      analysisState.bodyMode = bodyMode;
+      analysisState.data = {
+        jobId: "job_history",
+        capabilities: { refine: false, fbxExport: true, characterSelection: false },
+        people: [
+          {
+            index: 0,
+            candidates: [
+              candidate({ thumbnailUrl: "", deferredThumbnailUrl: undefined, posterScope: "head" }),
+            ],
+          },
+        ],
+      } as AnalysisResult;
+      analysisState.selectedByPerson = { 0: "pose-1::front" };
+      refineState.status = "done";
+      refineState.refineByPerson = {};
+      poster.mockResolvedValue({ url: "data:image/png;base64,REFERENCE", kind: "default-body" });
+      const h = renderHook(() => useSelectionReview("job_history"));
+      await waitFor(() =>
+        expect(h.result.current.items[0].previewUrl).toBe("data:image/png;base64,REFERENCE"),
+      );
+      expect(poster).toHaveBeenCalledOnce();
+      expect(poster.mock.calls[0][0]).toContain("scope=head");
+      expect(poster.mock.calls[0][3]).toBe("head");
+      expect(h.result.current.items[0].previewReference).toBe(true);
+      h.unmount();
+    },
+  );
+  it("never substitutes the original poster for an unavailable refined preview", () => {
+    poster.mockClear();
+    refineState.refineByPerson = {
+      0: outcome({ jobId: analysisState.data!.jobId, previewUrl: "" }),
+    };
+    const h = renderHook(() => useSelectionReview("job_history"));
+    expect(h.result.current.items[0].refined).toBe(true);
+    expect(h.result.current.items[0].previewUrl).toBe("");
+    expect(poster).not.toHaveBeenCalled();
+    h.unmount();
   });
 });

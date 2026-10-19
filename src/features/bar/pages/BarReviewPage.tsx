@@ -45,7 +45,11 @@ export function BarReviewPage() {
                   ) : item.previewUrl ? (
                     <img
                       src={item.previewUrl}
-                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`}
+                      alt={
+                        item.previewReference
+                          ? `인물 ${item.personIndex + 1}의 원본 BVH 포즈 참고`
+                          : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
+                      }
                       title={`인물 ${item.personIndex + 1} · ${item.candidate.title}`}
                       className="aspect-square w-full rounded border border-border bg-surface-2 object-contain"
                     />
@@ -53,6 +57,11 @@ export function BarReviewPage() {
                     <div className="flex aspect-square w-full items-center justify-center rounded border border-border bg-surface-2">
                       <ImageOff className="h-5 w-5" aria-hidden />
                     </div>
+                  )}
+                  {item.previewReference && (
+                    <p className="px-2 text-[10px] text-text-secondary">
+                      포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장
+                    </p>
                   )}
                   {item.scopeLabel && (
                     <p className="text-center text-[10px] text-text-secondary">{item.scopeLabel}</p>

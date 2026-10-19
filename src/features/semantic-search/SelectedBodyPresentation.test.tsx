@@ -9,6 +9,11 @@ import type { PosePresentation } from "@/features/pose-viewer/api/posePresentati
 import { SemanticModelPresentation } from "./SemanticModelPresentation";
 import { loadSemanticModel } from "./modelPreview";
 import { putSelection } from "@/features/body-selection/api";
+vi.mock("@/features/pose-viewer/components/DefaultPoseImage", () => ({
+  DefaultPoseImage: ({ candidate }: { candidate: { candidate_id: string } }) => (
+    <img alt="기본 체형 포즈 참고" src={"/poster/" + candidate.candidate_id} />
+  ),
+}));
 const state = vi.hoisted(() => ({
   selection: null as BodySelection | null,
   error: null as Error | null,
@@ -146,19 +151,18 @@ it.each([false, true])(
   async (compact) => {
     unselected();
     show(compact);
-    expect(
-      await screen.findByRole("img", { name: "기본 남성 참고 모델 3D 미리보기" }),
-    ).toBeTruthy();
-    expect(vi.mocked(loadSemanticModel).mock.calls[0]![2]).toBeUndefined();
+    expect(await screen.findByRole("img", { name: "기본 체형 포즈 참고" })).toBeTruthy();
+    expect(loadSemanticModel).not.toHaveBeenCalled();
     expect(putSelection).not.toHaveBeenCalled();
-    expect(screen.getByText("체형 미선택")).toBeTruthy();
+    expect(await screen.findByText("체형 미선택")).toBeTruthy();
     expect(screen.getByText(/체형 선택 전에는 기본 남성 참고 모델/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
     fireEvent.click(await screen.findByRole("button", { name: /^여성$/ }));
     fireEvent.click(await screen.findByRole("radio", { name: /테스트 여성/ }));
-    expect(await screen.findByRole("img", { name: "테스트 여성 모델 3D 미리보기" })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "기본 체형 포즈 참고" })).toBeTruthy();
+    expect(loadSemanticModel).not.toHaveBeenCalled();
     expect(screen.queryByRole("img", { name: "기본 남성 참고 모델 3D 미리보기" })).toBeNull();
-    expect(state.selection!.manualCharacterId).toBe("female-test");
+    await waitFor(() => expect(state.selection!.manualCharacterId).toBe("female-test"));
   },
 );
 
@@ -212,6 +216,9 @@ it("uses persisted body selection, hides the previous surface while changing and
       </QueryClientProvider>
     </MemoryRouter>,
   );
+  await screen.findByRole("button", { name: "1번 테스트 남성 모델 확대" });
+  expect(loadSemanticModel).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "1번 테스트 남성 모델 확대" }));
   expect(await screen.findByRole("img", { name: "테스트 남성 모델 3D 미리보기" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
   fireEvent.click(await screen.findByRole("button", { name: /^여성$/ }));
