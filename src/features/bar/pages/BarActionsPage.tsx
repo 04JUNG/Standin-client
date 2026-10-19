@@ -73,7 +73,7 @@ export function BarActionsPage() {
           icon={Search}
           label="문장으로 찾기"
           disabled={busy}
-          onClick={() => navigate("/app/search")}
+          onClick={() => navigate("/bar/search")}
         />
         {message && (
           <div role="alert" className="flex items-start gap-1 px-1 text-[11px] text-brand-coral">

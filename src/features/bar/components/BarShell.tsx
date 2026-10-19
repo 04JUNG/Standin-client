@@ -26,7 +26,7 @@ type BarShellProps = {
  */
 export function BarShell({ title, hideCollapse, children, footer }: BarShellProps) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, state: routeState } = useLocation();
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const hasDraft = useUploadStore((s) => s.draft !== null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -99,7 +99,11 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
         {/* 확대는 지금 단계를 그대로 앱 창에서 이어 연다 — 홈으로 돌아가면 흐름을 잃는다. */}
         <BarIconButton
           label="앱 창으로 열기"
-          onClick={() => navigate(appRouteForBarPath(pathname, { jobId, hasDraft }))}
+          onClick={() =>
+            navigate(appRouteForBarPath(pathname, { jobId, hasDraft }), {
+              state: pathname === "/bar/search" ? routeState : undefined,
+            })
+          }
         >
           <Maximize2 className="h-3.5 w-3.5" aria-hidden />
         </BarIconButton>

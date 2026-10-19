@@ -1,8 +1,10 @@
+import { clearSearchDrafts } from "./searchDraft";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { SemanticSearchBar } from "./SemanticSearchBar";
+beforeEach(clearSearchDrafts);
 vi.mock("./api", () => ({
   searchCapabilities: vi.fn(async () => ({
     available: true,

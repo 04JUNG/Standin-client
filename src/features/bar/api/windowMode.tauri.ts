@@ -16,7 +16,13 @@ export const windowModeTauri: WindowModeService = {
   async setMode(mode: WindowMode, size?: WindowSize, monitor?: MonitorRect): Promise<void> {
     try {
       await invoke("set_window_mode", {
-        req: { mode, width: size?.width, height: size?.height, monitor },
+        req: {
+          mode,
+          width: size?.width,
+          height: size?.height,
+          monitor,
+          maxWidthFraction: size?.maxWidthFraction,
+        },
       });
     } catch {
       // 무시.
@@ -38,6 +44,7 @@ export const windowModeTauri: WindowModeService = {
         y: position.y,
         width: size.width,
         height: size.height,
+        maxWidthFraction: size.maxWidthFraction,
       });
     } catch {
       // 무시.

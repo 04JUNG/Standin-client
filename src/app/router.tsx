@@ -1,3 +1,4 @@
+import { BarSearchPage } from "@/features/bar/pages/BarSearchPage";
 import { HandLibraryPage } from "@/features/hand-selection/HandLibraryPage";
 import { SearchPage } from "@/features/semantic-search/SearchPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
@@ -32,7 +33,14 @@ export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
-      {path:"/app/hands",element:<RequireInstallation><HandLibraryPage/></RequireInstallation>},
+      {
+        path: "/app/hands",
+        element: (
+          <RequireInstallation>
+            <HandLibraryPage />
+          </RequireInstallation>
+        ),
+      },
       { path: "/", element: <Navigate to="/app/home" replace /> },
       { path: "/auth/login", element: <Navigate to="/app/home" replace /> },
       { path: "/auth/callback", element: <Navigate to="/app/home" replace /> },
@@ -160,6 +168,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireInstallation>
             <BarActionsPage />
+          </RequireInstallation>
+        ),
+      },
+      {
+        path: "/bar/search",
+        element: (
+          <RequireInstallation>
+            <BarSearchPage />
           </RequireInstallation>
         ),
       },

@@ -8,6 +8,7 @@
 // (docs/11 §3 최소 capability). 자체 command는 permission 대상이 아니다.
 
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use tauri::{
     AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewWindow,
 };
@@ -15,6 +16,10 @@ use tauri::{
 /// 앱 모드의 최소 크기(CLAUDE.md §11 최소 권장 창 크기 960×640).
 const APP_MIN_WIDTH: f64 = 960.0;
 const APP_MIN_HEIGHT: f64 = 640.0;
+
+// Only semantic bar screens opt in. Native move/scale events keep the limit when the
+// user drags the bar to a narrower monitor without changing the React route.
+static BAR_MAX_WIDTH_FRACTION: Mutex<Option<f64>> = Mutex::new(None);
 
 /// 창을 최소화했을 때 프론트에 "바로 접어라"를 알리는 이벤트(ADR-008).
 pub const COLLAPSE_TO_BAR_EVENT: &str = "window://collapse-to-bar";
@@ -71,6 +76,7 @@ pub struct WindowModeRequest {
     height: Option<f64>,
     /// 오버레이 모드에서 덮을 모니터. 캡처한 모니터를 그대로 받는다.
     monitor: Option<MonitorRect>,
+    max_width_fraction: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -121,11 +127,110 @@ fn clamp_into_monitor(window: &WebviewWindow, width: f64, height: f64) {
     }
 }
 
-fn fit_bar_to_work_area(window: &WebviewWindow, width: f64, height: f64) -> (f64, f64) {
-    if let Ok(Some(monitor)) = window.current_monitor() {
-        let area = monitor.work_area().size.to_logical::<f64>(monitor.scale_factor());
-        (width.min(area.width).max(1.0), height.min(area.height).max(1.0))
-    } else { (width, height) }
+fn validated_width_fraction(value: Option<f64>) -> Result<Option<f64>, WindowError> {
+    match value {
+        Some(value) if !value.is_finite() || value <= 0.0 || value > 1.0 => Err(WindowError::new(
+            "INVALID_WIDTH_LIMIT",
+            "창 너비 제한이 올바르지 않습니다.",
+        )),
+        _ => Ok(value),
+    }
+}
+
+fn fit_bar_dimensions(
+    width: f64,
+    height: f64,
+    physical_area: (u32, u32),
+    scale: f64,
+    max_width_fraction: Option<f64>,
+) -> (f64, f64) {
+    let scale = if scale.is_finite() && scale > 0.0 {
+        scale
+    } else {
+        1.0
+    };
+    let area_width = physical_area.0 as f64 / scale;
+    let area_height = physical_area.1 as f64 / scale;
+    // Round down in physical pixels so a fractional DPI cannot round the actual
+    // window one pixel past the requested screen fraction.
+    let width_limit = max_width_fraction
+        .map(|fraction| ((physical_area.0 as f64 * fraction).floor() / scale).max(1.0))
+        .unwrap_or(area_width);
+    (
+        width.min(area_width).min(width_limit).max(1.0),
+        height.min(area_height).max(1.0),
+    )
+}
+
+fn fit_bar_to_work_area(
+    window: &WebviewWindow,
+    width: f64,
+    height: f64,
+    max_width_fraction: Option<f64>,
+) -> (f64, f64) {
+    let current = window.current_monitor().ok().flatten();
+    let monitors = current.map(|monitor| vec![monitor]).or_else(|| {
+        // Some window managers briefly cannot identify a monitor during dragging.
+        // For the restricted semantic bar use the smallest available work area,
+        // which is safe whichever destination monitor eventually owns the window.
+        if max_width_fraction.is_some() {
+            window
+                .available_monitors()
+                .ok()
+                .filter(|monitors| !monitors.is_empty())
+        } else {
+            None
+        }
+    });
+    monitors
+        .map(|monitors| {
+            monitors
+                .into_iter()
+                .map(|monitor| {
+                    let area = monitor.work_area().size;
+                    fit_bar_dimensions(
+                        width,
+                        height,
+                        (area.width, area.height),
+                        monitor.scale_factor(),
+                        max_width_fraction,
+                    )
+                })
+                .fold((width, height), |fitted, next| {
+                    (fitted.0.min(next.0), fitted.1.min(next.1))
+                })
+        })
+        // If the OS supplies no monitor information at all, retain the existing
+        // request and policy; the next native move/DPI event retries the constraint.
+        .unwrap_or((width, height))
+}
+
+/// Called only for native move/DPI events. Rough bars have no policy and remain
+/// unchanged. Do not clamp position here: that would interrupt cross-monitor dragging.
+pub fn enforce_bar_width_for_monitor(window: &tauri::Window) {
+    if window.label() != "main" {
+        return;
+    }
+    let fraction = *BAR_MAX_WIDTH_FRACTION
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let Some(fraction) = fraction else {
+        return;
+    };
+    let Some(webview) = window.app_handle().get_webview_window("main") else {
+        return;
+    };
+    let Ok(size) = webview.inner_size() else {
+        return;
+    };
+    let scale = webview.scale_factor().unwrap_or(1.0);
+    let logical = size.to_logical::<f64>(scale);
+    let (width, height) =
+        fit_bar_to_work_area(&webview, logical.width, logical.height, Some(fraction));
+    if (logical.width - width).abs() > 0.5 / scale || (logical.height - height).abs() > 0.5 / scale
+    {
+        let _ = webview.set_size(LogicalSize::new(width, height));
+    }
 }
 
 /// 창을 지금 있는 모니터 전체에 맞춘다. macOS에서 네이티브 전체화면 대신 쓰는 경로다.
@@ -150,12 +255,21 @@ fn cover_current_monitor(window: &WebviewWindow) {
 #[tauri::command]
 pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), WindowError> {
     let window = main_window(&app)?;
+    let max_width_fraction = validated_width_fraction(req.max_width_fraction)?;
+    // Clear the policy before an app/overlay resize emits native window events.
+    *BAR_MAX_WIDTH_FRACTION
+        .lock()
+        .unwrap_or_else(|error| error.into_inner()) = if req.mode == "bar" {
+        max_width_fraction
+    } else {
+        None
+    };
 
     match req.mode.as_str() {
         "bar" => {
             let width = req.width.unwrap_or(360.0);
             let height = req.height.unwrap_or(64.0);
-            let (width, height) = fit_bar_to_work_area(&window, width, height);
+            let (width, height) = fit_bar_to_work_area(&window, width, height, max_width_fraction);
 
             // 최대화 상태에서는 Windows가 set_size를 무시한다. 해제가 먼저다(실측).
             let _ = window.unmaximize();
@@ -198,8 +312,8 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
                 #[cfg(target_os = "macos")]
                 {
                     let _ = window.set_position(LogicalPosition::new(rect.x as f64, rect.y as f64));
-                    let _ = window
-                        .set_size(LogicalSize::new(rect.width as f64, rect.height as f64));
+                    let _ =
+                        window.set_size(LogicalSize::new(rect.width as f64, rect.height as f64));
                 }
                 #[cfg(not(target_os = "macos"))]
                 {
@@ -295,14 +409,72 @@ pub fn set_window_position(
     y: f64,
     width: f64,
     height: f64,
+    max_width_fraction: Option<f64>,
 ) -> Result<(), WindowError> {
+    let max_width_fraction = validated_width_fraction(max_width_fraction)?;
     let window = main_window(&app)?;
+    *BAR_MAX_WIDTH_FRACTION
+        .lock()
+        .unwrap_or_else(|error| error.into_inner()) = max_width_fraction;
     window
         .set_position(LogicalPosition::new(x, y))
         .map_err(|e| WindowError::new("POSITION_FAILED", e.to_string()))?;
-    let (width, height) = fit_bar_to_work_area(&window, width, height);
-    window.set_size(LogicalSize::new(width, height))
+    let (width, height) = fit_bar_to_work_area(&window, width, height, max_width_fraction);
+    window
+        .set_size(LogicalSize::new(width, height))
         .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
     clamp_into_monitor(&window, width, height);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn semantic_bar_stays_below_half_on_common_screens() {
+        for screen in [1280, 1440, 1920] {
+            let (width, _) = fit_bar_dimensions(720.0, 560.0, (screen, 1080), 1.0, Some(0.49));
+            assert!(width < screen as f64 * 0.5);
+            assert!(width <= screen as f64 * 0.49);
+        }
+    }
+
+    #[test]
+    fn width_limit_uses_logical_size_at_retina_and_fractional_dpi() {
+        for scale in [1.25, 1.5, 2.0] {
+            let (width, _) = fit_bar_dimensions(720.0, 560.0, (1920, 1080), scale, Some(0.49));
+            assert!(width <= (1920.0 / scale) * 0.49);
+            assert!(width * scale <= (1920.0_f64 * 0.49).floor());
+        }
+    }
+
+    #[test]
+    fn narrow_work_area_and_short_screen_keep_bar_inside_screen() {
+        assert_eq!(
+            fit_bar_dimensions(720.0, 760.0, (800, 600), 1.0, Some(0.49)),
+            (392.0, 600.0)
+        );
+        assert_eq!(
+            fit_bar_dimensions(720.0, 760.0, (640, 480), 2.0, Some(0.49)),
+            (156.5, 240.0)
+        );
+    }
+
+    #[test]
+    fn rough_bar_has_no_fraction_limit() {
+        assert_eq!(
+            fit_bar_dimensions(720.0, 560.0, (1280, 1080), 1.0, None),
+            (720.0, 560.0)
+        );
+    }
+
+    #[test]
+    fn malformed_width_limits_are_rejected() {
+        for fraction in [0.0, -0.5, 1.1, f64::NAN, f64::INFINITY] {
+            assert!(validated_width_fraction(Some(fraction)).is_err());
+        }
+        assert_eq!(validated_width_fraction(None).ok(), Some(None));
+        assert_eq!(validated_width_fraction(Some(0.49)).ok(), Some(Some(0.49)));
+    }
 }

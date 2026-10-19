@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { APP_MIN_SIZE, APP_SIZE, BAR_SIZES, barStateForPath, windowTargetForPath } from "./barSizes";
+import {
+  APP_MIN_SIZE,
+  APP_SIZE,
+  BAR_SIZES,
+  barStateForPath,
+  windowTargetForPath,
+} from "./barSizes";
 
 describe("barStateForPath", () => {
   it("바 라우트를 하위 상태로 매핑한다", () => {
     expect(barStateForPath("/bar")).toBe("collapsed");
     expect(barStateForPath("/bar/actions")).toBe("actions");
+    expect(barStateForPath("/bar/search")).toBe("search");
     expect(barStateForPath("/bar/progress")).toBe("progress");
     expect(barStateForPath("/bar/candidates")).toBe("candidates");
     expect(barStateForPath("/bar/save")).toBe("save");
@@ -19,6 +26,7 @@ describe("barStateForPath", () => {
 
 describe("windowTargetForPath", () => {
   it("바 라우트는 bar 모드", () => {
+    expect(windowTargetForPath("/bar/search").mode).toBe("bar");
     expect(windowTargetForPath("/bar")).toEqual({ mode: "bar", size: BAR_SIZES.collapsed });
     expect(windowTargetForPath("/bar/candidates")).toEqual({
       mode: "bar",

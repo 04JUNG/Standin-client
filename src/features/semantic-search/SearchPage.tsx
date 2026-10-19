@@ -1,3 +1,4 @@
+import { initialSearchQuery } from "./searchDraft";
 import { useLocation } from "react-router-dom";
 import { Loader2, Search } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
@@ -13,14 +14,7 @@ const EXAMPLES = [
 ];
 export function SearchPage() {
   const location = useLocation();
-  const initial: unknown = location.state;
-  const initialQuery =
-    initial &&
-    typeof initial === "object" &&
-    "query" in initial &&
-    typeof initial.query === "string"
-      ? initial.query.slice(0, 500)
-      : "";
+  const initialQuery = initialSearchQuery(location.state);
   const { query, edit, submit, pending, noResult, availability, search, setComposing, ready } =
     useSemanticSearch(initialQuery);
   return (
