@@ -55,6 +55,13 @@ export function PoseCandidateCard({
   const pending = !imageUrl && preview.isPending;
   const failed = !imageUrl && preview.isError;
   void bodyPreview;
+  const provenance =
+    preview.data?.method === "reference-skinning-v1"
+      ? "기본 체형 · 근사 포즈"
+      : preview.data?.kind === "default-body"
+        ? "기본 체형"
+        : "관절 기반";
+  const caption = `${provenance} · 정면 ${SCOPE_LABELS[candidate.posterScope ?? "full"]} 참고`;
   return (
     <button
       data-pose-candidate
@@ -105,9 +112,11 @@ export function PoseCandidateCard({
           )}
         </div>
       )}
-      <span className="px-2 text-[11px] text-text-secondary">
-        {preview.data?.kind === "default-body" ? "기본 체형" : "관절 기반"} · 정면{" "}
-        {SCOPE_LABELS[candidate.posterScope ?? "full"]} 참고
+      <span
+        title={caption}
+        className="truncate whitespace-nowrap px-2 text-[11px] text-text-secondary"
+      >
+        {caption}
       </span>
       <span className="px-2 text-[10px] text-text-secondary">선택 체형·손·검색 시점 미적용</span>
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
