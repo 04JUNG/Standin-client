@@ -1,0 +1,15 @@
+# Default pose cards and explicit body detail
+
+Rough Top-5, text-search 20/5 pagination, app/bar, reopened history, library/mirror and presentation cards show independent canonical pose references. They do not automatically request Converter PNG/GLB work when mounted or when body/shape changes. A slow fifth card does not delay four ready cards. Manual output scope is part of poster identity and scope changes discard late old images.
+
+Verified default mesh posters are labeled 기본 체형, 정면 and their anatomical scope. A joint/BVH fallback is labeled 관절 기반; selected body, hands and search camera are explicitly unapplied. Source, PNG, approved model identity, scope and renderer metadata are checked before display. A mismatched provenance response never starts expensive conversion. Actual mirrored BVH assets are used; cards are not CSS-reflected.
+
+Body selection resolves independently of a whole grid's rendering. “선택 체형으로 이 포즈만 보기” starts only that candidate's detail. PNG and GLB detail share one optional request slot; queued work is removed on cancellation. Body/shape/camera/source/scope are included in detail identity. Closing cancels it; preempted/failed detail leaves default cards usable and only explicit retry restarts it.
+
+BVH save review lazily loads only the selected original candidate's canonical reference, with an explicit note that the BVH saves all joints. A refined outcome never substitutes the unrefined reference. FBX save review continues to require the actual selected-body/hands/scoped paired artifact and all existing permissions. App and bar share those review hooks. Search reference images grant no additional match, refine or export authority.
+
+Dependencies: matching BFF poster URLs/CORS/proxy, inference poster API, and an offline complete five-scope default-body mesh library. Old assets are explicit pose-only references; this PR does not claim a production library bake. The BFF protected final-export route additionally requires server PR #108. No merge/deploy is performed here.
+
+Validation covers independent card readiness, zero automatic rendering after body changes, five images despite pending/preempted optional detail, text pagination, actual-mirror association, scope/camera races, opt-in one-candidate rendering and cancellation, legacy/history/body-mode BVH review, refined preview integrity, and existing final review/export behavior. A separate local browser fixture uses the real ten public-library PNGs; it is not staging/native E2E.
+
+Local browser check (real two-pose/five-scope PNG fixture): first image 86 ms, all five 849 ms with an injected 800 ms fifth-response delay. Body change kept five poster requests and zero optional requests. Explicit detail produced one request; simulated preemption retained all five images. These fixture timings are not deployed request latency.

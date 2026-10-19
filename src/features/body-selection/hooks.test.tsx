@@ -111,7 +111,7 @@ describe("server body groups", () => {
         });
       return m.outputScope + ":" + m.resolvedBody.characterId + ":" + c.candidateId;
     });
-    const h = renderHook(({ data }) => useBodies(data), {
+    const h = renderHook(({ data }) => useBodies(data, {}, true), {
       wrapper,
       initialProps: { data: withScope("half") },
     });
@@ -142,7 +142,7 @@ describe("server body groups", () => {
   });
   it("does not select a pose, uses real person IDs and actual candidate count", async () => {
     const { wrapper } = setup();
-    const h = renderHook(() => useBodies(result), { wrapper });
+    const h = renderHook(() => useBodies(result, {}, true), { wrapper });
     await waitFor(() => expect(h.result.current.ready).toBe(true));
     expect(h.result.current.entries[0]?.group?.images).toEqual({ p1: "a:p1", p2: "a:p2" });
     expect(h.result.current.entries[1]?.selection?.personIndex).toBe(1);
@@ -151,7 +151,7 @@ describe("server body groups", () => {
   it("publishes all images atomically and ignores a late cancelled body render", async () => {
     const { wrapper, qc } = setup();
     let finish!: () => void;
-    const h = renderHook(() => useBodies(result), { wrapper });
+    const h = renderHook(() => useBodies(result, {}, true), { wrapper });
     await waitFor(() => expect(h.result.current.ready).toBe(true));
     api.renderBodyCandidate.mockImplementation(async (m, c) => {
       if (m.resolvedBody.characterId === "b" && c.candidateId === "p2")
@@ -172,7 +172,7 @@ describe("server body groups", () => {
   });
   it("partial render failure prevents continuing and never exposes the old body image", async () => {
     const { wrapper, qc } = setup();
-    const h = renderHook(() => useBodies(result), { wrapper });
+    const h = renderHook(() => useBodies(result, {}, true), { wrapper });
     await waitFor(() => expect(h.result.current.ready).toBe(true));
     api.renderBodyCandidate.mockRejectedValue(new Error("offline"));
     act(() => qc.setQueryData(bodyKeys.selection("owner", "server-job", 0), selection(1, "b")));
@@ -183,7 +183,7 @@ describe("server body groups", () => {
   it("retry recovers a failed initial selection without rendering an undefined body", async () => {
     const { wrapper } = setup();
     api.getSelection.mockRejectedValue(new Error("offline"));
-    const h = renderHook(() => useBodies(result), { wrapper });
+    const h = renderHook(() => useBodies(result, {}, true), { wrapper });
     await waitFor(() => expect(h.result.current.entries[0]?.error).toBeTruthy());
     expect(api.getManifest).not.toHaveBeenCalled();
     api.getSelection.mockImplementation(async (_job, index) => selection(2, "b", index));
@@ -231,8 +231,23 @@ describe("server body groups", () => {
     const { wrapper, qc } = setup();
     qc.setQueryData(bodyKeys.selection("other", "server-job", 0), selection());
     useInstallationStore.setState({ credentials: null });
-    const h = renderHook(() => useBodies(result), { wrapper });
+    const h = renderHook(() => useBodies(result, {}, true), { wrapper });
     expect(h.result.current.ready).toBe(false);
     expect(h.result.current.entries[0]?.selection).toBeUndefined();
   });
+});
+
+it("default Top-5 and body changes never request selected-body manifests or renders", async () => {
+  const { wrapper, qc } = setup();
+  const h = renderHook(() => useBodies(result), { wrapper });
+  await waitFor(() => expect(h.result.current.ready).toBe(true));
+  expect(api.getManifest).not.toHaveBeenCalled();
+  expect(api.renderBodyCandidate).not.toHaveBeenCalled();
+  act(() => qc.setQueryData(bodyKeys.selection("owner", "server-job", 0), selection(1, "b")));
+  await waitFor(() => expect(h.result.current.entries[0]?.selection?.selectionRevision).toBe(1));
+  expect(h.result.current.entries[0]?.group).toBeUndefined();
+  expect(api.getManifest).not.toHaveBeenCalled();
+  expect(api.renderBodyCandidate).not.toHaveBeenCalled();
+  h.unmount();
+  qc.clear();
 });

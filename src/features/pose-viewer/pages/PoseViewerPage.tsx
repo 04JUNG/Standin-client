@@ -540,6 +540,7 @@ function ActivePersonCard({
                 >
                   {bodiesEnabled ? (
                     <BodyCandidateCards
+                      job={jobId}
                       person={person}
                       entry={entry}
                       selected={selectedId}

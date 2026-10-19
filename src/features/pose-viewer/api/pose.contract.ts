@@ -17,6 +17,8 @@ export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
   tags: string[];
   matchLevel: MatchLevel;
   thumbnailUrl: string;
+  posterUrl?: string;
+  posterScope?: import("./outputScope").BodyScope;
   /** Job-owned render URL, loaded independently of analysis completion. */
   deferredThumbnailUrl?: string;
   /** Already rendered library JPEG; its view may only approximate the camera. */
