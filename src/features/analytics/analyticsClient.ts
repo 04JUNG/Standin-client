@@ -48,10 +48,13 @@ const DEFAULT_BACKOFF_SECONDS = 60;
 let inflight: Promise<void> | null = null;
 let queueGeneration = 0;
 let qualityConsentId: string | null = null;
+let consentNotBeforeMs = 0;
 
-export function setAnalyticsConsent(consentId: string | null): void {
+export function setAnalyticsConsent(consentId: string | null, grantedAt?: string | null): void {
   if (qualityConsentId !== consentId || !consentId) resetAnalyticsQueue();
   qualityConsentId = consentId;
+  const grantedAtMs = grantedAt ? Date.parse(grantedAt) : 0;
+  consentNotBeforeMs = consentId && Number.isFinite(grantedAtMs) ? grantedAtMs : 0;
 }
 
 function readQueue(): QueuedEvent[] {
@@ -130,7 +133,9 @@ export function trackEvent(
     eventId: `evt_${crypto.randomUUID()}`,
     sequence: nextSequence(),
     name,
-    occurredAt: new Date().toISOString(),
+    // A slightly slow device clock must not date a newly collected event before its server grant.
+    // Existing queued events are never retimestamped or moved to another consent ID.
+    occurredAt: new Date(Math.max(Date.now(), consentNotBeforeMs)).toISOString(),
     jobId,
     properties,
   });

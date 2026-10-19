@@ -99,6 +99,28 @@ describe("analyticsClient", () => {
     expect(body.events[0].qualityConsentId).toBe("new-consent");
   });
 
+  it("느린 PC 시계로 동의 직후 이벤트가 동의 이전으로 기록되지 않는다", async () => {
+    const grant = "2026-10-19T09:00:00.500Z";
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse(grant) - 350);
+    try {
+      setAnalyticsConsent("server-grant", grant);
+      fetchMock.mockResolvedValue(accepted());
+      trackEvent("app_started", {});
+      await flushEvents();
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body as string).events[0].occurredAt).toBe(
+        grant,
+      );
+      clock.mockReturnValue(Date.parse(grant) + 1000);
+      trackEvent("input_confirmed", { source: "file" });
+      await flushEvents();
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).events[0].occurredAt).toBe(
+        "2026-10-19T09:00:01.500Z",
+      );
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("전송 중에 쌓인 이벤트를 덮어쓰지 않는다", async () => {
     const first = deferred<Response>();
     fetchMock

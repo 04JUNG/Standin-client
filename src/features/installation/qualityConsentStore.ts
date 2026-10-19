@@ -45,7 +45,10 @@ export const useQualityConsentStore = create<State>((set, get) => ({
   error: null,
   accept(value) {
     const consent = qualityConsentSchema.parse(value);
-    setAnalyticsConsent(consent.personalData && consent.contentLicense ? consent.consentId : null);
+    setAnalyticsConsent(
+      consent.personalData && consent.contentLicense ? consent.consentId : null,
+      consent.grantedAt,
+    );
     set({ consent, loaded: true, pendingChoices: null, error: null });
   },
   reset() {
