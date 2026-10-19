@@ -251,10 +251,10 @@ export function PoseViewerPage() {
   const pick = (index: number) => setActiveIndex(index);
   const progressText =
     includedPeople.length === 0
-      ? "선택한 인물이 없어요 · 한 명 이상 선택해 주세요"
+      ? "내보낼 인물이 없어요 · 한 명 이상 포함해 주세요"
       : pendingPeople.length > 0
-        ? `포즈 안 고른 인물 ${pendingPeople.map((p) => p.index + 1).join(", ")} · 필요 없으면 선택을 끄세요`
-        : `선택한 인물 ${includedPeople.length}명 모두 골랐어요`;
+        ? `포즈 안 고른 인물 ${pendingPeople.map((p) => p.index + 1).join(", ")} · 저장하지 않으려면 내보내기에서 제외하세요`
+        : `내보낼 인물 ${includedPeople.length}명의 포즈를 모두 골랐어요`;
   const activeNeedsPick =
     !!active &&
     active.fallbackMode !== "hard" &&
@@ -302,12 +302,11 @@ export function PoseViewerPage() {
               원본 · 인물 {people.length}명을 찾았어요
             </span>
             <p className="text-[12.5px] text-text-secondary">
-              상자나 아래 인물 줄을 누르면 그 인물의 후보로 넘어가요. 필요 없는 인물은{" "}
-              <b className="text-text-primary">선택</b>을 끄면 포즈를 고르지 않아도 진행할 수
-              있어요.
+              상자나 아래 인물 줄을 누르면 후보를 볼 수 있어요. 저장하지 않을 인물은{" "}
+              <b className="text-text-primary">내보내기 포함</b>을 꺼주세요.
             </p>
             <p className="text-[12.5px] text-text-secondary">
-              선택한 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈 고름{" "}
+              내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈 고름{" "}
               <b className="text-text-primary">{selectedCount}</b>
             </p>
           </div>
@@ -504,7 +503,7 @@ function ActivePersonCard({
               : hard
                 ? "후보 없음"
                 : !included
-                  ? "선택 안 함"
+                  ? "내보내기 제외"
                   : selectedCandidate
                     ? `선택됨: ${selectedCandidate.title}`
                     : "후보를 선택하세요"}
@@ -636,7 +635,7 @@ function OtherPersonRow({
         }
       }}
       className={cn(
-        "group -mx-2 grid cursor-pointer grid-cols-[72px_36px_minmax(0,1.2fr)_minmax(0,1fr)_16px] items-center gap-3 rounded-lg px-2 py-1.5",
+        "group -mx-2 grid cursor-pointer grid-cols-[128px_36px_minmax(0,1.2fr)_minmax(0,1fr)_16px] items-center gap-3 rounded-lg px-2 py-1.5",
         "transition-colors duration-150 hover:bg-surface-1 active:bg-surface-2",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
         !first && "border-t border-surface-2 hover:border-transparent",
@@ -670,7 +669,7 @@ function OtherPersonRow({
           : hard
             ? "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
             : !included
-              ? "선택 안 함"
+              ? "내보내기 제외"
               : selectedTitle
                 ? `고름: ${selectedTitle}`
                 : "포즈를 아직 안 골랐어요"}

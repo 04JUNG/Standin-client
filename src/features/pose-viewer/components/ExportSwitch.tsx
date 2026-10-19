@@ -1,7 +1,7 @@
 import { cn } from "@/shared/lib/cn";
 
 /**
- * 이 인물을 선택할지(내보낼지). 끄면 포즈를 고르지 않아도 진행할 수 있고, 확인·저장 화면에도
+ * 이 인물을 내보내기에 포함할지. 끄면 포즈를 고르지 않아도 진행할 수 있고, 확인·저장 화면에도
  * 나오지 않는다. 한 명 이상은 켜져 있어야 진행된다(버튼 상태로 알린다).
  */
 export function ExportSwitch({
@@ -20,7 +20,8 @@ export function ExportSwitch({
       type="button"
       role="switch"
       aria-checked={included}
-      aria-label={`인물 ${personIndex + 1} 선택`}
+      aria-label={`인물 ${personIndex + 1} 내보내기에 포함`}
+      title={included ? "끄면 이 인물은 저장하지 않아요" : "켜면 이 인물도 저장해요"}
       onClick={(e) => {
         // 접힌 인물 줄은 줄 전체가 버튼이다. 스위치를 눌렀을 때 줄이 펼쳐지지 않게 한다.
         e.stopPropagation();
@@ -48,7 +49,7 @@ export function ExportSwitch({
           )}
         />
       </span>
-      선택
+      {included ? "내보내기 포함" : "내보내기 제외"}
     </button>
   );
 }
@@ -60,17 +61,17 @@ export function ExcludedOverlay({ onInclude, compact }: { onInclude(): void; com
       <p
         className={cn("font-semibold text-text-primary", compact ? "text-[12.5px]" : "text-[14px]")}
       >
-        선택하지 않은 인물이에요
+        내보내기에서 제외한 인물이에요
       </p>
       <p className="text-[11.5px] text-text-secondary">
-        포즈를 고르지 않아도 다음으로 넘어갈 수 있어요
+        이 인물은 저장하지 않아요. 포즈를 고르지 않아도 돼요.
       </p>
       <button
         type="button"
         onClick={onInclude}
         className="h-7 rounded-md border border-border bg-surface-0 px-3 text-[12px] font-semibold text-text-primary hover:border-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
       >
-        다시 선택
+        내보내기에 포함
       </button>
     </div>
   );
