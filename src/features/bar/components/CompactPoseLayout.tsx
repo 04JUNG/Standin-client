@@ -8,7 +8,10 @@ import { CompactPoseContext } from "./compactPoseContext";
 export function CompactPoseLayout({ children }: { children: ReactNode }) {
   return (
     <CompactPoseContext.Provider value={true}>
-      <div className="compact-pose-layout">{children}</div>
+      <div className="compact-pose-layout">
+        <p className="compact-pose-reference-note">정면 참고 · 선택 체형·손·검색 시점 미적용</p>
+        {children}
+      </div>
     </CompactPoseContext.Provider>
   );
 }

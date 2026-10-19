@@ -47,7 +47,9 @@ export function DefaultPoseImage({
         {q.data?.kind === "default-body" ? "기본 체형" : "관절 기반"} · 정면 {SCOPE_LABELS[scope]}{" "}
         참고
       </p>
-      <p className="text-[11px] text-text-secondary">선택 체형·손·검색 시점 미적용</p>
+      {!inFloatingBar && (
+        <p className="text-[11px] text-text-secondary">선택 체형·손·검색 시점 미적용</p>
+      )}
     </div>
   );
 }

@@ -84,3 +84,44 @@
   padding-top: 4px;
   padding-bottom: 4px;
 }
+
+.compact-pose-reference-note {
+  display: none;
+  padding: 2px 8px;
+  font-size: 10px;
+  line-height: 12px;
+  color: var(--text-secondary);
+}
+
+.compact-pose-layout:has(
+    [data-presentation-candidate],
+    [data-semantic-model],
+    [data-pose-candidate]
+  )
+  > .compact-pose-reference-note {
+  display: block;
+}
+
+.compact-pose-layout:has(
+    [data-presentation-candidate],
+    [data-semantic-model],
+    [data-pose-candidate]
+  )
+  > .flex {
+  height: calc(100vh - 108px);
+}
+
+.compact-pose-layout [data-pose-reference-note] {
+  display: none;
+}
+
+.compact-pose-layout [data-pose-candidate] > div:last-child {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compact-pose-layout [data-pose-candidate] > span:first-of-type {
+  padding-left: 2px;
+  padding-right: 2px;
+}

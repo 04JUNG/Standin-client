@@ -7,6 +7,7 @@ import { DefaultPoseImage } from "@/features/pose-viewer/components/DefaultPoseI
 import type { PreviewCandidate } from "@/features/pose-viewer/api/posePresentation";
 import { posterResponse, POSTER_SOURCE } from "@/test/posePosterFixture";
 import { MemoryRouter, useLocation } from "react-router-dom";
+import { SinglePoseDetail } from "@/features/body-selection/SinglePoseDetail";
 import { BarShell } from "./BarShell";
 import { CompactPoseLayout } from "./CompactPoseLayout";
 
@@ -101,4 +102,18 @@ it("Escape from an enlarged bar poster preserves the candidate route and focus",
   expect(screen.getByTestId("route")).toHaveTextContent("/bar/candidates");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(enlarge).toHaveFocus();
+});
+
+it("compact detail keeps unavailable body rendering disabled and shows one shared reference notice", () => {
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <CompactPoseLayout>
+        <SinglePoseDetail job="fixture-job" candidateId="candidate" />
+      </CompactPoseLayout>
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("button", { name: "선택 체형으로 이 포즈만 보기" })).toBeDisabled();
+  expect(screen.getByText("선택 체형 상세")).toBeInTheDocument();
+  expect(screen.getByText("정면 참고 · 선택 체형·손·검색 시점 미적용")).toBeInTheDocument();
+  expect(apiFetchResponse).not.toHaveBeenCalled();
 });
