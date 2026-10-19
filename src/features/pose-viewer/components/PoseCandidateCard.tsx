@@ -118,7 +118,9 @@ export function PoseCandidateCard({
       >
         {caption}
       </span>
-      <span className="px-2 text-[10px] text-text-secondary">선택 체형·손·검색 시점 미적용</span>
+      <span data-pose-reference-note className="px-2 text-[10px] text-text-secondary">
+        선택 체형·손·검색 시점 미적용
+      </span>
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
         <div className="flex items-center justify-between">
           <span

@@ -1,3 +1,4 @@
+import { useCompactPoseLayout } from "@/features/bar/components/compactPoseContext";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/shared/components/Modal";
@@ -24,6 +25,7 @@ export function SinglePoseDetail({
   scope?: string | null;
   sourceIdentity?: unknown;
 }) {
+  const compact = useCompactPoseLayout();
   const [open, setOpen] = useState(false);
   const owner = useBodyOwner(),
     qc = useQueryClient();
@@ -60,11 +62,12 @@ export function SinglePoseDetail({
     <>
       <button
         type="button"
-        className="mt-2 text-xs underline"
+        className={compact ? "mt-0.5 text-[11px] leading-4 underline" : "mt-2 text-xs underline"}
+        aria-label="선택 체형으로 이 포즈만 보기"
         disabled={!selection || selection.resolutionStatus !== "ready"}
         onClick={() => setOpen(true)}
       >
-        선택 체형으로 이 포즈만 보기
+        {compact ? "선택 체형 상세" : "선택 체형으로 이 포즈만 보기"}
       </button>
       <Modal
         open={open}

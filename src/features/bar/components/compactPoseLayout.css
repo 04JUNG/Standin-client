@@ -1,0 +1,152 @@
+.compact-pose-layout {
+  min-width: 0;
+  height: 100%;
+  container-type: inline-size;
+}
+
+.compact-pose-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: start;
+  gap: 6px;
+}
+
+.compact-pose-grid > * {
+  min-width: 0;
+}
+
+.compact-pose-image {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 4px;
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.compact-pose-image img {
+  width: 100%;
+  height: 112px;
+  object-fit: contain;
+}
+
+.compact-pose-image span {
+  font-size: 10px;
+  line-height: 16px;
+  text-decoration: underline;
+  color: var(--text-secondary);
+}
+
+.compact-pose-image:hover,
+.compact-pose-image:focus-visible {
+  outline: 2px solid var(--brand-sky);
+  outline-offset: 1px;
+}
+
+/* Both built-in presentation rows and semantic custom cards use this scoped grid.
+   Normal 3+2 cards and desktop pages are outside this selector. */
+.compact-pose-layout section:has([data-presentation-candidate], [data-semantic-model]) .grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  align-items: start;
+}
+
+.compact-pose-layout [data-presentation-candidate],
+.compact-pose-layout [data-semantic-model] {
+  min-width: 0;
+  padding: 6px;
+}
+
+@container (max-width: 560px) {
+  .compact-pose-layout section:has([data-presentation-candidate], [data-semantic-model]) .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Empty groups have no poses to compare and must not add a scroll-only tail. */
+.compact-pose-layout
+  section:has([data-presentation-candidate], [data-semantic-model])
+  > div:has(> h3):not(:has(.grid)) {
+  display: none;
+}
+
+/* Preserve both provenance lines while avoiding a third wrapped caption line
+   that steals the image area in the existing normal 3+2 cards. */
+.compact-pose-layout [data-pose-candidate] > span {
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.compact-pose-layout [data-pose-candidate] > div:last-child {
+  gap: 2px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.compact-pose-reference-note {
+  display: none;
+  padding: 2px 8px;
+  font-size: 10px;
+  line-height: 12px;
+  color: var(--text-secondary);
+}
+
+.compact-pose-layout:has(
+    [data-presentation-candidate],
+    [data-semantic-model],
+    [data-pose-candidate]
+  )
+  > .compact-pose-reference-note {
+  display: block;
+}
+
+.compact-pose-layout:has(
+    [data-presentation-candidate],
+    [data-semantic-model],
+    [data-pose-candidate]
+  )
+  > .flex {
+  height: calc(100vh - 108px);
+}
+
+.compact-pose-layout [data-pose-reference-note] {
+  display: none;
+}
+
+.compact-pose-layout [data-pose-candidate] > div:last-child {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compact-pose-layout [data-pose-candidate] > span:first-of-type {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+@container (max-width: 680px) {
+  .compact-pose-layout > .p-3 {
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .compact-pose-layout > .p-3 > p {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .compact-pose-layout > .p-3 > button {
+    height: 32px;
+    flex-shrink: 0;
+  }
+
+  /* Selected text may wrap, but must not grow the row after a user picks it. */
+  .compact-pose-layout [data-presentation-candidate] > button[aria-pressed] {
+    height: 32px;
+    padding: 3px 2px;
+    font-size: 11px;
+    line-height: 12px;
+  }
+}
