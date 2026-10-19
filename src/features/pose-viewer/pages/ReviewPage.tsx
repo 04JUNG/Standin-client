@@ -79,6 +79,11 @@ export function ReviewPage() {
                     <span className="truncate text-[12px] text-text-secondary">
                       {item.candidate.title}
                     </span>
+                    {item.candidate.manualExportAllowed && (
+                      <p className="text-[11px] text-text-secondary">
+                        직접 선택한 포즈 · 러프에 맞춘 자동 보정 없음
+                      </p>
+                    )}
                     {item.previewReference && (
                       <p className="px-2 text-[10px] text-text-secondary">
                         포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장

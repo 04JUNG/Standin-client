@@ -1,8 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { createHash, webcrypto } from "node:crypto";
+import { reviewedExportUrl, framedExportUrl } from "@/features/export/lib/framedExport";
 import type { ReactNode } from "react";
-const { state, fetchBlob } = vi.hoisted(() => ({
+const { state, fetchBlob, fetchResponse } = vi.hoisted(() => ({
   state: {
     enabled: true,
     refining: false,
@@ -14,10 +16,15 @@ const { state, fetchBlob } = vi.hoisted(() => ({
     refined: false,
     webgl: true,
     serverBase: false,
+    manual: false,
   },
   fetchBlob: vi.fn(),
+  fetchResponse: vi.fn(),
 }));
-vi.mock("@/shared/api/client", () => ({ apiFetchBlob: fetchBlob }));
+vi.mock("@/shared/api/client", () => ({
+  apiFetchBlob: fetchBlob,
+  apiFetchResponse: fetchResponse,
+}));
 vi.mock("../preview/modelContract", () => ({
   validateModel: vi.fn((_data, _source, _character, _scope, version = "posed-mesh-v1") => {
     if ((version === "posed-mesh-v1") !== state.serverBase) throw new Error("model version");
@@ -57,6 +64,8 @@ vi.mock("./useSelectionReview", () => ({
         personIndex: 0,
         candidate: {
           id: "p",
+          sourceBvhSha256: "a".repeat(64),
+          manualExportAllowed: state.manual,
           previewModel: state.base
             ? {
                 url: "/base-model",
@@ -101,6 +110,7 @@ function mount() {
     ),
   });
 }
+afterEach(() => vi.unstubAllGlobals());
 describe("framed review", () => {
   beforeEach(() => {
     Object.assign(state, {
@@ -114,6 +124,7 @@ describe("framed review", () => {
       refined: false,
       webgl: true,
       serverBase: false,
+      manual: false,
     });
     fetchBlob.mockReset();
     fetchBlob.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
@@ -235,4 +246,78 @@ describe("framed review", () => {
     expect(fetchBlob).not.toHaveBeenCalled();
     expect(result.current.previewLoading).toBe(false);
   });
+});
+
+describe("manual selected asset review", () => {
+  beforeEach(() => {
+    Object.assign(state, {
+      enabled: true,
+      refining: false,
+      scope: "half",
+      format: "fbx",
+      catalogError: false,
+      model: false,
+      base: false,
+      refined: false,
+      webgl: true,
+      serverBase: false,
+      manual: true,
+    });
+    fetchResponse.mockReset();
+  });
+  it("manual final preview verifies source and bytes, and pins its reviewed paired FBX", async () => {
+    state.manual = true;
+    vi.stubGlobal("crypto", webcrypto);
+    const bytes = new TextEncoder().encode("png");
+    const blob = new Blob([bytes], { type: "image/png" });
+    Object.defineProperty(blob, "arrayBuffer", { value: async () => bytes.buffer });
+    fetchResponse.mockResolvedValue({
+      headers: new Headers({
+        "X-Standin-Review-Key": "d".repeat(64),
+        "X-Standin-Artifact-SHA256": "e".repeat(64),
+        "X-Standin-Preview-Artifact-SHA256": createHash("sha256").update(bytes).digest("hex"),
+        "X-Standin-Character-SHA256": "b".repeat(64),
+        "X-Standin-Source-BVH-SHA256": "a".repeat(64),
+      }),
+      blob: async () => blob,
+    });
+    const { result } = mount();
+    await waitFor(() => expect(result.current.items[0]?.previewUrl).toMatch(/^data:image\/png/));
+    expect(result.current.previewError).toBe(false);
+    const key =
+      framedExportUrl(
+        "/v1/pose-candidates/p/export?jobId=j&personIndex=0&candidateId=p",
+        "half",
+        "fbx",
+        null,
+      ) + "#false";
+    await waitFor(() =>
+      expect(reviewedExportUrl("/framed?format=fbx", key)).toContain("reviewKey=" + "d".repeat(64)),
+    );
+  });
+
+  it.each(["source", "bytes", "missing-receipt"])(
+    "manual final preview rejects %s mismatch without showing a stale poster",
+    async (failure) => {
+      state.manual = true;
+      vi.stubGlobal("crypto", webcrypto);
+      const bytes = new TextEncoder().encode("png");
+      const blob = new Blob([bytes], { type: "image/png" });
+      Object.defineProperty(blob, "arrayBuffer", { value: async () => bytes.buffer });
+      fetchResponse.mockResolvedValue({
+        headers: new Headers({
+          "X-Standin-Review-Key": failure === "missing-receipt" ? "" : "d".repeat(64),
+          "X-Standin-Artifact-SHA256": "e".repeat(64),
+          "X-Standin-Preview-Artifact-SHA256":
+            failure === "bytes" ? "f".repeat(64) : createHash("sha256").update(bytes).digest("hex"),
+          "X-Standin-Character-SHA256": "b".repeat(64),
+          "X-Standin-Source-BVH-SHA256": (failure === "source" ? "c" : "a").repeat(64),
+        }),
+        blob: async () => blob,
+      });
+      const { result } = mount();
+      await waitFor(() => expect(result.current.previewError).toBe(true));
+      expect(result.current.items[0]?.previewUrl).toBe("");
+    },
+  );
 });

@@ -1,3 +1,4 @@
+import { verifyDigest } from "@/features/body-selection/api";
 import { canRelease } from "@/features/pose-viewer/api/routedSearch";
 import { handKeys, downloadHandReview, type HandReview } from "@/features/hand-selection/api";
 import type { HandSelection } from "@/features/hand-selection/contract";
@@ -5,7 +6,12 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import { bodyKeys } from "@/features/body-selection/api";
 import { downloadBodyReview, type BodyReview } from "@/features/body-selection/review";
 import type { BodySelection } from "@/features/body-selection/contract";
-import { framedExportUrl, reviewedModelFormat, reviewedExportUrl } from "../lib/framedExport";
+import {
+  framedExportUrl,
+  reviewedModelFormat,
+  reviewedExportUrl,
+  reviewedArtifactSha,
+} from "../lib/framedExport";
 import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -83,7 +89,17 @@ async function resolvePoseBytes(
             framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`,
           )
         : url;
-    return await apiFetchBytes(pinnedUrl, { auth: false });
+    const bytes = await apiFetchBytes(pinnedUrl, { auth: false });
+    const digest =
+      scope && format === "fbx"
+        ? reviewedArtifactSha(framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`)
+        : undefined;
+    if (digest)
+      await verifyDigest(
+        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+        digest,
+      );
+    return bytes;
   } catch (error) {
     // 격리된 포즈, converter 거부, lineage 불일치는 모두 **재시도로 풀리지 않는다.** 일반
     // 실패로 뭉치면 사용자는 영원히 실패하는 재시도 버튼만 누르게 된다. 코드별 문구는

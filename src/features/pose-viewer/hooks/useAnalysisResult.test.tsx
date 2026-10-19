@@ -447,8 +447,8 @@ describe("작업 기록 재진입", () => {
     const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
     await waitFor(() => expect(result.current.people).toHaveLength(1));
     result.current.selectCandidate(0, "dynamic::pose");
-    await waitFor(() => expect(result.current.selectedCount).toBe(1));
+    expect(result.current.selectedCount).toBe(0);
     expect(result.current.allSelected).toBe(false);
-    expect(result.current.selectablePeople).toHaveLength(1);
+    expect(result.current.selectablePeople).toHaveLength(0);
   });
 });

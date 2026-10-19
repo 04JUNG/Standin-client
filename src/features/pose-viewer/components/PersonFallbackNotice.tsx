@@ -1,5 +1,5 @@
 import { previewScope } from "../api/outputScope";
-import { PosePresentationPanel } from "./PosePresentationPanel";
+import { PosePresentationPanel, type PresentationSelection } from "./PosePresentationPanel";
 import { AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { PersonResult } from "../api/pose.contract";
@@ -35,12 +35,14 @@ type PersonFallbackNoticeProps = {
   /** 바 모드는 폭이 좁아 더 작은 글자를 쓴다. */
   compact?: boolean;
   bodyPreviewJob?: string;
+  selection?: PresentationSelection;
 };
 
 export function PersonFallbackNotice({
   person,
   compact = false,
   bodyPreviewJob,
+  selection,
 }: PersonFallbackNoticeProps) {
   if (person.posePresentation)
     return (
@@ -51,6 +53,7 @@ export function PersonFallbackNotice({
           (c) => c.source === "library" && c.releaseAllowed === true,
         )}
         bodyPreviewJob={bodyPreviewJob}
+        selection={selection}
       />
     );
   if (person.routedSearch) {

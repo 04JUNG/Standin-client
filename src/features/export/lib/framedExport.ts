@@ -2,12 +2,21 @@ import type { BodyScope } from "@/features/pose-viewer/api/outputScope";
 
 // Keep the PNG fallback's paired FBX as the download target too. URLs include
 // job, person, candidate, scope and character; the suffix distinguishes refine.
-export type ReviewedIdentity = { sourceSha: string; characterSha: string; revision?: string };
+export type ReviewedIdentity = {
+  sourceSha: string;
+  characterSha: string;
+  revision?: string;
+  reviewKey?: string;
+  artifactSha256?: string;
+};
 const reviewedFormats = new Map<string, { model: boolean; identity?: ReviewedIdentity }>();
 export function rememberFramedFormat(key: string, model: boolean, identity?: ReviewedIdentity) {
   reviewedFormats.delete(key);
   reviewedFormats.set(key, { model, identity });
   if (reviewedFormats.size > 64) reviewedFormats.delete(reviewedFormats.keys().next().value!);
+}
+export function reviewedArtifactSha(key: string) {
+  return reviewedFormats.get(key)?.identity?.artifactSha256;
 }
 export function reviewedModelFormat(key: string, fallback: boolean) {
   return reviewedFormats.get(key)?.model ?? fallback;
@@ -20,6 +29,7 @@ export function reviewedExportUrl(url: string, key: string) {
   parsed.searchParams.set("expectedBvhSha256", identity.sourceSha);
   parsed.searchParams.set("expectedCharacterSha256", identity.characterSha);
   if (identity.revision) parsed.searchParams.set("expectedModelRevision", identity.revision);
+  if (identity.reviewKey) parsed.searchParams.set("reviewKey", identity.reviewKey);
   return `${parsed.pathname}${parsed.search}`;
 }
 

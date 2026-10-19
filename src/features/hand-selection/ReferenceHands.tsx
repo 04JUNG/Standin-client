@@ -1,3 +1,4 @@
+import { canRelease } from "@/features/pose-viewer/api/routedSearch";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
@@ -73,7 +74,10 @@ export function ReferenceHands({
       <h3 className="text-sm font-semibold">손 모양 참고 선택</h3>
       <p className="text-xs text-text-secondary">
         원본 BVH 관절 미리보기는 유지됩니다. 선택한 손은 아래 기본 체형·정면 참고 렌더에서 확인할 수
-        있습니다. 보정·자동 적용·내보내기는 제한됩니다.
+        있습니다.{" "}
+        {person?.candidates?.some(canRelease)
+          ? "포즈를 직접 선택하면 저장 전 확인 화면에서 현재 손과 체형을 적용한 FBX를 확인할 수 있습니다."
+          : "파일이 확인되지 않은 후보는 미리보기만 제공합니다."}
       </p>
       <HandChips state={state} personIndex={personIndex} />
       {!!candidates.length && (
