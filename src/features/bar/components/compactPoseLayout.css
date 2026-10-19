@@ -125,3 +125,14 @@
   padding-left: 2px;
   padding-right: 2px;
 }
+
+@container (max-width: 680px) {
+  .compact-pose-layout > .p-3 {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .compact-pose-layout > .p-3 > button {
+    height: 32px;
+  }
+}
