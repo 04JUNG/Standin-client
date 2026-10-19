@@ -1,4 +1,4 @@
-import { SemanticModelPresentation } from "@/features/semantic-search/SemanticModelPresentation";
+import { PosePresentationPanel } from "../components/PosePresentationPanel";
 import { ReferenceHands } from "@/features/hand-selection/ReferenceHands";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
@@ -214,16 +214,18 @@ export function PoseViewerPage() {
           {data.people.map((person) => (
             <div key={person.index} className="flex flex-col gap-3">
               {person.posePresentation ? (
-                <SemanticModelPresentation
+                <PosePresentationPanel
                   presentation={person.posePresentation}
-                  bodyContext={
-                    data.capabilities.semanticBodySelection
-                      ? { jobId: data.jobId, person: person }
+                  bodyPreviewJob={
+                    data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
+                      ? data.jobId
                       : undefined
                   }
-                  bodyPreviewJob={
-                    data.capabilities.presentationBodyPreviews ? data.jobId : undefined
-                  }
+                  selection={{
+                    candidates: person.candidates,
+                    selected: selectedByPerson[person.index],
+                    onSelect: (id) => selectCandidate(person.index, id),
+                  }}
                 />
               ) : (
                 <PersonFallbackNotice person={person} />
@@ -231,6 +233,23 @@ export function PoseViewerPage() {
               <ReferenceHands result={data} personIndex={person.index} />
             </div>
           ))}
+          <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border bg-surface-0 p-3">
+            <p className="text-sm" aria-live="polite">
+              포즈 선택 {selectedCount}/{includedPeople.length} · 저장 전 확인
+            </p>
+            <Button
+              disabled={!allSelected || isConfirming}
+              loading={isConfirming}
+              onClick={() => void confirmAndContinue()}
+            >
+              이 포즈 사용하기 ({selectedCount}/{includedPeople.length})
+            </Button>
+          </div>
+          {confirmError && (
+            <p role="alert" className="text-sm text-brand-coral">
+              {confirmError}
+            </p>
+          )}
         </div>
       </AppShell>
     );
@@ -365,7 +384,7 @@ export function PoseViewerPage() {
         {failedPeople.length > 0 && selectablePeople.length === 0 && (
           <p className="flex items-center gap-2 text-[13px] text-brand-coral">
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />이 장면에는 사용할 수 있는
-            자동 포즈 후보가 없습니다. 인물별 안내를 확인해 주세요.
+            포즈 파일을 확인하지 못했습니다. 인물별 안내를 확인해 주세요.
           </p>
         )}
 
@@ -461,6 +480,7 @@ function ActivePersonCard({
   characterId: string | null;
 }) {
   const hard = person.fallbackMode === "hard";
+  const gridCandidates = person.candidates.filter((c) => !c.manualExportAllowed);
   const selectedCandidate = person.candidates.find((c) => c.id === selectedId) ?? null;
   return (
     <div
@@ -522,8 +542,15 @@ function ActivePersonCard({
                 : undefined
             }
             person={person}
+            selection={{
+              candidates: person.candidates,
+              selected: selectedId,
+              onSelect,
+              disabled: !included,
+              hiddenCandidateIds: gridCandidates.map((c) => c.id),
+            }}
           />
-          {!hard && person.candidates.length > 0 && (
+          {!hard && gridCandidates.length > 0 && (
             <div className="grid grid-cols-[190px_minmax(0,1fr)] gap-3">
               <RoughPanel
                 url={roughUrl}
@@ -544,14 +571,14 @@ function ActivePersonCard({
                   {bodiesEnabled ? (
                     <BodyCandidateCards
                       job={jobId}
-                      person={person}
+                      person={{ ...person, candidates: gridCandidates }}
                       entry={entry}
                       selected={selectedId}
                       onSelect={onSelect}
                       disabled={!included}
                     />
                   ) : (
-                    person.candidates.map((candidate) => (
+                    gridCandidates.map((candidate) => (
                       <PoseCandidateCard
                         key={candidate.id}
                         candidate={candidate}

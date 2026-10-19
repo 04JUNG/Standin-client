@@ -109,11 +109,13 @@ export function useAnalysisResult(jobId: string | undefined) {
   // hard fallback(자동 후보 없음)인 인물은 선택 대상이 아니라 안내로만 보여준다.
   // soft fallback은 다르다 — 저신뢰지만 후보가 있으므로 계속 고르고 저장할 수 있다.
   const people = useMemo(() => query.data?.people ?? [], [query.data?.people]);
-  const selectablePeople = people.filter((p) => p.fallbackMode !== "hard");
-  const failedPeople = people.filter((p) => p.fallbackMode === "hard");
+  const selectablePeople = people.filter((p) => p.candidates.some(canRelease));
+  const failedPeople = people.filter((p) => !p.candidates.some(canRelease));
   // 내보내기를 끈 인물은 진행 조건과 확정 요청에서 빠진다. 한 명은 남아야 한다.
   const includedPeople = selectablePeople.filter((p) => !(p.index in excludedPeople));
-  const pendingPeople = includedPeople.filter((p) => !selectedByPerson[p.index]);
+  const pendingPeople = includedPeople.filter(
+    (p) => !canRelease(p.candidates.find((c) => c.id === selectedByPerson[p.index])),
+  );
   const selectedCount = includedPeople.length - pendingPeople.length;
   const isSavingScope = useIsMutating({ mutationKey: ["output-scope", query.data?.jobId] }) > 0;
   const bodies = useBodies(query.data, excludedPeople);
@@ -128,7 +130,7 @@ export function useAnalysisResult(jobId: string | undefined) {
     pendingPeople.length === 0;
   /** 확정 요청. 켠 인물의 선택만 싣는다(서버는 이 목록으로 확정 집합을 대체한다). */
   const confirmedSelections = includedPeople.flatMap((p) =>
-    selectedByPerson[p.index]
+    canRelease(p.candidates.find((c) => c.id === selectedByPerson[p.index]))
       ? [{ personIndex: p.index, candidateId: selectedByPerson[p.index] }]
       : [],
   );
@@ -177,6 +179,10 @@ export function useAnalysisResult(jobId: string | undefined) {
   }, [query.data, people, setServerJobId, restoreOnly]);
 
   function selectAndTrack(personIndex: number, candidateId: string) {
+    const chosen = people
+      .find((p) => p.index === personIndex)
+      ?.candidates.find((c) => c.id === candidateId);
+    if (!canRelease(chosen)) return;
     const previousCandidateId = selectedByPerson[personIndex] ?? null;
     // 이미 고른 후보를 다시 눌러도 "후보 변경"으로 세면 변경 횟수 지표가 부풀려진다.
     if (previousCandidateId === candidateId) return;

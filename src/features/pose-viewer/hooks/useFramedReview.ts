@@ -1,6 +1,7 @@
 import { useHands } from "@/features/hand-selection/hooks";
 import { loadHandReview, type HandReview } from "@/features/hand-selection/api";
 import { loadBodyReview } from "@/features/body-selection/review";
+import { verifyDigest } from "@/features/body-selection/api";
 import { bodyKeys } from "@/features/body-selection/api";
 import { useBodyOwner } from "@/features/body-selection/hooks";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +9,7 @@ import { useEffect, useState } from "react";
 import { validateModel } from "../preview/modelContract";
 import { modelRenderingAvailable } from "../preview/modelSupport";
 import type { ReviewModel } from "../preview/mountReviewModel";
-import { apiFetchBlob } from "@/shared/api/client";
+import { apiFetchBlob, apiFetchResponse } from "@/shared/api/client";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
   framedExportUrl,
@@ -163,7 +164,27 @@ export function useFramedReview(jobId: string | undefined) {
             signal,
           );
         }
-        const blob = await apiFetchBlob(request.url, { auth: false, signal });
+        const manual = review.items[index]!.candidate.manualExportAllowed === true;
+        const response = manual
+          ? await apiFetchResponse(request.url, { auth: false, signal })
+          : undefined;
+        const receipt = response
+          ? {
+              reviewKey: response.headers.get("X-Standin-Review-Key") ?? "",
+              artifactSha256: response.headers.get("X-Standin-Artifact-SHA256") ?? "",
+              characterSha: response.headers.get("X-Standin-Character-SHA256") ?? "",
+              sourceSha: response.headers.get("X-Standin-Source-BVH-SHA256") ?? "",
+              previewSha: response.headers.get("X-Standin-Preview-Artifact-SHA256") ?? "",
+            }
+          : undefined;
+        if (receipt && Object.values(receipt).some((v) => !/^[a-f0-9]{64}$/.test(v)))
+          throw new Error("저장할 포즈의 확인 정보를 받지 못했습니다.");
+        if (receipt && receipt.sourceSha !== review.items[index]!.candidate.sourceBvhSha256)
+          throw new Error("선택한 포즈와 미리보기의 원본이 다릅니다.");
+        const blob = response
+          ? await response.blob()
+          : await apiFetchBlob(request.url, { auth: false, signal });
+        if (receipt) await verifyDigest(await blob.arrayBuffer(), receipt.previewSha);
         if (request.model) {
           if (!blob.type.startsWith("model/gltf-binary"))
             throw new Error("미리보기 형식을 확인하지 못했습니다.");
@@ -184,6 +205,12 @@ export function useFramedReview(jobId: string | undefined) {
             base = request.base;
           }
           if (
+            receipt &&
+            (meta.source_bvh_sha256 !== receipt.sourceSha ||
+              meta.character_sha256 !== receipt.characterSha)
+          )
+            throw new Error("선택한 포즈와 체형을 확인하지 못했습니다.");
+          if (
             !/^[a-f0-9]{64}$/.test(meta.character_sha256) ||
             !/^[a-f0-9]{64}$/.test(meta.revision)
           )
@@ -195,12 +222,27 @@ export function useFramedReview(jobId: string | undefined) {
               sourceSha: meta.source_bvh_sha256,
               characterSha: meta.character_sha256,
               revision: base ? undefined : meta.revision,
+              ...(receipt
+                ? { reviewKey: receipt.reviewKey, artifactSha256: receipt.artifactSha256 }
+                : {}),
             },
           };
         }
         if (!blob.type.startsWith("image/png"))
           throw new Error("미리보기 형식을 확인하지 못했습니다.");
-        return { image: await blobToDataUrl(blob) };
+        return {
+          image: await blobToDataUrl(blob),
+          ...(receipt
+            ? {
+                identity: {
+                  sourceSha: review.items[index]!.candidate.sourceBvhSha256!,
+                  characterSha: receipt.characterSha,
+                  reviewKey: receipt.reviewKey,
+                  artifactSha256: receipt.artifactSha256,
+                },
+              }
+            : {}),
+        };
       },
       retry: false,
       staleTime: bodyMode ? 0 : 300_000,

@@ -13,6 +13,8 @@ const MESSAGES: Record<string, string> = {
   INVALID_HAND_PRESET: "손 모양을 다시 선택해 주세요.",
   HAND_LIBRARY_CHANGED: "손 목록이 변경되었습니다. 현재 손을 다시 확인해 주세요.",
   HANDS_CHANGED: "손 선택이 바뀌었습니다. 최종 미리보기를 다시 확인해 주세요.",
+  MANUAL_SELECTION_REQUIRED: "후보 화면에서 사용할 포즈를 선택하고 확인해 주세요.",
+  MANUAL_REVIEW_REQUIRED: "저장 전 확인 화면에서 직접 선택한 포즈의 최종 결과를 확인해 주세요.",
   HAND_REVIEW_REQUIRED: "저장 전 확인 화면에서 손이 적용된 결과를 확인해 주세요.",
   SEMANTIC_UNAVAILABLE: "지금은 문장 검색을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   SEMANTIC_FAILED: "검색을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
