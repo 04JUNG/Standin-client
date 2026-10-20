@@ -189,7 +189,7 @@ export function useFramedReview(jobId: string | undefined) {
         };
       },
       retry: false,
-      staleTime: 300_000,
+      staleTime: bodyMode ? 0 : 300_000,
       gcTime: 600_000,
     })),
   });

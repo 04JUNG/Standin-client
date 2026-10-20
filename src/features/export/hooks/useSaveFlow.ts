@@ -1,3 +1,4 @@
+import { invalidateFinalReview } from "../lib/invalidateFinalReview";
 import {
   downloadBinding,
   downloadRevision,
@@ -613,6 +614,7 @@ export function useSaveFlow(jobId: string | undefined) {
           usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
       } catch (err) {
+        if (err instanceof ApiError) invalidateFinalReview(qc, id);
         if (
           err instanceof ApiError &&
           ["SCENE_REVIEW_REQUIRED", "SCENE_SOURCE_CHANGED"].includes(err.code)
