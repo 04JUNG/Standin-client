@@ -47,8 +47,9 @@ export function useFramedReview(jobId: string | undefined) {
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
-  const requiresFbx =
-    format !== "fbx" && review.items.some((i) => i.candidate.source === "generation");
+  const generatedSelected = review.items.some((i) => i.candidate.source === "generation");
+  const requiresFbx = format !== "fbx" && generatedSelected;
+  const generatedReviewUnavailable = format === "fbx" && generatedSelected && !enabled;
   const requests = review.items.map((item) => {
     const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
     const character = resolveCharacter({
@@ -277,14 +278,15 @@ export function useFramedReview(jobId: string | undefined) {
             : q.isFetching || q.isPending,
         )));
   const previewError =
-    enabled &&
-    !previewLoading &&
-    (hands.error ||
-      (bodyMode
-        ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
-        : catalog.isError) ||
-      requests.some((r) => !r.url) ||
-      queries.some((q) => q.isError));
+    generatedReviewUnavailable ||
+    (enabled &&
+      !previewLoading &&
+      (hands.error ||
+        (bodyMode
+          ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
+          : catalog.isError) ||
+        requests.some((r) => !r.url) ||
+        queries.some((q) => q.isError)));
   useEffect(() => {
     if (bodyMode || !enabled || review.isRefining) return;
     requests.forEach((r, i) => {
@@ -302,7 +304,12 @@ export function useFramedReview(jobId: string | undefined) {
     items: review.items.map((item, index) => ({
       ...item,
       includesHands: scopeIncludesHands(requests[index]!.scope),
-      previewUrl: enabled ? (queries[index]?.data?.image ?? "") : item.previewUrl,
+      previewUrl:
+        generatedReviewUnavailable && item.candidate.source === "generation"
+          ? ""
+          : enabled
+            ? (queries[index]?.data?.image ?? "")
+            : item.previewUrl,
       previewModel: enabled ? displays[index]?.model : undefined,
       previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
       onModelStatus: (status: "ready" | "failed") =>
@@ -316,10 +323,12 @@ export function useFramedReview(jobId: string | undefined) {
     previewLoading,
     previewError,
     previewFailure: poseRecovery(
-      queries.find((q) => q.isError)?.error ??
-        review.bodies.entries.find((e) => e.error)?.error ??
-        hands.entries.find((e) => e.error)?.error ??
-        catalog.error,
+      generatedReviewUnavailable
+        ? new ApiError(503, "FBX_UNAVAILABLE", "")
+        : (queries.find((q) => q.isError)?.error ??
+            review.bodies.entries.find((e) => e.error)?.error ??
+            hands.entries.find((e) => e.error)?.error ??
+            catalog.error),
     ),
     /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
@@ -331,6 +340,10 @@ export function useFramedReview(jobId: string | undefined) {
           ? `BVH에는 전체 동작만 저장돼요. 고른 체형${requests.some((r) => scopeIncludesHands(r.scope)) ? "·손 모양" : ""}과 잘라낼 범위는 FBX에만 적용돼요.`
           : "",
     retryPreview: async () => {
+      if (generatedReviewUnavailable) {
+        await review.refetch();
+        return;
+      }
       if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
       if (bodyMode) {
         await Promise.all(review.bodies.entries.map((entry) => entry.retry()));

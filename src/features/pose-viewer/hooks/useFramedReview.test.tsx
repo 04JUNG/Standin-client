@@ -5,8 +5,9 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { createHash, webcrypto } from "node:crypto";
 import { reviewedExportUrl, framedExportUrl } from "@/features/export/lib/framedExport";
 import type { ReactNode } from "react";
-const { state, fetchBlob, fetchResponse } = vi.hoisted(() => ({
+const { state, fetchBlob, fetchResponse, reload } = vi.hoisted(() => ({
   state: {
+    converter: true,
     enabled: true,
     refining: false,
     scope: "half",
@@ -20,6 +21,7 @@ const { state, fetchBlob, fetchResponse } = vi.hoisted(() => ({
     manual: false,
     generated: false,
   },
+  reload: vi.fn(),
   fetchBlob: vi.fn(),
   fetchResponse: vi.fn(),
 }));
@@ -40,10 +42,11 @@ vi.mock("../preview/modelContract", () => ({
 vi.mock("../preview/modelSupport", () => ({ modelRenderingAvailable: () => state.webgl }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
+    refetch: reload,
     bodies: { enabled: false, entries: [], ready: true },
     data: {
       capabilities: {
-        fbxExport: true,
+        fbxExport: state.converter,
         outputScopeCropping: state.enabled,
         characterSelection: false,
         modelPreview: state.model,
@@ -114,7 +117,12 @@ function mount() {
     ),
   });
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  state.converter = true;
+  state.generated = false;
+  reload.mockClear();
+});
 describe("framed review", () => {
   beforeEach(() => {
     Object.assign(state, {
@@ -358,3 +366,24 @@ it("requires the final generated review without exposing internal transport term
   expect(result.current.previewNotice).not.toMatch(/BVH|SHA|poseId|capability|release/);
   expect(result.current.items[0]?.previewReference).toBeFalsy();
 });
+
+it.each(["converter", "paired review"])(
+  "blocks generated final confirmation when %s support is missing",
+  async (missing) => {
+    Object.assign(state, {
+      generated: true,
+      format: "fbx",
+      converter: missing !== "converter",
+      enabled: missing !== "paired review",
+      refining: false,
+    });
+    const { result } = mount();
+    expect(result.current.previewError).toBe(true);
+    expect(result.current.items[0]?.previewUrl).toBe("");
+    expect(result.current.previewFailure.message).toContain("지금은 포즈 파일을 만들 수 없어요");
+    await act(async () => {
+      await result.current.retryPreview();
+    });
+    expect(reload).toHaveBeenCalledOnce();
+  },
+);
