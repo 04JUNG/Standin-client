@@ -107,7 +107,7 @@ export const bodyCardSchema = z.object({
 export const preferencesSchema = z.object({
   version: z.literal("body-preferences.v1"),
   scope: z.literal("installation"),
-  /** `last_used`: 새 작업은 마지막으로 직접 고른 체형으로 시작(없으면 자동 추천). */
+  /** `last_used`: 새 작업은 마지막으로 직접 고른 체형으로 시작(없으면 남성 기본형). */
   mode: z.enum(["auto", "fixed_default", "last_used"]),
   defaultCharacterId: id.nullable(),
   /** 예전 "내 기본값". 새 BFF는 카드로도 보여 준다(`cards`의 "my-default"). */

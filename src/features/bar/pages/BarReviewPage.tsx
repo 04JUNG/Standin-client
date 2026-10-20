@@ -1,9 +1,9 @@
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ImageOff, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "@/features/pose-viewer/hooks/useFramedReview";
-import { ReviewModelPreview } from "@/features/pose-viewer/components/ReviewModelPreview";
+import { ReviewPosePreview } from "@/features/pose-viewer/components/ReviewPosePreview";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
 
@@ -32,37 +32,26 @@ export function BarReviewPage() {
               <span className="text-[12px]">포즈를 조정하는 중…</span>
             </>
           ) : (
-            <ul className="flex w-full min-w-0 items-center justify-center gap-1.5 overflow-x-auto">
+            <ul
+              className={`flex w-full min-w-0 items-center gap-1.5 overflow-x-auto ${items.length === 1 ? "justify-center" : "justify-start"}`}
+            >
               {items.map((item) => (
-                /**
-                 * 남는 폭을 나눠 갖되 원본(256px)을 넘겨 늘리지 않는다. 인물이 많아
-                 * 80px 아래로 내려가면 더 줄이지 않고 가로로 넘긴다 — 그보다 작으면
-                 * 어떤 포즈인지 알아볼 수 없어 확인 화면의 뜻이 사라진다.
-                 */
-                <li key={item.personIndex} className="min-w-[80px] max-w-[128px] flex-1 basis-0">
-                  {item.previewModel ? (
-                    <ReviewModelPreview model={item.previewModel} onStatus={item.onModelStatus} />
-                  ) : item.previewUrl ? (
-                    <img
-                      src={item.previewUrl}
-                      alt={
-                        item.previewReference
-                          ? `인물 ${item.personIndex + 1}의 동작 미리보기`
-                          : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
-                      }
-                      title={`인물 ${item.personIndex + 1} · ${item.candidate.title}`}
-                      className="aspect-square w-full rounded border border-border bg-surface-2 object-contain"
-                    />
-                  ) : (
-                    <div className="flex aspect-square w-full items-center justify-center rounded border border-border bg-surface-2">
-                      <ImageOff className="h-5 w-5" aria-hidden />
-                    </div>
-                  )}
-                  {item.candidate.manualExportAllowed && (
-                    <p className="text-[11px] text-text-secondary">
-                      고른 포즈예요 · 러프에 맞춘 자동 조정은 하지 않아요
-                    </p>
-                  )}
+                <li
+                  key={item.personIndex}
+                  className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[320px]" : "max-w-[256px]"}`}
+                >
+                  <ReviewPosePreview
+                    model={item.previewModel}
+                    src={item.previewUrl}
+                    label={
+                      item.previewReference
+                        ? `인물 ${item.personIndex + 1}의 동작 미리보기`
+                        : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
+                    }
+                    loading={previewLoading}
+                    error={previewError}
+                    onModelStatus={item.onModelStatus}
+                  />
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">
                       포즈만 확인하는 모습이에요. BVH에는 체형{item.includesHands ? "·손 모양" : ""}{" "}

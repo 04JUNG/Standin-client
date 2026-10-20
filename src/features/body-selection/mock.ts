@@ -483,7 +483,7 @@ const autoFor = (index: number) => (index === 1 ? "female-base" : "male-base");
 
 /**
  * pose.mock이 분석 결과를 만들 때 부른다. 체형 상태는 인물마다 마지막으로 고른 체형
- * (`last_used`, 실서버와 같은 규칙)에서, 없으면 자동 추천에서 시작한다.
+ * (`last_used`, 실서버와 같은 규칙)에서, 아직 고른 적이 없으면 남성 기본형에서 시작한다.
  */
 export function registerMockPeople(job: string, list: PersonResult[]) {
   const last = preferences.mode === "last_used" ? preferences.lastUsed : null;
@@ -492,6 +492,7 @@ export function registerMockPeople(job: string, list: PersonResult[]) {
     if (selections.has(key(job, p.index))) continue;
     const body = ref(autoFor(p.index));
     const lastBody = last ? ref(last.characterId) : null;
+    const firstBody = preferences.mode === "last_used" && !last ? ref("male-base") : null;
     selections.set(key(job, p.index), {
       schemaVersion: "body-selection.v1",
       personIndex: p.index,
@@ -499,8 +500,12 @@ export function registerMockPeople(job: string, list: PersonResult[]) {
       manualCharacterId: null,
       shape: last?.controls ? mockShape(last.characterId, last.controls) : null,
       recommendation: { status: "available", body, reasonCodes: [] },
-      resolvedBody: lastBody ?? body,
-      resolvedSource: lastBody ? "last_used" : "auto_recommendation",
+      resolvedBody: lastBody ?? firstBody ?? body,
+      resolvedSource: lastBody
+        ? "last_used"
+        : firstBody
+          ? "catalog_default_fallback"
+          : "auto_recommendation",
       resolutionStatus: p.candidates.length ? "ready" : "not_applicable",
       selectionRevision: 0,
     });
