@@ -29,6 +29,7 @@ import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectio
 import { analysisFailure } from "@/features/pose-viewer/lib/analysisFailure";
 import { ModelSelect } from "@/features/models/components/ModelSelect";
 import { useBarPersonCursor } from "../hooks/useBarPersonCursor";
+import { BarSearchBackButton } from "../components/BarSearchBackButton";
 import { BarShell } from "../components/BarShell";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
 
@@ -123,9 +124,12 @@ export function BarCandidatesPage() {
         title="문장 검색 결과"
         footer={
           <div className="flex items-center justify-between gap-2 border-t border-border bg-surface-0 py-2">
-            <p className="text-xs" aria-live="polite">
-              포즈 선택 {selectedCount}/{includedPeople.length} · 저장 전 확인
-            </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <BarSearchBackButton query={data.semantic?.query ?? ""} />
+              <p className="truncate text-xs" aria-live="polite">
+                포즈 선택 {selectedCount}/{includedPeople.length} · 저장 전 확인
+              </p>
+            </div>
             <Button
               size="md"
               disabled={!allSelected || isConfirming}

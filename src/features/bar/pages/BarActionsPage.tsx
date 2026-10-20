@@ -1,6 +1,5 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
-import { ArrowRight, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { useRef } from "react";
 import { AlertCircle, Camera, Loader2, Upload } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -30,8 +29,6 @@ const RECOVERY_BUTTON = cn(
 
 export function BarActionsPage() {
   const navigate = useNavigate();
-  const { state } = useLocation();
-  const jobId = usePoseSelectionStore((s) => s.jobId);
   const inputRef = useRef<HTMLInputElement>(null);
   const { acceptFile, error, isProcessing } = useImageInput({ origin: "bar" });
   const captureStatus = useCaptureStore((s) => s.status);
@@ -72,14 +69,6 @@ export function BarActionsPage() {
           />
         </div>
 
-        {jobId && state?.resumeJobId === jobId && (
-          <BarAction
-            icon={ArrowRight}
-            label="현재 작업 이어보기"
-            disabled={busy}
-            onClick={() => navigate("/bar/candidates")}
-          />
-        )}
         <BarAction
           icon={Search}
           label="문장으로 찾기"
