@@ -98,12 +98,11 @@ export function BodyPreferencesPage() {
                 checked={value.mode === "last_used"}
                 onChange={() => mode.mutate("last_used")}
                 title="마지막으로 쓴 체형 (기본)"
-                description={
-                  lastLabel
-                    ? `후보 화면에서 마지막으로 고른 체형으로 시작해요 · 지금은 ‘${lastLabel}’. 그 체형을 쓸 수 없으면 남성 기본형으로 시작해요.`
-                    : "후보 화면에서 마지막으로 고른 체형·카드로 시작해요. 아직 고른 적이 없으면 남성 기본형으로 시작해요."
-                }
+                description="마지막으로 사용한 체형으로 시작해요."
               />
+              {value.mode === "last_used" && lastLabel && (
+                <p className="pl-7 text-xs text-text-secondary">현재 체형: {lastLabel}</p>
+              )}
               <ModeOption
                 checked={value.mode === "auto"}
                 onChange={() => mode.mutate("auto")}
