@@ -1,6 +1,6 @@
 # ADR-014: 자동 다운로드, 다음 실행 시 설치, 변경 내역
 
-- 상태: 구현됨, 서명된 Windows/macOS A→B 설치 실기 검증은 배포 전 필요
+- 상태: 구현 및 격리된 서명 QA 앱의 Windows/macOS A→B 설치 검증 완료
 - 날짜: 2026-10-20
 - 대체: ADR-011의 수동 설치 UI 정책. 기존 GitHub Releases와 업데이터 키는 유지한다.
 
@@ -45,9 +45,13 @@ version/date/title/features/improvements/fixes를 갖는다. 이력을 삭제하
 원본은 앱 번들에 포함되므로 변경 내역 팝업에는 네트워크가 필요 없다.
 
 첫 도입/최초 설치는 현재 버전 소개를 보여준다. 이후에는 마지막 확인 버전보다 새롭고
-현재 실행 버전 이하인 모든 변경을 한 팝업에 모은다. 닫기/확인을 누르면 기기의
-`standin.updates.lastSeenRelease`에 기록한다. 설정에서는 다시 열 수 있다.
-로그인 상태와 독립적이며 다운그레이드로 확인 버전을 낮추지 않는다.
+현재 실행 버전 이하인 모든 변경을 한 팝업에 모은다. 닫기/확인을 누르면 Rust가 앱별
+local data의 `release-notes-v1/seen-version`에 실제 실행 버전을 sync→rename으로
+저장한다. 저장이 끝난 뒤에만 팝업을 닫고, 실패하면 팝업에서 재시도할 수 있다.
+`standin.updates.lastSeenRelease`는 웹 미리보기·기존 기록 호환용 캐시이며 데스크톱은
+네이티브 기록을 우선한다. WebKit이 localStorage를 디스크에 쓰기 전에 앱을 종료해도
+확인 기록을 잃지 않는다. 설정에서는 다시 열 수 있고 로그인과 독립적이며 다운그레이드로
+확인 버전을 낮추지 않는다.
 
 자동 팝업은 앱 모드의 홈/설정에서만 표시한다. 작업·온보딩·투어·다른 모달이 끝날
 때까지 대기한다. 플로팅 바/캡처 화면에서 강제로 앱 모드로 전환하지 않는다.
@@ -60,6 +64,9 @@ version/date/title/features/improvements/fixes를 갖는다. 이력을 삭제하
    버전 불일치, 빈 내역, placeholder, 중복/역순 버전을 거부한다.
 3. 릴리스 워크플로는 같은 원본으로 GitHub 설명을 생성한다. 공개된 버전은 덮어쓰지
    않으며 Windows/macOS를 항상 draft로 빌드한다.
+   macOS는 최종 앱에 공증 티켓을 부착한 뒤 updater 아카이브를 다시 만들고,
+   압축을 풀어 코드서명·티켓을 확인한 후 updater 서명을 생성한다.
+   초기 설치용 DMG도 검증된 앱으로 재구성·재서명하고 내부 앱의 티켓을 확인한다.
 4. 두 플랫폼의 서명 검증이 통과하면 finalize가 `latest.json`의 버전과 세 플랫폼
    항목을 검증하고 notes를 같은 원본으로 갱신한다.
 5. 기본 `draft=true`는 검증된 초안으로 남긴다. `draft=false`일 때만 finalize가
@@ -74,6 +81,10 @@ dev와 staging의 빈 endpoints, 별도 앱 identifier, staging prerelease 정�
 새 서버 API, 강제 업데이트, 단계적 배포, 무인 다운그레이드는 이번 범위에 없다.
 
 ## 배포 전 실기 확인
+
+[2026-10-20 검증 결과](../qa/2026-10-20-signed-updater.md): Windows x64와 macOS
+Apple Silicon·Intel에서 7개씩 21개 시나리오를 통과했다. 아래 전체 배포 점검 목록과
+실제로 수행한 E2E 범위는 검증 보고서에서 구분한다.
 
 - Windows NSIS, macOS Apple Silicon/Intel: A에서 B 다운로드→종료→다음 실행 설치→재실행.
 - 다운로드 도중 종료/네트워크 단절, 다운로드 후 오프라인 실행, 파일 변조·디스크 오류.
