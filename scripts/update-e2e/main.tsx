@@ -118,7 +118,12 @@ try {
       break;
     case "download":
     case "recover":
-      await waitFor(() => state().installPhase === "ready");
+      await waitFor(
+        () =>
+          state().phase === "done" &&
+          state().installPhase === "ready" &&
+          state().cached?.attempted === false,
+      );
       assert(state().version === control.a, "Must not install during an active session");
       assert(state().cached?.version === control.b, "Expected B in durable cache");
       if (control.scenario === "download") {

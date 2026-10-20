@@ -1,4 +1,5 @@
 """Exercise installed, OS-signed Tauri apps against an isolated HTTPS updater."""
+import base64
 import hashlib
 import http.server
 import json
@@ -36,6 +37,11 @@ def one(folder, pattern):
 
 PACKAGE = one(ROOT / "packages" / "b", "*.exe" if WINDOWS else "*.app.tar.gz")
 SIGNATURE = pathlib.Path(str(PACKAGE) + ".sig").read_text().strip()
+signature_lines = base64.b64decode(SIGNATURE).decode().splitlines()
+signature_bytes = bytearray(base64.b64decode(signature_lines[1]))
+signature_bytes[-1] ^= 1
+signature_lines[1] = base64.b64encode(signature_bytes).decode()
+BAD_SIGNATURE = base64.b64encode(("\n".join(signature_lines) + "\n").encode()).decode()
 
 
 class Feed(http.server.BaseHTTPRequestHandler):
@@ -45,7 +51,7 @@ class Feed(http.server.BaseHTTPRequestHandler):
                 "version": VERSIONS["b"],
                 "notes": "Isolated signed updater test",
                 "platforms": {TARGET: {
-                    "signature": SIGNATURE if FEED_MODE == "valid" else "invalid-signature",
+                    "signature": SIGNATURE if FEED_MODE == "valid" else BAD_SIGNATURE,
                     "url": "https://127.0.0.1:17443/package",
                 }},
             }).encode()
