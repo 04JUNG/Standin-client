@@ -93,7 +93,7 @@ it("clicking the poster does not navigate the bar or open a dialog", async () =>
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("compact detail keeps unavailable body rendering disabled and shows one shared reference notice", () => {
+it("compact detail keeps unavailable body rendering disabled without repeating the reference note", () => {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <CompactPoseLayout>
@@ -104,7 +104,7 @@ it("compact detail keeps unavailable body rendering disabled and shows one share
   expect(screen.getByRole("button", { name: "고른 체형으로 이 포즈 보기" })).toBeDisabled();
   expect(screen.getByText("고른 체형으로 보기")).toBeInTheDocument();
   expect(
-    screen.getByText("기본 체형의 정면 모습이에요. 저장할 모습과 다를 수 있어요."),
-  ).toBeInTheDocument();
+    screen.queryByText("기본 체형의 정면 모습이에요. 저장할 모습과 다를 수 있어요."),
+  ).toBeNull();
   expect(apiFetchResponse).not.toHaveBeenCalled();
 });

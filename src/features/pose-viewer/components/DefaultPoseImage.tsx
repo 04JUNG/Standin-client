@@ -1,7 +1,7 @@
 import { useNearViewport } from "@/shared/hooks/useNearViewport";
 import { CompactPoseImage } from "@/features/bar/components/CompactPoseLayout";
 import { useCompactPoseLayout } from "@/features/bar/components/compactPoseContext";
-import { SCOPE_LABELS, bodyScopeSchema } from "../api/outputScope";
+import { bodyScopeSchema } from "../api/outputScope";
 import type { PreviewCandidate } from "../api/posePresentation";
 import { useDefaultPosePoster } from "../api/posePoster";
 export function DefaultPoseImage({
@@ -30,13 +30,6 @@ export function DefaultPoseImage({
     enabled: visible,
     savedOnly,
   });
-  const provenance =
-    q.data?.method === "reference-skinning-v1"
-      ? "기본 체형 · 대략적인 포즈"
-      : q.data?.kind === "default-body"
-        ? "기본 체형"
-        : "뼈대로 본 포즈";
-  const caption = `${provenance} · 정면 ${SCOPE_LABELS[scope]} 참고`;
   return (
     <div ref={ref} className={className}>
       {q.data ? (
@@ -67,14 +60,6 @@ export function DefaultPoseImage({
               ? "참고 이미지를 불러오지 못했어요"
               : "포즈 이미지 불러오는 중…"}
         </div>
-      )}
-      <p title={caption} className="truncate whitespace-nowrap text-[11px] text-text-secondary">
-        {caption}
-      </p>
-      {!inFloatingBar && (
-        <p className="text-[11px] text-text-secondary">
-          체형·손·보는 각도는 최종 결과와 다를 수 있어요
-        </p>
       )}
     </div>
   );

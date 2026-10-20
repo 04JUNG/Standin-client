@@ -29,7 +29,6 @@ const candidateLabel = (kind: string) =>
 function Preview({
   candidate,
   scope,
-  originalRank,
   selection,
   compact,
   savedOnly = false,
@@ -37,7 +36,6 @@ function Preview({
 }: {
   candidate: PreviewCandidate;
   scope: string | null;
-  originalRank?: number;
   selection?: PresentationSelection;
   compact?: boolean;
   savedOnly?: boolean;
@@ -74,30 +72,6 @@ function Preview({
           {candidate.rank}. {candidateLabel(candidate.kind)}
         </span>
       </button>
-      {candidate.mirror_comparison && (
-        <p className="text-[11px] font-semibold text-text-primary">
-          <a
-            className="underline"
-            href={`#pose-candidate-${candidate.mirror_comparison.original_candidate_id}`}
-          >
-            검색 후보 {originalRank}
-          </a>
-          의 좌우 반전 포즈
-        </p>
-      )}
-      {candidate.mirror_comparison && (
-        <p className="text-[11px] text-text-secondary">
-          러프에는 {candidate.mirror_comparison.observed_side === "left" ? "왼손" : "오른손"}이
-          보여요. 이 포즈는{" "}
-          {candidate.mirror_comparison.reference_side === "left" ? "왼손" : "오른손"}을 써요.
-        </p>
-      )}
-      {candidate.mirror_comparison && (
-        <p className="text-[11px] text-text-secondary">
-          러프와 반대쪽 손을 쓰는 포즈예요. 가려진 부분은 러프와 다를 수 있어요.
-        </p>
-      )}
-
       {selectable && selection ? (
         <button
           type="button"
@@ -110,9 +84,7 @@ function Preview({
           {selected ? "선택한 포즈" : "이 포즈 선택"}
         </button>
       ) : (
-        <p className="text-[11px] text-text-secondary">
-          이 포즈는 미리보기만 볼 수 있어요. 파일로 저장할 수는 없어요.
-        </p>
+        <p className="text-[11px] text-text-secondary">미리보기 전용</p>
       )}
     </div>
   );
@@ -135,10 +107,6 @@ function PresentationContent({
     () => new Map(selection?.candidates.map((c) => [c.id, c])),
     [selection?.candidates],
   );
-  const ranksById = useMemo(
-    () => new Map(p.library_candidates.map((c) => [c.candidate_id, c.rank])),
-    [p.library_candidates],
-  );
   const render = (c: PreviewCandidate) =>
     renderCandidate ? (
       <div key={c.candidate_id}>{renderCandidate(c)}</div>
@@ -146,9 +114,6 @@ function PresentationContent({
       <Preview
         key={c.candidate_id}
         candidate={c}
-        originalRank={
-          c.mirror_comparison ? ranksById.get(c.mirror_comparison.original_candidate_id) : undefined
-        }
         pick={candidatesById.get(c.candidate_id)}
         scope={p.output_scope}
         selection={selection}
