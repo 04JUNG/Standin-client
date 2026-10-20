@@ -370,6 +370,16 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
             window
                 .set_fullscreen(true)
                 .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
+
+            // macOS style-mask changes (including set_resizable above) make tao's
+            // parent NSView the first responder. Focusing only the NSWindow does
+            // not give WKWebView key events back; a click used to be required.
+            // Restore webview focus AFTER every overlay window mutation so Esc
+            // works immediately, before the user starts a selection.
+            window
+                .set_focus()
+                .and_then(|()| tauri::Webview::set_focus(window.as_ref()))
+                .map_err(|e| WindowError::new("FOCUS_FAILED", e.to_string()))?;
         }
 
         "app" => {
