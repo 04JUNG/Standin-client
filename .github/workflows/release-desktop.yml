@@ -386,24 +386,6 @@ jobs:
           TARGET_ENV: ${{ inputs.environment }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $release = 'src-tauri/target/x86_64-pc-windows-msvc/release'
-          $files = @(
-            Get-Item "$release/standin-desktop.exe"
-            Get-ChildItem "$release/bundle/nsis" -Filter '*-setup.exe'
-          )
-          if ($files.Count -lt 2) {
-            Write-Host "Expected the app exe and an NSIS installer under $release"
-            exit 1
-          }
-
-          $bad = 0
-          foreach ($file in $files) {
-            $sig = Get-AuthenticodeSignature -LiteralPath $file.FullName
-            $timestamped = [bool]$sig.TimeStamperCertificate
-            Write-Host "$($file.Name): $($sig.Status) | $($sig.SignerCertificate.Subject) | timestamped=$timestamped"
-            if ($sig.Status -ne 'Valid' -or -not $timestamped) { $bad++ }
-          }
-
           if ($env:SIGNING_ENABLED -ne 'true') {
             if ($env:TARGET_ENV -eq 'production') {
               throw 'Production releases require Windows code signing.'
@@ -413,12 +395,12 @@ jobs:
             Write-Host 'SmartScreen will show "Unknown publisher". For production, register the ES_* secrets and re-run.'
             exit 0
           }
-          # Without a timestamp the signature dies when the certificate expires.
-          if ($bad -gt 0) {
-            Write-Host "$bad file(s) are not validly signed and timestamped."
-            exit 1
+          $release = 'src-tauri/target/x86_64-pc-windows-msvc/release'
+          $installers = @(Get-ChildItem "$release/bundle/nsis" -Filter '*-setup.exe' -File)
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer under $release"
           }
-          Write-Host 'Windows signing verified.'
+          ./scripts/verify-windows-release.ps1 -InstallerPath $installers[0].FullName
 
       - name: Verify macOS signature
         if: runner.os == 'macOS'
