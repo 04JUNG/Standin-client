@@ -39,6 +39,7 @@ import { validRotation } from "../preview/modelContract";
 
 import {
   readCandidatePolicy,
+  canRefineCandidate,
   canRelease,
   type CandidatePolicy,
   type RoutedSearch,
@@ -255,6 +256,13 @@ async function toPoseCandidate(
   signal.throwIfAborted();
   const thumbnailUrl = "";
   const policy = readCandidatePolicy(raw);
+  if (
+    policy.refineAllowed === true &&
+    (raw.camera?.version !== "candidate-camera-v2" ||
+      !validRotation(raw.camera.rotation) ||
+      raw.camera.source_bvh_sha256 !== policy.sourceBvhSha256)
+  )
+    policy.refineAllowed = false;
   const downloadable =
     canRelease({ ...policy, bvhAvailable: raw.bvhAvailable } as PoseCandidate) &&
     raw.bvhAvailable &&
@@ -345,6 +353,17 @@ async function toAnalysisResult(
   const people: PersonResult[] = await Promise.all(
     raw.candidatesByPerson.map(async (person) => {
       const confidence = narrow(CONFIDENCE, person.confidence, "low");
+      const candidates = await Promise.all(
+        person.candidates.map((candidate) =>
+          toPoseCandidate(
+            candidate,
+            raw.jobId,
+            person.personIndex,
+            signal,
+            readOutputScope(person.outputScope).resolved,
+          ),
+        ),
+      );
       return {
         // 서버 personIndex를 그대로 쓴다. 화면에서 탐지 순서로 다시 번호를 매기지 않는다.
         index: person.personIndex,
@@ -357,17 +376,7 @@ async function toAnalysisResult(
         outputScope: readOutputScope(person.outputScope),
         candidateShortfallReason: person.candidateShortfallReason ?? null,
         box: readPersonBox(person.box),
-        candidates: await Promise.all(
-          person.candidates.map((candidate) =>
-            toPoseCandidate(
-              candidate,
-              raw.jobId,
-              person.personIndex,
-              signal,
-              readOutputScope(person.outputScope).resolved,
-            ),
-          ),
-        ),
+        candidates,
         confidence,
         skeletonState: narrow(SKELETON_STATE, person.skeletonState, "invalid"),
         skeletonSource: narrow(SKELETON_SOURCE, person.skeletonSource, "none"),
@@ -378,8 +387,7 @@ async function toAnalysisResult(
           person.candidates.length,
         ),
         // 허용은 명시적일 때만. 구 BFF 응답에서는 refine을 걸지 않는다.
-        refineAllowed:
-          !person.posePresentation && !person.routedSearch && person.refineAllowed === true,
+        refineAllowed: person.refineAllowed === true && candidates.some(canRefineCandidate),
         refinableLimbs: person.refinableLimbs ?? [],
       } satisfies PersonResult;
     }),
