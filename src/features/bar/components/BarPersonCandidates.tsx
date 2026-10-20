@@ -46,6 +46,7 @@ export function BarPersonCandidates({
   if (!data) return null;
 
   const semantic = data.source === "semantic";
+  const sectionBackground = person.index % 2 === 0 ? "bg-surface-0" : "bg-surface-1";
   const included = !(person.index in excludedPeople);
   const selectable = person.candidates.some(canRelease);
   const selected = selectedByPerson[person.index];
@@ -67,11 +68,15 @@ export function BarPersonCandidates({
       aria-label={`인물 ${person.index + 1}`}
       data-bar-person={person.index}
       tabIndex={-1}
-      className="flex min-w-0 scroll-mt-2 flex-col gap-2 rounded-lg border border-border bg-surface-0 p-2 focus:outline-none"
+      className={cn(
+        "flex min-w-0 scroll-mt-2 flex-col gap-2 rounded-lg border border-border p-2 focus:outline-none",
+        sectionBackground,
+      )}
     >
       <div
         className={cn(
-          "flex items-center justify-between gap-2 bg-surface-0",
+          "flex items-center justify-between gap-2",
+          sectionBackground,
           !semantic && "sticky top-0 z-10",
         )}
       >
