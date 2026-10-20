@@ -5,14 +5,32 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import process from "node:process";
+import { setTimeout as delay } from "node:timers/promises";
 
 const cli = path.resolve("node_modules/@tauri-apps/cli/tauri.js");
 const args = process.argv.slice(2);
 function run(command, argv, env = process.env) {
   const result = spawnSync(command, argv, { stdio: "inherit", env });
   if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(`${path.basename(command)} exited with ${result.status}`);
+  if (result.status !== 0) {
+    const error = new Error(`${path.basename(command)} exited with ${result.status}`);
+    error.exitCode = result.status;
+    throw error;
+  }
+}
+async function stapler(action, app) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      run("xcrun", ["stapler", action, app]);
+      return;
+    } catch (error) {
+      // Error 68 is Apple's ticket-service communication failure. A missing or
+      // invalid ticket (65) still fails immediately; never skip validation.
+      if (error.exitCode !== 68 || attempt === 3) throw error;
+      console.log(`Apple ticket service unavailable; retrying ${action} (${attempt}/2).`);
+      await delay(attempt * 3000);
+    }
+  }
 }
 run(process.execPath, [cli, ...args]);
 
@@ -40,8 +58,8 @@ if (
   run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]);
   // Bundling can report success while a subsequent archive has no ticket.
   // Fetching an already-issued ticket needs no extra signing credentials.
-  run("xcrun", ["stapler", "staple", app]);
-  run("xcrun", ["stapler", "validate", app]);
+  await stapler("staple", app);
+  await stapler("validate", app);
   run("spctl", ["--assess", "--type", "execute", "--verbose=4", app]);
   run("tar", ["-czf", archive, "-C", directory, apps[0]], {
     ...process.env,
@@ -52,7 +70,7 @@ if (
     run("tar", ["-xzf", archive, "-C", extracted]);
     const unpacked = path.join(extracted, apps[0]);
     run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", unpacked]);
-    run("xcrun", ["stapler", "validate", unpacked]);
+    await stapler("validate", unpacked);
   } finally {
     // macOS only; this directory was created above solely for archive verification.
     rmSync(extracted, { recursive: true, force: true });

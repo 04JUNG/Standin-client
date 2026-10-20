@@ -24,8 +24,13 @@ SERVER = None
 FEED_MODE = "valid"
 
 
-def run(args, **kwargs):
-    result = subprocess.run(args, text=True, capture_output=True, **kwargs)
+def run(args, retry_codes=(), **kwargs):
+    for attempt in range(3):
+        result = subprocess.run(args, text=True, capture_output=True, **kwargs)
+        if result.returncode not in retry_codes or attempt == 2:
+            break
+        print(f"Transient {args[0]} error {result.returncode}; retrying", flush=True)
+        time.sleep(3 * (attempt + 1))
     if result.returncode:
         raise RuntimeError(
             f"{args[0]} failed ({result.returncode}):\n{result.stdout}\n{result.stderr}"
@@ -113,7 +118,7 @@ def verify_signature(target):
         output = run([shell, "-NoProfile", "-NonInteractive", "-Command", script], env=env)
     else:
         run(["codesign", "--verify", "--deep", "--strict", "--verbose=2", str(target)])
-        run(["xcrun", "stapler", "validate", str(target)])
+        run(["xcrun", "stapler", "validate", str(target)], retry_codes=(68,))
         output = run(["spctl", "--assess", "--type", "execute", "--verbose=4", str(target)])
     with (EVIDENCE / "os-signatures.txt").open("a", encoding="utf8") as log:
         log.write(f"{target}\n{output.stdout}{output.stderr}\n")
