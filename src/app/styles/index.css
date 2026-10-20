@@ -5,6 +5,15 @@
 @tailwind utilities;
 
 @layer base {
+  /* 스크롤 동작은 유지하고 네이티브 스크롤바가 차지하는 공간만 없앤다. */
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
   html,
   body,
   #root {
