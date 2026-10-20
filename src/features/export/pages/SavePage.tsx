@@ -1,3 +1,4 @@
+import { SceneReviewPanel } from "../components/SceneReviewPanel";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
@@ -125,22 +126,7 @@ export function SavePage() {
         )}
 
         {sceneReview && (
-          <div className="flex flex-col gap-3">
-            <p className="text-[15px] font-semibold">보정된 장면 확인</p>
-            <img
-              src={`data:image/png;base64,${sceneReview.previewBase64}`}
-              alt="최종 FBX의 인물 방향·범위·팔·배치 미리보기"
-              className="max-h-[500px] w-full object-contain"
-            />
-            <p className="text-[13px] text-text-secondary">
-              러프에 맞춰 방향·출력 범위·팔 동작·인물 배치를 보정했습니다. 이 장면으로 저장할지
-              확인해 주세요.
-            </p>
-            <Button onClick={confirmScene}>이 장면으로 저장</Button>
-            <Button variant="secondary" onClick={cancelScene}>
-              취소
-            </Button>
-          </div>
+          <SceneReviewPanel review={sceneReview} confirm={confirmScene} cancel={cancelScene} />
         )}
 
         {status === "error" && (
@@ -294,6 +280,13 @@ export function SavePage() {
             )}
 
             <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => navigate(`/app/jobs/${jobId}/review`)}
+              >
+                포즈·손 변경
+              </Button>
               <Button variant="secondary" size="md" onClick={revealSaved}>
                 <FolderOpen className="h-4 w-4" aria-hidden />
                 폴더 열기

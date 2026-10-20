@@ -1,3 +1,6 @@
+vi.mock("@/features/export/lib/preparedArtifact", () => ({
+  loadPreparedImage: async (url: string) => url,
+}));
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -51,8 +54,8 @@ vi.mock("@/features/models/hooks/useModelCatalog", () => ({
   }),
 }));
 const { useFramedReview } = await import("./useFramedReview");
-it("a semantic job without image/camera can edit hands and stays blocked until the updated paired preview arrives", async () => {
-  mocks.load.mockResolvedValueOnce({ image: "original-hands" });
+it("a semantic job without image/camera can edit hands and stays blocked until the updated FBX receipt arrives", async () => {
+  mocks.load.mockResolvedValueOnce({ image: "", handReceipt: { downloadUrl: "original-hands" } });
   let finish!: (value: unknown) => void;
   mocks.load.mockImplementationOnce(
     () =>
@@ -75,7 +78,7 @@ it("a semantic job without image/camera can edit hands and stays blocked until t
   expect(result.current.previewLoading).toBe(true);
   expect(result.current.items[0]?.previewUrl).not.toBe("original-hands");
   await act(async () => {
-    finish({ image: "new-hands" });
+    finish({ image: "", handReceipt: { downloadUrl: "new-hands" } });
   });
   await waitFor(() => expect(result.current.items[0]?.previewUrl).toBe("new-hands"));
   expect(result.current.previewLoading).toBe(false);

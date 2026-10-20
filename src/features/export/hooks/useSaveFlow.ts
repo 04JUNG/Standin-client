@@ -1,3 +1,10 @@
+import { invalidateFinalReview } from "../lib/invalidateFinalReview";
+import {
+  downloadBinding,
+  downloadRevision,
+  rememberDownload,
+  revisionFileName,
+} from "../lib/downloadRevisions";
 import { poseRecovery } from "@/shared/api/poseRecovery";
 import { verifyDigest } from "@/features/body-selection/api";
 import { canRelease } from "@/features/pose-viewer/api/routedSearch";
@@ -30,7 +37,13 @@ import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 import { exportService } from "../api/export.service";
-import { downloadScene, prepareScene, sceneReference, type SceneReview } from "../api/scene";
+import {
+  downloadScene,
+  prepareScene,
+  loadScenePreview,
+  sceneReference,
+  type SceneReview,
+} from "../api/scene";
 import { ExportError } from "../api/export.contract";
 import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
 import { mockBvhContent } from "../lib/mockBvhContent";
@@ -297,14 +310,17 @@ export function useSaveFlow(jobId: string | undefined) {
   const [sceneReview, setSceneReview] = useState<SceneReview | null>(null);
   const sceneDecision = useRef<((accepted: boolean) => void) | null>(null);
   const sceneMounted = useRef(true);
+  const scenePreviewController = useRef<AbortController>();
   useEffect(() => {
     sceneMounted.current = true;
     return () => {
       sceneMounted.current = false;
       sceneDecision.current?.(false);
+      scenePreviewController.current?.abort();
     };
   }, []);
   const decideScene = (accepted: boolean) => {
+    scenePreviewController.current?.abort();
     const decide = sceneDecision.current;
     sceneDecision.current = null;
     setSceneReview(null);
@@ -340,6 +356,33 @@ export function useSaveFlow(jobId: string | undefined) {
         if (!analysisResult) {
           throw new ApiError(409, "INVALID_SELECTION", "");
         }
+        const snapshot = () =>
+          JSON.stringify({
+            owner: useInstallationStore.getState().credentials?.installationId,
+            selected: usePoseSelectionStore.getState().selectedByPerson,
+            character: usePoseSelectionStore.getState().characterId,
+            characters: usePoseSelectionStore.getState().characterByPerson,
+            refine: usePoseSelectionStore.getState().refineByPerson,
+            people: qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.people,
+            body: qc
+              .getQueriesData({
+                queryKey: [
+                  "body",
+                  useInstallationStore.getState().credentials?.installationId ?? "",
+                  id,
+                ],
+                predicate: (q) => q.queryKey[4] === "selection",
+              })
+              .map(([key, data]) => [key, data]),
+            hands: qc.getQueriesData({
+              queryKey: [
+                "hands",
+                useInstallationStore.getState().credentials?.installationId ?? "",
+                id,
+              ],
+            }),
+          });
+        const bindingAtStart = snapshot();
         const selectionState = usePoseSelectionStore.getState();
         const refineByPerson = selectionState.refineByPerson;
         /**
@@ -490,24 +533,68 @@ export function useSaveFlow(jobId: string | undefined) {
           );
           let review: SceneReview | undefined;
           if (analysisResult.capabilities.sceneRefinement === true) {
-            review = await prepareScene(analysisResult.jobId, references);
+            const sceneKey = [
+              "prepared-scene",
+              useInstallationStore.getState().credentials?.installationId ?? "",
+              analysisResult.jobId,
+              downloadBinding(format, files),
+            ];
+            review = qc.getQueryData<SceneReview>(sceneKey);
+            if (!review) {
+              review = await prepareScene(analysisResult.jobId, references);
+              qc.setQueryData(sceneKey, review);
+            }
             if (!sceneMounted.current)
               throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
             const accepted = await new Promise<boolean>((resolve) => {
               sceneDecision.current = resolve;
               setSceneReview(review!);
+              if (!review!.previewBase64) {
+                const controller = new AbortController();
+                scenePreviewController.current = controller;
+                void loadScenePreview(analysisResult.jobId, references, review!, controller.signal)
+                  .then((previewBase64) => {
+                    if (!controller.signal.aborted)
+                      setSceneReview((current) =>
+                        current?.reviewKey === review!.reviewKey
+                          ? { ...current, previewBase64 }
+                          : current,
+                      );
+                  })
+                  .catch(() => {
+                    if (!controller.signal.aborted)
+                      setSceneReview((current) =>
+                        current?.reviewKey === review!.reviewKey
+                          ? { ...current, previewFailed: true }
+                          : current,
+                      );
+                  });
+              }
             });
             if (!accepted) throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
           }
           const content = await downloadScene(analysisResult.jobId, references, review);
           saveFiles = [{ fileName: name.replace(/\.fbx$/i, "_scene.fbx"), content }];
         }
+        // A late response must never write an older selection to disk.
+        if (
+          snapshot() !== bindingAtStart ||
+          qc.isMutating({ mutationKey: ["hand-change"] }) ||
+          qc.isMutating({ mutationKey: ["body-change"] })
+        )
+          throw new ApiError(409, "PREVIEW_CHANGED", "");
+        const binding = downloadBinding(format, files);
+        const revision = downloadRevision(id, binding);
         const results = await exportService.saveCandidates({
           folder: targetFolder,
-          files: saveFiles,
+          files: saveFiles.map((file) => ({
+            ...file,
+            fileName: revisionFileName(file.fileName, revision.ordinal),
+          })),
         });
+        rememberDownload(id, binding);
         const paths = results.map((r) => r.path);
-        if (options.append) addSaved(paths);
+        if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
         else setSaved(paths);
         // 사용자 기준 성공은 BFF의 BVH 응답이 아니라 로컬 파일 저장이다.
         // 서버 export_events만 보면 저장 단계 실패가 성공으로 집계된다.
@@ -527,6 +614,18 @@ export function useSaveFlow(jobId: string | undefined) {
           usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
       } catch (err) {
+        if (err instanceof ApiError) invalidateFinalReview(qc, id);
+        if (
+          err instanceof ApiError &&
+          ["SCENE_REVIEW_REQUIRED", "SCENE_SOURCE_CHANGED"].includes(err.code)
+        )
+          qc.removeQueries({
+            queryKey: [
+              "prepared-scene",
+              useInstallationStore.getState().credentials?.installationId ?? "",
+              id,
+            ],
+          });
         setError(
           err instanceof ApiError
             ? toAppError(err).message

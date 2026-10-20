@@ -1,37 +1,45 @@
+import { downloadBinding, downloadRevision } from "@/features/export/lib/downloadRevisions";
 import { ApiError } from "@/shared/api/errors";
 import { poseRecovery } from "@/shared/api/poseRecovery";
 import { useHands } from "@/features/hand-selection/hooks";
 import { loadHandReview, type HandReview } from "@/features/hand-selection/api";
-import { loadBodyReview } from "@/features/body-selection/review";
-import { verifyDigest } from "@/features/body-selection/api";
+import { loadBodyReview, type BodyReview } from "@/features/body-selection/review";
 import { bodyKeys } from "@/features/body-selection/api";
 import { useBodyOwner } from "@/features/body-selection/hooks";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { validateModel } from "../preview/modelContract";
-import { modelRenderingAvailable } from "../preview/modelSupport";
+import { useQueries } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import type { ReviewModel } from "../preview/mountReviewModel";
-import { apiFetchBlob, apiFetchResponse } from "@/shared/api/client";
+import { apiFetchResponse } from "@/shared/api/client";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
   framedExportUrl,
   rememberFramedFormat,
   type ReviewedIdentity,
 } from "@/features/export/lib/framedExport";
+import {
+  loadPreparedImage,
+  preparedIdentity,
+  preparedUrl,
+} from "@/features/export/lib/preparedArtifact";
 import { useModelStore } from "@/features/models/store/modelStore";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
 import { resolveCharacter } from "@/features/models/lib/resolveCharacter";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { previewScope, scopeIncludesHands, SCOPE_LABELS } from "../api/outputScope";
-import { blobToDataUrl } from "../api/thumbnails";
 import { useSelectionReview } from "./useSelectionReview";
 
-/** Presentation of the actual converter artifact, after refine has finished. */
+type PreparedReview = Partial<BodyReview> & {
+  binding: string;
+  image: string;
+  identity?: ReviewedIdentity;
+  handReceipt?: HandReview;
+  downloadUrl: string;
+};
+
+/** A verified final FBX receipt controls download; its image is independent. */
 export function useFramedReview(jobId: string | undefined) {
-  const [modelStatus, setModelStatus] = useState<Record<string, "ready" | "failed">>({});
   const review = useSelectionReview(jobId);
   const owner = useBodyOwner();
-  const qc = useQueryClient();
   const bodyMode = review.bodies.enabled;
   const format = useExportStore((s) => s.format);
   const hands = useHands(
@@ -61,60 +69,51 @@ export function useFramedReview(jobId: string | undefined) {
     });
     const body = review.bodies.entries.find((e) => e.personIndex === item.personIndex)?.selection;
     const handEntry = hands.entries.find((e) => e.personIndex === item.personIndex);
-    const handSelection = handEntry?.selection;
-    let url = "";
-    let modelKey = "";
-    let model = false;
-    let exportKey = "";
-    const base = scope === "full" && !item.refined ? item.candidate.previewModel : undefined;
+    let url = "",
+      exportKey = "";
+    const characterId = character.characterId ?? catalog.data?.defaultCharacterId ?? "";
     if (enabled && item.exportUrl) {
       try {
-        if (bodyMode) {
-          url = framedExportUrl(
-            item.exportUrl,
-            scope,
-            "preview",
-            bodyMode ? null : character.characterId,
-          );
-        } else {
-          modelKey =
-            framedExportUrl(item.exportUrl, scope, "model", character.characterId) +
-            `#${item.refined}`;
-          model =
-            !handSelection &&
-            review.data?.capabilities.modelPreview === true &&
-            modelRenderingAvailable() &&
-            modelStatus[modelKey] !== "failed";
-          url = framedExportUrl(
-            item.exportUrl,
-            scope,
-            model ? "model" : "preview",
-            character.characterId,
-          );
-          if (model && base) url += "&useLibraryModel=true";
-          exportKey =
-            framedExportUrl(item.exportUrl, scope, "fbx", character.characterId) +
-            `#${item.refined}`;
-        }
+        url = framedExportUrl(
+          item.exportUrl,
+          scope,
+          "ready",
+          bodyMode ? null : character.characterId,
+        );
+        exportKey =
+          framedExportUrl(item.exportUrl, scope, "fbx", character.characterId) + `#${item.refined}`;
+        if (handEntry?.selection) url += `&handSelectionRevision=${handEntry.selection.revision}`;
       } catch {
-        /* Invalid server URL is a visible preview failure, never a render crash. */
+        /* Invalid server URLs fail closed. */
       }
     }
-    if (url && hands.enabled && handSelection)
-      url += `&handSelectionRevision=${handSelection.revision}`;
-    return {
-      handSelection,
-      handEnabled: !!handEntry,
+    const binding = JSON.stringify([
+      owner,
+      item.personIndex,
+      item.candidate.id,
+      item.candidate.sourceBvhSha256,
+      item.exportUrl,
+      item.refined,
       scope,
-      url,
+      bodyMode ? [body?.selectionRevision, body?.resolvedBody, body?.shape] : characterId,
+      handEntry?.selection,
+    ]);
+    return {
+      binding,
+      scope,
+      characterId,
       body,
-      modelKey,
-      model,
+      handSelection: handEntry?.selection,
+      url,
       exportKey,
-      base,
-      characterId: character.characterId ?? catalog.data?.defaultCharacterId ?? "",
+      handReady:
+        !handEntry ||
+        (!!handEntry.selection && !handEntry.loading && !handEntry.error && !hands.pending),
     };
   });
+  const requestReady = (request: (typeof requests)[number]) =>
+    !review.isRefining && request.handReady && (bodyMode ? review.bodies.ready : catalog.isSuccess);
+  const selectionsReady = requests.every(requestReady);
   const queries = useQueries({
     queries: requests.map((request, index) => ({
       queryKey: bodyMode
@@ -128,26 +127,21 @@ export function useFramedReview(jobId: string | undefined) {
             request.handSelection?.library_sha256,
             review.items[index]?.exportUrl,
             review.items[index]?.refined,
+            "verified-fbx-v1",
+            request.binding,
           ]
-        : ["framed-preview", owner, request.url, review.items[index]?.refined],
-      enabled:
-        enabled &&
-        (!request.handEnabled || hands.ready) &&
-        !review.isRefining &&
-        (bodyMode ? request.body?.resolutionStatus === "ready" : catalog.isSuccess) &&
-        !!request.url,
-      queryFn: async ({
-        signal,
-      }: {
-        signal: AbortSignal;
-      }): Promise<{
-        image: string;
-        model?: ReviewModel;
-        identity?: ReviewedIdentity;
-        handReceipt?: HandReview;
-      }> => {
+        : [
+            "framed-preview",
+            owner,
+            request.url,
+            review.items[index]?.refined,
+            "verified-fbx-v1",
+            request.binding,
+          ],
+      enabled: enabled && requestReady(request) && !!request.url,
+      queryFn: async ({ signal }: { signal: AbortSignal }): Promise<PreparedReview> => {
+        const item = review.items[index]!;
         if (bodyMode) {
-          const item = review.items[index]!;
           const receipt = await loadBodyReview(
             review.data!.jobId,
             item.exportUrl!,
@@ -156,97 +150,42 @@ export function useFramedReview(jobId: string | undefined) {
             request.scope,
             request.body!,
             signal,
-            hands.enabled ? request.handSelection : undefined,
+            request.handSelection,
+            true,
           );
-          return { ...receipt, image: receipt.previewUrl };
+          signal.throwIfAborted();
+          return { ...receipt, binding: request.binding, image: "" };
         }
-        if (hands.enabled && request.handSelection) {
-          const item = review.items[index]!;
-          return loadHandReview(
+        if (request.handSelection) {
+          const receipt = await loadHandReview(
             request.url,
             framedExportUrl(item.exportUrl!, request.scope, "fbx", request.characterId),
             request.handSelection,
             signal,
+            true,
           );
-        }
-        const manual = review.items[index]!.candidate.manualExportAllowed === true;
-        const response = manual
-          ? await apiFetchResponse(request.url, { auth: false, signal })
-          : undefined;
-        const receipt = response
-          ? {
-              reviewKey: response.headers.get("X-Standin-Review-Key") ?? "",
-              artifactSha256: response.headers.get("X-Standin-Artifact-SHA256") ?? "",
-              characterSha: response.headers.get("X-Standin-Character-SHA256") ?? "",
-              sourceSha: response.headers.get("X-Standin-Source-BVH-SHA256") ?? "",
-              previewSha: response.headers.get("X-Standin-Preview-Artifact-SHA256") ?? "",
-            }
-          : undefined;
-        if (receipt && Object.values(receipt).some((v) => !/^[a-f0-9]{64}$/.test(v)))
-          throw new ApiError(409, "MANUAL_REVIEW_REQUIRED", "");
-        if (receipt && receipt.sourceSha !== review.items[index]!.candidate.sourceBvhSha256)
-          throw new ApiError(409, "PREVIEW_HASH_MISMATCH", "");
-        const blob = response
-          ? await response.blob()
-          : await apiFetchBlob(request.url, { auth: false, signal });
-        if (receipt) await verifyDigest(await blob.arrayBuffer(), receipt.previewSha);
-        if (request.model) {
-          if (!blob.type.startsWith("model/gltf-binary"))
-            throw new Error("미리보기 형식을 확인하지 못했습니다.");
-          const data = await blob.arrayBuffer();
-          let meta;
-          let base;
-          try {
-            meta = validateModel(
-              data,
-              undefined,
-              request.characterId,
-              request.scope,
-              "framed-mesh-v1",
-            );
-          } catch (error) {
-            if (!request.base) throw error;
-            meta = validateModel(data, request.base.sourceSha, request.characterId);
-            base = request.base;
-          }
-          if (
-            receipt &&
-            (meta.source_bvh_sha256 !== receipt.sourceSha ||
-              meta.character_sha256 !== receipt.characterSha)
-          )
-            throw new ApiError(409, "PREVIEW_CHANGED", "");
-          if (
-            !/^[a-f0-9]{64}$/.test(meta.character_sha256) ||
-            !/^[a-f0-9]{64}$/.test(meta.revision)
-          )
-            throw new Error("model identity");
+          signal.throwIfAborted();
           return {
-            image: "",
-            model: { data, characterId: request.characterId, scope: request.scope, base },
-            identity: {
-              sourceSha: meta.source_bvh_sha256,
-              characterSha: meta.character_sha256,
-              revision: base ? undefined : meta.revision,
-              ...(receipt
-                ? { reviewKey: receipt.reviewKey, artifactSha256: receipt.artifactSha256 }
-                : {}),
-            },
+            ...receipt,
+            binding: request.binding,
+            downloadUrl: receipt.handReceipt.downloadUrl,
           };
         }
-        if (!blob.type.startsWith("image/png"))
-          throw new Error("미리보기 형식을 확인하지 못했습니다.");
+        const response = await apiFetchResponse(request.url, { auth: false, signal });
+        const identity = { ...preparedIdentity(response), prepared: true };
+        if (
+          response.headers.get("X-Standin-Output-Scope") !== request.scope ||
+          (item.candidate.sourceBvhSha256 &&
+            !item.refined &&
+            identity.sourceSha !== item.candidate.sourceBvhSha256)
+        )
+          throw new ApiError(409, "PREVIEW_CHANGED", "");
+        signal.throwIfAborted();
         return {
-          image: await blobToDataUrl(blob),
-          ...(receipt
-            ? {
-                identity: {
-                  sourceSha: review.items[index]!.candidate.sourceBvhSha256!,
-                  characterSha: receipt.characterSha,
-                  reviewKey: receipt.reviewKey,
-                  artifactSha256: receipt.artifactSha256,
-                },
-              }
-            : {}),
+          binding: request.binding,
+          image: "",
+          identity,
+          downloadUrl: preparedUrl(request.url, identity.reviewKey, "fbx"),
         };
       },
       retry: false,
@@ -254,50 +193,78 @@ export function useFramedReview(jobId: string | undefined) {
       gcTime: 600_000,
     })),
   });
-  // The server checks the stored refine result before returning a library model.
-  const displays = requests.map((r, i) => ({
-    model: queries[i]?.data?.model,
-    key: r.modelKey + JSON.stringify(queries[i]?.data?.identity),
-  }));
-  const handLoading = hands.enabled && !hands.error && !hands.ready;
-  const previewLoading =
-    enabled &&
-    (handLoading ||
-      review.isRefining ||
-      (bodyMode
-        ? review.bodies.entries.some((e) => !e.selection && !e.error)
-        : catalog.isPending) ||
-      ((bodyMode
-        ? requests.every((r) => r.body?.resolutionStatus === "ready")
-        : catalog.isSuccess) &&
-        requests.every((r) => !!r.url) &&
-        !hands.error &&
-        queries.some((q, i) =>
-          displays[i]?.model
-            ? modelStatus[displays[i]!.key] !== "ready"
-            : q.isFetching || q.isPending,
-        )));
-  const previewError =
+  // useQueries can expose the previous observer result for one render while its
+  // options update. An explicit binding closes that frame as well as late fetches.
+  const currentData = requests.map((r, i) =>
+    queries[i]?.data?.binding === r.binding ? queries[i]?.data : undefined,
+  );
+  // Query keys name every current selection. React Query cancels obsolete
+  // observers; the signal checks also reject late transports that ignore abort.
+  const images = useQueries({
+    queries: requests.map((r, i) => ({
+      queryKey: ["framed-image", owner, currentData[i]?.downloadUrl ?? r.url],
+      enabled: enabled && requestReady(r) && !!currentData[i]?.downloadUrl,
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const downloadUrl = currentData[i]!.downloadUrl;
+        return { downloadUrl, image: await loadPreparedImage(downloadUrl, signal) };
+      },
+      retry: false,
+      staleTime: 300_000,
+      gcTime: 600_000,
+    })),
+  });
+  const preparationError =
     generatedReviewUnavailable ||
     (enabled &&
-      !previewLoading &&
-      (hands.error ||
-        (bodyMode
-          ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
-          : catalog.isError) ||
+      (!!hands.error ||
+        (bodyMode ? review.bodies.entries.some((e) => e.error) : catalog.isError) ||
         requests.some((r) => !r.url) ||
         queries.some((q) => q.isError)));
+  const downloadReady =
+    !requiresFbx &&
+    !generatedReviewUnavailable &&
+    !review.isRefining &&
+    (!enabled ||
+      (selectionsReady &&
+        requests.length > 0 &&
+        !preparationError &&
+        queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+  const preparationLoading = enabled && !preparationError && !downloadReady;
+  const previewLoading =
+    enabled && (preparationLoading || images.some((q) => q.isPending || q.isFetching));
+  const previewError = enabled && images.some((q) => q.isError);
   useEffect(() => {
-    if (bodyMode || !enabled || review.isRefining) return;
+    if (!enabled || !downloadReady || bodyMode) return;
     requests.forEach((r, i) => {
-      if (
-        r.exportKey &&
-        (queries[i]?.data?.image ||
-          (displays[i]?.model && modelStatus[displays[i]!.key] === "ready"))
-      )
-        rememberFramedFormat(r.exportKey, r.model, queries[i]?.data?.identity);
+      if (currentData[i]?.identity)
+        rememberFramedFormat(r.exportKey, false, currentData[i]!.identity);
     });
-  }, [bodyMode, enabled, review.isRefining, requests, queries, displays, modelStatus]);
+  }, [bodyMode, enabled, downloadReady, requests, currentData]);
+  const initialHands = useRef<string>();
+  const handKey = JSON.stringify(
+    requests.map((r) => [r.handSelection?.revision, r.handSelection?.library_sha256]),
+  );
+  const [handsChanged, setHandsChanged] = useState(false);
+  useEffect(() => {
+    initialHands.current = undefined;
+    setHandsChanged(false);
+  }, [jobId]);
+  useEffect(() => {
+    if (!hands.ready) return;
+    if (initialHands.current === undefined) initialHands.current = handKey;
+    else if (initialHands.current !== handKey) setHandsChanged(true);
+  }, [hands.ready, handKey]);
+  const revision = downloadRevision(
+    jobId ?? "",
+    downloadBinding(
+      format,
+      review.items.map((item, i) => ({
+        personIndex: item.personIndex,
+        candidateId: item.candidate.id,
+        downloadPath: currentData[i]?.downloadUrl ?? "",
+      })),
+    ),
+  );
   return {
     ...review,
     hands,
@@ -308,53 +275,63 @@ export function useFramedReview(jobId: string | undefined) {
         generatedReviewUnavailable && item.candidate.source === "generation"
           ? ""
           : enabled
-            ? (queries[index]?.data?.image ?? "")
+            ? requestReady(requests[index]!) &&
+              currentData[index] &&
+              images[index]?.data?.downloadUrl === currentData[index]?.downloadUrl
+              ? (images[index]?.data?.image ?? "")
+              : ""
             : item.previewUrl,
-      previewModel: enabled ? displays[index]?.model : undefined,
+      previewModel: undefined as ReviewModel | undefined,
       previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
-      onModelStatus: (status: "ready" | "failed") =>
-        setModelStatus((current) => {
-          const key = status === "failed" ? requests[index]!.modelKey : displays[index]!.key;
-          return current[key] === status ? current : { ...current, [key]: status };
-        }),
+      onModelStatus: () => {},
       scopeLabel: enabled ? SCOPE_LABELS[requests[index]!.scope] : "",
     })),
     requiresFbx,
+    downloadReady,
+    preparationLoading,
+    preparationError,
     previewLoading,
     previewError,
+    downloadLabel: revision.repeated
+      ? "다시 다운로드"
+      : revision.changed || handsChanged
+        ? "변경한 포즈 다운로드"
+        : "포즈 다운로드",
+    preparationNotice:
+      hands.pending || handsChanged
+        ? "변경한 손을 적용하고 있어요…"
+        : "다운로드할 파일을 준비하고 있어요…",
     previewFailure: poseRecovery(
-      generatedReviewUnavailable
-        ? new ApiError(503, "FBX_UNAVAILABLE", "")
-        : (queries.find((q) => q.isError)?.error ??
-            review.bodies.entries.find((e) => e.error)?.error ??
-            hands.entries.find((e) => e.error)?.error ??
-            catalog.error),
+      queries.find((q) => q.isError)?.error ??
+        review.bodies.entries.find((e) => e.error)?.error ??
+        hands.entries.find((e) => e.error)?.error ??
+        catalog.error,
     ),
-    /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: requiresFbx
-      ? "새로 만든 포즈는 저장할 최종 모습을 확인해 주세요."
+      ? "새로 만든 포즈는 FBX로 저장해 주세요."
       : enabled
-        ? `고른 체형${hands.enabled ? "과 손 모양" : ""}으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요.`
+        ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
         : format === "bvh"
-          ? `BVH에는 전체 동작만 저장돼요. 고른 체형${requests.some((r) => scopeIncludesHands(r.scope)) ? "·손 모양" : ""}과 잘라낼 범위는 FBX에만 적용돼요.`
+          ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
           : "",
     retryPreview: async () => {
       if (generatedReviewUnavailable) {
         await review.refetch();
         return;
       }
-      if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
-      if (bodyMode) {
-        await Promise.all(review.bodies.entries.map((entry) => entry.retry()));
-        await qc.invalidateQueries({
-          queryKey: ["body", owner, review.data!.jobId],
-          predicate: (q) => q.queryKey[4] === "review",
-        });
-      } else {
-        await catalog.refetch();
-        await Promise.all(queries.map((query) => query.refetch()));
-      }
+      if (preparationError) {
+        if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
+        if (bodyMode) await Promise.all(review.bodies.entries.map((e) => e.retry()));
+        else await catalog.refetch();
+        await Promise.all(queries.map((q) => q.refetch()));
+      } else await Promise.all(images.map((q) => q.refetch()));
+    },
+    // Only the explicit download button arms SavePage's existing save flow.
+    requestDownload: () => {
+      if (!downloadReady) return false;
+      useExportStore.getState().clearError();
+      return true;
     },
   };
 }

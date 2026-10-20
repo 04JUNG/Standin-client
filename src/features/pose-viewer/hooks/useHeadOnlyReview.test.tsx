@@ -1,3 +1,8 @@
+vi.mock("@/features/export/lib/preparedArtifact", async (original) => ({
+  ...(await original<typeof import("@/features/export/lib/preparedArtifact")>()),
+  loadPreparedImage: async (url: string) =>
+    url === "body-hands" ? url : "data:image/png;base64,Zml4dHVyZQ==",
+}));
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -19,7 +24,7 @@ vi.mock("@/features/hand-selection/api", async (original) => ({
 }));
 vi.mock("@/shared/api/client", async (original) => ({
   ...(await original<typeof import("@/shared/api/client")>()),
-  apiFetchBlob: mocks.png,
+  apiFetchResponse: mocks.png,
 }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
@@ -71,8 +76,22 @@ beforeEach(() => {
     ...selection,
     personIndex: index,
   }));
-  mocks.handReview.mockResolvedValue({ image: "body-hands" });
-  mocks.png.mockResolvedValue(new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" }));
+  mocks.handReview.mockResolvedValue({ image: "", handReceipt: { downloadUrl: "body-hands" } });
+  mocks.png.mockImplementation(
+    async (url: string) =>
+      new Response(null, {
+        headers: {
+          "X-Standin-Artifact-Contract": "verified-fbx-v1",
+          "X-Standin-Review-Key": "a".repeat(64),
+          "X-Standin-Artifact-SHA256": "b".repeat(64),
+          "X-Standin-Character-SHA256": "c".repeat(64),
+          "X-Standin-Source-BVH-SHA256": "d".repeat(64),
+          "X-Standin-Output-Scope": new URL(url, "https://standin.invalid").searchParams.get(
+            "outputScope",
+          )!,
+        },
+      }),
+  );
 });
 function mount() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
