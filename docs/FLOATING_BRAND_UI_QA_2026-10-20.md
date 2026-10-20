@@ -48,7 +48,7 @@ macOS 26.6.2 arm64 실행본의 실제 좌표가 최초 `(500,400)`에서 `(631,
 
 | 검사 | 결과 |
 | --- | --- |
-| 전체 Vitest, bundled Node 24 | 984 통과, 기존 skip 1 |
+| 전체 Vitest, bundled Node 24 | 최신 develop 통합 후 991 통과, 기존 skip 1 (123 files 통과) |
 | bar + mode route 테스트 | 64 통과: 헤더 순서·close·접기·본문 뒤로가기·상태/검색어 보존·드래그 대상/버튼 분리·기존 클릭/메뉴·창/캡처 왕복 |
 | typecheck / lint / production build | 통과. 기존 BodyCandidates fast-refresh 경고 1개, bundle 크기 경고와 드래그 API 선로딩에 따른 event 모듈 정적/동적 import 안내 |
 | `icons:check` | desktop 자산 17개와 파생 원본 일치 |
@@ -64,4 +64,4 @@ macOS 26.6.2 arm64 실행본의 실제 좌표가 최초 `(500,400)`에서 `(631,
 - 기존 설치 앱은 교체하지 않았다. Windows native UI, 실제 캡처·서버 분석·저장, 다중 모니터/DPI 전체 수동 흐름은 미검증이다. fixture는 설치 인증/동의 초기화를 수행하지 않았다.
 - 이전 `bar-header-browser.png`는 헤더 반복이 있는 잘못된 증거여서 제거했다. 이후 native 화면에서는 헤더 한 줄로 정상 표시됐다. 캡처 원인은 확정하지 않았다.
 - 최초 전체 Rust 테스트의 기존 secure_store roundtrip이 기본 서비스의 레거시 refresh_token 삭제를 시도한 뒤 키체인 쓰기에서 실패한 이력이 있다. 이전 token 존재 여부를 알 수 없어 영향을 단정할 수 없다. 설치 인증정보/동의 계정은 그 테스트 대상이 아니다. 이후 QA bundle은 별도 식별자/키체인 서비스를 사용하고 전체 native 테스트를 재실행하지 않았다.
-- #121·#122가 합쳐진 최신 develop `d173185`를 기존 PR merge commit `6b9a3c5`로 fast-forward해 보존했다. AppTitleBar/WindowControls와 다른 세션의 BodyCustomPage/LiveBodyView/shapeRuntime은 수정하지 않았다. 머지·배포는 하지 않는다.
+- #121·#122와 #124가 합쳐진 최신 develop `42d40f5`를 merge commit `7996259`로 통합했다. AppTitleBar/WindowControls와 다른 세션의 BodyCustomPage/LiveBodyView/shapeRuntime은 수정하지 않았다. BarActionsPage는 최신 develop과도 바이트 단위로 같다. PR 머지·배포는 하지 않는다.
