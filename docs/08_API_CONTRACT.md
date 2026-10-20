@@ -818,6 +818,10 @@ the converter and its verified preview. BVH behavior is unchanged.
 
 ## 체형 선택 UX 확장 (2026-10-08)
 
+새 작업의 기본 설정 `last_used`에서 아직 수동 체형 선택 이력이 없으면 BFF가 현행 남성 기본형을 선택한다.
+클라이언트가 가짜 선택을 만들거나 저장 검증을 건너뛰지 않는다. 이전 체형·수치가 있으면 그대로 시작하며,
+`auto`와 `fixed_default` 설정은 유지한다. 남성 기본 자산이나 포즈 지원이 없으면 BFF의 기존 대체 순서를 따른다.
+
 새 계약을 지원하는 작업의 기본 설정·인물별 선택·Top-K·최종 확인·저장 기준은 [BODY_SELECTION_UI.md](BODY_SELECTION_UI.md)를 따른다. 구 계약 설명보다 이 확장이 우선한다.
 
 
