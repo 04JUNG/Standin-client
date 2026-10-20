@@ -1,3 +1,4 @@
+import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2, Save } from "lucide-react";
@@ -25,6 +26,8 @@ export function ReviewPage() {
     isRefining,
     previewLoading,
     previewError,
+    previewFailure,
+    requiresFbx,
     previewNotice,
     retryPreview,
     shapedBake,
@@ -108,11 +111,19 @@ export function ReviewPage() {
               : "저장할 모습을 준비하고 있어요…"}
           </p>
         )}
+        {requiresFbx && <GeneratedFbxNotice />}
         {previewError && (
           <div role="alert" className="text-[12px] text-brand-coral">
-            저장할 모습을 불러오지 못했어요.{" "}
-            <button onClick={retryPreview} className="underline">
-              다시 시도
+            {previewFailure.message}{" "}
+            <button
+              onClick={() =>
+                previewFailure.action === "choose"
+                  ? navigate(`/app/jobs/${jobId}`)
+                  : void retryPreview()
+              }
+              className="underline"
+            >
+              {previewFailure.label}
             </button>
           </div>
         )}
@@ -123,7 +134,7 @@ export function ReviewPage() {
           <Button
             {...tourAnchor("review.confirm")}
             size="lg"
-            disabled={isRefining || previewLoading || previewError}
+            disabled={isRefining || previewLoading || previewError || requiresFbx}
             onClick={() => navigate(`/app/jobs/${jobId}/save`)}
           >
             <Save className="h-4 w-4" aria-hidden />이 포즈로 저장 ({items.length})

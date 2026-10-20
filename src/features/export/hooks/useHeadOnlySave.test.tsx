@@ -73,7 +73,13 @@ beforeEach(() => {
     credentials: { installationId: "owner", deviceToken: "fixture", consentVersion: "2026-08-02" },
   });
 });
-function mount(scopes: string[], bodyMode = false, staleBodyHands = false, selectedBody = body) {
+function mount(
+  scopes: string[],
+  bodyMode = false,
+  staleBodyHands = false,
+  generatedMixed = false,
+  selectedBody = body,
+) {
   const qc = new QueryClient();
   qc.setQueryData(poseQueryKeys.result("job"), {
     jobId: "job",
@@ -93,7 +99,22 @@ function mount(scopes: string[], bodyMode = false, staleBodyHands = false, selec
         detectionSource: "vlm_person",
         resolutionSource: "user",
       },
-      candidates: [{ id: `pick${index}`, bvhUrl: url(index) }],
+      candidates: [
+        {
+          id: `pick${index}`,
+          bvhUrl: url(index),
+          ...(generatedMixed
+            ? {
+                source: index === 0 ? "generation" : "library",
+                poseId: index === 0 ? null : "pose",
+                manualExportAllowed: true,
+                lookupAllowed: true,
+                bvhAvailable: true,
+                sourceBvhSha256: "a".repeat(64),
+              }
+            : {}),
+        },
+      ],
     })),
   } as AnalysisResult);
   usePoseSelectionStore.setState({
@@ -161,6 +182,36 @@ it("head rejects an old body receipt that still carries hand identity", async ()
   expect(mock.save).not.toHaveBeenCalled();
 });
 
+it.each([
+  ["PREVIEW_UNAVAILABLE", "choose"],
+  ["PREVIEW_HASH_MISMATCH", "choose"],
+  ["BODY_PREVIEW_STALE", "review"],
+  ["HANDS_CHANGED", "review"],
+  ["OUTPUT_SCOPE_CHANGED", "review"],
+  ["CONVERTER_TIMEOUT", "retry"],
+])("preserves %s at save and writes no substitute", async (code, action) => {
+  const { ApiError } = await import("@/shared/api/errors");
+  mock.bytes.mockRejectedValueOnce(new ApiError(409, code!, "private BVH token"));
+  const { result } = mount(["head"]);
+  await waitFor(() => expect(result.current.status).toBe("error"));
+  expect(result.current.recovery.action).toBe(action);
+  expect(result.current.error).not.toContain("private");
+  expect(result.current.error).not.toContain("폴더");
+  expect(mock.save).not.toHaveBeenCalled();
+});
+
+it("saves generated/library mixed people as the exact individual reviewed bytes", async () => {
+  mock.body.mockImplementation(async (receipt) => new Uint8Array([receipt.personIndex + 7]));
+  const hook = mount(["head", "head"], true, false, true);
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.body).toHaveBeenCalledTimes(2);
+  const files = mock.save.mock.calls[0]?.[0].files;
+  expect(files).toHaveLength(2);
+  expect(files[0].content).toEqual(new Uint8Array([7]));
+  expect(files[1].content).toEqual(new Uint8Array([8]));
+  expect(files[0].fileName).not.toBe(files[1].fileName);
+});
+
 it("saves the reviewed male fallback when body detection failed", async () => {
   const fallback = {
     ...body,
@@ -168,7 +219,7 @@ it("saves the reviewed male fallback when body detection failed", async () => {
     resolvedSource: "catalog_default_fallback",
     recommendation: { status: "unavailable", body: null, reasonCodes: [] },
   } as BodySelection;
-  const hook = mount(["head"], true, false, fallback);
+  const hook = mount(["head"], true, false, false, fallback);
   await waitFor(() => expect(hook.result.current.status).toBe("saved"));
   expect(mock.body.mock.calls[0]?.[0].selection.resolvedBody.characterId).toBe("male-base-v0-7-2");
   expect(mock.save).toHaveBeenCalledTimes(1);

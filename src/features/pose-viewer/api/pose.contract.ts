@@ -11,7 +11,7 @@ export type MatchLevel = "high" | "medium" | "low";
 export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
   semantic?: { familyId: string; alternate: boolean; description: string };
   id: string;
-  poseId: string;
+  poseId: string | null;
   rank: number;
   title: string;
   tags: string[];

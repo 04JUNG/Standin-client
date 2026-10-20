@@ -29,6 +29,56 @@ describe("poseHttp", () => {
     __resetAnalysisJobs();
   });
 
+  it.each([null, "pretend-library-id"])(
+    "reads generated identity without inventing a library ID (%s)",
+    async (poseId) => {
+      const id = "preview_" + "a".repeat(64),
+        hash = "b".repeat(64);
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_saved",
+          notes: [],
+          capabilities: { sceneExport: true, sceneRefinement: true, fbxExport: true },
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              tags: {},
+              candidates: [
+                {
+                  id,
+                  poseId,
+                  rank: 1,
+                  view: "front",
+                  tags: ["새로 만든 포즈"],
+                  matchLevel: "low",
+                  source: "generation",
+                  bvhAvailable: true,
+                  manualExportAllowed: true,
+                  lookupAllowed: true,
+                  releaseAllowed: false,
+                  sourceBvhSha256: hash,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const result = await poseHttp.loadResult({ jobId: "job_saved" });
+      const c = result.people[0].candidates[0];
+      expect(c.id).toBe(id);
+      expect(c.poseId).toBe(poseId);
+      expect(c.source).toBe("generation");
+      expect(c.releaseAllowed).toBe(false);
+      expect(c.refineAllowed).toBe(false);
+      expect(c.bvhAvailable).toBe(poseId === null);
+      if (poseId === null) {
+        expect(c.bvhUrl).toContain(`/pose-candidates/${id}/export?`);
+        expect(c.posterUrl).toContain(`/people/0/pose-previews/${id}/${hash}/poster`);
+      } else expect(c.bvhUrl).toBeUndefined();
+      expect(result.capabilities.sceneExport).toBe(false);
+    },
+  );
+
   function semanticPayload(thumbnailUrl?: string) {
     return {
       jobId: "job_saved",

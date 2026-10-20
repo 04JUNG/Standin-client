@@ -1,3 +1,5 @@
+import { ApiError } from "@/shared/api/errors";
+import { poseRecovery } from "@/shared/api/poseRecovery";
 import { useHands } from "@/features/hand-selection/hooks";
 import { loadHandReview, type HandReview } from "@/features/hand-selection/api";
 import { loadBodyReview } from "@/features/body-selection/review";
@@ -45,6 +47,9 @@ export function useFramedReview(jobId: string | undefined) {
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
+  const generatedSelected = review.items.some((i) => i.candidate.source === "generation");
+  const requiresFbx = format !== "fbx" && generatedSelected;
+  const generatedReviewUnavailable = format === "fbx" && generatedSelected && !enabled;
   const requests = review.items.map((item) => {
     const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
     const character = resolveCharacter({
@@ -178,9 +183,9 @@ export function useFramedReview(jobId: string | undefined) {
             }
           : undefined;
         if (receipt && Object.values(receipt).some((v) => !/^[a-f0-9]{64}$/.test(v)))
-          throw new Error("저장할 포즈의 확인 정보를 받지 못했습니다.");
+          throw new ApiError(409, "MANUAL_REVIEW_REQUIRED", "");
         if (receipt && receipt.sourceSha !== review.items[index]!.candidate.sourceBvhSha256)
-          throw new Error("선택한 포즈와 미리보기의 원본이 다릅니다.");
+          throw new ApiError(409, "PREVIEW_HASH_MISMATCH", "");
         const blob = response
           ? await response.blob()
           : await apiFetchBlob(request.url, { auth: false, signal });
@@ -209,7 +214,7 @@ export function useFramedReview(jobId: string | undefined) {
             (meta.source_bvh_sha256 !== receipt.sourceSha ||
               meta.character_sha256 !== receipt.characterSha)
           )
-            throw new Error("선택한 포즈와 체형을 확인하지 못했습니다.");
+            throw new ApiError(409, "PREVIEW_CHANGED", "");
           if (
             !/^[a-f0-9]{64}$/.test(meta.character_sha256) ||
             !/^[a-f0-9]{64}$/.test(meta.revision)
@@ -273,14 +278,15 @@ export function useFramedReview(jobId: string | undefined) {
             : q.isFetching || q.isPending,
         )));
   const previewError =
-    enabled &&
-    !previewLoading &&
-    (hands.error ||
-      (bodyMode
-        ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
-        : catalog.isError) ||
-      requests.some((r) => !r.url) ||
-      queries.some((q) => q.isError));
+    generatedReviewUnavailable ||
+    (enabled &&
+      !previewLoading &&
+      (hands.error ||
+        (bodyMode
+          ? review.bodies.entries.some((e) => e.error || e.selection?.resolutionStatus !== "ready")
+          : catalog.isError) ||
+        requests.some((r) => !r.url) ||
+        queries.some((q) => q.isError)));
   useEffect(() => {
     if (bodyMode || !enabled || review.isRefining) return;
     requests.forEach((r, i) => {
@@ -298,9 +304,14 @@ export function useFramedReview(jobId: string | undefined) {
     items: review.items.map((item, index) => ({
       ...item,
       includesHands: scopeIncludesHands(requests[index]!.scope),
-      previewUrl: enabled ? (queries[index]?.data?.image ?? "") : item.previewUrl,
+      previewUrl:
+        generatedReviewUnavailable && item.candidate.source === "generation"
+          ? ""
+          : enabled
+            ? (queries[index]?.data?.image ?? "")
+            : item.previewUrl,
       previewModel: enabled ? displays[index]?.model : undefined,
-      previewReference: !enabled && item.previewReference,
+      previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
       onModelStatus: (status: "ready" | "failed") =>
         setModelStatus((current) => {
           const key = status === "failed" ? requests[index]!.modelKey : displays[index]!.key;
@@ -308,16 +319,31 @@ export function useFramedReview(jobId: string | undefined) {
         }),
       scopeLabel: enabled ? SCOPE_LABELS[requests[index]!.scope] : "",
     })),
+    requiresFbx,
     previewLoading,
     previewError,
+    previewFailure: poseRecovery(
+      generatedReviewUnavailable
+        ? new ApiError(503, "FBX_UNAVAILABLE", "")
+        : (queries.find((q) => q.isError)?.error ??
+            review.bodies.entries.find((e) => e.error)?.error ??
+            hands.entries.find((e) => e.error)?.error ??
+            catalog.error),
+    ),
     /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
-    previewNotice: enabled
-      ? `고른 체형${hands.enabled ? "과 손 모양" : ""}으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요.`
-      : format === "bvh"
-        ? `BVH에는 전체 동작만 저장돼요. 고른 체형${requests.some((r) => scopeIncludesHands(r.scope)) ? "·손 모양" : ""}과 잘라낼 범위는 FBX에만 적용돼요.`
-        : "",
+    previewNotice: requiresFbx
+      ? "새로 만든 포즈는 저장할 최종 모습을 확인해 주세요."
+      : enabled
+        ? `고른 체형${hands.enabled ? "과 손 모양" : ""}으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요.`
+        : format === "bvh"
+          ? `BVH에는 전체 동작만 저장돼요. 고른 체형${requests.some((r) => scopeIncludesHands(r.scope)) ? "·손 모양" : ""}과 잘라낼 범위는 FBX에만 적용돼요.`
+          : "",
     retryPreview: async () => {
+      if (generatedReviewUnavailable) {
+        await review.refetch();
+        return;
+      }
       if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
       if (bodyMode) {
         await Promise.all(review.bodies.entries.map((entry) => entry.retry()));

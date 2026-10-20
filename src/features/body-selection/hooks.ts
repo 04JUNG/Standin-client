@@ -1,3 +1,4 @@
+import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import {
   useIsMutating,
@@ -158,6 +159,7 @@ export function useBodyControls(
       return putSelection(job, person.index, change, selection.selectionRevision);
     },
     onMutate: async () => {
+      invalidateFinalReview(qc, job);
       await qc.cancelQueries({
         queryKey: bodyKeys.person(owner, job, person.index),
         predicate: (q) => q.queryKey[4] === "images",

@@ -1,3 +1,4 @@
+import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AnalysisResult, PersonResult } from "../api/pose.contract";
 import {
@@ -27,6 +28,7 @@ export function OutputScopeSelect({
     mutationFn: (selection: "auto" | keyof typeof SCOPE_LABELS) =>
       saveOutputScope(jobId, person.index, selection, scope),
     onSuccess: (outputScope) => {
+      invalidateFinalReview(queryClient, jobId);
       // Both live and history keys can point to this same server job.
       queryClient.setQueriesData<AnalysisResult>({ queryKey: poseQueryKeys.all }, (previous) =>
         previous?.jobId === jobId

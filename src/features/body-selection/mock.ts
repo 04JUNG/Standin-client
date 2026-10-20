@@ -645,7 +645,7 @@ export const bodyMock = {
       runtime: { previewRevision: sha, modelRevision: sha },
       candidates: p.candidates.map((c: PoseCandidate) => ({
         candidateId: c.id,
-        poseId: c.poseId,
+        poseId: c.poseId!,
         rank: c.rank,
         sourceBvhSha256: sha,
         thumbnailUrl: "/v1/mock",

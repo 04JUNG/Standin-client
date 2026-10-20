@@ -15,7 +15,7 @@ import { RoughOverview, RoughPanel, RoughThumb } from "../components/RoughPanel"
 import { ExcludedOverlay, ExportSwitch } from "../components/ExportSwitch";
 import { CandidateRerunTile } from "../components/CandidateRerun";
 import { useCandidateRerun } from "../hooks/useCandidateRerun";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { BodyEntry } from "@/features/body-selection/hooks";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ChevronLeft, ChevronRight, Info, RotateCw } from "lucide-react";
@@ -34,7 +34,6 @@ import { PoseSearchPending } from "../components/PoseSearchPending";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
-import { useJobSelections } from "@/features/history/hooks/useJobSelections";
 import { ModelSelect } from "@/features/models/components/ModelSelect";
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
@@ -43,7 +42,6 @@ export function PoseViewerPage() {
   const navigate = useNavigate();
   const draft = useUploadStore((s) => s.draft);
   const setJobId = usePoseSelectionStore((s) => s.setJobId);
-  const restoreSelections = usePoseSelectionStore((s) => s.restoreSelections);
   const jobCharacterId = usePoseSelectionStore((s) => s.characterId);
   const characterByPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const setPersonCharacter = usePoseSelectionStore((s) => s.setPersonCharacter);
@@ -93,22 +91,6 @@ export function PoseViewerPage() {
     (active?.candidates.length ?? 0) > 0 &&
     active?.fallbackMode !== "hard";
   const onRerun = useCandidateRerun(data, active);
-
-  // 기록에서 열었으면 그때 확정했던 선택을 되살린다.
-  //
-  // 결과가 도착한 **뒤에** 실행해야 한다. setJobId와 setServerJobId가 각각 선택을
-  // 초기화하므로, 그 전에 넣으면 곧바로 지워진다. 한 번만 적용해서 사용자가 복원 뒤에
-  // 바꾼 선택을 재마운트가 되돌리지 않게 한다.
-  const { data: savedSelections } = useJobSelections(restoreOnly ? jobId : undefined);
-  const restored = useRef(false);
-  useEffect(() => {
-    if (!data || !jobId || !savedSelections?.length || restored.current) return;
-    restored.current = true;
-    restoreSelections(
-      jobId,
-      Object.fromEntries(savedSelections.map((s) => [s.personIndex, s.candidateId])),
-    );
-  }, [data, jobId, savedSelections, restoreSelections]);
 
   usePoseViewerShortcuts({
     canConfirm: allSelected,

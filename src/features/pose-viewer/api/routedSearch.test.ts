@@ -44,7 +44,7 @@ describe("routed candidate permissions", () => {
   });
 });
 
-it.each(["library", "semantic"] as const)(
+it.each(["library", "semantic", "generation"] as const)(
   "manual %s export requires exact asset permission without changing automatic validation",
   (source) => {
     const raw = {

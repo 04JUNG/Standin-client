@@ -1,3 +1,4 @@
+import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Loader2, Save } from "lucide-react";
@@ -16,8 +17,17 @@ import { BarShell } from "../components/BarShell";
 export function BarReviewPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
-  const { items, hands, isRefining, previewLoading, previewError, previewNotice, retryPreview } =
-    useFramedReview(jobId ?? undefined);
+  const {
+    items,
+    hands,
+    isRefining,
+    previewLoading,
+    previewError,
+    previewFailure,
+    requiresFbx,
+    previewNotice,
+    retryPreview,
+  } = useFramedReview(jobId ?? undefined);
 
   if (!jobId) return <Navigate to="/bar/actions" replace />;
   if (!isRefining && items.length === 0) return <Navigate to="/bar/candidates" replace />;
@@ -84,11 +94,19 @@ export function BarReviewPage() {
             저장할 모습을 준비하고 있어요…
           </p>
         )}
+        {requiresFbx && <GeneratedFbxNotice />}
         {previewError && (
           <p role="alert" className="text-[11px] text-brand-coral">
-            미리보기를 불러오지 못했어요 ·{" "}
-            <button onClick={retryPreview} className="underline">
-              다시 시도
+            {previewFailure.message}{" "}
+            <button
+              onClick={() =>
+                previewFailure.action === "choose"
+                  ? navigate("/bar/candidates")
+                  : void retryPreview()
+              }
+              className="underline"
+            >
+              {previewFailure.label}
             </button>
           </p>
         )}
@@ -109,7 +127,7 @@ export function BarReviewPage() {
           <Button
             size="sm"
             className="min-w-0 flex-1"
-            disabled={isRefining || previewLoading || previewError}
+            disabled={isRefining || previewLoading || previewError || requiresFbx}
             onClick={() => navigate("/bar/save")}
           >
             <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />이 포즈로 저장

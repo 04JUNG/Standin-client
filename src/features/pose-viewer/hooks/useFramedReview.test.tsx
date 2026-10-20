@@ -1,11 +1,13 @@
+import { ApiError } from "@/shared/api/errors";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { createHash, webcrypto } from "node:crypto";
 import { reviewedExportUrl, framedExportUrl } from "@/features/export/lib/framedExport";
 import type { ReactNode } from "react";
-const { state, fetchBlob, fetchResponse } = vi.hoisted(() => ({
+const { state, fetchBlob, fetchResponse, reload } = vi.hoisted(() => ({
   state: {
+    converter: true,
     enabled: true,
     refining: false,
     scope: "half",
@@ -17,7 +19,9 @@ const { state, fetchBlob, fetchResponse } = vi.hoisted(() => ({
     webgl: true,
     serverBase: false,
     manual: false,
+    generated: false,
   },
+  reload: vi.fn(),
   fetchBlob: vi.fn(),
   fetchResponse: vi.fn(),
 }));
@@ -38,10 +42,11 @@ vi.mock("../preview/modelContract", () => ({
 vi.mock("../preview/modelSupport", () => ({ modelRenderingAvailable: () => state.webgl }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
+    refetch: reload,
     bodies: { enabled: false, entries: [], ready: true },
     data: {
       capabilities: {
-        fbxExport: true,
+        fbxExport: state.converter,
         outputScopeCropping: state.enabled,
         characterSelection: false,
         modelPreview: state.model,
@@ -64,6 +69,7 @@ vi.mock("./useSelectionReview", () => ({
         personIndex: 0,
         candidate: {
           id: "p",
+          source: state.generated ? "generation" : "library",
           sourceBvhSha256: "a".repeat(64),
           manualExportAllowed: state.manual,
           previewModel: state.base
@@ -80,6 +86,7 @@ vi.mock("./useSelectionReview", () => ({
         },
         exportUrl: "/v1/pose-candidates/p/export?jobId=j&personIndex=0&candidateId=p",
         previewUrl: "FULL_BODY",
+        previewReference: state.format === "bvh",
         refined: state.refined,
       },
     ],
@@ -110,7 +117,12 @@ function mount() {
     ),
   });
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  state.converter = true;
+  state.generated = false;
+  reload.mockClear();
+});
 describe("framed review", () => {
   beforeEach(() => {
     Object.assign(state, {
@@ -125,6 +137,7 @@ describe("framed review", () => {
       webgl: true,
       serverBase: false,
       manual: false,
+      generated: false,
     });
     fetchBlob.mockReset();
     fetchBlob.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
@@ -321,3 +334,56 @@ describe("manual selected asset review", () => {
     },
   );
 });
+
+describe("review error recovery", () => {
+  it.each([
+    ["PREVIEW_UNAVAILABLE", "choose"],
+    ["PREVIEW_HASH_MISMATCH", "choose"],
+    ["BODY_PREVIEW_STALE", "review"],
+    ["HANDS_CHANGED", "review"],
+    ["OUTPUT_SCOPE_CHANGED", "review"],
+    ["CONVERTER_TIMEOUT", "retry"],
+  ])("%s preserves the server reason and blocks saving", async (code, action) => {
+    state.enabled = true;
+    state.manual = true;
+    state.model = false;
+    state.refining = false;
+    state.catalogError = false;
+    fetchResponse.mockRejectedValueOnce(new ApiError(409, code!, "private source"));
+    const { result } = mount();
+    await waitFor(() => expect(result.current.previewError).toBeTruthy());
+    expect(result.current.previewFailure.action).toBe(action);
+    expect(result.current.previewFailure.message).not.toContain("private source");
+  });
+});
+
+it("requires the final generated review without exposing internal transport terms", () => {
+  state.generated = true;
+  state.format = "bvh";
+  const { result } = mount();
+  expect(result.current.requiresFbx).toBe(true);
+  expect(result.current.previewNotice).toContain("새로 만든 포즈");
+  expect(result.current.previewNotice).not.toMatch(/BVH|SHA|poseId|capability|release/);
+  expect(result.current.items[0]?.previewReference).toBeFalsy();
+});
+
+it.each(["converter", "paired review"])(
+  "blocks generated final confirmation when %s support is missing",
+  async (missing) => {
+    Object.assign(state, {
+      generated: true,
+      format: "fbx",
+      converter: missing !== "converter",
+      enabled: missing !== "paired review",
+      refining: false,
+    });
+    const { result } = mount();
+    expect(result.current.previewError).toBe(true);
+    expect(result.current.items[0]?.previewUrl).toBe("");
+    expect(result.current.previewFailure.message).toContain("지금은 포즈 파일을 만들 수 없어요");
+    await act(async () => {
+      await result.current.retryPreview();
+    });
+    expect(reload).toHaveBeenCalledOnce();
+  },
+);

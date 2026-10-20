@@ -47,13 +47,14 @@ import {
 type BffCandidate = CandidatePolicy & {
   semantic?: unknown;
   id: string;
-  poseId: string;
+  poseId: string | null;
   rank: number;
   view: string;
   tags: string[];
   matchLevel: MatchLevel;
   bvhAvailable: boolean;
   thumbnailUrl?: string;
+  posterUrl?: string;
   quickThumbnailUrl?: string;
   previewModelUrl?: string;
   camera?: { version?: string; rotation?: unknown; source_bvh_sha256?: string } | null;
@@ -246,7 +247,7 @@ async function toPoseCandidate(
 ): Promise<PoseCandidate> {
   const semantic =
     raw.semantic === undefined ? undefined : semanticCandidateSchema.parse(raw.semantic);
-  if (semantic && raw.thumbnailUrl && !validSemanticThumbnail(raw.thumbnailUrl, raw.poseId))
+  if (semantic && raw.thumbnailUrl && !validSemanticThumbnail(raw.thumbnailUrl, raw.poseId ?? ""))
     throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid thumbnail path");
   const deferred = !!raw.camera && !!raw.thumbnailUrl;
   // Do not fetch aligned images or wait for all 20 thumbnails before returning
@@ -255,7 +256,11 @@ async function toPoseCandidate(
   const thumbnailUrl = "";
   const policy = readCandidatePolicy(raw);
   const downloadable =
-    canRelease({ ...policy, bvhAvailable: raw.bvhAvailable } as PoseCandidate) && raw.bvhAvailable;
+    canRelease({ ...policy, bvhAvailable: raw.bvhAvailable } as PoseCandidate) &&
+    raw.bvhAvailable &&
+    (policy.source === "generation"
+      ? raw.poseId === null
+      : typeof raw.poseId === "string" && !!raw.poseId);
   const posterParams = new URLSearchParams({
     jobId,
     personIndex: String(personIndex),
@@ -269,14 +274,25 @@ async function toPoseCandidate(
     ...(semantic ? { semantic } : {}),
     title: semantic
       ? semantic.description || `포즈 ${raw.rank}`
-      : raw.source === "library"
-        ? `포즈 ${raw.rank}`
-        : `포즈 ${raw.id}`,
+      : raw.source === "generation"
+        ? `새로 만든 포즈 ${raw.rank}`
+        : raw.source === "library"
+          ? `포즈 ${raw.rank}`
+          : `포즈 ${raw.id}`,
     tags: raw.tags,
     matchLevel: raw.matchLevel,
     thumbnailUrl,
     posterScope,
-    posterUrl: `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/poster?${posterParams}`,
+    ...(policy.source === "generation" && raw.poseId === null
+      ? {
+          posterUrl: `/v1/analysis/jobs/${encodeURIComponent(jobId)}/people/${personIndex}/pose-previews/${encodeURIComponent(raw.id)}/${policy.sourceBvhSha256}/poster`,
+        }
+      : {}),
+    ...(raw.poseId
+      ? {
+          posterUrl: `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/poster?${posterParams}`,
+        }
+      : {}),
     ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
     ...(raw.quickThumbnailUrl || (!deferred && raw.thumbnailUrl)
       ? {
@@ -299,7 +315,7 @@ async function toPoseCandidate(
     modelUrl: null,
     bvhAvailable: downloadable,
     bvhUrl: downloadable
-      ? endpoints.poseCandidates.export(raw.poseId, jobId, personIndex, raw.id)
+      ? endpoints.poseCandidates.export(raw.poseId ?? raw.id, jobId, personIndex, raw.id)
       : undefined,
   };
 }
@@ -393,9 +409,17 @@ async function toAnalysisResult(
       // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
       fbxExport: raw.capabilities?.fbxExport === true,
       ...(raw.capabilities?.sceneRefinement === true
-        ? { sceneRefinement: !semantic && raw.capabilities?.sceneExport === true }
+        ? {
+            sceneRefinement:
+              !semantic &&
+              !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
+              raw.capabilities?.sceneExport === true,
+          }
         : {}),
-      sceneExport: !semantic && raw.capabilities?.sceneExport === true,
+      sceneExport:
+        !semantic &&
+        !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
+        raw.capabilities?.sceneExport === true,
       // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
       // 않아 이 기능이 없던 때와 바이트까지 같은 파일이 나온다.
       characterSelection: raw.capabilities?.characterSelection === true,

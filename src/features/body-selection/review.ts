@@ -1,5 +1,6 @@
 import { handReviewFromResponse, type HandReview } from "@/features/hand-selection/api";
 import type { HandSelection } from "@/features/hand-selection/contract";
+import { ApiError } from "@/shared/api/errors";
 import { apiFetchResponse } from "@/shared/api/client";
 import { scopeIncludesHands, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { framedExportUrl } from "@/features/export/lib/framedExport";
@@ -30,7 +31,7 @@ export async function loadBodyReview(
 ): Promise<BodyReview> {
   if (!scopeIncludesHands(scope)) hands = undefined;
   if (selection.resolutionStatus !== "ready" || !selection.resolvedBody)
-    throw new Error("체형을 다시 선택해 주세요.");
+    throw new ApiError(409, "BODY_UNAVAILABLE", "체형을 다시 선택해 주세요.");
   const identity = new URL(exportUrl, "https://standin.invalid");
   if (
     identity.searchParams.get("jobId") !== jobId ||
@@ -38,7 +39,7 @@ export async function loadBodyReview(
     identity.searchParams.get("candidateId") !== candidateId ||
     selection.personIndex !== personIndex
   )
-    throw new Error("확인할 인물과 포즈가 일치하지 않습니다.");
+    throw new ApiError(409, "INVALID_SELECTION", "확인할 인물과 포즈가 일치하지 않습니다.");
   const base = framedExportUrl(exportUrl, scope, "preview", null);
   const handQuery = hands ? "&handSelectionRevision=" + hands.revision : "";
   const url = base + "&bodySelectionRevision=" + selection.selectionRevision + handQuery;
@@ -54,7 +55,7 @@ export async function loadBodyReview(
     res.headers.get("X-Standin-Body-Revision") !== String(selection.selectionRevision) ||
     res.headers.get("X-Standin-Character-SHA256") !== selection.resolvedBody.assetSha256
   )
-    throw new Error("확인할 체형이 변경되었습니다.");
+    throw new ApiError(409, "BODY_PREVIEW_STALE", "확인할 체형이 변경되었습니다.");
   const blob = await res.blob();
   if (blob.type !== "image/png") throw new Error("결과 이미지를 확인하지 못했습니다.");
   const downloadUrl =
@@ -93,7 +94,11 @@ export async function downloadBodyReview(receipt: BodyReview) {
     res.headers.get("X-Standin-Body-Revision") !== String(receipt.selection.selectionRevision) ||
     res.headers.get("X-Standin-Character-SHA256") !== receipt.selection.resolvedBody?.assetSha256
   )
-    throw new Error("확인한 결과와 파일이 다릅니다. 확인 화면으로 돌아가 주세요.");
+    throw new ApiError(
+      409,
+      "PREVIEW_CHANGED",
+      "확인한 결과와 파일이 다릅니다. 확인 화면으로 돌아가 주세요.",
+    );
   const data = await res.arrayBuffer();
   await verifyDigest(data, receipt.artifactSha256);
   return new Uint8Array(data);

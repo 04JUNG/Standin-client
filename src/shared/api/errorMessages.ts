@@ -8,6 +8,18 @@
  * 코드 목록은 BFF(`Standin-app-server`)의 실제 errorEnvelope 호출부 기준이다.
  */
 const MESSAGES: Record<string, string> = {
+  GENERATED_CHECKS_FAILED:
+    "만든 포즈가 확인 과정을 통과하지 못했어요. 다른 후보를 선택하거나 그림을 바꿔 다시 분석해 주세요.",
+  GENERATED_FBX_REQUIRED: "새로 만든 포즈는 저장 전 화면에서 최종 모습을 다시 확인해 주세요.",
+  GENERATED_SOURCE_UNAVAILABLE:
+    "새로 만든 포즈의 원본을 확인하지 못했어요. 다른 후보를 선택하거나 다시 분석해 주세요.",
+  GENERATED_INDIVIDUAL_ONLY: "새로 만든 포즈가 있는 컷은 인물마다 따로 저장해 주세요.",
+  PREVIEW_UNAVAILABLE: "포즈 원본을 찾지 못했어요. 다른 후보를 선택하거나 다시 분석해 주세요.",
+  PREVIEW_SOURCE_CHANGED: "포즈 원본이 바뀌었어요. 후보 화면에서 다시 선택해 주세요.",
+  PREVIEW_HASH_MISMATCH:
+    "선택한 포즈와 파일이 같은지 확인하지 못했어요. 다른 후보를 선택하거나 다시 분석해 주세요.",
+  INVALID_SELECTION:
+    "이 작업에서 선택한 포즈를 확인하지 못했어요. 후보 화면에서 다시 선택해 주세요.",
   HAND_SELECTION_DISABLED: "지금은 손 선택을 사용할 수 없습니다.",
   HANDS_UNAVAILABLE: "손 모양을 적용하지 못했어요. 잠시 후 다시 시도해 주세요.",
   INVALID_HAND_PRESET: "손 모양을 다시 선택해 주세요.",
@@ -63,19 +75,17 @@ const MESSAGES: Record<string, string> = {
   // FBX 변환(BFF docs/API.md 「format=fbx」). 재시도가 통하는 실패와 아닌 실패를 나눈다.
   OUTPUT_SCOPE_CHANGED: "저장할 부분이 바뀌었어요. 후보 화면에서 다시 확인해 주세요.",
   PREVIEW_CHANGED: "포즈나 모델이 바뀌었습니다. 미리보기를 다시 확인한 뒤 저장해 주세요.",
-  FBX_UNAVAILABLE: "지금은 FBX 저장을 사용할 수 없습니다. BVH로 저장해 주세요.",
-  CONVERTER_UNAVAILABLE:
-    "지금은 FBX 파일을 만들 수 없어요. 잠시 후 다시 시도하거나 BVH로 저장해 주세요.",
+  FBX_UNAVAILABLE: "지금은 포즈 파일을 만들 수 없어요. 잠시 후 다시 시도해 주세요.",
+  CONVERTER_UNAVAILABLE: "지금은 포즈 파일을 만들 수 없어요. 잠시 후 다시 시도해 주세요.",
   CONVERTER_TIMEOUT: "FBX 변환이 시간 안에 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.",
-  CONVERTER_REJECTED:
-    "이 포즈는 FBX로 변환할 수 없습니다. 다른 후보를 선택하거나 BVH로 저장해 주세요.",
+  CONVERTER_REJECTED: "이 포즈는 저장할 수 있는 파일로 만들지 못했어요. 다른 후보를 선택해 주세요.",
   CONVERTER_INTEGRITY:
     "선택한 포즈와 저장 파일이 같은지 확인하지 못했어요. 다른 포즈를 골라 보거나, 문제가 계속되면 문의해 주세요.",
   CONVERTER_FAILED: "FBX 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.",
   // 모델(체형) 선택. 둘 다 재시도로 풀리지 않는다 — 다른 모델을 고르거나 기본 모델로 간다.
   INVALID_CHARACTER: "이 체형은 사용할 수 없어요. 체형 화면에서 다른 체형을 골라 주세요.",
   CHARACTER_UNAVAILABLE:
-    "고른 체형을 지금은 사용할 수 없어요. 다른 체형을 고르거나 기본 체형으로 저장해 주세요.",
+    "고른 체형을 지금은 사용할 수 없어요. 후보 화면에서 다른 체형을 고른 뒤 다시 확인해 주세요.",
 
   // 작업 기록
   JOB_IN_PROGRESS: "진행 중인 분석은 삭제할 수 없습니다. 끝난 뒤에 다시 시도해 주세요.",

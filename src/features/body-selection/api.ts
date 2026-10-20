@@ -1,4 +1,5 @@
-import { apiFetch, apiFetchBlob, apiFetchResponse, ApiError } from "@/shared/api/client";
+import { ApiError } from "@/shared/api/errors";
+import { apiFetch, apiFetchBlob, apiFetchResponse } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { validRotation } from "@/features/pose-viewer/preview/modelContract";
 import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
@@ -150,7 +151,7 @@ export async function verifyDigest(bytes: ArrayBuffer, expected: string) {
   if (
     Array.from(new Uint8Array(hash), (x) => x.toString(16).padStart(2, "0")).join("") !== expected
   )
-    throw new Error("미리보기 파일이 변경되었습니다.");
+    throw new ApiError(409, "CONVERTER_INTEGRITY", "미리보기 파일이 변경되었습니다.");
 }
 async function bodyBytes(
   url: string,
