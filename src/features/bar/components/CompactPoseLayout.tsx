@@ -7,12 +7,7 @@ import { CompactPoseContext } from "./compactPoseContext";
 export function CompactPoseLayout({ children }: { children: ReactNode }) {
   return (
     <CompactPoseContext.Provider value={true}>
-      <div className="compact-pose-layout">
-        <p className="compact-pose-reference-note">
-          기본 체형의 정면 모습이에요. 저장할 모습과 다를 수 있어요.
-        </p>
-        {children}
-      </div>
+      <div className="compact-pose-layout">{children}</div>
     </CompactPoseContext.Provider>
   );
 }

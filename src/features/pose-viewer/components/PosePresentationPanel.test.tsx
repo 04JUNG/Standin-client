@@ -115,74 +115,84 @@ it("keeps rough-search Top-5 visible without text-search pagination", () => {
   expect(screen.queryByRole("navigation")).toBeNull();
 });
 
-it("shows the returned opposite-hand reference within five cards without granting actions", () => {
-  const camera = {
-    rotation: [
-      [1, 0, 0],
-      [0, 1, 0],
-      [0, 0, 1],
-    ],
-    projection_matches_search: false,
-  };
-  const rows = Array.from({ length: 4 }, (_, i) => ({
-    candidate_id: `original_${i}`,
-    pose_id: `pose_${i}`,
-    kind: "library_match",
-    rank: i + 1,
-    asset: { preview_bvh_url: `/v1/original_${i}`, bvh_sha256: "a".repeat(64) },
-    render_camera: camera,
-  })) as PreviewCandidate[];
-  const mirror = {
-    ...rows[0]!,
-    candidate_id: "mirror",
-    pose_id: "real_mirror",
-    kind: "mirror_reference",
-    rank: 1,
-    asset: { preview_bvh_url: "/v1/real_mirror", bvh_sha256: "b".repeat(64) },
-    mirror_comparison: {
-      family_id: "pair",
-      original_pose_id: "pose_0",
-      original_bvh_sha256: "a".repeat(64),
+it.each([false, true])(
+  "keeps mirror identity without repeated descriptions or extra permissions (compact=%s)",
+  (compact) => {
+    const camera = {
+      rotation: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      projection_matches_search: false,
+    };
+    const rows = Array.from({ length: 4 }, (_, i) => ({
+      candidate_id: `original_${i}`,
+      pose_id: `pose_${i}`,
+      kind: "library_match",
+      rank: i + 1,
+      asset: { preview_bvh_url: `/v1/original_${i}`, bvh_sha256: "a".repeat(64) },
+      render_camera: camera,
+    })) as PreviewCandidate[];
+    const mirror = {
+      ...rows[0]!,
+      candidate_id: "mirror",
+      pose_id: "real_mirror",
+      kind: "mirror_reference",
+      rank: 1,
+      asset: { preview_bvh_url: "/v1/real_mirror", bvh_sha256: "b".repeat(64) },
+      mirror_comparison: {
+        family_id: "pair",
+        original_pose_id: "pose_0",
+        original_bvh_sha256: "a".repeat(64),
+        original_candidate_id: "original_0",
+        is_mirror: true,
+        observed_side: "left",
+        reference_side: "right",
+        reason: "opposite_hand_reference",
+        matches_observed_side: false,
+      },
+    } as PreviewCandidate;
+    const client = new QueryClient();
+    for (const row of [...rows, mirror]) {
+      client.setQueryData(["pose-bvh-source", row.asset.preview_bvh_url], "bvh");
+      client.setQueryData(
+        ["pose-bvh-render", row.asset.preview_bvh_url, p.output_scope, row.render_camera],
+        "data:image/png;base64,AA==",
+      );
+    }
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <PosePresentationPanel
+          compact={compact}
+          presentation={{
+            ...p,
+            status: "ready",
+            search_status: "ok",
+            generation_status: null,
+            library_candidates: rows,
+            review_candidates: [mirror],
+            mirror_comparison: { status: "ready", reason: "opposite_hand_reference" },
+          }}
+        />
+      </QueryClientProvider>,
+    );
+    expect(container.querySelectorAll("[data-presentation-candidate]")).toHaveLength(5);
+    expect(screen.queryByRole("link", { name: "검색 후보 1" })).toBeNull();
+    expect(document.getElementById("pose-candidate-original_0")).toBeInTheDocument();
+    expect(screen.getByText("1. 좌우 반전 포즈")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1번 좌우 반전 포즈 이미지로 선택" })).toBeDisabled();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText(/러프에는|러프와 반대쪽|가려진 부분|의 좌우 반전 포즈/)).toBeNull();
+    expect(mirror.mirror_comparison).toMatchObject({
       original_candidate_id: "original_0",
-      is_mirror: true,
       observed_side: "left",
       reference_side: "right",
-      reason: "opposite_hand_reference",
       matches_observed_side: false,
-    },
-  } as PreviewCandidate;
-  const client = new QueryClient();
-  for (const row of [...rows, mirror]) {
-    client.setQueryData(["pose-bvh-source", row.asset.preview_bvh_url], "bvh");
-    client.setQueryData(
-      ["pose-bvh-render", row.asset.preview_bvh_url, p.output_scope, row.render_camera],
-      "data:image/png;base64,AA==",
-    );
-  }
-  const { container } = render(
-    <QueryClientProvider client={client}>
-      <PosePresentationPanel
-        presentation={{
-          ...p,
-          status: "ready",
-          search_status: "ok",
-          generation_status: null,
-          library_candidates: rows,
-          review_candidates: [mirror],
-          mirror_comparison: { status: "ready", reason: "opposite_hand_reference" },
-        }}
-      />
-    </QueryClientProvider>,
-  );
-  expect(container.querySelectorAll("[data-presentation-candidate]")).toHaveLength(5);
-  const originalLink = screen.getByRole("link", { name: "검색 후보 1" });
-  expect(originalLink).toHaveAttribute("href", "#pose-candidate-original_0");
-  expect(document.getElementById("pose-candidate-original_0")).toBeInTheDocument();
-  expect(originalLink.parentElement?.textContent).toBe("검색 후보 1의 좌우 반전 포즈");
-  expect(screen.queryByRole("status")).toBeNull();
-  expect(screen.getByText(/러프에는 왼손이 보여요. 이 포즈는 오른손을 써요./)).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /저장|보정|적용/ })).toBeNull();
-});
+    });
+    expect(screen.queryByRole("button", { name: /저장|보정|적용/ })).toBeNull();
+  },
+);
 it("missing mirror keeps the returned candidate count without a summary notice", () => {
   render(
     <PosePresentationPanel
