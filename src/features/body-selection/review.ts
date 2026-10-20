@@ -1,3 +1,4 @@
+import { preparedIdentity, preparedUrl } from "@/features/export/lib/preparedArtifact";
 import { handReviewFromResponse, type HandReview } from "@/features/hand-selection/api";
 import type { HandSelection } from "@/features/hand-selection/contract";
 import { ApiError } from "@/shared/api/errors";
@@ -28,6 +29,7 @@ export async function loadBodyReview(
   selection: BodySelection,
   signal: AbortSignal,
   hands?: HandSelection,
+  prepareOnly = false,
 ): Promise<BodyReview> {
   if (!scopeIncludesHands(scope)) hands = undefined;
   if (selection.resolutionStatus !== "ready" || !selection.resolvedBody)
@@ -40,7 +42,7 @@ export async function loadBodyReview(
     selection.personIndex !== personIndex
   )
     throw new ApiError(409, "INVALID_SELECTION", "확인할 인물과 포즈가 일치하지 않습니다.");
-  const base = framedExportUrl(exportUrl, scope, "preview", null);
+  const base = framedExportUrl(exportUrl, scope, prepareOnly ? "ready" : "preview", null);
   const handQuery = hands ? "&handSelectionRevision=" + hands.revision : "";
   const url = base + "&bodySelectionRevision=" + selection.selectionRevision + handQuery;
   const res = await apiFetchResponse(url, { auth: false, signal });
@@ -56,18 +58,23 @@ export async function loadBodyReview(
     res.headers.get("X-Standin-Character-SHA256") !== selection.resolvedBody.assetSha256
   )
     throw new ApiError(409, "BODY_PREVIEW_STALE", "확인할 체형이 변경되었습니다.");
-  const blob = await res.blob();
-  if (blob.type !== "image/png") throw new Error("결과 이미지를 확인하지 못했습니다.");
-  const downloadUrl =
+  if (prepareOnly) preparedIdentity(res);
+  const blob = prepareOnly ? undefined : await res.blob();
+  if (blob && blob.type !== "image/png") throw new Error("결과 이미지를 확인하지 못했습니다.");
+  const legacyDownloadUrl =
     framedExportUrl(exportUrl, scope, "fbx", null) +
     "&bodySelectionRevision=" +
     selection.selectionRevision +
     "&reviewKey=" +
     reviewKey +
     handQuery;
+  const downloadUrl = prepareOnly
+    ? preparedUrl(legacyDownloadUrl, reviewKey, "fbx")
+    : legacyDownloadUrl;
+  signal.throwIfAborted();
   return {
     ...(hands ? { hands: handReviewFromResponse(res, hands, downloadUrl) } : {}),
-    previewUrl: await blobToDataUrl(blob),
+    previewUrl: blob ? await blobToDataUrl(blob) : "",
     downloadUrl,
     exportUrl,
     personIndex,

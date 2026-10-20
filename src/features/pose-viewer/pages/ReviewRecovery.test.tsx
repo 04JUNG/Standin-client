@@ -15,6 +15,9 @@ vi.mock("../hooks/useFramedReview", () => ({
     hands: { enabled: false },
     isRefining: false,
     previewLoading: false,
+    preparationError: true,
+    downloadReady: false,
+    downloadLabel: "포즈 다운로드",
     previewError: true,
     previewFailure: {
       action: mock.action,
@@ -55,7 +58,7 @@ it.each(["app", "bar"])(
       </MemoryRouter>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("선택한 포즈를 확인하지 못했어요");
-    expect(screen.getByRole("button", { name: /이 포즈로 저장/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /포즈 다운로드/ })).toBeDisabled();
     fireEvent.click(screen.getAllByRole("button", { name: "후보 다시 고르기" })[0]!);
     expect(
       screen.getByText(surface === "app" ? "/app/jobs/job" : "/bar/candidates"),

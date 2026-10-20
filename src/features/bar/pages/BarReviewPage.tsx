@@ -22,6 +22,12 @@ export function BarReviewPage() {
     hands,
     isRefining,
     previewLoading,
+    preparationLoading,
+    preparationError,
+    preparationNotice,
+    downloadReady,
+    downloadLabel,
+    requestDownload,
     previewError,
     previewFailure,
     requiresFbx,
@@ -89,15 +95,17 @@ export function BarReviewPage() {
             ))}
           </div>
         )}
-        {previewLoading && !isRefining && (
+        {preparationLoading && !isRefining && (
           <p role="status" className="text-[11px] text-text-secondary">
-            저장할 모습을 준비하고 있어요…
+            {preparationNotice}
           </p>
         )}
         {requiresFbx && <GeneratedFbxNotice />}
-        {previewError && (
+        {(preparationError || previewError) && (
           <p role="alert" className="text-[11px] text-brand-coral">
-            {previewFailure.message}{" "}
+            {preparationError
+              ? previewFailure.message
+              : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
             <button
               onClick={() =>
                 previewFailure.action === "choose"
@@ -127,10 +135,13 @@ export function BarReviewPage() {
           <Button
             size="sm"
             className="min-w-0 flex-1"
-            disabled={isRefining || previewLoading || previewError || requiresFbx}
-            onClick={() => navigate("/bar/save")}
+            disabled={!downloadReady}
+            onClick={() => {
+              if (requestDownload()) navigate("/bar/save");
+            }}
           >
-            <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />이 포즈로 저장
+            <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {downloadLabel}
           </Button>
         </div>
       </div>
