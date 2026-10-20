@@ -304,7 +304,7 @@ export function useFramedReview(jobId: string | undefined) {
       includesHands: scopeIncludesHands(requests[index]!.scope),
       previewUrl: enabled ? (queries[index]?.data?.image ?? "") : item.previewUrl,
       previewModel: enabled ? displays[index]?.model : undefined,
-      previewReference: !enabled && item.previewReference,
+      previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
       onModelStatus: (status: "ready" | "failed") =>
         setModelStatus((current) => {
           const key = status === "failed" ? requests[index]!.modelKey : displays[index]!.key;
@@ -323,11 +323,13 @@ export function useFramedReview(jobId: string | undefined) {
     ),
     /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
-    previewNotice: enabled
-      ? `고른 체형${hands.enabled ? "과 손 모양" : ""}으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요.`
-      : format === "bvh"
-        ? `BVH에는 전체 동작만 저장돼요. 고른 체형${requests.some((r) => scopeIncludesHands(r.scope)) ? "·손 모양" : ""}과 잘라낼 범위는 FBX에만 적용돼요.`
-        : "",
+    previewNotice: requiresFbx
+      ? "새로 만든 포즈는 저장할 최종 모습을 확인해 주세요."
+      : enabled
+        ? `고른 체형${hands.enabled ? "과 손 모양" : ""}으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요.`
+        : format === "bvh"
+          ? `BVH에는 전체 동작만 저장돼요. 고른 체형${requests.some((r) => scopeIncludesHands(r.scope)) ? "·손 모양" : ""}과 잘라낼 범위는 FBX에만 적용돼요.`
+          : "",
     retryPreview: async () => {
       if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
       if (bodyMode) {

@@ -18,6 +18,7 @@ const { state, fetchBlob, fetchResponse } = vi.hoisted(() => ({
     webgl: true,
     serverBase: false,
     manual: false,
+    generated: false,
   },
   fetchBlob: vi.fn(),
   fetchResponse: vi.fn(),
@@ -65,6 +66,7 @@ vi.mock("./useSelectionReview", () => ({
         personIndex: 0,
         candidate: {
           id: "p",
+          source: state.generated ? "generation" : "library",
           sourceBvhSha256: "a".repeat(64),
           manualExportAllowed: state.manual,
           previewModel: state.base
@@ -81,6 +83,7 @@ vi.mock("./useSelectionReview", () => ({
         },
         exportUrl: "/v1/pose-candidates/p/export?jobId=j&personIndex=0&candidateId=p",
         previewUrl: "FULL_BODY",
+        previewReference: state.format === "bvh",
         refined: state.refined,
       },
     ],
@@ -126,6 +129,7 @@ describe("framed review", () => {
       webgl: true,
       serverBase: false,
       manual: false,
+      generated: false,
     });
     fetchBlob.mockReset();
     fetchBlob.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
@@ -343,4 +347,14 @@ describe("review error recovery", () => {
     expect(result.current.previewFailure.action).toBe(action);
     expect(result.current.previewFailure.message).not.toContain("private source");
   });
+});
+
+it("requires the final generated review without exposing internal transport terms", () => {
+  state.generated = true;
+  state.format = "bvh";
+  const { result } = mount();
+  expect(result.current.requiresFbx).toBe(true);
+  expect(result.current.previewNotice).toContain("새로 만든 포즈");
+  expect(result.current.previewNotice).not.toMatch(/BVH|SHA|poseId|capability|release/);
+  expect(result.current.items[0]?.previewReference).toBeFalsy();
 });

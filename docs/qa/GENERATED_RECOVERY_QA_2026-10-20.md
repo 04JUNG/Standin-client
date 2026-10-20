@@ -36,7 +36,7 @@
 추가 서버 오류 GENERATED_CHECKS_FAILED(기존 검사 탈락)도 후보 재선택으로 연결한다.
 
 - `npm run build`, `npm run lint` 성공. 기존 Vite 500KB chunk 경고 있음.
-- `NODE_OPTIONS=--no-experimental-webstorage npm test`: 967개 중 966 통과, 1 skipped.
+- `NODE_OPTIONS=--no-experimental-webstorage npm test`: 968개 중 967 통과, 1 skipped.
 - 메인/바 각각 생성-only, 생성+library 혼합 사진 선택/인물 집계/확정 이동/확대 버튼 없음을 검사했다.
 - 생성+library 혼합 컷의 body review fixture 바이트가 각 인물 파일명으로 별도 전달됨을 검사했다.
 - 체형/손/범위·후보/포함 변경 확인 무효화, 제외/재포함/작업/기록/소유자 선택 보존,
@@ -54,3 +54,5 @@
 힘 뺀 손+편 손 조합은 손 자체 겹침 검사도 통과했다. 주먹 조합에는 기존 자체 겹침 경고가 남았고,
 동일 라이브러리 포즈 대조군에서도 같은 경고가 관측됐다. 모든 손/충돌을 인증하지 않는다.
 설치 앱 native 저장·CSP는 여전히 미검증이다. 상세 수치와 조건은 서버 보고서를 따른다.
+
+PR 최종 안내 점검: 생성 포즈가 최종 형식 확인을 기다릴 때 내부 전송 형식 설명을 표시하지 않고, 새로 만든 포즈의 최종 모습 확인 안내만 제공한다.
