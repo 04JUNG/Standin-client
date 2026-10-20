@@ -1,7 +1,7 @@
 import { handReviewFromResponse, type HandReview } from "@/features/hand-selection/api";
 import type { HandSelection } from "@/features/hand-selection/contract";
 import { apiFetchResponse } from "@/shared/api/client";
-import type { BodyScope } from "@/features/pose-viewer/api/outputScope";
+import { scopeIncludesHands, type BodyScope } from "@/features/pose-viewer/api/outputScope";
 import { framedExportUrl } from "@/features/export/lib/framedExport";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { sha, type BodySelection } from "./contract";
@@ -28,6 +28,7 @@ export async function loadBodyReview(
   signal: AbortSignal,
   hands?: HandSelection,
 ): Promise<BodyReview> {
+  if (!scopeIncludesHands(scope)) hands = undefined;
   if (selection.resolutionStatus !== "ready" || !selection.resolvedBody)
     throw new Error("체형을 다시 선택해 주세요.");
   const identity = new URL(exportUrl, "https://standin.invalid");
@@ -45,6 +46,11 @@ export async function loadBodyReview(
   const reviewKey = sha.parse(res.headers.get("X-Standin-Review-Key"));
   const artifactSha256 = sha.parse(res.headers.get("X-Standin-Artifact-SHA256"));
   if (
+    (res.headers.has("X-Standin-Output-Scope") &&
+      res.headers.get("X-Standin-Output-Scope") !== scope) ||
+    (!scopeIncludesHands(scope) &&
+      (res.headers.has("X-Standin-Hand-Revision") ||
+        res.headers.has("X-Standin-Hand-Library-SHA256"))) ||
     res.headers.get("X-Standin-Body-Revision") !== String(selection.selectionRevision) ||
     res.headers.get("X-Standin-Character-SHA256") !== selection.resolvedBody.assetSha256
   )
@@ -74,6 +80,11 @@ export async function loadBodyReview(
 export async function downloadBodyReview(receipt: BodyReview) {
   const res = await apiFetchResponse(receipt.downloadUrl, { auth: false });
   if (
+    (!scopeIncludesHands(receipt.scope) &&
+      (res.headers.has("X-Standin-Hand-Revision") ||
+        res.headers.has("X-Standin-Hand-Library-SHA256"))) ||
+    (res.headers.has("X-Standin-Output-Scope") &&
+      res.headers.get("X-Standin-Output-Scope") !== receipt.scope) ||
     (receipt.hands &&
       (res.headers.get("X-Standin-Hand-Revision") !== String(receipt.hands.revision) ||
         res.headers.get("X-Standin-Hand-Library-SHA256") !== receipt.hands.librarySha256)) ||

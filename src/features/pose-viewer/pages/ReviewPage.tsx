@@ -86,7 +86,8 @@ export function ReviewPage() {
                     )}
                     {item.previewReference && (
                       <p className="px-2 text-[10px] text-text-secondary">
-                        포즈만 확인하는 모습이에요. BVH에는 체형·손 모양 없이 전체 동작이 저장돼요.
+                        포즈만 확인하는 모습이에요. BVH에는 체형
+                        {item.includesHands ? "·손 모양" : ""} 없이 전체 동작이 저장돼요.
                       </p>
                     )}
                     {/* 조정 여부는 그림만 봐서는 알 수 없다. 러프에 맞춰 손댄 결과라는 것을
@@ -111,7 +112,7 @@ export function ReviewPage() {
         {previewLoading && (
           <p role="status" className="text-[12px] text-text-secondary">
             {shapedBake
-              ? "고른 체형과 손 모양으로 저장할 모습을 만들고 있어요. 1~2분 걸릴 수 있어요."
+              ? `고른 체형${hands?.enabled ? "과 손 모양" : ""}으로 저장할 모습을 만들고 있어요. 1~2분 걸릴 수 있어요.`
               : "저장할 모습을 준비하고 있어요…"}
           </p>
         )}

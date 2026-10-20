@@ -15,6 +15,7 @@ import {
   type BodyLook,
 } from "./contract";
 import { bodyMock, bodyMockEnabled } from "./mock";
+import { scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
 export const personPath = (job: string, person: number) =>
   `/v1/analysis/jobs/${encodeURIComponent(job)}/people/${person}`;
 export const bodyKeys = {
@@ -127,6 +128,7 @@ export async function getManifest(
     manifest.jobId !== job ||
     manifest.personIndex !== person ||
     manifest.selectionRevision !== selection.selectionRevision ||
+    (!scopeIncludesHands(manifest.outputScope) && !!manifest.hands) ||
     !sameBody(manifest.resolvedBody, selection.resolvedBody)
   )
     throw new Error("체형 선택이 변경되었습니다. 다시 확인해 주세요.");

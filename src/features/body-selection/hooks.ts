@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import type { AnalysisResult, PersonResult } from "@/features/pose-viewer/api/pose.contract";
-import { bodyScopeSchema, readOutputScope } from "@/features/pose-viewer/api/outputScope";
+import { previewScope, scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
 import {
   bodyKeys,
   getManifest,
@@ -50,9 +50,7 @@ export function useBodies(
   const groups = useQueries({
     queries: people.map((person, i) => {
       const selection = selections[i]?.data;
-      const scope = person.outputScope
-        ? readOutputScope(person.outputScope).resolved
-        : (bodyScopeSchema.safeParse(person.posePresentation?.output_scope).data ?? "full");
+      const scope = previewScope(person);
       return {
         queryKey: [
           ...bodyKeys.person(owner, job, person.index),
@@ -85,7 +83,16 @@ export function useBodies(
     }),
   });
   const bodyPending = useIsMutating({ mutationKey: ["body-change", owner, job] }) > 0;
-  const handPending = useIsMutating({ mutationKey: ["hand-change", owner, job] }) > 0;
+  const handPending =
+    useIsMutating({
+      mutationKey: ["hand-change", owner, job],
+      predicate: (mutation) => {
+        const index = (
+          mutation.state.variables as { selection?: { personIndex?: number } } | undefined
+        )?.selection?.personIndex;
+        return people.some((p) => p.index === index && scopeIncludesHands(previewScope(p)));
+      },
+    }) > 0;
   const pending = bodyPending || handPending;
   const entries = people.map((person, i) => ({
     personIndex: person.index,

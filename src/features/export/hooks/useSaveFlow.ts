@@ -12,7 +12,11 @@ import {
   reviewedExportUrl,
   reviewedArtifactSha,
 } from "../lib/framedExport";
-import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
+import {
+  previewScope,
+  scopeIncludesHands,
+  type BodyScope,
+} from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
@@ -337,9 +341,11 @@ export function useSaveFlow(jobId: string | undefined) {
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
-            const candidate = analysisResult?.people
-              .find((p) => p.index === personIndex)
-              ?.candidates.find((c) => c.id === candidateId);
+            const person = analysisResult.people.find((p) => p.index === personIndex);
+            const scope = previewScope(person);
+            const handApplicable =
+              analysisResult.capabilities.handSelection && scopeIncludesHands(scope);
+            const candidate = person?.candidates.find((c) => c.id === candidateId);
             if (!candidate) {
               throw new Error("선택한 포즈를 분석 결과에서 찾지 못했습니다.");
             }
@@ -372,9 +378,6 @@ export function useSaveFlow(jobId: string | undefined) {
               const body = qc.getQueryData<BodySelection>(
                 bodyKeys.selection(owner, analysisResult.jobId, personIndex),
               );
-              const scope = readOutputScope(
-                analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
-              ).resolved;
               const receipts = qc.getQueriesData<BodyReview>({
                 queryKey: [...bodyKeys.person(owner, analysisResult.jobId, personIndex), "review"],
               });
@@ -387,20 +390,18 @@ export function useSaveFlow(jobId: string | undefined) {
                     r.scope === scope &&
                     r.selection.selectionRevision === body?.selectionRevision &&
                     r.selection.resolvedBody?.assetSha256 === body?.resolvedBody?.assetSha256 &&
-                    (!analysisResult.capabilities.handSelection ||
-                      (!!handSelection &&
+                    (handApplicable
+                      ? !!handSelection &&
                         r.hands?.revision === handSelection.revision &&
-                        r.hands.librarySha256 === handSelection.library_sha256)),
+                        r.hands.librarySha256 === handSelection.library_sha256
+                      : !r.hands),
                 );
               if (!owner || !receipt || body?.resolutionStatus !== "ready")
                 throw new Error("저장 전 확인 화면에서 현재 체형의 결과를 확인해 주세요.");
               content = await downloadBodyReview(receipt);
               downloadPath = receipt.downloadUrl;
               bodyNames.add(receipt.selection.resolvedBody!.characterId);
-            } else if (analysisResult.capabilities.handSelection && format === "fbx") {
-              const scope = readOutputScope(
-                analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
-              ).resolved;
+            } else if (handApplicable && format === "fbx") {
               const receipts = qc.getQueriesData<{ handReceipt?: HandReview }>({
                 queryKey: ["framed-preview", handOwner],
               });
@@ -434,11 +435,7 @@ export function useSaveFlow(jobId: string | undefined) {
                 candidateId,
                 format,
                 characterFor(personIndex),
-                analysisResult.capabilities.outputScopeCropping === true
-                  ? readOutputScope(
-                      analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
-                    ).resolved
-                  : undefined,
+                analysisResult.capabilities.outputScopeCropping === true ? scope : undefined,
                 analysisResult.capabilities.modelPreview === true,
                 currentOutcome?.refined === true,
                 (path) => {

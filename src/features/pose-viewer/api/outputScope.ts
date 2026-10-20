@@ -100,7 +100,14 @@ export function previewScope(person?: {
   outputScope?: OutputScope;
   posePresentation?: { output_scope: string | null } | null;
 }): BodyScope {
-  if (person?.outputScope) return readOutputScope(person.outputScope).resolved;
-  const parsed = bodyScopeSchema.safeParse(person?.posePresentation?.output_scope);
-  return parsed.success ? parsed.data : "full";
+  const scope = person?.outputScope ? readOutputScope(person.outputScope) : undefined;
+  if (scope && scope.selection !== "auto") return scope.selection;
+  const detected =
+    scope?.detected ?? bodyScopeSchema.safeParse(person?.posePresentation?.output_scope).data;
+  return scope?.meshScope ?? (detected === "bust" ? "half" : detected) ?? "full";
+}
+
+/** Converter skin-regions-v2 retains hand surfaces only in these mesh scopes. */
+export function scopeIncludesHands(scope: BodyScope): boolean {
+  return scope === "full" || scope === "half";
 }
