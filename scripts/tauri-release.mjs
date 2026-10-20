@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -145,6 +146,13 @@ async function verifyDmg(dmg, app) {
     const writable = path.join(work, "writable.dmg");
     const complete = path.join(work, "complete.dmg");
     run("hdiutil", ["convert", dmg, "-format", "UDRW", "-o", writable]);
+    // ditto can keep the old executable allocated while replacing it. Tauri's
+    // tightly sized image has insufficient spare room for a universal binary.
+    // Grow the private working image and its HFS+ filesystem before copying;
+    // the original signed DMG is replaced only after all verification succeeds.
+    const workingMiB = Math.ceil(statSync(writable).size / (1024 * 1024)) * 2 + 32;
+    console.log(`Reserving ${workingMiB} MiB for DMG app replacement.`);
+    run("hdiutil", ["resize", "-size", `${workingMiB}m`, writable]);
     run("hdiutil", ["attach", writable, "-nobrowse", "-mountpoint", mount]);
     mounted = true;
     try {
