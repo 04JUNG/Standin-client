@@ -46,7 +46,7 @@ export function BarPersonCandidates({
   if (!data) return null;
 
   const semantic = data.source === "semantic";
-  const sectionBackground = person.index % 2 === 0 ? "bg-surface-0" : "bg-surface-1";
+  const sectionBackground = person.index % 2 === 0 ? "bg-surface-0" : "bg-surface-2";
   const included = !(person.index in excludedPeople);
   const selectable = person.candidates.some(canRelease);
   const selected = selectedByPerson[person.index];
