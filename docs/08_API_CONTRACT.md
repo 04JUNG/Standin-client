@@ -1,5 +1,19 @@
 # FastAPI 연동 계약 초안
 
+## v4 보정 장면 최종 확인
+
+BFF가 `capabilities.sceneRefinement=true`를 명시한 이미지 작업은 기존 인물별 확인 후
+`POST /v1/analysis/jobs/:jobId/scene`에 `{ persons, prepare: true }`를 보냅니다.
+`persons`는 확정한 후보와 검수 FBX의 URL·SHA 참조입니다. `version=scene-refinement-v4`,
+`reviewKey`, `artifactSha256`, `previewSha256`, `previewBase64`, `personCount`, `summary`를 받으면
+PNG 해시를 확인하고 최종 장면을 표시합니다. 사용자가 **이 장면으로 저장**을 누른 뒤에만
+같은 참조와 `reviewKey`로 다운로드하며, 검수한 FBX SHA와 응답 SHA가 일치해야 native writer에 넘깁니다.
+취소 또는 화면 이탈 시 저장하지 않습니다. 검수 만료·서버 재시작·선택 변경은 새 확인이 필요합니다.
+
+클라이언트가 방향·좌표·관절을 수동 조정하지 않습니다. capability가 없으면 기존 저장 경로를 유지합니다.
+기본 기능 스위치는 BFF에서 꺼져 있습니다. 이번 변경의 설치 앱 네이티브 저장·Windows/macOS E2E와
+CSP의 FBX 카메라/구도 채택은 미검증입니다. 웹 타입 검사·빌드·계약 테스트 결과를 설치 앱 검증으로 대체하지 않습니다.
+
 ## 선택 품질 검토 동의 (2026-10-19)
 
 기본 설치 동의(`consentVersion`)와 선택 품질 동의(`qualityConsent.version`)는 별개다.

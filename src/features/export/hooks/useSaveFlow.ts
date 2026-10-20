@@ -17,7 +17,7 @@ import {
   scopeIncludesHands,
   type BodyScope,
 } from "@/features/pose-viewer/api/outputScope";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
@@ -29,7 +29,7 @@ import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 import { exportService } from "../api/export.service";
-import { downloadScene, sceneReference } from "../api/scene";
+import { downloadScene, prepareScene, sceneReference, type SceneReview } from "../api/scene";
 import { ExportError } from "../api/export.contract";
 import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
 import { mockBvhContent } from "../lib/mockBvhContent";
@@ -291,6 +291,23 @@ export function useSaveFlow(jobId: string | undefined) {
     preferredCharacterId,
   };
 
+  const [sceneReview, setSceneReview] = useState<SceneReview | null>(null);
+  const sceneDecision = useRef<((accepted: boolean) => void) | null>(null);
+  const sceneMounted = useRef(true);
+  useEffect(() => {
+    sceneMounted.current = true;
+    return () => {
+      sceneMounted.current = false;
+      sceneDecision.current?.(false);
+    };
+  }, []);
+  const decideScene = (accepted: boolean) => {
+    const decide = sceneDecision.current;
+    sceneDecision.current = null;
+    setSceneReview(null);
+    decide?.(accepted);
+  };
+
   const runSave = useCallback(
     /**
      * `append`는 앞선 저장 결과를 **남긴 채** 목록에 더한다. 같은 포즈를 다른 포맷으로 한
@@ -470,7 +487,18 @@ export function useSaveFlow(jobId: string | undefined) {
               sceneReference(f.personIndex, f.candidateId, f.downloadPath, f.content),
             ),
           );
-          const content = await downloadScene(analysisResult.jobId, references);
+          let review: SceneReview | undefined;
+          if (analysisResult.capabilities.sceneRefinement === true) {
+            review = await prepareScene(analysisResult.jobId, references);
+            if (!sceneMounted.current)
+              throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
+            const accepted = await new Promise<boolean>((resolve) => {
+              sceneDecision.current = resolve;
+              setSceneReview(review!);
+            });
+            if (!accepted) throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
+          }
+          const content = await downloadScene(analysisResult.jobId, references, review);
           saveFiles = [{ fileName: name.replace(/\.fbx$/i, "_scene.fbx"), content }];
         }
         const results = await exportService.saveCandidates({
@@ -593,6 +621,9 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    sceneReview,
+    confirmScene: () => decideScene(true),
+    cancelScene: () => decideScene(false),
     bodyMode,
     returnToReview: () => {
       clearError();
