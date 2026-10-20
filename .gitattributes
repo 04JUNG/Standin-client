@@ -10,3 +10,9 @@
 *.icns binary
 *.woff binary
 *.woff2 binary
+# Preserve supplied logo bytes, including the original SVG line endings.
+public/favicon.svg -text whitespace=cr-at-eol
+public/favicon_circle.svg -text whitespace=cr-at-eol
+src-tauri/icons/favicon.svg -text whitespace=cr-at-eol
+
+src-tauri/icons/favicon-macos.svg -text whitespace=cr-at-eol
