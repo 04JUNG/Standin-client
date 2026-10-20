@@ -1,3 +1,4 @@
+import "./BodyCustomPage.css";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
@@ -174,10 +175,10 @@ export function BodyCustomPage() {
         )}
 
         {draft && look && spec && values && (
-          <>
+          <div className="body-custom-editor space-y-4">
             <section
               aria-label="체형 미리보기와 시작 체형"
-              className="flex min-w-0 items-stretch gap-4 rounded-xl border border-border bg-surface-0 p-4"
+              className="body-custom-overview flex min-w-0 items-stretch gap-4 rounded-xl border border-border bg-surface-0 p-4"
             >
               <LiveBodyView
                 option={look}
@@ -188,6 +189,8 @@ export function BodyCustomPage() {
                 variant="app"
                 title="미리보기"
                 plainName
+                interactive
+                className="body-custom-live"
                 badge={dirty ? "저장 안 됨" : null}
               />
               <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -368,7 +371,7 @@ export function BodyCustomPage() {
                 </span>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
       {card && (
