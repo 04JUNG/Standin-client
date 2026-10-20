@@ -132,12 +132,7 @@ export function BarShell({ title, hideCollapse, children, footer, preferredWidth
         </BarIconButton>
       </div>
 
-      <div
-        className={cn(
-          "min-h-0 flex-1 overflow-auto",
-          pathname !== "/bar/actions" && "[scrollbar-gutter:stable]",
-        )}
-      >
+      <div className="min-h-0 flex-1 overflow-auto">
         {/* 내용 높이를 재기 위한 래퍼. 스크롤 영역 자체는 창 크기를 따라가므로 잴 수 없다. */}
         <div ref={contentRef}>
           {pathname === "/bar/candidates" ? (

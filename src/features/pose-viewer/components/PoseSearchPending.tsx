@@ -58,11 +58,17 @@ export function PoseSearchPending({
               </div>
             </div>
           </div>
-          <figcaption className="mt-3 flex min-w-0 items-center justify-center gap-2 text-[12px] text-text-secondary">
+          <figcaption
+            className={cn(
+              "mt-3 flex min-w-0 items-center justify-center text-[12px] text-text-secondary",
+              compact ? "flex-col gap-1" : "gap-2",
+            )}
+          >
             <span className="shrink-0">검색 중인 러프</span>
             {preview?.originalName && (
-              <span className="truncate" title={preview.originalName}>
-                · {preview.originalName}
+              <span className="max-w-full truncate" title={preview.originalName}>
+                {!compact && "· "}
+                {preview.originalName}
               </span>
             )}
           </figcaption>
