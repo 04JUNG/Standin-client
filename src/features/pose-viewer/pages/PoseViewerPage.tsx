@@ -282,8 +282,7 @@ export function PoseViewerPage() {
               원본 · 인물 {people.length}명을 찾았어요
             </span>
             <p className="text-[12.5px] text-text-secondary">
-              상자나 아래 인물 줄을 누르면 후보를 볼 수 있어요. 저장하지 않을 인물은{" "}
-              <b className="text-text-primary">내보내기 포함</b>을 꺼주세요.
+              인물을 선택해 포즈를 골라 주세요.
             </p>
             <p className="text-[12.5px] text-text-secondary">
               내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈 고름{" "}
