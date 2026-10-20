@@ -20,6 +20,7 @@ import "@/app/styles/index.css";
 
 type Control = { scenario: string; a: string; b: string };
 const control = await invoke<Control>("e2e_control");
+await invoke("e2e_trace", { stage: "control-received" });
 const client = new QueryClient();
 const report = (type: string, detail: unknown = null) =>
   invoke("e2e_report", { event: { scenario: control.scenario, type, detail } });
@@ -111,6 +112,10 @@ try {
   }
   await waitFor(() => state().startupComplete);
   switch (control.scenario) {
+    case "startup":
+      assert(Boolean(document.querySelector('[role="status"]')), "React UI did not mount");
+      await report("startup-ready");
+      break;
     case "reject-signature":
       await waitFor(() => Boolean(state().error));
       assert(/signature|base64|decode/i.test(state().error!), "Expected signature rejection");

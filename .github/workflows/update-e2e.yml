@@ -27,14 +27,17 @@ jobs:
         include:
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
+            rustTargets: x86_64-pc-windows-msvc
             platformKey: windows-x86_64
             bundles: nsis
           - runner: macos-15
-            target: aarch64-apple-darwin
+            target: universal-apple-darwin
+            rustTargets: aarch64-apple-darwin,x86_64-apple-darwin
             platformKey: darwin-aarch64
             bundles: app,dmg
           - runner: macos-15-intel
-            target: x86_64-apple-darwin
+            target: universal-apple-darwin
+            rustTargets: aarch64-apple-darwin,x86_64-apple-darwin
             platformKey: darwin-x86_64
             bundles: app,dmg
     env:
@@ -42,6 +45,7 @@ jobs:
       E2E_TARGET: ${{ matrix.target }}
       E2E_PLATFORM: ${{ matrix.platformKey }}
       STANDIN_VERIFY_MACOS_UPDATER: "true"
+      E2E_STARTUP_REPETITIONS: ${{ matrix.platformKey != 'windows-x86_64' && '25' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,7 +57,7 @@ jobs:
           python-version: "3.12"
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rustTargets }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri

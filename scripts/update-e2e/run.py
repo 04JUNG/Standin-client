@@ -20,6 +20,9 @@ EVENTS = ROOT / "events.jsonl"
 EVIDENCE = ROOT / "evidence"
 EVIDENCE.mkdir(exist_ok=True)
 RESULTS = []
+STARTUPS = []
+PACKAGES = []
+REPETITIONS = int(os.environ.get("E2E_STARTUP_REPETITIONS", "0"))
 ALL_PASSED = False
 SERVER = None
 FEED_MODE = "valid"
@@ -125,6 +128,76 @@ def verify_signature(target):
     with (EVIDENCE / "os-signatures.txt").open("a", encoding="utf8") as log:
         log.write(f"{target}\n{output.stdout}{output.stderr}\n")
 
+def inspect_universal_dmgs():
+    if WINDOWS or os.environ["E2E_TARGET"] != "universal-apple-darwin":
+        return
+    for label in ("a", "b"):
+        dmg = one(ROOT / "packages" / label, "*.dmg")
+        run(["codesign", "--verify", "--strict", "--verbose=2", str(dmg)])
+        mount = ROOT / f"inspect-{label}"
+        mount.mkdir(exist_ok=True)
+        run(["hdiutil", "attach", str(dmg), "-readonly", "-nobrowse", "-mountpoint", str(mount)])
+        try:
+            app = one(mount, "*.app")
+            verify_signature(app)
+            binary = one(app / "Contents" / "MacOS", "standin-desktop")
+            architectures = run(["lipo", "-archs", str(binary)]).stdout.split()
+            assert set(architectures) == {"arm64", "x86_64"}, architectures
+            PACKAGES.append({
+                "version": VERSIONS[label], "dmg": dmg.name,
+                "dmgSha256": hashlib.sha256(dmg.read_bytes()).hexdigest(),
+                "binarySha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+                "architectures": architectures,
+            })
+        finally:
+            run(["hdiutil", "detach", str(mount)])
+
+
+def diagnostics(name):
+    if WINDOWS:
+        return
+    # Keep failures visible. Sampling never retries or relaunches the application.
+    processes = run(["ps", "-axo", "pid,ppid,state,etime,comm"]).stdout
+    selected = [line for line in processes.splitlines()
+                if "standin-desktop" in line or "WebKit" in line]
+    (EVIDENCE / f"{name}-processes.txt").write_text("\n".join(selected), encoding="utf8")
+    commands = [
+        (["sample", line.split()[0], "2", "1", "-file",
+          str(EVIDENCE / f"{name}-sample-{line.split()[0]}.txt")], "sample")
+        for line in selected if line.split()[2] != "Z"
+    ]
+    commands.append(([
+        "/usr/bin/log", "show", "--last", "5m", "--style", "compact",
+        "--predicate", 'process == "standin-desktop" OR process BEGINSWITH "com.apple.WebKit"',
+    ], "system-log"))
+    for command, kind in commands:
+        try:
+            result = subprocess.run(command, text=True, capture_output=True, timeout=15)
+            if kind == "system-log":
+                (EVIDENCE / f"{name}-system-log.txt").write_text(
+                    result.stdout + result.stderr, encoding="utf8")
+        except (subprocess.TimeoutExpired, OSError) as error:
+            print(f"Diagnostic {kind}: {error}", flush=True)
+
+
+def wait_for_exit(pid, timeout=30):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if WINDOWS:
+            # Only needed for the installer's relaunched child, not the Popen parent.
+            result = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                text=True, capture_output=True, timeout=10)
+            if f'"{pid}"' not in result.stdout:
+                return
+        else:
+            result = subprocess.run(["ps", "-p", str(pid), "-o", "stat="],
+                                    text=True, capture_output=True, timeout=10)
+            if result.returncode == 1 or result.stdout.strip().startswith("Z"):
+                return
+        time.sleep(0.1)
+    raise AssertionError(f"Reported process {pid} did not exit")
+
 
 def install_a():
     destination = ROOT / "installed"
@@ -164,47 +237,61 @@ def events():
     return records
 
 
-def scenario(name, binary):
+def scenario(name, binary, *, expected=None, iteration=None):
     (ROOT / "control.json").write_text(json.dumps({"scenario": name, **VERSIONS}), encoding="utf8")
     before = len(events())
     started = time.monotonic()
-    with (EVIDENCE / f"{name}-process.txt").open("w", encoding="utf8") as log:
+    first_event = None
+    sampled = False
+    evidence_name = name if iteration is None else f"startup-{expected}-{iteration:02d}"
+    with (EVIDENCE / f"{evidence_name}-process.txt").open("w", encoding="utf8") as log:
         process = subprocess.Popen([str(binary)], stdout=log, stderr=log)
         while time.monotonic() - started < 240:
             records = events()[before:]
             matching = [r for r in records if r["event"]["scenario"] == name]
+            if matching and first_event is None:
+                first_event = time.monotonic() - started
             failure = next((r for r in matching if r["event"]["type"] in ("failed", "error")), None)
             if failure:
+                diagnostics(evidence_name)
                 raise AssertionError(json.dumps(failure))
             passed = next((r for r in matching if r["event"]["type"] == "passed"), None)
             if passed:
-                expected = VERSIONS["b" if name in ("upgrade", "no-repeat") else "a"]
+                expected = expected or VERSIONS["b" if name in ("upgrade", "no-repeat") else "a"]
                 assert passed["version"] == expected, passed
-                RESULTS.append({"scenario": name, "version": passed["version"], "passed": True})
-                print(f"PASS {name}: native version {passed['version']}", flush=True)
-                # e2e_exit follows the flushed report. Let the installed process leave
-                # before invoking the single-instance app again.
-                time.sleep(2)
+                expected_arch = "aarch64" if TARGET == "darwin-aarch64" else "x86_64"
+                assert passed["architecture"] == expected_arch, passed
+                # Observe actual termination, including the updater's new child.
+                # A fixed sleep followed by waiting only for A can race B's exit.
                 process.wait(timeout=30)
+                if passed["pid"] != process.pid:
+                    wait_for_exit(passed["pid"])
+                result = {
+                    "scenario": name, "version": passed["version"], "passed": True,
+                    "pid": passed["pid"], "architecture": passed["architecture"],
+                    "firstEventSeconds": round(first_event, 3),
+                    "durationSeconds": round(time.monotonic() - started, 3),
+                }
+                (RESULTS if iteration is None else STARTUPS).append(result)
+                print(f"PASS {evidence_name}: native version {passed['version']}", flush=True)
                 return passed
+            if not matching and not sampled and time.monotonic() - started > 20:
+                diagnostics(evidence_name + "-early")
+                sampled = True
             time.sleep(0.25)
-    if not WINDOWS and process.poll() is None:
-        # Preserve native thread stacks if the app stalls before its first IPC event.
-        # A timeout still fails the test; this does not retry or bypass installation.
-        try:
-            subprocess.run(
-                ["sample", str(process.pid), "2", "1", "-file",
-                 str(EVIDENCE / f"{name}-native-sample.txt")],
-                text=True, capture_output=True, timeout=15,
-            )
-        except subprocess.TimeoutExpired:
-            print("Native process sampling timed out", flush=True)
+    diagnostics(evidence_name)
     raise AssertionError(f"Timeout in {name}; process exit={process.poll()}, events={events()[before:]}")
 
 
 try:
+    inspect_universal_dmgs()
     binary, app_bundle = install_a()
     original_hash = hashlib.sha256(binary.read_bytes()).hexdigest()
+    if PACKAGES:
+        assert original_hash == PACKAGES[0]["binarySha256"]
+    # Start with the server offline: no pending update exists during launch stress.
+    for iteration in range(REPETITIONS):
+        scenario("startup", binary, expected=VERSIONS["a"], iteration=iteration)
     start_server()
     FEED_MODE = "invalid"
     rejected = scenario("reject-signature", binary)
@@ -231,18 +318,28 @@ try:
     assert not json.loads((cache / "pending.json").read_text())["attempted"]
     scenario("upgrade", binary)
     assert hashlib.sha256(binary.read_bytes()).hexdigest() != original_hash
+    if PACKAGES:
+        assert hashlib.sha256(binary.read_bytes()).hexdigest() == PACKAGES[1]["binarySha256"]
+        assert set(run(["lipo", "-archs", str(binary)]).stdout.split()) == {"arm64", "x86_64"}
     verify_signature(app_bundle or binary)
     if WINDOWS:
         verify_signature(one(binary.parent, "*uninstall*.exe"))
     scenario("no-repeat", binary)
     assert not (cache / "pending.json").exists(), "Installed-version cache was not cleaned"
+    for iteration in range(REPETITIONS):
+        scenario("startup", binary, expected=VERSIONS["b"], iteration=iteration)
     ALL_PASSED = True
 finally:
     stop_server()
     if EVENTS.exists():
         shutil.copyfile(EVENTS, EVIDENCE / "events.jsonl")
+    native_events = ROOT / "native-startup.jsonl"
+    if native_events.exists():
+        shutil.copyfile(native_events, EVIDENCE / native_events.name)
     (EVIDENCE / "results.json").write_text(json.dumps({
         "os": platform.platform(), "architecture": platform.machine(),
         "target": TARGET, "versions": VERSIONS, "scenarios": RESULTS,
-        "allPassed": ALL_PASSED and len(RESULTS) == 7,
+        "buildTarget": os.environ["E2E_TARGET"], "packages": PACKAGES,
+        "startupRepetitionsPerVersion": REPETITIONS, "startups": STARTUPS,
+        "allPassed": ALL_PASSED and len(RESULTS) == 7 and len(STARTUPS) == REPETITIONS * 2,
     }, indent=2), encoding="utf8")

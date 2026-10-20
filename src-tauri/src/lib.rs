@@ -5,7 +5,11 @@ mod update_e2e;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(feature = "update-e2e")]
+    update_e2e::trace("native-entry");
     let builder = tauri::Builder::default();
+    #[cfg(feature = "update-e2e")]
+    let builder = builder.plugin(update_e2e::probe("e2e-before-single-instance"));
 
     // 데스크톱에서 딥링크(standin://)가 이미 실행 중인 앱으로 전달되도록 single-instance 필요.
     // 두 번째 실행에서 기존 창을 앞으로 가져온다 — 그러지 않으면 아무 반응이 없어
@@ -37,13 +41,18 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init());
 
-    builder
+    let builder = builder
         .manage(commands::updates::UpdateRuntime::default())
         .manage(commands::release_notes::ReleaseNotesState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+    #[cfg(feature = "update-e2e")]
+    let builder = builder.plugin(update_e2e::probe("e2e-plugins-ready"));
+    let builder = builder
         .setup(|_app| {
+            #[cfg(feature = "update-e2e")]
+            update_e2e::trace("app-setup");
             // Windows/Linux 개발 환경에선 런타임에 스킴을 등록해야 딥링크가 잡힌다.
             #[cfg(any(windows, target_os = "linux"))]
             {
@@ -103,7 +112,26 @@ pub fn run() {
                 commands::window_mode::window_control,
             ];
             handler(invoke)
-        })
+        });
+    #[cfg(feature = "update-e2e")]
+    {
+        update_e2e::trace("build-start");
+        let app = builder
+            .on_page_load(|_, payload| {
+                update_e2e::trace(&format!("page-{:?}", payload.event()));
+            })
+            .build(tauri::generate_context!())
+            .expect("error building QA application");
+        update_e2e::trace("build-complete");
+        app.run(|_, event| match event {
+            tauri::RunEvent::Ready => update_e2e::trace("event-loop-ready"),
+            tauri::RunEvent::ExitRequested { .. } => update_e2e::trace("exit-requested-event"),
+            tauri::RunEvent::Exit => update_e2e::trace("exit-event"),
+            _ => {}
+        });
+    }
+    #[cfg(not(feature = "update-e2e"))]
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
