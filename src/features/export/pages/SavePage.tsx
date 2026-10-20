@@ -47,7 +47,7 @@ export function SavePage() {
     sceneReview,
     confirmScene,
     cancelScene,
-    bodyMode,
+    recovery,
     returnToReview,
     folder,
     format,
@@ -104,7 +104,7 @@ export function SavePage() {
   useShortcuts({
     "save.revealFolder": isSaved ? () => revealSaved() : undefined,
     "save.chooseFolder": status !== "saving" ? () => void saveToAnotherFolder() : undefined,
-    "save.save": status === "error" ? () => void retry() : undefined,
+    "save.save": status === "error" && recovery.action === "retry" ? () => void retry() : undefined,
     "save.newScene": isSaved ? () => handleNewScene() : undefined,
   });
 
@@ -149,22 +149,26 @@ export function SavePage() {
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <p role="alert">{error}</p>
             </div>
-            {bodyMode && (
+            {recovery.action !== "retry" && (
               <Button
                 variant="secondary"
                 onClick={() => {
                   returnToReview();
-                  navigate(`/app/jobs/${jobId}/review`);
+                  navigate(
+                    recovery.action === "choose"
+                      ? `/app/jobs/${jobId}`
+                      : `/app/jobs/${jobId}/review`,
+                  );
                 }}
               >
-                체형·포즈 다시 확인
+                {recovery.label}
               </Button>
             )}
             <p className="break-all text-[12px] text-text-secondary">
               저장을 시도한 폴더: {folder}
             </p>
             <div className="flex flex-col gap-2">
-              <Button size="lg" onClick={() => void retry()}>
+              <Button size="lg" disabled={recovery.action !== "retry"} onClick={() => void retry()}>
                 <RotateCcw className="h-4 w-4" aria-hidden />
                 다시 저장
                 <ShortcutKey

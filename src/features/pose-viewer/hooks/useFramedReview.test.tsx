@@ -1,3 +1,4 @@
+import { ApiError } from "@/shared/api/errors";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
@@ -320,4 +321,26 @@ describe("manual selected asset review", () => {
       expect(result.current.items[0]?.previewUrl).toBe("");
     },
   );
+});
+
+describe("review error recovery", () => {
+  it.each([
+    ["PREVIEW_UNAVAILABLE", "choose"],
+    ["PREVIEW_HASH_MISMATCH", "choose"],
+    ["BODY_PREVIEW_STALE", "review"],
+    ["HANDS_CHANGED", "review"],
+    ["OUTPUT_SCOPE_CHANGED", "review"],
+    ["CONVERTER_TIMEOUT", "retry"],
+  ])("%s preserves the server reason and blocks saving", async (code, action) => {
+    state.enabled = true;
+    state.manual = true;
+    state.model = false;
+    state.refining = false;
+    state.catalogError = false;
+    fetchResponse.mockRejectedValueOnce(new ApiError(409, code!, "private source"));
+    const { result } = mount();
+    await waitFor(() => expect(result.current.previewError).toBeTruthy());
+    expect(result.current.previewFailure.action).toBe(action);
+    expect(result.current.previewFailure.message).not.toContain("private source");
+  });
 });

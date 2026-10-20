@@ -25,6 +25,7 @@ export function ReviewPage() {
     isRefining,
     previewLoading,
     previewError,
+    previewFailure,
     previewNotice,
     retryPreview,
     shapedBake,
@@ -110,9 +111,16 @@ export function ReviewPage() {
         )}
         {previewError && (
           <div role="alert" className="text-[12px] text-brand-coral">
-            저장할 모습을 불러오지 못했어요.{" "}
-            <button onClick={retryPreview} className="underline">
-              다시 시도
+            {previewFailure.message}{" "}
+            <button
+              onClick={() =>
+                previewFailure.action === "choose"
+                  ? navigate(`/app/jobs/${jobId}`)
+                  : void retryPreview()
+              }
+              className="underline"
+            >
+              {previewFailure.label}
             </button>
           </div>
         )}

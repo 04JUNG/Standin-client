@@ -16,8 +16,16 @@ import { BarShell } from "../components/BarShell";
 export function BarReviewPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
-  const { items, hands, isRefining, previewLoading, previewError, previewNotice, retryPreview } =
-    useFramedReview(jobId ?? undefined);
+  const {
+    items,
+    hands,
+    isRefining,
+    previewLoading,
+    previewError,
+    previewFailure,
+    previewNotice,
+    retryPreview,
+  } = useFramedReview(jobId ?? undefined);
 
   if (!jobId) return <Navigate to="/bar/actions" replace />;
   if (!isRefining && items.length === 0) return <Navigate to="/bar/candidates" replace />;
@@ -86,9 +94,16 @@ export function BarReviewPage() {
         )}
         {previewError && (
           <p role="alert" className="text-[11px] text-brand-coral">
-            미리보기를 불러오지 못했어요 ·{" "}
-            <button onClick={retryPreview} className="underline">
-              다시 시도
+            {previewFailure.message}{" "}
+            <button
+              onClick={() =>
+                previewFailure.action === "choose"
+                  ? navigate("/bar/candidates")
+                  : void retryPreview()
+              }
+              className="underline"
+            >
+              {previewFailure.label}
             </button>
           </p>
         )}

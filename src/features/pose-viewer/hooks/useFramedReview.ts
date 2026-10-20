@@ -1,3 +1,4 @@
+import { poseRecovery } from "@/shared/api/poseRecovery";
 import { useHands } from "@/features/hand-selection/hooks";
 import { loadHandReview, type HandReview } from "@/features/hand-selection/api";
 import { loadBodyReview } from "@/features/body-selection/review";
@@ -310,6 +311,12 @@ export function useFramedReview(jobId: string | undefined) {
     })),
     previewLoading,
     previewError,
+    previewFailure: poseRecovery(
+      queries.find((q) => q.isError)?.error ??
+        review.bodies.entries.find((e) => e.error)?.error ??
+        hands.entries.find((e) => e.error)?.error ??
+        catalog.error,
+    ),
     /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: enabled

@@ -160,3 +160,21 @@ it("head rejects an old body receipt that still carries hand identity", async ()
   expect(mock.body).not.toHaveBeenCalled();
   expect(mock.save).not.toHaveBeenCalled();
 });
+
+it.each([
+  ["PREVIEW_UNAVAILABLE", "choose"],
+  ["PREVIEW_HASH_MISMATCH", "choose"],
+  ["BODY_PREVIEW_STALE", "review"],
+  ["HANDS_CHANGED", "review"],
+  ["OUTPUT_SCOPE_CHANGED", "review"],
+  ["CONVERTER_TIMEOUT", "retry"],
+])("preserves %s at save and writes no substitute", async (code, action) => {
+  const { ApiError } = await import("@/shared/api/errors");
+  mock.bytes.mockRejectedValueOnce(new ApiError(409, code!, "private BVH token"));
+  const { result } = mount(["head"]);
+  await waitFor(() => expect(result.current.status).toBe("error"));
+  expect(result.current.recovery.action).toBe(action);
+  expect(result.current.error).not.toContain("private");
+  expect(result.current.error).not.toContain("폴더");
+  expect(mock.save).not.toHaveBeenCalled();
+});

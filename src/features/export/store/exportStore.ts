@@ -36,6 +36,7 @@ type ExportState = {
   /** 인물마다 파일을 하나씩 저장하므로 배열이다. */
   savedPaths: string[];
   error: string | null;
+  errorCode?: string;
   setFolder(folder: string): void;
   beginJob(jobId: string): void;
   setFormat(format: ExportFormat): void;
@@ -43,7 +44,7 @@ type ExportState = {
   startSaving(): void;
   setSaved(paths: string[]): void;
   addSaved(paths: string[]): void;
-  setError(message: string): void;
+  setError(message: string, code?: string): void;
   clearError(): void;
   reset(): void;
 };
@@ -76,12 +77,20 @@ export const useExportStore = create<ExportState>()(
         set((state) =>
           state.jobId === jobId
             ? state
-            : { jobId, fileName: "", status: "idle", savedPaths: [], error: null },
+            : {
+                jobId,
+                fileName: "",
+                status: "idle",
+                savedPaths: [],
+                error: null,
+                errorCode: undefined,
+              },
         ),
       setFormat: (format) => set({ format }),
       setFileName: (fileName) => set({ fileName }),
-      startSaving: () => set({ status: "saving", error: null }),
-      setSaved: (paths) => set({ status: "saved", savedPaths: paths, error: null }),
+      startSaving: () => set({ status: "saving", error: null, errorCode: undefined }),
+      setSaved: (paths) =>
+        set({ status: "saved", savedPaths: paths, error: null, errorCode: undefined }),
       /**
        * 이미 저장한 목록에 이어 붙인다. 앞선 저장이 **유효한 채로** 파일이 더 생기는
        * 경우에만 쓴다 — 지금은 "다른 포맷으로도 저장" 하나다.
@@ -96,9 +105,17 @@ export const useExportStore = create<ExportState>()(
           savedPaths: [...state.savedPaths, ...paths],
           error: null,
         })),
-      setError: (message) => set({ status: "error", error: message }),
-      clearError: () => set({ status: "idle", error: null }),
-      reset: () => set({ jobId: null, fileName: "", status: "idle", savedPaths: [], error: null }),
+      setError: (message, errorCode) => set({ status: "error", error: message, errorCode }),
+      clearError: () => set({ status: "idle", error: null, errorCode: undefined }),
+      reset: () =>
+        set({
+          jobId: null,
+          fileName: "",
+          status: "idle",
+          savedPaths: [],
+          error: null,
+          errorCode: undefined,
+        }),
     }),
     {
       name: "standin-export-folder",
