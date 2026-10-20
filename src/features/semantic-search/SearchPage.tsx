@@ -124,11 +124,6 @@ export function SearchPage() {
             </p>
           </div>
         )}
-        <p className="text-[12px] leading-relaxed text-text-secondary">
-          마음에 드는 포즈를 골라 비교해 보세요. 저장할 수 있는 포즈는 최종 모습을 확인한 뒤 파일로
-          저장할 수 있어요. 일부 포즈는 참고용으로만 볼 수 있어요. 결과가 있는 검색은 작업 기록에
-          남아요.
-        </p>
       </div>
     </AppShell>
   );

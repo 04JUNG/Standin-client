@@ -89,7 +89,7 @@ export function BarReviewPage() {
             ))}
           </div>
         )}
-        {previewLoading && (
+        {previewLoading && !isRefining && (
           <p role="status" className="text-[11px] text-text-secondary">
             저장할 모습을 준비하고 있어요…
           </p>
@@ -110,7 +110,7 @@ export function BarReviewPage() {
             </button>
           </p>
         )}
-        {!previewLoading && !previewError && previewNotice && (
+        {!previewLoading && !previewError && !requiresFbx && previewNotice && (
           <p className="truncate text-[10px] text-text-secondary" title={previewNotice}>
             {previewNotice}
           </p>

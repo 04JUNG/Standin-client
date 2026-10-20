@@ -74,11 +74,6 @@ function Preview({
           {candidate.rank}. {candidateLabel(candidate.kind)}
         </span>
       </button>
-      {generated && (
-        <p className="text-[11px] text-text-secondary">
-          원본 그림과 다를 수 있으니 저장 전에 확인해 주세요.
-        </p>
-      )}
       {selectable && selection ? (
         <button
           type="button"
