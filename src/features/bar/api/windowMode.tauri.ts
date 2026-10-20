@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import type {
   MonitorRect,
@@ -54,7 +55,7 @@ export const windowModeTauri: WindowModeService = {
   async startDragging(): Promise<void> {
     try {
       // capabilities의 core:window:allow-start-dragging이 있어야 동작한다.
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      // Load the API with the adapter so macOS receives drag while mousedown is current.
       await getCurrentWindow().startDragging();
     } catch {
       // 끌기 실패는 치명적이지 않다.

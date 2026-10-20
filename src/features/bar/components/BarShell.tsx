@@ -1,12 +1,13 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { GripVertical, Minus, Maximize2 } from "lucide-react";
+import { GripVertical, Minus, Maximize2, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { GlobalShortcutIndicator } from "@/shared/components/GlobalShortcutAlert";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { appRouteForBarPath } from "@/shared/lib/modeRoutes";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { windowModeService } from "../api/windowMode.service";
 import { CompactPoseLayout } from "./CompactPoseLayout";
 import { useWindowModeStore } from "../stores/windowModeStore";
 
@@ -21,8 +22,8 @@ type BarShellProps = {
 /**
  * 바 모드의 셸(ADR-008). AppShell의 대응물이지만 사이드바·탑바가 없다.
  *
- * 드래그는 `data-tauri-drag-region`으로 처리한다 — JS 없이 웹뷰가 창을 옮긴다.
- * 버튼 위에서는 드래그가 걸리면 안 되므로 핸들 영역에만 붙인다.
+ * 점 아이콘·제목·빈 영역의 mousedown을 네이티브 드래그로 전달한다.
+ * 창 제어 버튼은 핸들 밖에 두어 클릭과 창 이동을 분리한다.
  */
 export function BarShell({ title, hideCollapse, children, footer }: BarShellProps) {
   const navigate = useNavigate();
@@ -78,7 +79,11 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
       <div className="flex items-center gap-1 border-b border-border px-1.5 py-1">
         {/* 드래그 핸들. 이 영역을 잡고 바를 옮긴다. */}
         <div
-          data-tauri-drag-region
+          onMouseDown={(event) => {
+            if (event.button !== 0 || event.ctrlKey) return;
+            event.preventDefault();
+            void windowModeService.startDragging();
+          }}
           className="flex flex-1 cursor-grab items-center gap-1.5 px-1 py-1 active:cursor-grabbing"
           title="드래그해서 옮기기"
         >
@@ -107,9 +112,17 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
         >
           <Maximize2 className="h-3.5 w-3.5" aria-hidden />
         </BarIconButton>
+        <BarIconButton label="닫기" onClick={() => void windowModeService.control("close")}>
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </BarIconButton>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-auto",
+          pathname !== "/bar/actions" && "[scrollbar-gutter:stable]",
+        )}
+      >
         {/* 내용 높이를 재기 위한 래퍼. 스크롤 영역 자체는 창 크기를 따라가므로 잴 수 없다. */}
         <div ref={contentRef}>
           {pathname === "/bar/candidates" ? (
