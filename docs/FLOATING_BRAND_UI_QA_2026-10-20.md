@@ -50,10 +50,30 @@ PNG/ICO/ICNS 크기와 alpha, SVG hash, 브라우저 computed style, 번들 검�
 
 ![뒤로가기·접기·앱 확대](qa/floating-brand-20261020/bar-header-browser.png)
 
+## 후속 macOS 네이티브 클릭 검사 — 실패 재현
+
+사용자 요청으로 macOS 26.6.2 (25G83), arm64에서 별도 `Standin Click QA.app`을 실행했다. PR 커밋 `31abc63`의 실제 BarCollapsedPage·BarShell·WindowModeSync와 수정하지 않은 Rust 창 백엔드를 사용한 native debug fixture다. 식별자·키체인 서비스는 `app.standin.click-qa-20261020`으로 분리했고 인증/동의 초기화·서버 호출·기존 설치 앱 교체는 하지 않았다.
+
+아래 Chrome에는 클릭 카운터가 있는 로컬 페이지를 놓고 CUA의 native 좌표 클릭을 사용했다. 브라우저 DOM 클릭을 이 검사에 사용하지 않았으며, DOM은 카운터를 읽는 데만 사용했다. 창은 64×64 logical px, 스크린샷은 Retina 128×128 px다.
+
+| 실제 포인터 클릭 대상 | 아래 앱 카운터 | 바 결과 |
+| --- | --- | --- |
+| 원형 로고 중심 (스크린샷 64,64) | 0 → 0 | 정상 펼침 |
+| 접은 뒤 바깥 padding (2,2) | 0 → 0 | 접힘 유지, HTML content에 포커스 |
+| 바와 떨어진 Chrome 영역 — 양성 대조 | 0 → 1 | 아래 앱이 정상 수신 |
+| 원 밖 좌상단 (12,12) | 1 → 1 | 아래 앱 수신 없음 |
+| 원 밖 우상단 (116,12) | 1 → 1 | 아래 앱 수신 없음 |
+| 원 밖 좌하단 (12,116) | 1 → 1 | 아래 앱 수신 없음 |
+| 원 밖 우하단 (116,116) | 1 → 1 | 아래 앱 수신 없음 |
+
+**결과: 현재 macOS native fixture에서 원 밖 사각 창 영역이 아래 앱의 클릭을 가로챈다.** 웹 버튼의 circle clip/pointer-events 설정만으로 OS 창의 hit 영역은 줄어들지 않은 상태다. 이 검사는 문제 확인이며 아직 코드 수정은 적용하지 않았다. 검증 앱은 검사 후 종료했다. Windows native UI는 여전히 미검증이다.
+
+좌표별 결과는 [native-click-check.json](qa/floating-brand-20261020/native-click-check.json), 실제 창과 아래 앱은 [native bar](qa/floating-brand-20261020/native-bar.png), [below counter](qa/floating-brand-20261020/below-counter.png)에 남겼다. 앱 단위 캡처는 다른 앱의 창을 합성하지 않으므로 두 이미지는 서로 별도 캡처다. 캡처의 흰 배경만으로 compositor alpha를 판정하지 않았다.
+
 ## 검증하지 않은 범위와 후속 확인
 
-- 설치 앱은 교체/실행하지 않았다. macOS·Windows의 실제 compositor 투명도와 다른 앱으로의 모서리 클릭 통과, native 이동·우클릭 메뉴, 다중 모니터/배율에서의 실제 조작은 미검증이다. Windows installer도 빌드하지 않았다.
-- Chrome에서 투명 모서리는 button이 아닌 root DIV로 hit-test된다. 버튼의 웹 hit 영역 확인을 OS 차원의 click-through 증거로 취급하지 않는다. 네이티브 수동 확인 전까지 PR은 draft로 둔다. OS에서 모서리가 아래 앱의 클릭을 가로채면 별도 native hit-test 처리가 필요하다.
+- 설치 앱은 교체/실행하지 않았다. macOS native fixture의 클릭 가로채기는 위에서 실패 재현했다. 설치 앱 compositor 투명도와 Windows 클릭 통과, native 이동·우클릭 메뉴, 다중 모니터/배율에서의 실제 조작은 미검증이다. Windows installer도 빌드하지 않았다.
+- Chrome에서 투명 모서리는 button이 아닌 root DIV로 hit-test된다. 버튼의 웹 hit 영역 확인을 OS 차원의 click-through 증거로 취급하지 않는다. macOS native fixture에서 모서리 클릭 가로채기가 재현됐으므로 native hit-test 처리가 필요하며 PR은 draft로 유지한다.
 - 수동 확인: 각 OS에서 다른 앱 위에 접힌 바를 놓고 투명 모서리/중심을 각각 클릭한다. 모서리에서는 아래 앱이, 중심에서는 펼치기가 동작해야 한다. 드래그 후 펼침 억제, 우클릭/Control-click/Shift+F10 닫기 메뉴, Tab 포커스·Enter/Space, 항상 위·모니터 이동·배율 변경·앱/바/캡처 왕복을 확인한다. 확대된 창은 불투명해야 한다.
 - 전체 Rust 테스트의 기존 `secure_store::tests::roundtrip`은 기본 `app.standin.desktop` 서비스의 레거시 `refresh_token` 삭제를 시도한 뒤 키체인 쓰기에서 실패했다. 실행 전에 테스트 서비스를 격리하지 못했다. 이전 refresh token 존재 여부를 알 수 없어 영향을 단정할 수 없다. 설치 인증정보/동의 계정은 이 테스트의 대상이 아니다. 추가 실행은 창 모드 테스트로 한정했다. 이후 전체 native 테스트는 반드시 `STANDIN_KEYRING_SERVICE`를 별도 QA 서비스로 설정해야 한다. 이 PR은 인증/키체인 코드를 수정하지 않는다.
 

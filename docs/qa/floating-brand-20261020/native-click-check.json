@@ -1,0 +1,71 @@
+{
+  "sourceCommit": "31abc638bb54636da3623bd189d45b7764a8e8eb",
+  "platform": "macOS 26.6.2 (25G83), arm64",
+  "nativeRuntime": "Tauri/WKWebView, debug app fixture; production BarCollapsedPage, BarShell, WindowModeSync and unchanged Rust window backend",
+  "appIdentifier": "app.standin.click-qa-20261020",
+  "isInstalledProductionApp": false,
+  "input": "CUA native app coordinate clicks; browser DOM used only to read below-app counter",
+  "windowLogicalSize": [64, 64],
+  "windowScreenshotSize": [128, 128],
+  "steps": [
+    {
+      "action": "logo center",
+      "appScreenshotPoint": [64, 64],
+      "belowCountBefore": 0,
+      "belowCountAfter": 0,
+      "barAfter": "expanded"
+    },
+    {
+      "action": "collapse, outer transparent padding",
+      "appScreenshotPoint": [2, 2],
+      "belowCountBefore": 0,
+      "belowCountAfter": 0,
+      "barAfter": "collapsed"
+    },
+    {
+      "action": "positive control outside bar in Chrome",
+      "chromeScreenshotPoint": [1500, 1300],
+      "belowCountBefore": 0,
+      "belowCountAfter": 1,
+      "lastClientPoint": [833, 563]
+    },
+    {
+      "action": "outside circular logo, inside native rectangle",
+      "appScreenshotPoint": [12, 12],
+      "belowCountBefore": 1,
+      "belowCountAfter": 1,
+      "barAfter": "collapsed",
+      "nativeFocus": "HTML content"
+    },
+    {
+      "action": "outside circular logo, inside native rectangle",
+      "appScreenshotPoint": [116, 12],
+      "belowCountBefore": 1,
+      "belowCountAfter": 1,
+      "barAfter": "collapsed",
+      "nativeFocus": "HTML content"
+    },
+    {
+      "action": "outside circular logo, inside native rectangle",
+      "appScreenshotPoint": [12, 116],
+      "belowCountBefore": 1,
+      "belowCountAfter": 1,
+      "barAfter": "collapsed",
+      "nativeFocus": "HTML content"
+    },
+    {
+      "action": "outside circular logo, inside native rectangle",
+      "appScreenshotPoint": [116, 116],
+      "belowCountBefore": 1,
+      "belowCountAfter": 1,
+      "barAfter": "collapsed",
+      "nativeFocus": "HTML content"
+    }
+  ],
+  "result": "FAIL: native rectangular window intercepts below-app clicks outside the circle",
+  "appExitedAfterTest": true,
+  "credentialsOrConsentInitialized": false,
+  "productionAppReplaced": false,
+  "windowsNativeTested": false,
+  "codeFixApplied": false
+}
