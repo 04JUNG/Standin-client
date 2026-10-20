@@ -24,10 +24,8 @@ export const BAR_SIZES: Record<BarState, WindowSize> = {
   search: { width: 420, height: 300 },
   /** 분석 진행 상태 */
   progress: { width: 360, height: 96 },
-  // 카드와 이름이 여러 줄일 때도 창 크기를 고정한다. 넘치는 내용은 내부에서 스크롤한다.
-  // 이미지 로드 때 내용 높이를 따라 창을 재조정하면 스크롤바가 붙었다 떨어지며 떨린다.
   /** 후보 5개 비교·선택 · 인물별 체형 */
-  candidates: { width: 720, height: 560 },
+  candidates: { width: 680, height: 360 },
   /**
    * 저장 전 확인.
    *
@@ -43,6 +41,31 @@ export const BAR_SIZES: Record<BarState, WindowSize> = {
   /** 폴더·파일명·저장 */
   save: { width: 420, height: 300 },
 };
+
+/** 여러 인물·체형 조절은 이 높이까지만 커지고 이후 셸 본문에서 스크롤한다. */
+export const BAR_CANDIDATES_MAX_HEIGHT = 560;
+
+/** 콘텐츠 높이는 viewport에 의존하지 않는 래퍼에서 측정한다. */
+export function fitBarContent(
+  state: BarState,
+  base: WindowSize,
+  height: number | null,
+  width: number | null,
+): WindowSize {
+  if (state === "collapsed") return base;
+  const minimumHeight = state === "actions" ? BAR_SIZES.actions.height : 96;
+  return {
+    ...base,
+    width: width && Number.isFinite(width) ? Math.min(720, Math.max(320, width)) : base.width,
+    height:
+      height && Number.isFinite(height)
+        ? Math.min(
+            state === "candidates" ? BAR_CANDIDATES_MAX_HEIGHT : 760,
+            Math.max(minimumHeight, height),
+          )
+        : base.height,
+  };
+}
 
 export const APP_SIZE: WindowSize = { width: 1280, height: 800 };
 

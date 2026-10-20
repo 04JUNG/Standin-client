@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -94,13 +94,15 @@ beforeEach(() => {
 });
 
 it.each([
-  ["app", false],
-  ["bar", false],
-  ["app", true],
-  ["bar", true],
+  ["app", false, 1],
+  ["bar", false, 1],
+  ["app", true, 1],
+  ["app", true, 3],
+  ["bar", true, 1],
+  ["bar", true, 2],
 ] as const)(
-  "%s body=%s: all five images select immediately without an enlargement dialog",
-  async (mode, bodyMode) => {
+  "%s body=%s people=%s: selects poses and keeps each body panel independent",
+  async (mode, bodyMode, personCount) => {
     if (bodyMode)
       useInstallationStore.setState({
         credentials: { installationId: "owner", deviceToken: "test", consentVersion: "test" },
@@ -164,6 +166,31 @@ it.each([
         },
       ],
     };
+    if (personCount >= 2) {
+      const first = data.people[0];
+      data.people.push({
+        ...first,
+        index: 1,
+        posePresentation: first.posePresentation
+          ? { ...first.posePresentation, person_index: 1 }
+          : undefined,
+        candidates: first.candidates.map((candidate) => ({
+          ...candidate,
+          id: `second-${candidate.id}`,
+        })),
+      });
+    }
+    if (personCount === 3) {
+      const reference = data.people[0];
+      data.people.push({
+        ...reference,
+        index: 2,
+        candidates: [],
+        posePresentation: reference.posePresentation
+          ? { ...reference.posePresentation, person_index: 2 }
+          : undefined,
+      });
+    }
     client.setQueryData(poseQueryKeys.result("click-test"), data);
     render(
       <QueryClientProvider client={client}>
@@ -177,20 +204,100 @@ it.each([
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    await screen.findByAltText("포즈 1");
+    const first =
+      mode === "bar" ? within(await screen.findByRole("region", { name: "인물 1" })) : screen;
+    await first.findByAltText("포즈 1");
     expect(screen.queryByTestId("candidate-hand-library")).toBeNull();
     if (bodyMode) {
       expect(getManifest).not.toHaveBeenCalled();
-      expect(screen.getByAltText("포즈 1")).toHaveAttribute("src", "data:image/png;base64,AA==");
+      expect(first.getByAltText("포즈 1")).toHaveAttribute("src", "data:image/png;base64,AA==");
     }
     for (let i = 0; i < 5; i++) {
-      fireEvent.click(screen.getByAltText(`포즈 ${i + 1}`));
+      fireEvent.click(first.getByAltText(`포즈 ${i + 1}`));
       expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBe(`pick-${i}`);
-      expect(screen.getByAltText(`포즈 ${i + 1}`).closest("button")).toHaveAttribute(
+      expect(first.getByAltText(`포즈 ${i + 1}`).closest("button")).toHaveAttribute(
         "aria-pressed",
         "true",
       );
       expect(screen.queryByRole("dialog")).toBeNull();
+    }
+    if (mode === "app" && personCount === 3) {
+      const index = within(screen.getByRole("navigation", { name: "인물 목록" }));
+      // Active and reference-only people remain in the complete ordered index.
+      expect(
+        index
+          .getAllByRole("button", { name: /인물 \d+ 펼치기/ })
+          .map((button) => button.getAttribute("aria-label")),
+      ).toEqual(["인물 1 펼치기", "인물 2 펼치기", "인물 3 펼치기"]);
+      expect(screen.getAllByRole("switch")).toHaveLength(2);
+      expect(
+        within(screen.getByRole("region", { name: "인물 1 후보" })).queryByRole("switch"),
+      ).toBeNull();
+      expect(index.getByRole("button", { name: "인물 1 펼치기" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      fireEvent.click(index.getByRole("button", { name: "인물 2 펼치기" }));
+      expect(index.getByRole("button", { name: "인물 2 펼치기" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(index.getAllByRole("button", { name: /인물 \d+ 펼치기/ })).toHaveLength(3);
+      fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
+      expect(await screen.findByRole("region", { name: "인물 2 체형 선택" })).toBeVisible();
+      expect(index.getAllByRole("button", { name: /인물 \d+ 펼치기/ })).toHaveLength(3);
+      fireEvent.click(index.getByRole("switch", { name: "인물 2 선택" }));
+      expect(index.getByRole("button", { name: "인물 2 펼치기" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      fireEvent.click(index.getByRole("switch", { name: "인물 2 선택" }));
+      fireEvent.click(screen.getByRole("button", { name: "포즈" }));
+      fireEvent.click(screen.getByAltText("포즈 2"));
+      expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({
+        0: "pick-4",
+        1: "second-pick-1",
+      });
+      fireEvent.click(index.getByRole("button", { name: "인물 3 펼치기" }));
+      expect(screen.getByRole("region", { name: "인물 3 후보" })).toBeVisible();
+      expect(index.getAllByRole("button", { name: /인물 \d+ 펼치기/ })).toHaveLength(3);
+      fireEvent.click(index.getByRole("button", { name: "인물 1 펼치기" }));
+      expect(screen.getByAltText("포즈 5").closest("button")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      // Keep the current view when switching, even through a reference-only person.
+      fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
+      expect(await screen.findByRole("region", { name: "인물 1 체형 선택" })).toBeVisible();
+      fireEvent.click(index.getByRole("button", { name: "인물 3 펼치기" }));
+      expect(screen.queryByRole("region", { name: "인물 3 체형 선택" })).toBeNull();
+      fireEvent.click(index.getByRole("button", { name: "인물 2 펼치기" }));
+      expect(await screen.findByRole("region", { name: "인물 2 체형 선택" })).toBeVisible();
+      fireEvent.click(index.getByRole("button", { name: "인물 1 펼치기" }));
+      expect(screen.getByRole("region", { name: "인물 1 체형 선택" })).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "포즈" }));
+      fireEvent.click(index.getByRole("button", { name: "인물 2 펼치기" }));
+      expect(screen.queryByRole("region", { name: "인물 2 체형 선택" })).toBeNull();
+      fireEvent.click(index.getByRole("button", { name: "인물 1 펼치기" }));
+    }
+    if (personCount === 2) {
+      const second = within(screen.getByRole("region", { name: "인물 2" }));
+      expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
+      fireEvent.click(first.getByRole("button", { name: "체형 더보기" }));
+      expect(await first.findByRole("region", { name: "인물 1 체형 선택" })).toBeVisible();
+      expect(second.queryByRole("region", { name: "인물 2 체형 선택" })).toBeNull();
+      fireEvent.click(second.getByAltText("포즈 2"));
+      fireEvent.click(second.getByRole("button", { name: "체형 더보기" }));
+      expect(await second.findByRole("region", { name: "인물 2 체형 선택" })).toBeVisible();
+      fireEvent.click(first.getByRole("button", { name: "포즈" }));
+      expect(first.queryByRole("region", { name: "인물 1 체형 선택" })).toBeNull();
+      expect(second.getByRole("region", { name: "인물 2 체형 선택" })).toBeVisible();
+      expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({
+        0: "pick-4",
+        1: "second-pick-1",
+      });
+      // Leave the persisted body-panel state closed for subsequent route tests.
+      fireEvent.click(second.getByRole("button", { name: "포즈" }));
     }
     expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeEnabled();
   },
@@ -319,11 +426,13 @@ it.each([
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    const pick = await screen.findByRole("button", { name: /1번 .* 이미지로 선택/ });
+    const firstPerson =
+      mode === "bar" ? within(screen.getByRole("region", { name: "인물 1" })) : screen;
+    const pick = await firstPerson.findByRole("button", { name: /1번 .* 이미지로 선택/ });
     expect(screen.queryByTestId("candidate-hand-library")).toBeNull();
     expect(screen.queryByText(/이 장면에는 사용할 수 있는/)).toBeNull();
     expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
-    fireEvent.click(await screen.findByAltText("후보 이미지 1"));
+    fireEvent.click(await firstPerson.findByAltText("후보 이미지 1"));
     expect(screen.queryByRole("button", { name: /크게 보기|확대/ })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByRole("button", { name: /이미지 확대/ })).toBeNull();
@@ -331,8 +440,25 @@ it.each([
     expect(pick).toHaveAttribute("aria-pressed", "true");
     expect(getManifest).not.toHaveBeenCalled();
     if (mixed) {
-      fireEvent.click(screen.getByRole("button", { name: /다음 인물로/ }));
-      fireEvent.click(await screen.findByRole("button", { name: /1번 .* 이미지로 선택/ }));
+      if (mode === "bar") {
+        expect(screen.queryByRole("button", { name: /이전 인물|다음 인물/ })).toBeNull();
+        const secondPerson = within(screen.getByRole("region", { name: "인물 2" }));
+        expect(firstPerson.getByRole("switch", { name: "인물 1 선택" })).toBeChecked();
+        const secondSwitch = secondPerson.getByRole("switch", { name: "인물 2 선택" });
+        fireEvent.click(secondSwitch);
+        expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeEnabled();
+        expect(secondPerson.getByRole("button", { name: /1번 .* 이미지로 선택/ })).toBeDisabled();
+        fireEvent.click(secondSwitch);
+        expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
+        fireEvent.click(secondPerson.getByRole("button", { name: /1번 .* 이미지로 선택/ }));
+        expect(firstPerson.getByRole("button", { name: /1번 .* 이미지로 선택/ })).toHaveAttribute(
+          "aria-pressed",
+          "true",
+        );
+      } else {
+        fireEvent.click(screen.getByRole("button", { name: /다음 인물로/ }));
+        fireEvent.click(await screen.findByRole("button", { name: /1번 .* 이미지로 선택/ }));
+      }
       expect(usePoseSelectionStore.getState().selectedByPerson).toMatchObject({ 0: id, 1: id });
     }
     fireEvent.click(screen.getByRole("button", { name: /이 포즈 사용/ }));
@@ -343,5 +469,95 @@ it.each([
       ]),
     );
     await screen.findByText("최종 파일 확인");
+  },
+);
+
+it.each(["app", "bar"] as const)(
+  "%s keeps empty presentations distinct from real reference poses after the layout merge",
+  async (mode) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const presentation = {
+      version: "dynamic-pose-presentation-v1",
+      person_index: 0,
+      route: "hybrid",
+      status: "error",
+      search_status: "error",
+      search_reason: "hand_skin_screen_unavailable_no_generation",
+      generation_status: "not_requested",
+      generation_reason: null,
+      output_scope: "full",
+      unobserved_body_is_default: null,
+      library_candidates: [],
+      review_candidates: [],
+      generated_candidates: [],
+      basic_model: null,
+      issues: [],
+      preview_status: "unavailable",
+      auto_apply_allowed: false,
+      refine_allowed: false,
+      export_allowed: false,
+    } as const;
+    const data = {
+      jobId: "empty-layout-test",
+      capabilities: { refine: false, fbxExport: true, characterSelection: false },
+      people: [
+        {
+          index: 0,
+          confidence: "low",
+          skeletonState: "missing",
+          skeletonSource: "none",
+          coverageClass: "insufficient",
+          fallbackMode: "hard",
+          refineAllowed: false,
+          refinableLimbs: [],
+          candidates: [],
+          posePresentation: presentation,
+        },
+      ],
+    } as unknown as AnalysisResult;
+    client.setQueryData(poseQueryKeys.result("click-test"), data);
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/app/jobs/click-test"]}>
+          <Routes>
+            <Route
+              path="/app/jobs/:jobId"
+              element={mode === "app" ? <PoseViewerPage /> : <BarCandidatesPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    for (const notice of await screen.findAllByText(/포즈 검색을 마치지 못했어요/))
+      expect(notice).toBeVisible();
+    expect(screen.getAllByText("후보 없음").length).toBeGreaterThan(0);
+    expect(screen.queryByText("참고용 포즈")).toBeNull();
+    expect(screen.queryByText("참고 포즈 펼치기")).toBeNull();
+    expect(screen.queryByText("참고용 미리보기")).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
+
+    const next = structuredClone(data);
+    next.people[0].posePresentation!.search_status = "no_result";
+    next.people[0].posePresentation!.search_reason = null;
+    next.people[0].posePresentation!.review_candidates = [
+      {
+        candidate_id: "reference-only",
+        pose_id: "pose-reference",
+        kind: "near_match",
+        source: "library",
+        rank: 1,
+        asset: {
+          transport: "library_bvh",
+          bvh_sha256: "a".repeat(64),
+          preview_bvh_url: "/v1/reference",
+        },
+        render_camera: {},
+      } as unknown as import("../api/posePresentation").PreviewCandidate,
+    ];
+    client.setQueryData(poseQueryKeys.result("click-test"), next);
+    expect(await screen.findByAltText("후보 이미지 1")).toBeVisible();
+    expect(screen.getByText("참고용 미리보기")).toBeVisible();
+    if (mode === "app") expect(screen.getByText("참고 포즈 펼치기")).toBeVisible();
+    expect(screen.queryByRole("switch")).toBeNull();
   },
 );

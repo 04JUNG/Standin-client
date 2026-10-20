@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GripVertical, Minus, Maximize2, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -16,6 +16,7 @@ type BarShellProps = {
   /** 접기 버튼을 숨긴다(이미 접힌 상태). */
   hideCollapse?: boolean;
   footer?: ReactNode;
+  preferredWidth?: number;
   children: ReactNode;
 };
 
@@ -25,13 +26,22 @@ type BarShellProps = {
  * 점 아이콘·제목·빈 영역의 mousedown을 네이티브 드래그로 전달한다.
  * 창 제어 버튼은 핸들 밖에 두어 클릭과 창 이동을 분리한다.
  */
-export function BarShell({ title, hideCollapse, children, footer }: BarShellProps) {
+export function BarShell({ title, hideCollapse, children, footer, preferredWidth }: BarShellProps) {
   const navigate = useNavigate();
   const { pathname, state: routeState } = useLocation();
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const hasDraft = useUploadStore((s) => s.draft !== null);
   const shellRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const hasFooter = !!footer;
+
+  useLayoutEffect(() => {
+    const setWidth = useWindowModeStore.getState().setBarContentWidth;
+    setWidth(preferredWidth ?? null);
+    return () => setWidth(null);
+  }, [pathname, preferredWidth]);
 
   useShortcuts({
     // 바에서 Esc는 접기(앱 모드로 나가지 않는다).
@@ -39,15 +49,9 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
   });
 
   /**
-   * 내용이 창보다 커지면 창을 키운다.
-   *
-   * 바 창은 상태별 고정 크기다(BAR_SIZES). 그래서 그때만 생기는 줄 — 권한 오류 안내,
-   * 업로드 실패 문구 — 이 창 밖으로 잘려 **아예 보이지 않았다**. 0.1.1-beta.5에서
-   * "바의 캡처 버튼을 눌러도 아무 반응이 없다"로 보고된 것이 이것이다. 오류는 정상적으로
-   * 렌더됐지만 88px 창 아래에 있었다.
-   *
-   * 측정은 창 크기와 무관한 값이어야 한다. 창 높이에서 파생하면 키움 → 다시 측정 →
-   * 줄임이 반복된다. 그래서 스크롤 영역이 아니라 **내용 자체**의 높이를 잰다.
+   * 내용의 고유 높이에 헤더·하단 버튼 높이를 더해 창을 맞춘다.
+   * 창 높이에서 파생된 값을 재면 확대·축소가 반복되므로 스크롤 viewport는 재지 않는다.
+   * 실제 창 크기와 상한은 WindowModeSync가 적용한다.
    */
   useEffect(() => {
     const content = contentRef.current;
@@ -62,21 +66,32 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
     };
 
     measure();
-    const observer = new ResizeObserver(measure);
+    // 줄바꿈·이미지·체형 안내가 연속으로 바뀌면 마지막 레이아웃을 한 번 적용한다.
+    let timer: ReturnType<typeof setTimeout>;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(measure, 80);
+    });
     observer.observe(content);
+    if (headerRef.current) observer.observe(headerRef.current);
+    if (footerRef.current) observer.observe(footerRef.current);
     return () => {
+      clearTimeout(timer);
       observer.disconnect();
       // 다음 화면이 자기 높이를 올릴 때까지 표 기본값으로 돌아간다.
       setHeight(null);
     };
-  }, [pathname]);
+  }, [pathname, hasFooter]);
 
   return (
     <div
       ref={shellRef}
       className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-surface-0 shadow-lg"
     >
-      <div className="flex items-center gap-1 border-b border-border px-1.5 py-1">
+      <div
+        ref={headerRef}
+        className="flex shrink-0 items-center gap-1 border-b border-border px-1.5 py-1"
+      >
         {/* 드래그 핸들. 이 영역을 잡고 바를 옮긴다. */}
         <div
           onMouseDown={(event) => {
@@ -132,7 +147,11 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
           )}
         </div>
       </div>
-      {footer && <div className="shrink-0 border-t border-border bg-surface-0 px-2">{footer}</div>}
+      {footer && (
+        <div ref={footerRef} className="shrink-0 border-t border-border bg-surface-0 px-2">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
