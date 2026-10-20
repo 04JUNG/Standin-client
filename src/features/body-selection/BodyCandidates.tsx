@@ -409,7 +409,7 @@ export function BodyExpand({
           </div>
         </div>
         <p className="text-[11px] text-text-secondary">
-          체형을 누르면 바로 적용 · 이 인물만 바뀌고, 다음 작업도 마지막으로 고른 체형으로 시작해요
+          선택한 인물에 바로 적용돼요.
         </p>
       </div>
 

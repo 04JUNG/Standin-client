@@ -107,7 +107,7 @@ export function BodyPreferencesPage() {
                 checked={value.mode === "auto"}
                 onChange={() => mode.mutate("auto")}
                 title="자동 추천"
-                description="러프에 맞춰 추천한 체형으로 시작해요. 추천을 찾지 못하면 남성 기본형으로 시작해요."
+                description="러프에 맞는 체형으로 시작해요."
               />
             </fieldset>
             {mode.isError && (
