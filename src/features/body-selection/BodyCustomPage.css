@@ -1,0 +1,24 @@
+/* Keep the original overview above the full-width controls; only this editor pins it. */
+.body-custom-editor > .body-custom-overview {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+/* On short windows leave room to operate controls and reach save in the same scroll area. */
+@media (max-height: 600px) {
+  .body-custom-editor .body-custom-live > div:nth-child(2) {
+    height: 120px;
+  }
+  .body-custom-overview [role="radiogroup"] button > span:first-child {
+    height: 64px;
+  }
+}
+@media (max-width: 760px) {
+  .body-custom-editor .body-custom-live {
+    width: 150px;
+  }
+  .body-custom-editor [data-basic-controls],
+  .body-custom-editor [data-expert-controls] fieldset > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

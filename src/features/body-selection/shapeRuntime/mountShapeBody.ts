@@ -19,6 +19,7 @@ const FRAME_CENTER_Y = 0.995;
 
 export type ShapeBodyView = {
   update(controls: BlenderControls, preset?: string): void;
+  setRotation(radians: number): void;
   dispose(): void;
   /** 마지막 계산 시간(ms). 성능 기록용. */
   lastComputeMs(): number;
@@ -105,6 +106,10 @@ export function mountShapeBody(
       pending = controls;
       pendingPreset = preset;
       if (!frame) frame = requestAnimationFrame(flush);
+    },
+    setRotation(radians) {
+      mesh.rotation.y = radians;
+      draw();
     },
     lastComputeMs: () => computeMs,
     dispose() {
