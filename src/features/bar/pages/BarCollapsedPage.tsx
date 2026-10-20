@@ -37,13 +37,13 @@ export function BarCollapsedPage() {
         title="눌러서 열기 · 끌어서 옮기기 · 우클릭으로 닫기"
         className={cn(
           "pointer-events-auto flex h-full w-full cursor-pointer items-center justify-center rounded-full [clip-path:circle(50%)]",
-          // 제공된 로고 바깥에 배경·테두리·그림자를 더하지 않는다.
+          // 원본 SVG 바깥에 배경·테두리·그림자를 더하지 않는다.
           "border-0 bg-transparent p-0 transition-[filter] hover:brightness-110 active:cursor-grabbing",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-sky",
         )}
       >
         <img
-          src="/standinLogo.png"
+          src="/favicon_circle.svg"
           alt=""
           draggable={false}
           className="pointer-events-none h-full w-full select-none"
