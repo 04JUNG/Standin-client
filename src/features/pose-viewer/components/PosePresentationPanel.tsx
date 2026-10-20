@@ -1,3 +1,8 @@
+import {
+  hasPresentationCandidates,
+  presentationNotice,
+  presentationGenerationNotice,
+} from "../api/presentationState";
 import { generatedPoseNotice } from "../api/generatedPoseNotice";
 import { canRelease } from "../api/routedSearch";
 import type { PoseCandidate } from "../api/pose.contract";
@@ -129,6 +134,15 @@ function PresentationContent({
   const gridClass = `grid gap-2 ${compact ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
   return (
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
+      {!hasPresentationCandidates(p) && <p className="text-xs font-semibold">후보 없음</p>}
+      {presentationNotice(p) && (
+        <p role="status" className="text-xs text-text-secondary">
+          {presentationNotice(p)}
+        </p>
+      )}
+      {presentationGenerationNotice(p) && (
+        <p className="text-xs text-text-secondary">{presentationGenerationNotice(p)}</p>
+      )}
       {["timeout", "rejected", "failed", "error"].includes(p.generation_status ?? "") && (
         <p className="text-xs text-text-secondary">{generatedPoseNotice(p.generation_status)}</p>
       )}
@@ -149,6 +163,7 @@ function PresentationContent({
         )
         .filter(
           ([label, rows]) =>
+            rows.length > 0 &&
             !(selectableLibrary && !selection && label === "검색 후보") &&
             (label !== "좌우 반전 포즈" || rows.length > 0) &&
             !(label === "검색 후보" && rows.length === 0 && selection?.hiddenCandidateIds?.length),
