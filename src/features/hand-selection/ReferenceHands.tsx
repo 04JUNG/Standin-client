@@ -1,0 +1,130 @@
+import { canRelease } from "@/features/pose-viewer/api/routedSearch";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
+import { apiFetchResponse } from "@/shared/api/client";
+import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
+import { Button } from "@/shared/components/Button";
+import { useInstallationStore } from "@/features/installation/installationStore";
+import { previewScope, scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
+import { useHands } from "./hooks";
+import { HandChips } from "./HandChips";
+
+/** Hand preview is lookup-only and never promotes a review-only pose. */
+export function ReferenceHands({
+  result,
+  personIndex,
+}: {
+  result: AnalysisResult;
+  personIndex: number;
+}) {
+  const state = useHands(result, [personIndex], true);
+  const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
+  const [candidateId, setCandidateId] = useState("");
+  const [requested, setRequested] = useState("");
+  const person = result.people.find((p) => p.index === personIndex);
+  const p = person?.posePresentation;
+  const scope = previewScope(person);
+  const applicable = scopeIncludesHands(scope);
+  const groups = p ? [p.library_candidates, p.review_candidates, p.generated_candidates] : [];
+  const candidates = groups.flat();
+  const candidate = candidates.find((c) => c.candidate_id === candidateId);
+  const hand = state.entries.find((e) => e.personIndex === personIndex)?.selection;
+  const binding = JSON.stringify([
+    owner,
+    candidate?.asset.preview_bvh_url,
+    hand?.revision,
+    hand?.library_sha256,
+    scope,
+    candidate?.render_camera,
+  ]);
+  const preview = useQuery({
+    queryKey: ["hands", owner, "pose-preview", binding],
+    enabled:
+      applicable && state.enabled && !!candidate && !!hand && state.ready && requested === binding,
+    queryFn: async ({ signal }) => {
+      const response = await apiFetchResponse(
+        `${candidate!.asset.preview_bvh_url}/hands?revision=${hand!.revision}`,
+        { auth: false, signal },
+      );
+      if (
+        response.headers.get("Content-Type")?.split(";")[0] !== "image/png" ||
+        (response.headers.has("X-Standin-Output-Scope") &&
+          response.headers.get("X-Standin-Output-Scope") !== scope) ||
+        response.headers.get("X-Standin-Preview-Only") !== "true" ||
+        response.headers.get("X-Standin-Hand-Revision") !== String(hand!.revision) ||
+        response.headers.get("X-Standin-Hand-Library-SHA256") !== hand!.library_sha256
+      )
+        throw Error("손 미리보기 버전을 확인하지 못했습니다.");
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (
+        bytes.length > 20_000_000 ||
+        ![137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => bytes[i] === v)
+      )
+        throw Error("손 미리보기 형식을 확인하지 못했습니다.");
+      return blobToDataUrl(new Blob([bytes], { type: "image/png" }));
+    },
+    retry: false,
+    staleTime: 300_000,
+    gcTime: 60_000,
+  });
+  if (!applicable || !state.enabled) return null;
+  return (
+    <section className="rounded-xl border border-border bg-surface-0 p-3">
+      <h3 className="text-sm font-semibold">손 모양 골라 보기</h3>
+      <p className="text-xs text-text-secondary">
+        아래 미리보기에서 기본 체형에 손 모양을 입혀 볼 수 있어요.{" "}
+        {person?.candidates?.some(canRelease)
+          ? "포즈를 고르면 저장 전에 선택한 체형과 손 모양을 함께 확인할 수 있어요."
+          : "저장할 파일이 없는 포즈는 미리보기만 볼 수 있어요."}
+      </p>
+      <HandChips state={state} personIndex={personIndex} />
+      {!!candidates.length && (
+        <div className="flex flex-col gap-2">
+          <label className="text-sm">
+            손을 확인할 후보
+            <select
+              aria-label="손 미리보기 후보"
+              value={candidateId}
+              onChange={(e) => setCandidateId(e.target.value)}
+              className="ml-2 rounded border border-border bg-surface-0 p-2"
+            >
+              <option value="">후보 선택</option>
+              {groups.flatMap((list, g) =>
+                list.map((c) => (
+                  <option key={c.candidate_id} value={c.candidate_id}>
+                    {["검색 후보", "참고 후보", "새로 만든 참고 포즈"][g]} {c.rank}
+                  </option>
+                )),
+              )}
+            </select>
+          </label>
+          <Button
+            disabled={!candidate || !hand || !state.ready || preview.isFetching}
+            onClick={() => {
+              setRequested(binding);
+              if (requested === binding) void preview.refetch();
+            }}
+          >
+            {preview.isFetching ? "손 적용 미리보기 준비 중…" : "손 적용 미리보기"}
+          </Button>
+          {requested === binding && preview.error && (
+            <p role="alert">
+              손 미리보기를 불러오지 못했습니다. 선택을 확인하고 다시 시도해 주세요.
+            </p>
+          )}
+          {state.ready && requested === binding && preview.data && (
+            <img
+              src={preview.data}
+              alt="고른 손 모양을 기본 체형에 적용한 정면 모습"
+              className="mx-auto max-h-[480px] max-w-full"
+            />
+          )}
+          <p className="text-xs text-text-secondary">
+            손 모양을 확인하는 참고 이미지예요. 화면 밖에 있는 손은 보이지 않을 수 있어요.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}

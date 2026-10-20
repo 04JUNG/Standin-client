@@ -1,9 +1,15 @@
 // 네이티브 command는 작고 단일 책임으로 추가한다(CLAUDE.md §10).
 mod commands;
+#[cfg(feature = "update-e2e")]
+mod update_e2e;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(feature = "update-e2e")]
+    update_e2e::trace("native-entry");
     let builder = tauri::Builder::default();
+    #[cfg(feature = "update-e2e")]
+    let builder = builder.plugin(update_e2e::probe("e2e-before-single-instance"));
 
     // 데스크톱에서 딥링크(standin://)가 이미 실행 중인 앱으로 전달되도록 single-instance 필요.
     // 두 번째 실행에서 기존 창을 앞으로 가져온다 — 그러지 않으면 아무 반응이 없어
@@ -35,11 +41,22 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init());
 
-    builder
+    let builder = builder
+        .manage(commands::updates::UpdateRuntime::default())
+        .manage(commands::release_notes::ReleaseNotesState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_dialog::init());
+    #[cfg(feature = "update-e2e")]
+    let builder = builder.plugin(update_e2e::probe("e2e-plugins-ready"));
+    let builder = builder
         .setup(|_app| {
+            #[cfg(feature = "update-e2e")]
+            update_e2e::trace("app-setup");
+            // A context-menu failure must not prevent the main app from opening.
+            if let Err(error) = commands::window_mode::init_bar_context_menu(_app) {
+                eprintln!("Could not initialize floating bar menu: {error}");
+            }
             // Windows/Linux 개발 환경에선 런타임에 스킴을 등록해야 딥링크가 잡힌다.
             #[cfg(any(windows, target_os = "linux"))]
             {
@@ -52,6 +69,13 @@ pub fn run() {
         // Tauri v2에는 Minimized 이벤트가 없어 Resized에서 상태를 확인한다.
         .on_window_event(|window, event| {
             #[cfg(desktop)]
+            if matches!(
+                event,
+                tauri::WindowEvent::Moved(_) | tauri::WindowEvent::ScaleFactorChanged { .. }
+            ) {
+                commands::window_mode::enforce_bar_width_for_monitor(window);
+            }
+            #[cfg(desktop)]
             if let tauri::WindowEvent::Resized(_) = event {
                 if window.is_minimized().unwrap_or(false) {
                     use tauri::Emitter;
@@ -60,33 +84,65 @@ pub fn run() {
                 }
             }
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::capture::grab_screen,
-            commands::export::default_save_dir,
-            commands::export::choose_save_folder,
-            commands::export::folder_exists,
-            commands::export::drag_icon_path,
-            commands::export::save_pose_file,
-            commands::export::reveal_in_folder,
-            commands::screen_permission::open_screen_recording_settings,
-            commands::screen_permission::screen_recording_status,
-            commands::screen_permission::request_screen_recording,
-            commands::secure_store::get_secure_token,
-            commands::secure_store::set_secure_token,
-            commands::secure_store::clear_secure_token,
-            commands::secure_store::get_installation_credentials,
-            commands::secure_store::set_installation_credentials,
-            commands::secure_store::clear_installation_credentials,
-            commands::secure_store::get_installation_environment,
-            commands::shortcuts::register_capture_shortcut,
-            commands::shortcuts::unregister_capture_shortcut,
-            commands::shortcuts::focus_main_window,
-            commands::updates::updates_configured,
-            commands::window_mode::set_window_mode,
-            commands::window_mode::get_window_position,
-            commands::window_mode::set_window_position,
-            commands::window_mode::window_control,
-        ])
+        .invoke_handler(move |invoke| {
+            #[cfg(feature = "update-e2e")]
+            if invoke.message.command().starts_with("e2e_") {
+                return update_e2e::handle(invoke);
+            }
+            let handler: fn(tauri::ipc::Invoke) -> bool = tauri::generate_handler![
+                commands::capture::grab_screen,
+                commands::export::default_save_dir,
+                commands::export::choose_save_folder,
+                commands::export::folder_exists,
+                commands::export::drag_icon_path,
+                commands::export::save_pose_file,
+                commands::export::reveal_in_folder,
+                commands::screen_permission::open_screen_recording_settings,
+                commands::screen_permission::screen_recording_status,
+                commands::screen_permission::request_screen_recording,
+                commands::secure_store::get_secure_token,
+                commands::secure_store::set_secure_token,
+                commands::secure_store::clear_secure_token,
+                commands::secure_store::get_installation_credentials,
+                commands::secure_store::set_installation_credentials,
+                commands::secure_store::clear_installation_credentials,
+                commands::secure_store::get_installation_environment,
+                commands::shortcuts::register_capture_shortcut,
+                commands::shortcuts::unregister_capture_shortcut,
+                commands::shortcuts::focus_main_window,
+                commands::updates::updates_configured,
+                commands::updates::updates_cached,
+                commands::updates::updates_check,
+                commands::updates::updates_download,
+                commands::updates::updates_install,
+                commands::release_notes::release_notes_seen,
+                commands::release_notes::release_notes_acknowledge,
+                commands::window_mode::set_window_mode,
+                commands::window_mode::get_window_position,
+                commands::window_mode::set_window_position,
+                commands::window_mode::window_control,
+            ];
+            handler(invoke)
+        });
+    #[cfg(feature = "update-e2e")]
+    {
+        update_e2e::trace("build-start");
+        let app = builder
+            .on_page_load(|_, payload| {
+                update_e2e::trace(&format!("page-{:?}", payload.event()));
+            })
+            .build(tauri::generate_context!())
+            .expect("error building QA application");
+        update_e2e::trace("build-complete");
+        app.run(|_, event| match event {
+            tauri::RunEvent::Ready => update_e2e::trace("event-loop-ready"),
+            tauri::RunEvent::ExitRequested { .. } => update_e2e::trace("exit-requested-event"),
+            tauri::RunEvent::Exit => update_e2e::trace("exit-event"),
+            _ => {}
+        });
+    }
+    #[cfg(not(feature = "update-e2e"))]
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,5 +1,13 @@
 # QA·보안·릴리스 기준
 
+자동 업데이트와 변경 내역의 현재 배포 절차·실기 검증 항목은
+[ADR-014](adr/ADR-014-automatic-update-and-release-notes.md)를 따른다.
+설치 중 작업 보호, 캐시 서명 재검증, 실패 후 재시작 반복 방지와 변경 내역 누락 검사를 포함한다.
+[서명된 A→B 설치 검증 결과](qa/2026-10-20-signed-updater.md)에 플랫폼별 증거와 남은 배포 확인 항목을 기록한다.
+[후속 Universal DMG 검증·초기 실행 조사](qa/2026-10-20-universal-updater.md)에서
+양쪽 Mac CPU의 실제 업데이트와 DMG 공간 부족 수정을 확인했다. 추가 시작 300회에서
+시간 초과가 재현되지 않았으나 과거 1건의 근본 원인은 미확정이다.
+
 ## 1. 지원 운영체제
 
 최종 목표:
@@ -183,7 +191,7 @@ MVP에서도 “자동으로 학습에 사용”한다고 가정하지 않는다
 - 서명·공증(ADR-011)
   - macOS: Developer ID 서명과 공증. 릴리스 워크플로의 서명 검증 스텝이 통과해야 한다
   - macOS dmg는 universal 하나다. 다운로드 안내에 칩별 선택을 쓰지 않는다
-  - Windows: 미적용. SSL.com eSigner 배선 전까지 SmartScreen 경고와 진행 방법을 다운로드 안내에 적는다
+  - Windows: SSL.com eSigner 서명(IV). 릴리스 워크플로의 Windows 서명 검증 스텝이 통과해야 한다. IV 인증서는 SmartScreen 평판이 쌓이기 전까지 경고가 남을 수 있으니 다운로드 안내에 진행 방법을 계속 적는다
   - Apple Developer ID·SSL.com 인증서 만료일 확인
 - 설치·삭제 확인
   - macOS는 빌드하지 않은 다른 기계에서 브라우저로 내려받아 더블클릭으로 연다. 우클릭 열기로 확인하면 Gatekeeper를 우회해 검증이 무효가 된다

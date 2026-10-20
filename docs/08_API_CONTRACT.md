@@ -1,5 +1,84 @@
 # FastAPI 연동 계약 초안
 
+## v4 보정 장면 최종 확인
+
+BFF가 `capabilities.sceneRefinement=true`를 명시한 이미지 작업은 기존 인물별 확인 후
+`POST /v1/analysis/jobs/:jobId/scene`에 `{ persons, prepare: true }`를 보냅니다.
+`persons`는 확정한 후보와 검수 FBX의 URL·SHA 참조입니다. `version=scene-refinement-v4`,
+`reviewKey`, `artifactSha256`, `previewSha256`, `previewBase64`, `personCount`, `summary`를 받으면
+PNG 해시를 확인하고 최종 장면을 표시합니다. 사용자가 **이 장면으로 저장**을 누른 뒤에만
+같은 참조와 `reviewKey`로 다운로드하며, 검수한 FBX SHA와 응답 SHA가 일치해야 native writer에 넘깁니다.
+취소 또는 화면 이탈 시 저장하지 않습니다. 검수 만료·서버 재시작·선택 변경은 새 확인이 필요합니다.
+
+클라이언트가 방향·좌표·관절을 수동 조정하지 않습니다. capability가 없으면 기존 저장 경로를 유지합니다.
+기본 기능 스위치는 BFF에서 꺼져 있습니다. 이번 변경의 설치 앱 네이티브 저장·Windows/macOS E2E와
+CSP의 FBX 카메라/구도 채택은 미검증입니다. 웹 타입 검사·빌드·계약 테스트 결과를 설치 앱 검증으로 대체하지 않습니다.
+
+## 선택 품질 검토 동의 (2026-10-19)
+
+기본 설치 동의(`consentVersion`)와 선택 품질 동의(`qualityConsent.version`)는 별개다.
+기존 설치 자격증명을 유지하고 선택 동의를 미리 체크하지 않는다.
+
+등록 `POST /v1/installations`에 아래 필드를 추가한다.
+
+```json
+{ "qualityConsent": { "version": "2026-10-19", "personalData": false, "contentLicense": false } }
+```
+
+`GET /v1/installations/current/quality-consent`로 현재 상태를 읽고 같은 경로의 PUT에
+`{ version, personalData, contentLicense }`를 보내 저장한다. 설치 인증을 사용한다.
+등록 응답의 `qualityConsent` 및 GET/PUT 응답은 이 필드들과 `consentId`, `grantedAt`을
+포함한다. 두 선택 항목이 모두 true일 때만 두 값이 존재하며, 아니면 null이다.
+
+- 첫 실행은 필수 기본 약관 확인만으로 진행할 수 있다. 품질 검토는 두 항목 모두 선택해야 켜진다.
+- 기존 설치는 자격증명을 다시 발급하지 않고 서버 상태를 조회한다. 조회 실패 시 기본 기능은
+  계속 사용하고 품질 이벤트는 수집하지 않는다.
+- 설정에서 한 항목이라도 해제해 저장하면 품질 검토만 철회한다. 전체 데이터 삭제는 별도다.
+  저장 실패 시 완료로 표시하지 않고 재시도한다. 같은 앱 실행 중에는 창의 포커스가 돌아와도
+  미완료 변경을 지우거나 이벤트 수집을 재개하지 않는다. 앱 재실행 시 서버 상태를 다시 조회한다.
+- 이벤트 큐는 현재 `consentId`별로 분리한다. 미동의·철회·재동의 때 이전 큐를 버리고,
+  배치 최상위 및 피드백 요청에 `qualityConsentId`를 보낸다. 오래된 ID는 서버에서 제외한다.
+  PC 시계가 조금 느리더라도 동의 직후 새 이벤트가 동의 이전으로 기록되지 않도록
+  `occurredAt`의 하한을 서버 `grantedAt`으로 둔다. 기존 큐의 시각/동의 ID는 바꾸지 않는다.
+- 후보 확정 및 내보내기는 품질 동의 여부와 무관하게 정상 요청한다. 선택 피드백은 동의한 경우만 표시한다.
+- 새 동의는 이후 업로드에만 적용된다. 과거 Job의 검토·피드백은 서버가 거부한다.
+
+앱보다 BFF의 모든 API/워커 인스턴스를 먼저 교체한다. 기존 설치·기존 Job을 자동 동의로
+옮기지 않는다. [화면 확인 기록](qa/optional-quality-consent.md)에 검증 범위를 기록한다.
+
+## 동적 검색 조회 전용 후보 (2026-10-17)
+
+`candidatesByPerson[].routedSearch`는 route/status/reason, 근접·구도 참고 개수, 별도 생성 검수 상태,
+기본 인체 여부를 보존합니다. `candidates[].source=dynamic|semantic`인 후보는 `rankScore`를 가지며
+기하 `distance`로 변환하지 않습니다. `lookupAllowed=true`, `refineAllowed=false`,
+`releaseAllowed=false`, `actualMeshValidated=false`, `reviewRequired=true`, `bvhAvailable=false`입니다.
+`searchCamera`는 검색 카메라 메타데이터이며 기존 정렬 렌더 camera 계약과 구별합니다.
+
+`GET /v1/pose-candidates/:id/lookup-thumbnail?jobId=...&personIndex=...&candidateId=...`는
+소유권·후보 ID·포즈를 검증한 정면 참고 이미지를 제공합니다. 검색 시점의 정렬 렌더라고 표시하지 않습니다.
+해당 후보의 refine은 409 `CANDIDATE_REFINE_FORBIDDEN`, BVH/FBX/framed FBX 저장은
+409 `CANDIDATE_RELEASE_FORBIDDEN`으로 거부합니다. 생성·근접·구도·기본 인체 결과는 정식 후보로 합치지 않습니다.
+상세는 [동적 검색 연결](ROUTED_SEARCH_INTEGRATION.md)을 참조합니다.
+
+카메라 후보의 `quickThumbnailUrl`은 이미 렌더된 JPEG를 가리키는 선택 필드다.
+후보 카드에서 빠른 근사 시점으로만 쓰고, `thumbnailUrl`과 저장 전 확인 계약은
+기존처럼 최종 결과를 검증한다. 필드가 없는 구 BFF는 기존 카드 로딩 경로를 쓴다.
+
+## 모델 미리보기 확장 (2026-10-08)
+
+`capabilities.modelPreview`(없으면 false)가 true인 FBX 확인 화면은
+`/framed?format=model`에서 정적 GLB를 받는다. 저장은 동일 조건의
+`format=fbx&previewType=model`을 요청해 준비한 FBX를 재사용한다.
+이 경로의 refine POST에만 `deferPreview:true`를 보낸다. BVH/구 서버는 기존 계약을 유지한다.
+모델은 최종 카메라/범위가 이미 적용된 `framed-mesh-v1`이다. 전신 원본은 기존
+`posed-mesh-v1`을 후보 회전행렬로 표시하면서 FBX를 준비할 수 있다.
+리파인 또는 부분 출력에는 원본 모델을 사용하지 않는다.
+
+WebGL 실패 시 같은 범위/체형의 PNG로 대체하고 그 PNG와 짝인 FBX로 저장한다.
+WebGL 2 미지원 기기는 모델 변환을 요청하거나 refine PNG를 생략하기 전에 기존 경로를 선택한다.
+모델 첫 프레임이나 PNG가 준비되기 전에는 저장을 잠근다. 정적 모델은 화면에 유지하고
+크기 변경 시에만 다시 그리며 화면을 떠나면 GPU 자원을 해제한다.
+
 > 서버 코드는 이 레포에 포함하지 않는다. 이 문서는 앱과 서버 팀이 합의할 계약의 초안이다.
 
 ## 1. 기본 원칙
@@ -185,7 +264,7 @@ GET /v1/analysis/jobs?limit=20&cursor=...&status=completed
 
 `thumbnailUrl`은 **입력 러프가 아니라 매칭된 포즈 후보**의 썸네일 경로다(확정 선택한 후보 우선, 없으면 첫 인물의 1순위). 원본을 20건 내려보내면 수십 MB지만 후보 썸네일은 이미 하루 캐시되는 작은 PNG다. 인증 헤더가 필요한 상대 경로이므로 `<img src>`에 그대로 넣지 않고 blob으로 받는다.
 
-`inputAvailable`은 입력 원본이 아직 서버에 있는지다. **원본은 90일, 작업 기록은 1년 보관**이므로 그 사이 구간의 작업은 목록에 나오지만 원본 미리보기는 제공되지 않는다.
+`inputAvailable`은 입력 원본이 아직 서버에 있는지다. **기본 원본·사용자 작업 이력은 최대 90일**이다. 별도 품질 검토 동의를 받은 연결 평가정보의 최대 365일 보관은 사용자 이력 만료일을 연장하지 않는다.
 
 ---
 
@@ -254,6 +333,18 @@ Response:
 | `INFERENCE_FAILED` | 추론 호출 실패 | "다른 이미지로 다시 시도" |
 | `INPUT_STORAGE_FAILED` | 입력 이미지 보관 실패 | 재시도 |
 | `ABANDONED` | 배포·태스크 교체로 진행 중 Job이 유실됨 | "분석이 중단됐습니다. 다시 시도" |
+| `ANALYSIS_UNAVAILABLE` | AI 혼잡 또는 구 서버의 상세 원인 없는 503 | 잠시 후 재시도 |
+| `ANALYSIS_RATE_LIMITED` | AI 제공 서비스의 일시적 요청 한도 | 잠시 기다린 뒤 재시도 |
+| `ANALYSIS_DAILY_QUOTA_EXHAUSTED` | AI 제공 서비스의 일일 한도 소진 | 한도 복구/운영자 확인 안내, 재시도 버튼 숨김 |
+| `ANALYSIS_UPSTREAM_TIMEOUT` | AI 제공 서비스 응답 시간 초과 | 잠시 후 재시도 |
+| `ANALYSIS_UPSTREAM_ERROR` | AI 제공 서비스 일시 오류 | 잠시 후 재시도 |
+
+새 AI 실패 코드는 `shared/api/analysisJobFailure.ts`에서 안전한 고정 문구와 재시도 여부로
+바꾼다. 실시간 결과와 작업 기록에 같은 원인을 표시한다. 사용자의 설치별 사용량 한도와
+AI 제공 서비스 한도를 혼동하지 않으며, 초기화 시각이나 정확한 대기 초를 추정하지 않는다.
+자동 재시도는 추가하지 않는다. BFF의 기존 코드/미지원 코드는 기존 처리를 유지한다.
+새 BFF 배포 전에 이 클라이언트를 배포해야 한다. 이미 설치된 데스크톱 앱에는 새 빌드/업데이트가
+필요하며, develop 머지만으로 설치된 앱이 바뀌지는 않는다. 과거 실패 기록은 재분류하지 않는다.
 
 `ABANDONED`는 러너가 아직 프로세스 내 fire-and-forget이라 생긴다. 서버가 주기적으로
 정리해 무응답 대신 명시적 실패로 만들어 준다. 앱은 이 값을 `analysis_failed.reason`에
@@ -367,6 +458,23 @@ BFF는 인물별로 스켈레톤 품질 신호를 함께 준다. 실제 응답�
 클라이언트는 refine을 호출하지 않는다.
 
 ---
+
+## 6-1-1. 인물별 출력 범위 (1단계)
+
+`PersonResult.outputScope`는 BFF 인물의 `outputScope`를 검증해 옮긴다.
+`selection: auto | full | half | bust | head`, `detected: full | half | bust | head | null`,
+`detectionSource: vlm_person | legacy_shot | unknown`, `resolved: full | half | bust | head`,
+`resolutionSource: auto | user | fallback`.
+
+인물 카드와 플로팅 바에서 자동/전신/반신/흉상/두상을 고르면
+`PUT /v1/analysis/jobs/{jobId}/people/{personIndex}/output-scope`에 `{ selection }`만 보낸다.
+저장이 성공한 값만 Query cache에 반영하고, 실패하면 기존 값과 재시도 안내를 유지한다.
+서버 result에 영속화되어 작업 기록에서 복원된다. 후보/refine 변경과 독립적이다.
+저장 중에는 확정 버튼을 막는다. 구 BFF는 `capabilities.outputScopeSelection`이 없으므로 UI를 숨긴다.
+
+`outputScopeCropping=false/누락`이면 UI는 설정 저장만 되며 파일이 전신이라고 명시한다. true이면 아래 부분 FBX 계약을 적용한다.
+검색/내보내기 파라미터를 바꾸지 않는다. 두상/흉상의 검색 미지원도 그대로 표시한다.
+VLM 판별이 없으면 자동(판별 불가 · 전신). 사용자 선택으로 자동 판별값을 덮어쓰지 않는다.
 
 ## 6-2. 선택 후보 조정(refine)
 
@@ -649,3 +757,206 @@ type ModelCharacter = {
 10. 다시 검색은 전체 재분석인가, 검색만 재실행인가?
 11. 작업 기록을 서버에 보관하는가?
 12. 입력 이미지와 결과 보관 기간은?
+
+
+### 관측 상체 검색 (2026-10-02)
+
+- `coverageClass=upper_only`: 골반 기준을 쓸 수 없어, 관측된 어깨·팔만으로 검색한 후보.
+  `confidence=low`, `fallbackMode=soft`, `refineAllowed=false`, `refinableLimbs=[]`.
+  거리의 단위가 달라 전신 일치도 임계값으로 승격하지 않는다.
+- 혼합 구도의 두상 인물은 후보 없이 `candidateShortfallReason=HEAD_SEARCH_UNSUPPORTED`.
+  같은 컷의 검색 가능한 인물에는 영향이 없다.
+- 출력 범위 수동 선택은 검색을 재실행하지 않는다. 관측 관절과 출력 설정은 별개다.
+  부분 FBX 지원은 아래 `outputScopeCropping` 계약을 따른다.
+- 구 응답의 누락 필드는 기존 폴백 처리. 실제 부분 검색은 새 분석부터 적용된다.
+
+
+### 부분 FBX 출력과 검토 미리보기 (2026-10-02)
+
+`outputScopeCropping`은 converter `/healthz`의 건강 상태, 고정 solver 버전,
+`framing_version=skin-regions-v1`, full/half/bust/head 지원을 확인한 경우에만 true다.
+false/누락이면 기존 전신 출력과 설정 저장 안내를 유지한다.
+
+`GET /v1/pose-candidates/:poseId/framed?jobId=…&personIndex=…&candidateId=…&outputScope=half&format=preview`
+는 실제 최종 FBX를 재import해 만든 정면 PNG를 반환한다. 같은 URL에서 `format=fbx`는 그 FBX다.
+optional `characterId`는 두 요청에 동일하게 적용한다. 설치 인증, 소유 Job, 확정 후보,
+poseId를 매번 검사하며 outputScope는 서버 저장 resolved 값과 일치해야 한다.
+다르면 `409 OUTPUT_SCOPE_CHANGED`; 변환 실패 시 전신 파일로 대체하지 않는다.
+응답은 `private, no-store`, `X-Standin-Output-Scope`, FBX의 `X-Standin-Artifact-SHA256`를 포함한다.
+
+기존 `/export` 요청과 BVH는 전신 동작을 유지한다. half는 상체+팔+손, bust는
+가슴+어깨+목+머리(팔 제외), head는 머리 메시만 남기고 뼈대 계층은 전신으로 보존한다.
+후보 카드의 기존 썸네일과 달리 **저장 전 확인 화면**에서 선택 범위를 렌더링한다.
+이 기능은 얼굴만 있는 러프의 머리 방향 검색을 추가하지 않는다.
+자세한 알고리즘·제한·검증은 `Standin-server/docs/BODY_SCOPE.md`의 3단계를 따른다.
+
+
+## 후보 카메라 preview (2026-10-07)
+
+`candidate.camera.version=candidate-camera-v1` 응답의 thumbnailUrl은 작업 소유권이 있는
+동적 렌더 경로다. 분석 결과 adapter에서 다운로드를 기다리지 않는다. 후보 목록은 먼저
+열고 `deferredThumbnailUrl`을 각 카드의 인증된 TanStack Query로 로드한다. 앱/바/확인 화면은
+같은 Query key를 공유한다. 준비 중에는 “각도 맞추는 중”, 실패 시 “미리보기 다시 시도”를
+표시한다. 준비 전에는 해당 카드 선택을 잠그며, 오류를 예전 방향 이미지로 숨기지 않는다.
+기존 작업·Mock·구 서버의 정적 thumbnailUrl은 기존 동작을 유지한다. 카메라 계산은 서버가
+담당하며, 앱은 회전 행렬을 재계산하거나 BVH에 적용하지 않는다.
+
+Windows의 타입 검사·컴포넌트/HTTP adapter 테스트로 검증한다. 실제 Tauri/CSP/macOS의
+새 빌드 검증과 콜드 변환 지연 측정은 별도이며, 변경된 출력 포맷은 없다.
+
+### Precomputed candidate preview (`posed-mesh-v1`)
+
+Optional `previewModelUrl` with candidate-camera-v1 enables local static GLB rendering.
+The authenticated URL accepts the selected characterId. The GLB contains the evaluated
+frozen-converter surface in Y-up coordinates, with Hips at the origin; the exact stored
+camera.rotation is applied once. Single shared WebGL renderer; 384px PNG snapshot per
+card; no animation loop or new pose solver. Raw matrix, source and character are checked.
+Missing models, old servers or unavailable WebGL fall back to the existing aligned PNG.
+Cancellation does not start fallback work. Final selected/refined/cropped FBX still uses
+the converter and its verified preview. BVH behavior is unchanged.
+
+
+## 체형 선택 UX 확장 (2026-10-08)
+
+새 작업의 기본 설정 `last_used`에서 아직 수동 체형 선택 이력이 없으면 BFF가 현행 남성 기본형을 선택한다.
+클라이언트가 가짜 선택을 만들거나 저장 검증을 건너뛰지 않는다. 이전 체형·수치가 있으면 그대로 시작하며,
+- 지원 모드는 `last_used`(새 설치 기본)와 `auto`다. `last_used`는 마지막 수동 선택의 체형·수치가 유효하면 그대로 쓰고, 최초 사용·삭제된 체형·무효 수치는 공통 남성 기본형으로 시작한다.
+- `auto` 및 인물별 명시적 `auto`는 정상 추천을 사용한다. 추천 없음·실패·disabled·not_applicable·지원 불가이면 같은 남성 기본형을 사용한다. 유효하지만 그림과 다른 추천을 실패로 임의 판단하지 않는다.
+- `manual`은 언제나 직접 고른 체형·수치를 유지한다. 자산 소실·해시 변경·변환 실패를 다른 체형으로 숨기지 않는다.
+- 남성 기본형은 승인 카탈로그의 현행 `male-base-*` 자산이다. 작업 시작에 자산·버전·해시·리그를 고정한다. 구 snapshot에 이 정보가 없을 때만 현재 카탈로그에서 찾는다. 자산이 없거나 출력 조건을 만족하지 못하면 unavailable로 저장을 막는다. 후보가 없으면 not_applicable이다.
+
+설정 PUT은 `{ mode, expectedRevision, mutationId }`만 보낸다. 카드/수동 조절 API는 유지한다.
+과거 저장 경계에서만 legacy를 읽는다. `fixed_default`는 `last_used`로 정규화하고 기존 `auto`/`last_used`, 카드, 마지막 선택을 보존한다. `shapeDefault`의 체형·수치는 `my-default` 개인 카드로 합치고, 현재 응답/다음 설정 쓰기에는 `defaultCharacterId`·`shapeDefault`를 넣지 않는다. 카드 삭제 후 다시 생기지 않는다. `catalog.defaultCharacterId`와 일반 모델 카탈로그 계약은 유지한다.
+
+과거 작업의 `fixed_default`/`user_default_fallback`, 자동 기본형, 미확정 자동 선택은 작업 snapshot을 기준으로 읽기 때 다시 결정한다. 유효한 수동/마지막 선택과 정상 추천은 유지한다. GET은 DB·revision을 바꾸지 않고 다음 명시적 변경은 현재 계약으로 저장한다. 이전 mutation 응답도 반환 경계에서 정규화한다.
+
+
+새 계약을 지원하는 작업의 기본 설정·인물별 선택·Top-K·최종 확인·저장 기준은 [BODY_SELECTION_UI.md](BODY_SELECTION_UI.md)를 따른다. 구 계약 설명보다 이 확장이 우선한다.
+
+
+## pose_presentation v1 (2026-10-18)
+
+추론 PR #99(develop 831efd38)의 `people[].pose_presentation`이 non-null이면 표시 기준은 이 계약이다.
+BFF는 인물별 `posePresentation`으로 전달하며 library/review/generated 그룹, 순위, 개별 검색·생성 상태, 카메라, scope, 정책을 보존한다.
+null/미포함만 기존 dynamic_search 경로를 유지한다. 알 수 없는 버전·계약 오류는 오류 표시로 남기며 다른 후보로 대체하지 않는다.
+
+BVH 본문과 내부 경로는 공개 결과 JSON에 포함하지 않는다. 기존 analysis_people.refine_context_json의
+비공개 posePresentationAssets에 보관하므로 기존 작업 소유권·보관·삭제 정책을 따른다.
+앱은 BFF의 `GET /v1/analysis/jobs/:jobId/people/:index/pose-previews/:candidateId/:sha256`만 사용한다.
+라이브러리는 고정 추론 getPoseBvh를 통해 읽고 SHA를 확인한다. 생성은 UTF-8 본문 바이트의 SHA를 검증하며 라이브러리 조회하지 않는다.
+소유권·후보·인물·해시 불일치는 404/409이고 임의 URL이나 다른 파일로 폴백하지 않는다.
+이 조회는 preview 전용이며 export 권한이 아니다. 모든 신규 후보의 auto_apply/refine/export/release/actual_mesh_validated=false를 유지한다.
+
+앱은 BVH frame 0의 관절을 Three.js로 렌더하고, hip midpoint 이동·hip-to-shoulder 길이 정규화 후
+서버 rotation을 한 번 적용한다. 원근은 xy=(x,-y)/(z+distance_torso), 정사영은 xy=(x,-y)와 동등한 투영을 사용한다.
+full/half/shoulder_head/head 범위를 적용하며 카메라 또는 범위가 유효하지 않으면 표시 실패를 알린다.
+미리보기에서 좌우 회전과 기준 시점 복원이 가능하다. 관절 기반 뷰어이며 실제 체형 메시의 피부 안전 인증이나 보정·저장 기능은 제공하지 않는다.
+기본 인체 계획은 미렌더 상태로 표시한다. 제공된 비공개 BVH/JSON은 Git에 올리지 않는다.
+
+## 손 라이브러리·직접 문장 검색 통합 (2026-10-18)
+
+GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people/:index/hands를 사용한다.
+직접 검색은 GET /v1/semantic-search/capabilities와 POST /v1/semantic-search {query,topK?}이며,
+2026-10-19 확장: `topK:null`은 검색 기준을 통과한 전체 후보를 반환한다. 양의 정수는 명시한 개수,
+생략은 서버 기본 5이며 BFF가 null을 5로 바꾸거나 20개로 자르면 안 된다. `supportsAllResults:true`를
+확인한 앱은 `{query,topK:null}`을 전송한다. 구 BFF에는 제한된 검색으로 조용히 바꾸지 않고 준비 안내를 표시한다.
+`maxTopK:20`은 구 앱 호환용이며 새 UI의 표시 상한으로 사용하지 않는다.
+
+서버 페이지네이션은 없다. 앱/플로팅 바 모두 완성된 전체 결과를 한 번 조회하고 각 그룹을 20개씩 연속 추가한다.
+이전 카드와 선택은 유지하며 빠른 스크롤이 감지 지점을 건너뛰어도 마지막 후보까지 도달한다.
+`near_candidates`는 정식 검색 후보와 다른 참고 그룹에 표시한다. 목록에서는 저장 포스터만 지연 로딩하고,
+저장 이미지가 없으면 오류를 표시하며 BVH/메시 렌더로 자동 폴백하지 않는다. 체형 적용/3D 변환은 상세 선택 시에만 실행한다.
+검색창은 각 화면 스크롤 상단에 고정한다. 입력 후 300ms 자동 검색, 한글 조합 중 대기, Enter 즉시 검색,
+이전 POST/결과 GET 취소와 generation/설치 소유자 확인으로 늦은 응답을 차단한다. 전체 결과를 미리 수신해
+새 job으로 이동해도 검색 input과 focus를 유지한다. 새 결과는 첫 행으로 스크롤을 돌리며 기록 이동 시에도
+검색 문장을 동기화하고 이전 검색을 취소한다. 러프 `/analyze`의 요청·Top-5·페이지 동작은 변경하지 않는다.
+
+구형 고정 성인 6종과 구형 청소년 `body-teen-male`, `body-teen-female`은 카탈로그·체형 옵션에서 제외한다.
+아동 `body-child`는 유지한다. 이전 서버가 청소년 선택을 `ready`로 반환해도 앱은 `unavailable`로 처리하고
+사용자에게 다른 체형 선택을 요청한다.
+
+자연어 작업의 체형 상태가 `intent=inherit`, `resolutionStatus=needs_selection`이고 선택한 체형·수치가 없으면,
+체형을 저장하기 전까지 기본 남성 참고 모델을 표시한다. 이때 `/model`에 `bodyRevision`을 보내지 않으며
+기본 참고임을 안내한다. 사용자 체형이 준비되면 해당 revision으로 전환한다. 수동 선택의 오류·사용 불가 상태나
+체형 조회 실패는 기본 모델로 대체하지 않는다.
+
+신규 후보는 조회 전용이다. BFF semantic-pose-presentation-v1은 정식/근접 후보를 분리하고
+명시적 정면 참고 카메라와 인증된 BVH preview URL을 제공한다. 구형 #87 내보내기 계약으로 해석하지 않는다.
+손 reference PNG는 기존 preview URL + /hands?revision=N이다. PNG-only/손 revision/library 헤더를 확인하고
+권한을 승격하지 않는다. 자세한 현재 흐름은 HANDS_SEMANTIC_INTEGRATION.md를 따른다.
+
+### 자연어 검색 고정 남성 모델 조회
+
+`GET {preview_bvh_url}/model` — semantic-pose-presentation-v1의 full 검색/근접 후보에 한정한다.
+설치 인증을 유지하며 다른 설치의 작업은 404다. query는 허용하지 않는다(체형/format 지정 불가).
+200은 model/gltf-binary이며 X-Standin-Preview-Only=true, Character-Id, Model-Version,
+Source-BVH-SHA256, Character-SHA256, Model-Revision, Artifact-SHA256 헤더(X-Standin- prefix)를 검증한다.
+기본 남성 standin-master-v2의 posed-mesh-v1 또는 framed-mesh-v1만 표시한다.
+기존 export/refine API에 대한 허용을 의미하지 않는다. bodyPreviews/characterSelection capability를 열지 않는다.
+
+### 자연어 검색 체형 선택 확장
+
+`capabilities.semanticBodySelection === true`일 때 기존 인물별 body-options/body-selection API를 사용한다.
+선택은 previewOnly이며 refine/export/release 허용으로 해석하지 않는다. bodyPreviews는 legacy 이미지 경로용으로 계속 false다.
+`{preview_bvh_url}/model?bodyRevision={selectionRevision}`은 저장된 resolvedBody/shape만 사용한다.
+X-Standin-Body-Revision/Body-Shape-SHA256(none 또는 hash), Character-Id/Character-SHA256,
+Model-Revision/Artifact-SHA256와 GLB 내부 source/character/revision/shape_sha256를 모두 검증한다.
+체형 저장·다시 읽기·새 모델 준비 중에는 이전 체형을 숨기고, revision을 포함한 query key로 늦은 응답을 격리한다.
+capability 없는 구형 BFF는 기존 고정 남성 표시를 유지한다. 모델 재시도 시 체형 선택도 새로 읽는다.
+
+정적 모델 GLB는 한 mesh와 내부 buffer 하나, 최대 8개의 정적 primitive를 허용한다.
+큰 아동 모델은 원본 정점·split normal·삼각형을 유지한 UInt16 인덱스 파트로 전달하며,
+8MiB 및 accessor별 50만 항목 제한은 유지한다. 외부 자산·스킨·애니메이션·확장·morph target은 계속 거절한다.
+이 앱을 먼저 배포한 뒤 새 Converter를 배포해야 기존 앱의 단일 primitive 검사와 충돌하지 않는다.
+
+## 체형 Top-K 출력 범위 연결 (2026-10-18)
+
+body-previews.v1.outputScope는 full/half/bust/head를 받는다. 누락·미지원 값은 계약 오류다.
+사용자 선택을 반영한 인물 범위와 manifest 범위가 일치해야 이미지 묶음을 표시한다.
+후보 카드와 플로팅 바가 공유하는 useBodies 이미지 키에 scope를 포함하고, 범위/체형/수치 변경 중 이전 이미지 묶음을 표시하지 않는다.
+full GLB는 posed-mesh-v1이며 후보 rotation을 한 번 적용한다. 부분 GLB는 scope와 rotation이 이미 적용된 framed-mesh-v1이다.
+GLB 내장 scope·원본 BVH·체형 hash·exporter revision·camera rotation을 검증하고 rotation을 중복 적용하지 않는다.
+WebGL/모델 가용성 실패는 같은 manifest의 PNG를 사용한다. 권한·무결성·stale 4xx 또는 취소는 PNG 생성으로 이어지지 않는다.
+수치 조절 체형은 기존 검증된 PNG 경로를 유지한다. 손 적용 참고 미리보기도 범위 변경 시 이전 이미지를 숨긴다.
+shoulder_head를 새 사용자 범위로 추가하거나 bust와 새로 합치는 변경은 포함하지 않는다. 원본 BVH와 최종 Export 정책은 유지한다.
+새 앱과 부분 manifest를 반환하는 BFF를 함께 릴리스해야 한다. 자동 테스트는 실제 설치 앱·실제 체형 외형의 시각 E2E 검증과 구분한다.
+
+#### #99 추가분 통합
+#100의 범위별 framed GLB 검증과 회전 중복 방지, PNG fallback, Mock 처리를 유지한다. shoulder_head를 어깨~머리 선택으로 추가하고 vlm_description/observed_legs 및 선택적 meshScope를 수용한다. 자동 bust 판정은 팔 보존용 half 메시를 표시하며 수동 bust는 흉상 크롭이다. 카드와 바, presentation body·손 PNG가 같은 최종 범위를 사용한다.
+
+손 변경 시 body 이미지 요청을 취소/무효화하고 변경 중 이전 그룹을 숨긴다. manifest.hands가 있으면 hand revision/library hash를 검증한다. X-Standin-Output-Scope가 있는 새 BFF 응답은 이를 검증하며, 구 BFF는 기존 renderKey·digest 바인딩으로 호환한다. 청소년 제거와 multipart 지원은 독립 PR #98에서 유지한다.
+
+### 손 단계와 최종 출력 메시 범위
+
+손 조회·변경·참고 손 미리보기·최종 손 영수증은 인물별 최종 메시 범위가 `full` 또는
+`half`인 경우에만 사용한다. `head`, `shoulder_head`, 수동 `bust`는 손 표면이 없으므로
+손 UI와 GET/PUT·썸네일·미리보기 요청을 생략하고 손 준비 완료를 기다리지 않는다.
+사용자의 `selection`이 우선이며 자동은 `meshScope`를 사용한다. 자동 `bust`는 기존
+계약대로 `half`가 되어 팔·손을 유지하므로 수동 `bust`와 구분한다.
+
+손이 없는 최종 범위의 body manifest는 `hands: null`이고, PNG/FBX에는
+`handSelectionRevision` 쿼리와 `X-Standin-Hand-*` 영수증이 없다. 체형·원본·출력 범위·최종
+검수 영수증은 계속 검증한다. 손 선택은 삭제하지 않고, `full`/`half`로 돌아올 때 서버의
+현재 선택과 라이브러리를 다시 확인한다. 혼합 장면에서는 손이 있는 인물만 손 단계에
+참여하며 후보의 수동 확정·refine·내보내기 권한은 기존 정책을 따른다.
+
+## 생성 포즈 수동 사용 확장 (2026-10-20, 02~08)
+
+`source=generation`, `poseId=null`의 생성 후보는 별도의 `manualExportAllowed`와 원본 해시가
+확인된 경우 직접 선택→기존 확정→체형·손·범위를 적용한 최종 확인→동일 FBX 개별 저장으로
+연결한다. 원래 presentation 그룹과 검색/생성 상태, 자동 금지 정책을 유지한다.
+기존 조회 전용 항목의 자동 권한을 변경하는 계약이 아니다.
+[원본 식별·무효화·복원·검증 범위](GENERATED_MANUAL_EXPORT.md).
+
+## 동적 라이브러리 refine 연결 (2026-10-21)
+
+일반 이미지 분석에서도 `posePresentation`이 있다는 이유만으로 refine을 일괄 금지하지 않는다.
+인물의 refineAllowed=true와 선택 후보의 명시적 refineAllowed=true가 모두 있어야 한다.
+선택 후보는 source=library, presentationKind=library_match, manualExportAllowed/lookupAllowed=true,
+notExactMatch=false 및 원본 해시와 같은 candidate-camera-v2를 가져야 한다.
+
+조건을 만족하면 검색 confidence=low/fallbackMode=soft여도 기존 저장 전 확인 흐름에서
+refine을 호출한다. 자동 release 권한은 올리지 않고, 보정 결과가 기존 최종 미리보기와 저장으로
+이어진다. 참고·생성·문장 직접 입력 검색과 구 BFF 응답은 계속 보정하지 않는다. 기능 스위치는
+서버 capabilities.refine을 따르며, 시간 초과/실패/안전 게이트 거절 시 원본 후보를 유지한다.
+서버와 BFF 배포 후 이 클라이언트 버전을 설치하고 새 분석으로 확인해야 한다.

@@ -3,16 +3,27 @@
  * 클라이언트는 BFF에 분석 Job을 만들고 완료될 때까지 폴링한 뒤 이 형태로 변환한다.
  * 라우트의 jobId는 쿼리 키용 클라이언트 식별자이며, 응답의 jobId는 BFF가 발급한 값이다.
  */
+import type { OutputScope } from "./outputScope";
+import type { UpstreamAnalysisCode } from "@/shared/api/analysisJobFailure";
+
 export type MatchLevel = "high" | "medium" | "low";
 
-export type PoseCandidate = {
+export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
+  semantic?: { familyId: string; alternate: boolean; description: string };
   id: string;
-  poseId: string;
+  poseId: string | null;
   rank: number;
   title: string;
   tags: string[];
   matchLevel: MatchLevel;
   thumbnailUrl: string;
+  posterUrl?: string;
+  posterScope?: import("./outputScope").BodyScope;
+  /** Job-owned render URL, loaded independently of analysis completion. */
+  deferredThumbnailUrl?: string;
+  /** Already rendered library JPEG; its view may only approximate the camera. */
+  quickThumbnailUrl?: string;
+  previewModel?: import("../preview/modelContract").CandidateModel;
   previewImages: Array<{ view: string; url: string }>;
   modelUrl?: string | null;
   bvhAvailable: boolean;
@@ -21,15 +32,16 @@ export type PoseCandidate = {
 };
 
 export type PersonConfidence = "high" | "low";
+export type PersonBox = readonly [number, number, number, number];
 export type SkeletonState = "valid" | "partial" | "suspect" | "missing" | "invalid";
 export type SkeletonSource = "full_image" | "crop_retry" | "none";
-export type CoverageClass = "full" | "reduced" | "sparse" | "insufficient";
+export type CoverageClass = "full" | "reduced" | "sparse" | "upper_only" | "insufficient";
 
 /**
  * 인물 단위 폴백 상태(BFF `fallbackMode`).
  *
  * - `none` — 일반 Top-5
- * - `soft` — 스켈레톤 인식이 불확실하다. 후보는 보여주되 참고용이라고 알리고 refine은 금지
+ * - `soft` — 참고용 후보. 보정 여부는 인물과 선택 후보의 명시적 refine 권한으로 판단
  * - `hard` — 이 인물에 자동 후보가 없다. 다른 인물의 흐름은 계속 진행한다
  *
  * soft와 hard를 하나로 뭉치면 "참고용 후보가 있다"와 "후보가 없다"를 화면이 구분할 수 없다.
@@ -38,6 +50,17 @@ export type FallbackMode = "none" | "soft" | "hard";
 
 /** 검출된 인물 한 명과 그 인물의 포즈 후보들. index는 실 서버 people[].index를 그대로 따른다. */
 export type PersonResult = {
+  posePresentation?: import("./posePresentation").PosePresentation;
+  routedSearch?: import("./routedSearch").RoutedSearch;
+  bodySelection?: import("@/features/body-selection/contract").BodySelection;
+  bodyPreviewManifestUrl?: string;
+  outputScope?: OutputScope;
+  candidateShortfallReason?: string | null;
+  /**
+   * 원본 이미지 픽셀 좌표의 인물 상자 `[x1, y1, x2, y2]`. 구 응답·검출 실패면 없다.
+   * 원본과 후보를 나란히 비교하는 데만 쓴다 — 위치 판단에 쓰지 않는다.
+   */
+  box?: PersonBox | null;
   index: number;
   candidates: PoseCandidate[];
   confidence: PersonConfidence;
@@ -50,6 +73,8 @@ export type PersonResult = {
 };
 
 export type AnalysisResult = {
+  source?: "image" | "semantic";
+  semantic?: { query: string; index: Record<string, string> };
   jobId: string;
   inputPreviewUrl?: string;
   people: PersonResult[];
@@ -58,12 +83,15 @@ export type AnalysisResult = {
    * false가 오고, 클라이언트는 그걸 따른다(자기 판단으로 호출하지 않는다).
    */
   capabilities: {
+    handSelection?: boolean;
     refine: boolean;
     /**
      * 서버가 FBX 저장을 노출하는가. converter는 추론 서버와 **별개로** 배포되므로 refine과
      * 함께 켜지지 않는다. false면 저장 포맷 선택에서 FBX를 고를 수 없다.
      */
     fbxExport: boolean;
+    sceneExport?: boolean;
+    sceneRefinement?: boolean;
     /**
      * 서버가 export의 `characterId`를 존중하는가. 모델 카탈로그(`/v1/models`)와 export
      * 처리는 **따로 배포될 수 있으므로** 플래그도 따로 둔다 — 카탈로그가 여성을
@@ -71,6 +99,18 @@ export type AnalysisResult = {
      * false면 클라이언트가 파라미터를 아예 붙이지 않는다.
      */
     characterSelection: boolean;
+    bodyPreviews?: boolean;
+    presentationBodyPreviews?: boolean;
+    semanticBodySelection?: boolean;
+    bodyPreviewAssets?: boolean;
+    outputScopeSelection?: boolean;
+    outputScopeCropping?: boolean;
+    modelPreview?: boolean;
+    /**
+     * 같은 인물의 다음 후보 묶음을 서버가 줄 수 있는가. 아직 어떤 서버도 켜지 않는다 —
+     * 켜지기 전에는 "후보 다시 찾기" 자리를 그리지 않는다(없는 기능을 보이지 않는다).
+     */
+    candidateRerun?: boolean;
   };
 };
 
@@ -86,7 +126,7 @@ export type AnalysisErrorCode =
   /** 기록에서 열었는데 아직 끝나지 않았거나 결과가 없는 Job이다(BFF `NOT_READY`). */
   | "NOT_READY"
   /** 상류 VLM 혼잡. 같은 이미지로 잠시 후 다시 하면 된다(BFF `ANALYSIS_UNAVAILABLE`). */
-  | "UPSTREAM_UNAVAILABLE";
+  | UpstreamAnalysisCode;
 
 export class AnalysisError extends Error {
   constructor(

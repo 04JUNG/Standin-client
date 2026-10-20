@@ -1,7 +1,10 @@
+import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
+import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ImageOff, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
-import { useSelectionReview } from "@/features/pose-viewer/hooks/useSelectionReview";
+import { useFramedReview } from "@/features/pose-viewer/hooks/useFramedReview";
+import { ReviewPosePreview } from "@/features/pose-viewer/components/ReviewPosePreview";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { BarShell } from "../components/BarShell";
 
@@ -14,14 +17,30 @@ import { BarShell } from "../components/BarShell";
 export function BarReviewPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
-  const { items, isRefining } = useSelectionReview(jobId ?? undefined);
+  const {
+    items,
+    hands,
+    isRefining,
+    previewLoading,
+    preparationLoading,
+    preparationError,
+    preparationNotice,
+    downloadReady,
+    downloadLabel,
+    requestDownload,
+    previewError,
+    previewFailure,
+    requiresFbx,
+    previewNotice,
+    retryPreview,
+  } = useFramedReview(jobId ?? undefined);
 
   if (!jobId) return <Navigate to="/bar/actions" replace />;
   if (!isRefining && items.length === 0) return <Navigate to="/bar/candidates" replace />;
 
   return (
     <BarShell title="저장할 포즈 확인">
-      <div className="flex h-full flex-col gap-2 p-2.5">
+      <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
           {isRefining ? (
             <>
@@ -29,25 +48,34 @@ export function BarReviewPage() {
               <span className="text-[12px]">포즈를 조정하는 중…</span>
             </>
           ) : (
-            <ul className="flex w-full min-w-0 items-center justify-center gap-1.5 overflow-x-auto">
+            <ul
+              className={`flex w-full min-w-0 items-center gap-1.5 overflow-x-auto ${items.length === 1 ? "justify-center" : "justify-start"}`}
+            >
               {items.map((item) => (
-                /**
-                 * 남는 폭을 나눠 갖되 원본(256px)을 넘겨 늘리지 않는다. 인물이 많아
-                 * 80px 아래로 내려가면 더 줄이지 않고 가로로 넘긴다 — 그보다 작으면
-                 * 어떤 포즈인지 알아볼 수 없어 확인 화면의 뜻이 사라진다.
-                 */
-                <li key={item.personIndex} className="min-w-[80px] max-w-[128px] flex-1 basis-0">
-                  {item.previewUrl ? (
-                    <img
-                      src={item.previewUrl}
-                      alt={`인물 ${item.personIndex + 1}에 저장될 포즈`}
-                      title={`인물 ${item.personIndex + 1} · ${item.candidate.title}`}
-                      className="aspect-square w-full rounded border border-border bg-surface-2 object-contain"
-                    />
-                  ) : (
-                    <div className="flex aspect-square w-full items-center justify-center rounded border border-border bg-surface-2">
-                      <ImageOff className="h-5 w-5" aria-hidden />
-                    </div>
+                <li
+                  key={item.personIndex}
+                  className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[320px]" : "max-w-[256px]"}`}
+                >
+                  <ReviewPosePreview
+                    model={item.previewModel}
+                    src={item.previewUrl}
+                    label={
+                      item.previewReference
+                        ? `인물 ${item.personIndex + 1}의 동작 미리보기`
+                        : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
+                    }
+                    loading={previewLoading}
+                    error={previewError}
+                    onModelStatus={item.onModelStatus}
+                  />
+                  {item.previewReference && (
+                    <p className="px-2 text-[10px] text-text-secondary">
+                      포즈만 확인하는 모습이에요. BVH에는 체형{item.includesHands ? "·손 모양" : ""}{" "}
+                      없이 전체 동작이 저장돼요.
+                    </p>
+                  )}
+                  {item.scopeLabel && (
+                    <p className="text-center text-[10px] text-text-secondary">{item.scopeLabel}</p>
                   )}
                 </li>
               ))}
@@ -55,6 +83,46 @@ export function BarReviewPage() {
           )}
         </div>
 
+        {hands?.enabled && (
+          <div className="max-h-[180px] shrink-0 overflow-y-auto">
+            {items.map((item) => (
+              <HandChips
+                key={item.personIndex}
+                state={hands}
+                personIndex={item.personIndex}
+                compact
+              />
+            ))}
+          </div>
+        )}
+        {preparationLoading && !isRefining && (
+          <p role="status" className="text-[11px] text-text-secondary">
+            {preparationNotice}
+          </p>
+        )}
+        {requiresFbx && <GeneratedFbxNotice />}
+        {(preparationError || previewError) && (
+          <p role="alert" className="text-[11px] text-brand-coral">
+            {preparationError
+              ? previewFailure.message
+              : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
+            <button
+              onClick={() =>
+                previewFailure.action === "choose"
+                  ? navigate("/bar/candidates")
+                  : void retryPreview()
+              }
+              className="underline"
+            >
+              {previewFailure.label}
+            </button>
+          </p>
+        )}
+        {!previewLoading && !previewError && !requiresFbx && previewNotice && (
+          <p className="truncate text-[10px] text-text-secondary" title={previewNotice}>
+            {previewNotice}
+          </p>
+        )}
         <div className="flex shrink-0 items-center gap-1.5 border-t border-border pt-2">
           <Button
             variant="ghost"
@@ -67,10 +135,13 @@ export function BarReviewPage() {
           <Button
             size="sm"
             className="min-w-0 flex-1"
-            disabled={isRefining}
-            onClick={() => navigate("/bar/save")}
+            disabled={!downloadReady}
+            onClick={() => {
+              if (requestDownload()) navigate("/bar/save");
+            }}
           >
-            <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />이 포즈로 저장
+            <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {downloadLabel}
           </Button>
         </div>
       </div>

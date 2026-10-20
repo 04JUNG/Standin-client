@@ -5,6 +5,15 @@
 @tailwind utilities;
 
 @layer base {
+  /* 스크롤 동작은 유지하고 네이티브 스크롤바가 차지하는 공간만 없앤다. */
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
   html,
   body,
   #root {
@@ -23,7 +32,9 @@
    * 플로팅 바에서는 창 배경을 비운다(ADR-008). 창은 사각형이라 배경이 칠해져 있으면
    * 둥근 패널·원형 버튼 바깥이 흰 네모로 드러난다. 표식은 WindowModeSync가 세운다.
    */
-  body[data-window-mode="bar"] {
+  html[data-window-mode="bar"],
+  body[data-window-mode="bar"],
+  body[data-window-mode="bar"] #root {
     background-color: transparent;
   }
 

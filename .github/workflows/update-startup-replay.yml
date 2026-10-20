@@ -1,0 +1,44 @@
+name: Replay original signed macOS startup
+on:
+  push:
+    branches: [codex/automatic-updates-e2e]
+    paths:
+      - ".github/workflows/update-startup-replay.yml"
+      - "scripts/update-e2e/replay-startup.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  replay:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download exact installers from the first failed attempt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # download-artifact lists only the latest same-name artifact after a rerun.
+          # Address the original attempt's immutable artifact ID through REST.
+          gh api repos/04JUNG/Standin-client/actions/artifacts/12265671389/zip > "$RUNNER_TEMP/original.zip"
+          python - <<'PY'
+          import hashlib, os, pathlib, zipfile
+          archive = pathlib.Path(os.environ["RUNNER_TEMP"]) / "original.zip"
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == "ddce9cca2dc6a83b15fec4a94da7d803e25b587677117ef94493f1a99c5128bd"
+          with zipfile.ZipFile(archive) as file:
+              file.extractall("startup-replay-packages")
+          PY
+      - name: Probe original unmodified A and B startup
+        env:
+          STANDIN_E2E_ROOT: ${{ runner.temp }}/standin-updater-e2e
+        run: python scripts/update-e2e/replay-startup.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-startup-replay
+          path: startup-replay-evidence/
+          retention-days: 14

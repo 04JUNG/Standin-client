@@ -1,8 +1,12 @@
+import { canRefineCandidate } from "../api/routedSearch";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useExportStore } from "@/features/export/store/exportStore";
+import { modelRenderingAvailable } from "../preview/modelSupport";
 import type { AnalysisResult } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
 import { refineService } from "../api/refine.service";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
+import { beginWork } from "@/shared/stores/workActivityStore";
 
 /** 동시 호출 상한. 다인 컷에서 추론 서버에 한꺼번에 몰리지 않게 한다. */
 const MAX_PARALLEL = 3;
@@ -33,14 +37,27 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
     if (!result) return;
 
     // 서버가 refine을 노출하지 않으면 클라이언트는 호출하지 않는다(OPS-02).
-    const targets = result.capabilities.refine
-      ? result.people.flatMap((person) => {
-          const candidateId = picks[person.index];
-          // 저신뢰(soft) 인물은 후보를 고르고 베이스로 저장할 수 있지만 refine은 금지다.
-          if (!candidateId || !person.refineAllowed) return [];
-          return [{ personIndex: person.index, candidateId }];
-        })
-      : [];
+    const targets =
+      result.source !== "semantic" && result.capabilities.refine
+        ? result.people.flatMap((person) => {
+            const candidateId = picks[person.index];
+            // Search confidence and manual release are separate from refine eligibility.
+            if (
+              !candidateId ||
+              !person.refineAllowed ||
+              !canRefineCandidate(person.candidates.find((c) => c.id === candidateId))
+            )
+              return [];
+            const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
+            if (
+              result.capabilities.bodyPreviews &&
+              saved?.jobId === result.jobId &&
+              saved.candidateId === candidateId
+            )
+              return [];
+            return [{ personIndex: person.index, candidateId }];
+          })
+        : [];
 
     if (targets.length === 0) {
       setStatus("done");
@@ -48,6 +65,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
     }
 
     setStatus("running");
+    const finishWork = beginWork();
     const queue = [...targets];
     const worker = async () => {
       for (let next = queue.shift(); next; next = queue.shift()) {
@@ -56,6 +74,13 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
             jobId: result.jobId,
             personIndex: next.personIndex,
             candidateId: next.candidateId,
+            ...(result.capabilities.modelPreview &&
+            modelRenderingAvailable() &&
+            result.capabilities.outputScopeCropping &&
+            result.capabilities.fbxExport &&
+            useExportStore.getState().format === "fbx"
+              ? { deferPreview: true }
+              : {}),
           });
           // store에서도 현재 job/candidate를 다시 확인한다. 화면을 떠난 뒤 응답이 와도
           // 새 선택의 export URL을 이전 조정본으로 되돌릴 수 없다.
@@ -66,8 +91,12 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
         }
       }
     };
-    await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker));
-    setStatus("done");
+    try {
+      await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker));
+      setStatus("done");
+    } finally {
+      finishWork();
+    }
   }, [setRefineOutcome]);
 
   const started = useRef(false);

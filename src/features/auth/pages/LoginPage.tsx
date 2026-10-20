@@ -190,7 +190,7 @@ export function LoginPage() {
 
         {env.useMockApi && (
           <p className="mt-4 rounded-lg bg-surface-2 p-3 text-[12px] text-text-secondary">
-            개발 Mock 계정: <code>demo@standin.app</code> / <code>password</code>
+            체험용 계정: <code>demo@standin.app</code> / <code>password</code>
           </p>
         )}
       </div>

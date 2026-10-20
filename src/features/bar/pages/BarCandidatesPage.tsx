@@ -1,80 +1,60 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { cn } from "@/shared/lib/cn";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
 import { resolveAccelerator } from "@/shared/lib/shortcutRegistry";
 import { useShortcutStore } from "@/shared/stores/shortcutStore";
-import { PoseCandidateCard } from "@/features/pose-viewer/components/PoseCandidateCard";
-import { PersonFallbackNotice } from "@/features/pose-viewer/components/PersonFallbackNotice";
+import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
+import { useExportStore } from "@/features/export/store/exportStore";
+import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { analysisFailure } from "@/features/pose-viewer/lib/analysisFailure";
-import { ModelSelect } from "@/features/models/components/ModelSelect";
-import { BarShell } from "../components/BarShell";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
+import { BarSearchBackButton } from "../components/BarSearchBackButton";
+import { BarPersonCandidates } from "../components/BarPersonCandidates";
+import { BarShell } from "../components/BarShell";
+import { BAR_SIZES } from "../lib/barSizes";
 
-/**
- * 바 모드의 후보 확인(ADR-008). 앱 창에 들어가지 않고 작업 화면 위에서 후보를 고른다.
- *
- * 로직은 useAnalysisResult로 앱 모드와 공유하고 레이아웃만 다르다. 720px 폭에 여러
- * 인물을 한 번에 넣을 수 없어 인물은 스테퍼로 전환한다.
- *
- * 앱이 후보를 자동 확정하지 않는 원칙은 바에서도 같다(CLAUDE.md §5 작가 선택 중심).
- */
+/** 모든 인물을 한 목록에 표시한다. 내용 높이로 창을 맞추고 상한 이후는 셸에서 스크롤한다. */
 export function BarCandidatesPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
-  const jobCharacterId = usePoseSelectionStore((s) => s.characterId);
-  const characterByPerson = usePoseSelectionStore((s) => s.characterByPerson);
-  const setPersonCharacter = usePoseSelectionStore((s) => s.setPersonCharacter);
   const bindings = useShortcutStore((s) => s.bindings);
-  const [personCursor, setPersonCursor] = useState(0);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-
+  const analysis = useAnalysisResult(jobId ?? undefined);
   const {
     data,
+    bodies,
     isPending,
     isError,
     error,
+    restoreOnly,
+    refetch,
     draft,
     sourceFile,
     people,
-    selectablePeople,
-    selectedByPerson,
+    includedPeople,
+    pendingPeople,
     selectedCount,
     allSelected,
-    selectCandidate,
-  } = useAnalysisResult(jobId ?? undefined);
+    confirmedSelections,
+  } = analysis;
 
-  // 인물 수가 줄어들면 커서를 범위 안으로 되돌린다.
-  useEffect(() => {
-    if (personCursor >= people.length && people.length > 0) setPersonCursor(0);
-  }, [people.length, personCursor]);
-
-  usePoseViewerShortcuts({
-    canConfirm: allSelected,
-    onConfirm: () => void confirmAndContinue(),
-  });
-
-  if (!jobId || !draft || !sourceFile) return <Navigate to="/bar/actions" replace />;
+  usePoseViewerShortcuts({ canConfirm: allSelected, onConfirm: () => void confirmAndContinue() });
+  if (!jobId || (!restoreOnly && !sourceFile)) return <Navigate to="/bar/actions" replace />;
 
   async function confirmAndContinue() {
     if (!data || !allSelected || isConfirming) return;
     setIsConfirming(true);
     setConfirmError(null);
     try {
-      await confirmSelections(
-        data.jobId,
-        Object.entries(selectedByPerson).map(([personIndex, candidateId]) => ({
-          personIndex: Number(personIndex),
-          candidateId,
-        })),
-      );
+      await confirmSelections(data.jobId, confirmedSelections);
       // 앱 모드와 같은 순서다(ADR-010) — 저장 전에 조정 결과를 확인한다.
+      if (bodies.enabled) useExportStore.getState().clearError();
       navigate("/bar/review");
     } catch {
       setConfirmError("선택을 저장하지 못했습니다. 다시 시도해 주세요.");
@@ -83,158 +63,126 @@ export function BarCandidatesPage() {
     }
   }
 
-  const person = people[personCursor];
+  const semantic = data?.source === "semantic";
+  const resultWidth = people.some((person) =>
+    person.candidates.some((candidate) => !candidate.manualExportAllowed),
+  )
+    ? 720
+    : BAR_SIZES.candidates.width;
+  const progressText =
+    includedPeople.length === 0
+      ? "저장할 인물을 한 명 이상 선택해 주세요"
+      : pendingPeople.length > 0
+        ? `포즈를 고를 인물: ${pendingPeople.map((p) => p.index + 1).join(", ")}`
+        : `선택한 인물 ${includedPeople.length}명의 포즈를 모두 골랐어요`;
+  const footer = (
+    <div className="flex items-center justify-between gap-2 py-2">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {semantic ? (
+          <BarSearchBackButton query={data.semantic?.query ?? ""} />
+        ) : (
+          <Button
+            variant="ghost"
+            size="md"
+            className="shrink-0"
+            onClick={() => navigate("/bar/actions")}
+          >
+            처음으로
+          </Button>
+        )}
+        {!isPending &&
+          !isError &&
+          people.length > 0 &&
+          (confirmError ? (
+            <span
+              role="alert"
+              className="flex min-w-0 items-center gap-1 text-[11px] text-brand-coral"
+            >
+              <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+              <span>{confirmError}</span>
+            </span>
+          ) : (
+            <span className="text-[11px] text-text-secondary" aria-live="polite">
+              {progressText}
+            </span>
+          ))}
+      </div>
+      {!isPending && !isError && people.length > 0 && (
+        <Button
+          size="md"
+          data-body-next
+          className="shrink-0"
+          disabled={!allSelected || isConfirming}
+          loading={isConfirming}
+          onClick={() => void confirmAndContinue()}
+        >
+          이 포즈 사용
+          <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
+        </Button>
+      )}
+    </div>
+  );
+
+  function scrollToPerson(index: number) {
+    const section = document.getElementById(`bar-person-${index}`);
+    section?.scrollIntoView({ block: "start", behavior: "smooth" });
+    section?.focus({ preventScroll: true });
+  }
 
   return (
-    <BarShell title={`포즈 후보 ${selectedCount}/${selectablePeople.length}`}>
-      <div className="flex h-full flex-col gap-2 p-2">
+    <BarShell
+      title={
+        isPending
+          ? "포즈 검색 중"
+          : semantic
+            ? "문장 검색 결과"
+            : `포즈 후보 ${selectedCount}/${includedPeople.length}`
+      }
+      preferredWidth={isPending || isError ? 360 : resultWidth}
+      footer={footer}
+    >
+      <div data-semantic-results={semantic || undefined} className="flex flex-col gap-2 p-2">
         {isPending && (
-          <>
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
-              <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
-              <p className="text-[12px]">가까운 포즈 후보를 찾고 있습니다…</p>
-            </div>
-            {/* 바에는 사이드바가 없다. 여기에 출구가 없으면 검색이 끝날 때까지 갇힌다.
-                분석은 서버에서 계속되고 결과는 작업 기록에 남는다. */}
-            <div className="flex shrink-0 items-center border-t border-border pt-2">
-              <Button variant="ghost" size="md" onClick={() => navigate("/bar/actions")}>
-                처음으로
-              </Button>
-            </div>
-          </>
+          <PoseSearchPending preview={restoreOnly ? null : draft} restoring={restoreOnly} compact />
         )}
-
         {isError && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3 text-center">
+          <div className="flex flex-col items-center justify-center gap-2 px-3 py-3 text-center">
             <p className="text-[12px] text-text-secondary">{analysisFailure(error).message}</p>
-            {/* 재시도 가능한 실패는 같은 입력으로 다시 분석한다(/bar/progress가 새 화면 job을
-                만들어 후보 화면으로 넘긴다). 그렇지 않으면 입력부터 다시 받는다. */}
-            {analysisFailure(error).retryable ? (
-              <Button size="md" onClick={() => navigate("/bar/progress", { replace: true })}>
+            {analysisFailure(error).retryable && (
+              <Button
+                size="md"
+                onClick={() => {
+                  if (restoreOnly) void refetch();
+                  else navigate("/bar/progress", { replace: true });
+                }}
+              >
                 다시 시도
-              </Button>
-            ) : (
-              <Button variant="secondary" size="md" onClick={() => navigate("/bar/actions")}>
-                처음으로
               </Button>
             )}
           </div>
         )}
-
-        {!isPending && !isError && person && (
+        {!isPending && !isError && data && (
           <>
-            {/* 인물 줄. 스테퍼는 여러 명일 때만 필요하지만 체형 선택은 한 명이어도
-                있어야 하므로 줄 자체는 늘 그린다. */}
-            <div className="flex shrink-0 items-center justify-between gap-2 px-1">
-              {people.length > 1 ? (
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    aria-label="이전 인물"
-                    disabled={personCursor === 0}
-                    onClick={() => setPersonCursor((i) => Math.max(0, i - 1))}
-                    className={stepperClass}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                  <span className="text-[11px] font-semibold text-text-secondary">
-                    인물 {personCursor + 1} / {people.length}
-                    {selectedByPerson[person.index] && " · 선택됨"}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="다음 인물"
-                    disabled={personCursor >= people.length - 1}
-                    onClick={() => setPersonCursor((i) => Math.min(people.length - 1, i + 1))}
-                    className={stepperClass}
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                </div>
-              ) : (
-                <span className="text-[11px] font-semibold text-text-secondary">
-                  {selectedByPerson[person.index] ? "선택됨" : "후보를 선택하세요"}
-                </span>
-              )}
-              {/* 인물마다 다른 체형이 필요할 수 있다(ADR-013 개정). 앱 모드와 같은
-                  컴포넌트를 쓰고 제어 값만 이 인물의 것으로 준다.
-                  ⚠ 후보가 없는 인물(hard fallback)에는 띄우지 않는다 — 저장될 포즈가
-                  없는데 체형을 고르게 하면 고른 것이 어디에도 쓰이지 않는다. */}
-              {person.fallbackMode !== "hard" && (
-                <ModelSelect
-                  variant="compact"
-                  label={`인물 ${person.index + 1}의 모델`}
-                  value={characterByPerson[person.index] ?? jobCharacterId}
-                  onChange={(characterId) => setPersonCharacter(person.index, characterId)}
+            {semantic && (
+              <div className="sticky top-0 z-10 border-b border-border bg-surface-0 p-2">
+                <SemanticSearchBar
+                  resultKey={data.jobId}
+                  initialQuery={data.semantic?.query ?? ""}
+                  surface="bar"
                 />
-              )}
-            </div>
-
-            {person.fallbackMode === "hard" ? (
-              <div className="flex flex-1 items-center justify-center px-3">
-                <PersonFallbackNotice person={person} compact />
-              </div>
-            ) : (
-              // 좁은 폭이라 가로 스트립으로 훑는다.
-              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-                {/* soft fallback 안내는 앱 모드와 같은 컴포넌트를 쓴다 — 표면마다 경고가
-                    달라지면 같은 결과를 다르게 판단하게 된다. */}
-                <PersonFallbackNotice person={person} compact />
-                <div className="grid grid-cols-5 gap-1.5">
-                  {person.candidates.map((candidate) => (
-                    <PoseCandidateCard
-                      key={candidate.id}
-                      candidate={candidate}
-                      isSelected={candidate.id === selectedByPerson[person.index]}
-                      onSelect={() => selectCandidate(person.index, candidate.id)}
-                    />
-                  ))}
-                </div>
               </div>
             )}
-
-            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border pt-2">
-              <div className="flex min-w-0 items-center gap-1.5">
-                {/* "다시 검색"이 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
-                    안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
-                    대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
-                <Button
-                  variant="ghost"
-                  size="md"
-                  className="shrink-0"
-                  onClick={() => navigate("/bar/actions")}
-                >
-                  처음으로
-                </Button>
-                {confirmError && (
-                  <span
-                    role="alert"
-                    className="flex min-w-0 items-center gap-1 text-[11px] text-brand-coral"
-                  >
-                    <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
-                    <span className="truncate">{confirmError}</span>
-                  </span>
-                )}
-              </div>
-              <Button
-                size="md"
-                disabled={!allSelected || isConfirming}
-                onClick={() => void confirmAndContinue()}
-              >
-                이 포즈 사용
-                <ShortcutKey accelerator={resolveAccelerator("poseViewer.confirm", bindings)!} />
-              </Button>
-            </div>
+            {people.map((person) => (
+              <BarPersonCandidates
+                key={`${data.jobId}:${person.index}`}
+                person={person}
+                analysis={analysis}
+                onPickPerson={scrollToPerson}
+              />
+            ))}
           </>
         )}
       </div>
     </BarShell>
   );
 }
-
-const stepperClass = cn(
-  "flex h-6 w-6 items-center justify-center rounded transition-colors",
-  "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
-  "disabled:cursor-not-allowed disabled:opacity-40",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
-);

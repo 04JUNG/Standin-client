@@ -16,6 +16,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: desktop-release-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   build:
     strategy:
@@ -88,6 +92,27 @@ jobs:
           node scripts/set-version.mjs "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Generate release notes
+        id: notes
+        run: node scripts/release-notes.mjs --github-output
+
+      - name: Refuse to replace a published version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          if [ "$TARGET_ENV" = staging ]; then TAG="$TAG-staging"; fi
+          EXISTING="$(gh release list --limit 1000 --json tagName,isDraft)"
+          TAG="$TAG" RELEASES="$EXISTING" node -e '
+            const release = JSON.parse(process.env.RELEASES).find(r => r.tagName === process.env.TAG);
+            if (release && !release.isDraft) throw new Error("Published version already exists; bump the version.");
+          '
+
       # Updater artifacts are signed with a minisign keypair, which is separate from
       # OS code signing (ADR-011). The public key lives in tauri.conf.json; the private
       # key is a secret. Build without updater assets while the pair is missing.
@@ -131,6 +156,78 @@ jobs:
             echo "extraArgs=" >> "$GITHUB_OUTPUT"
             echo "::warning::No updater signing key; building without auto-update assets (ADR-011)."
           fi
+
+      # Windows code signing (ADR-011 F): Tauri's signCommand calls SSL.com eSigner
+      # through scripts/sign-windows.mjs for every binary it signs.
+      #
+      # The signCommand config is generated here instead of living in the repo because
+      # it needs an absolute script path (Tauri runs it from src-tauri), and local and
+      # dev builds must not pick it up.
+      #
+      # staging은 서명하지 않는다. 테스터 빌드에 eSigner 서명 횟수를 쓰지 않는다.
+      - name: Resolve Windows code signing
+        id: winsign
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
+          ES_CREDENTIAL_ID: ${{ secrets.ES_CREDENTIAL_ID }}
+          ES_TOTP_SECRET: ${{ secrets.ES_TOTP_SECRET }}
+          # Pinned so a changed download cannot run with the signing credentials.
+          CODESIGNTOOL_URL: https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.2/CodeSignTool-v1.3.2.zip
+          CODESIGNTOOL_SHA256: f14b1e1ef14bfa1fd00279c363aab0debbf5dcfba0e4bcdce5d22bb771de0e3a
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ($env:TARGET_ENV -eq 'staging') {
+            Add-Content $env:GITHUB_OUTPUT 'enabled=false'
+            Write-Host 'staging build: Windows code signing skipped.'
+            exit 0
+          }
+
+          $names = 'ES_USERNAME', 'ES_PASSWORD', 'ES_CREDENTIAL_ID', 'ES_TOTP_SECRET'
+          $missing = @($names | Where-Object { -not [Environment]::GetEnvironmentVariable($_) })
+          if ($missing.Count -eq $names.Count) {
+            Add-Content $env:GITHUB_OUTPUT 'enabled=false'
+            Write-Host '::warning::No eSigner secrets; the Windows installer will be unsigned (ADR-011).'
+            exit 0
+          }
+          # A partial set fails on the first file, after the slow Rust build. Stop now.
+          if ($missing.Count -gt 0) {
+            Write-Host "Windows signing secrets are incomplete. Missing: $($missing -join ', ')"
+            exit 1
+          }
+
+          # CodeSignTool's Windows zip bundles a JDK (200MB+). The runner already has one.
+          $java = Join-Path "$env:JAVA_HOME_17_X64" 'bin\java.exe'
+          if (-not $env:JAVA_HOME_17_X64 -or -not (Test-Path $java)) {
+            Write-Host 'JDK 17 (JAVA_HOME_17_X64) not found on the runner; CodeSignTool needs Java 11+.'
+            exit 1
+          }
+
+          $zip = Join-Path $env:RUNNER_TEMP 'codesigntool.zip'
+          Invoke-WebRequest -Uri $env:CODESIGNTOOL_URL -OutFile $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:CODESIGNTOOL_SHA256) {
+            Write-Host "CodeSignTool checksum mismatch: $hash"
+            exit 1
+          }
+          $tool = Join-Path $env:RUNNER_TEMP 'codesigntool'
+          Expand-Archive $zip -DestinationPath $tool -Force
+
+          $script = Join-Path $env:GITHUB_WORKSPACE 'scripts\sign-windows.mjs'
+          $config = @{ bundle = @{ windows = @{ signCommand = @{ cmd = 'node'; args = @($script, '%1') } } } }
+          # Forward slashes: tauri-action splits `args` as a command line.
+          $configPath = (Join-Path $env:RUNNER_TEMP 'windows-signing.conf.json') -replace '\\', '/'
+          $config | ConvertTo-Json -Depth 6 | Set-Content $configPath -Encoding utf8NoBOM
+
+          Add-Content $env:GITHUB_ENV "CODESIGNTOOL_DIR=$tool"
+          Add-Content $env:GITHUB_ENV "CODESIGNTOOL_JAVA=$java"
+          Add-Content $env:GITHUB_OUTPUT 'enabled=true'
+          Add-Content $env:GITHUB_OUTPUT "extraArgs=--config $configPath"
+          Write-Host 'Windows code signing enabled (SSL.com eSigner).'
 
       # App Store Connect API key is the notarization credential.
       - name: Prepare Apple notarization key
@@ -226,6 +323,7 @@ jobs:
           # Updater package signing (minisign). Unrelated to OS code signing (ADR-011).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          STANDIN_VERIFY_MACOS_UPDATER: ${{ steps.updater.outputs.enabled }}
           # macOS code signing (ADR-011). Empty on Windows runners by design.
           APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
@@ -247,39 +345,22 @@ jobs:
           # the Apple ID fallback. Gating it on the API key being absent left it empty
           # and notarization failed with "Team ID must be at least 3 characters".
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+          # Windows code signing (ADR-011 F), read by scripts/sign-windows.mjs.
+          # Only passed when the Resolve Windows code signing step enabled it.
+          ES_USERNAME: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_USERNAME || '' }}
+          ES_PASSWORD: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_PASSWORD || '' }}
+          ES_CREDENTIAL_ID: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_CREDENTIAL_ID || '' }}
+          ES_TOTP_SECRET: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_TOTP_SECRET || '' }}
         with:
           # staging 태그를 분리한다. 같은 태그를 쓰면 staging 빌드가 프로덕션
           # 릴리스에 자산을 얹고, 사용자가 그걸 내려받을 수 있다.
           tagName: v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && '-staging' || '' }}
           releaseName: Standin Desktop v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && ' (staging)' || '' }}
-          # Starting template. Releases are drafts by default, so add the
-          # per-release changes on top before publishing.
-          releaseBody: |
-            ## 설치
-
-            - **Windows** — `.exe` 설치 파일
-            - **macOS** — `.dmg` (Apple Silicon·Intel 공용 universal 빌드라 칩을 고르실 필요 없습니다)
-
-            ### macOS는 이것만 지켜 주세요
-
-            `.dmg`를 열고 **Standin을 `응용 프로그램` 폴더로 옮긴 뒤 실행**해 주세요.
-
-            다운로드 폴더나 dmg 안에서 바로 실행하면 macOS가 앱을 격리된 위치에서 실행합니다. 이 경우 **화면 기록 권한이 저장되지 않아** 허용해도 다시 물어보고, 캡처에는 작업 중인 창 대신 배경화면이 찍힙니다.
-
-            첫 캡처 때 화면 기록 권한을 요청합니다. 허용하면 macOS가 앱을 다시 시작할지 물어보니 다시 시작해 주세요. 나중에 바꾸시려면 **설정 > 화면 캡처 권한**에 있습니다.
-
-            ## 알아두실 점
-
-            - 새 버전이 나오면 앱이 알려드립니다. 0.1.1-beta.4보다 이전 버전을 쓰고 계시다면 이번 한 번만 직접 내려받아 주세요.
-            - Windows에서 "알 수 없는 게시자" 경고가 뜰 수 있습니다. 코드서명 인증서를 발급받는 중입니다. `추가 정보` → `실행`으로 진행하실 수 있습니다.
-            - macOS는 서명·공증돼 있어 내려받아 바로 여시면 됩니다.
-            - 현재 버전은 **설정 화면**에서 확인할 수 있습니다. 문의하실 때 함께 알려주시면 원인을 찾기 쉽습니다.
-
-            ## 이번 버전의 변경
-
-            <!-- 배포 전에 채워 주세요 -->
+          releaseBody: ${{ steps.notes.outputs.body }}
+          tauriScript: node scripts/tauri-release.mjs
           # staging 빌드는 공개 릴리스로 나가지 않는다.
-          releaseDraft: ${{ inputs.environment == 'staging' || inputs.draft }}
+          # All platforms and updater metadata must pass before publication.
+          releaseDraft: true
           # GitHub's releases/latest path skips prereleases, and the updater feed points
           # at it. Marking releases as prerelease means the update never appears (ADR-011).
           # The -beta.N in the version string carries the beta signal instead; publish the
@@ -295,13 +376,56 @@ jobs:
           # "Unexpected input(s) 'includeUpdaterJson'" and fell back to its default of
           # true, so latest.json shipped by luck rather than through the updater gate.
           uploadUpdaterJson: ${{ steps.updater.outputs.enabled }}
-          args: ${{ matrix.args }} ${{ steps.updater.outputs.extraArgs }}
+          args: ${{ matrix.args }} ${{ steps.updater.outputs.extraArgs }} ${{ steps.winsign.outputs.extraArgs }}
+
+      - name: Verify Windows signature
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SIGNING_ENABLED: ${{ steps.winsign.outputs.enabled }}
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $release = 'src-tauri/target/x86_64-pc-windows-msvc/release'
+          $files = @(
+            Get-Item "$release/standin-desktop.exe"
+            Get-ChildItem "$release/bundle/nsis" -Filter '*-setup.exe'
+          )
+          if ($files.Count -lt 2) {
+            Write-Host "Expected the app exe and an NSIS installer under $release"
+            exit 1
+          }
+
+          $bad = 0
+          foreach ($file in $files) {
+            $sig = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            $timestamped = [bool]$sig.TimeStamperCertificate
+            Write-Host "$($file.Name): $($sig.Status) | $($sig.SignerCertificate.Subject) | timestamped=$timestamped"
+            if ($sig.Status -ne 'Valid' -or -not $timestamped) { $bad++ }
+          }
+
+          if ($env:SIGNING_ENABLED -ne 'true') {
+            if ($env:TARGET_ENV -eq 'production') {
+              throw 'Production releases require Windows code signing.'
+            }
+            Write-Host ''
+            Write-Host 'Windows code signing was not enabled (staging build, or no ES_* secrets), so this build is UNSIGNED.'
+            Write-Host 'SmartScreen will show "Unknown publisher". For production, register the ES_* secrets and re-run.'
+            exit 0
+          }
+          # Without a timestamp the signature dies when the certificate expires.
+          if ($bad -gt 0) {
+            Write-Host "$bad file(s) are not validly signed and timestamped."
+            exit 1
+          }
+          Write-Host 'Windows signing verified.'
 
       - name: Verify macOS signature
         if: runner.os == 'macOS'
         shell: bash
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          TARGET_ENV: ${{ inputs.environment }}
         run: |
           set -euo pipefail
           BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
@@ -325,6 +449,10 @@ jobs:
           done
 
           if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            if [ "$TARGET_ENV" = production ]; then
+              echo "Production releases require macOS signing and notarization."
+              exit 1
+            fi
             echo
             echo "APPLE_SIGNING_IDENTITY is not set, so this build is UNSIGNED."
             echo "Gatekeeper will block it. Do not hand this release to testers."
@@ -356,3 +484,32 @@ jobs:
           fi
 
           echo "macOS signing and notarization verified."
+
+  finalize:
+    name: Validate updater feed and finalize release
+    needs: build
+    if: ${{ inputs.environment == 'production' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate all platform entries and attach canonical notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          gh release download "v$VERSION" --pattern latest.json --dir updater-feed
+          node scripts/release-notes.mjs --manifest updater-feed/latest.json
+          gh release upload "v$VERSION" updater-feed/latest.json --clobber
+      - name: Publish verified release
+        if: ${{ !inputs.draft }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          gh release edit "v$VERSION" --draft=false --latest

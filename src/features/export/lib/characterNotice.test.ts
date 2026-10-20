@@ -9,7 +9,7 @@ describe("characterNotice", () => {
         requestedCharacterName: "기본 여성",
         downgradeReason: null,
       }),
-    ).toEqual({ text: "기본 여성 모델로 저장했습니다.", isDowngrade: false });
+    ).toEqual({ text: "기본 여성 체형으로 저장했어요.", isDowngrade: false });
   });
 
   it("인물마다 다른 체형이면 이름 하나로 뭉뚱그리지 않는다", () => {
@@ -20,7 +20,7 @@ describe("characterNotice", () => {
         downgradeReason: null,
         mixedCharacters: true,
       }),
-    ).toEqual({ text: "인물마다 고른 모델로 저장했습니다.", isDowngrade: false });
+    ).toEqual({ text: "인물마다 고른 체형으로 저장했어요.", isDowngrade: false });
   });
 
   it("이름을 모르면 아무 말도 하지 않는다 — 확인되지 않은 것을 단정하지 않는다", () => {
@@ -34,7 +34,7 @@ describe("characterNotice", () => {
   });
 
   it.each([
-    ["server", "서버"],
+    ["server", "기본 체형으로 저장했어요"],
     ["unavailable", "준비 중"],
   ] as const)("%s 사유는 고른 체형 이름과 함께 이유를 말한다", (reason, fragment) => {
     const notice = characterNotice({
@@ -54,6 +54,6 @@ describe("characterNotice", () => {
         requestedCharacterName: "기본 여성",
         downgradeReason: "bvh",
       })?.text,
-    ).toContain("모델 선택이 적용되지 않습니다");
+    ).toContain("고른 체형은 FBX 파일에 적용돼요");
   });
 });

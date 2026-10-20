@@ -1,5 +1,6 @@
 import maleV2 from "../assets/standin-master-v2.png";
 import femaleV2Lbs from "../assets/standin-female-v2-lbs.png";
+import child from "../assets/body-child.png";
 
 /**
  * 커밋된 모델 미리보기 이미지.
@@ -13,11 +14,22 @@ import femaleV2Lbs from "../assets/standin-female-v2-lbs.png";
  *
  * 여기 없는 id는 서버 `previewUrl`이나 플레이스홀더로 넘어간다.
  */
-export const PREVIEW_BY_CHARACTER: Record<string, string | undefined> = {
+const LEGACY_PREVIEWS: Record<string, string | undefined> = {
   "standin-master-v2": maleV2,
   "standin-female-v2-lbs": femaleV2Lbs,
 };
 
-export function previewFor(characterId: string): string | undefined {
-  return PREVIEW_BY_CHARACTER[characterId];
+// The still image must match the exact FBX revision served by the BFF. If the
+// server swaps a body asset, show the placeholder until its new image ships.
+export const BODY_PREVIEWS: Record<string, { image: string; assetSha256: string }> = {
+  "body-child": {
+    image: child,
+    assetSha256: "fefd87c5c904330bac8ac7b9cffbf25878f619386f2d4932fd27f03ec72b5c95",
+  },
+};
+
+export function previewFor(characterId: string, assetSha256?: string): string | undefined {
+  const body = BODY_PREVIEWS[characterId];
+  if (body) return assetSha256 === body.assetSha256 ? body.image : undefined;
+  return LEGACY_PREVIEWS[characterId];
 }

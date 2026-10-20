@@ -75,7 +75,7 @@ export const authMock: AuthService = {
     await delay(300);
     // 실제 서버처럼 저장된 토큰과 다르면 거부한다(회전형 재사용 감지).
     if (!mockSession || refreshToken !== mockSession.refreshToken) {
-      throw authError("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      throw authError("로그인이 풀렸어요. 다시 로그인해 주세요.");
     }
     mockSession = makeSession(mockSession.user);
     // 실제 서버처럼 user는 빼고 토큰만 돌려준다.
@@ -93,7 +93,7 @@ export const authMock: AuthService = {
 
   async getCurrentUser(): Promise<AuthUser> {
     await delay(200);
-    if (!mockSession) throw authError("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    if (!mockSession) throw authError("로그인이 풀렸어요. 다시 로그인해 주세요.");
     return mockSession.user;
   },
 

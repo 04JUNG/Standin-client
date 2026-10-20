@@ -36,12 +36,12 @@ export function ScreenPermissionPage() {
             필요합니다. 권한이 없으면 캡처 결과에 작업 중인 창이 담기지 않습니다.
           </p>
           <p className="rounded-xl border border-border bg-surface-2 p-4 text-[13px]">
-            지금 허용해 두면 나중에 캡처하려는 순간에 흐름이 끊기지 않습니다. 허용하면
-            macOS가 Standin을 다시 시작할지 물어봅니다.
+            지금 허용해 두면 나중에 캡처하려는 순간에 흐름이 끊기지 않습니다. 허용하면 macOS가
+            Standin을 다시 시작할지 물어봅니다.
           </p>
           {requested && (
             <p className="text-[13px] text-text-primary">
-              프롬프트가 보이지 않거나 이미 닫았다면, 아래에서 시스템 설정을 열어 목록의
+              권한을 묻는 창이 보이지 않거나 이미 닫았다면, 아래에서 시스템 설정을 열어 목록의
               Standin을 켜 주세요.
             </p>
           )}

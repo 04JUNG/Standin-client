@@ -29,7 +29,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     id: "sidebar",
     anchors: ["shell.sidebar"],
     title: "여기서 화면을 옮깁니다",
-    body: "홈에서 장면을 넣고, 모델에서 저장할 체형을 고르고, 설정에서 저장 폴더와 단축키를 바꿉니다. 이 튜토리얼도 설정에서 다시 볼 수 있어요.",
+    body: "홈에서 러프를 넣고, 체형 커스텀에서 자주 쓰는 체형을 만들 수 있어요. 설정에서는 저장 폴더와 단축키를 바꾸고 이 사용법을 다시 볼 수 있어요.",
     match: (ctx) => isHome(ctx.pathname),
   },
   {
@@ -88,7 +88,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     id: "choose",
     anchors: ["jobs.candidates"],
     title: "가까운 포즈 후보입니다",
-    body: "앱이 자동으로 정하지 않습니다. 인물마다 후보를 직접 골라 주세요. 고른 뒤에도 보정이 필요할 수 있습니다.",
+    body: "인물마다 마음에 드는 포즈를 하나씩 골라 주세요. 러프와 다른 부분이 있을 수 있으니 비교해 보세요.",
     action: "인물마다 후보를 하나씩 고르면 다음으로 넘어갑니다.",
     match: (ctx) => ctx.hasAnchor("jobs.candidates"),
     done: (ctx) => ctx.isAnchorEnabled("jobs.confirm"),
@@ -122,8 +122,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: "saved",
     anchors: ["save.files"],
-    title: "저장 버튼은 없습니다",
-    body: "이 화면에 들어온 순간 설정한 폴더에 이미 저장됐습니다. 이 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다. 끌어놓은 뒤에는 반영됐는지 확인해 주세요.",
+    title: "파일이 저장됐어요",
+    body: "설정한 폴더에 포즈 파일을 저장했어요. 클립스튜디오 캔버스로 파일을 끌어놓은 뒤 포즈가 잘 들어갔는지 확인해 주세요.",
     match: (ctx) => ctx.hasAnchor("save.files"),
   },
   {

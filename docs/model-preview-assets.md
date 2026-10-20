@@ -1,6 +1,22 @@
 # 모델 미리보기 이미지 만들기
 
-모델 화면과 선택 UI에 쓰는 남/여 체형 그림을 만드는 절차다.
+모델 화면과 선택 UI에 쓰는 체형 그림을 만드는 절차다.
+
+## 2026-10-10 스테이징 체형 9종
+
+2026-10-18: 이 중 구형 성인 고정 6종(`body-female-athletic/base/muscular`,
+`body-male-athletic/base/muscular`)은 남녀 쉐이프키 모델로 대체해 목록과
+번들 PNG에서 제거했다. 아동·청소년 PNG 3장은 유지한다. 남녀 쉐이프키 모델은 승인된 서버의
+`neutralPreview`와 `shapeRuntime`을 사용한다. 아래는 최초 9종 도입 기록이다.
+
+`src/features/models/assets/body-*.png` 9장은 스테이징 체형 카탈로그
+`staging-9-20261010-v1`의 차렷 PNG와 같은 파일이다. 640×800 RGBA이며, 기존
+남녀 기본 모델 두 장과 함께 정적 import한다. `previewImages.ts`는 각 PNG를
+해당 FBX의 `assetSha256`에 묶는다. 서버의 FBX 해시가 바뀌면 이전 그림을
+새 체형인 것처럼 표시하지 않는다.
+
+스테이징 원본 PNG는 모델당 약 200~270 kB다. 빌드에서 PNG는 JS와 별도 파일로
+출력된다. 기존 두 모델의 576×768·20 kB 규격은 아래의 초기 제작 기록이다.
 
 ## 원칙
 

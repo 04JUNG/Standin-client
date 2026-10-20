@@ -1,3 +1,5 @@
+import { BodyPreferencesPage } from "@/features/body-selection/BodyPreferencesPage";
+import { useBodyPreferences, legacyPreferences } from "@/features/body-selection/preferences";
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
@@ -8,7 +10,7 @@ import type { ModelCharacter, ModelSource } from "../api/models.contract";
 
 const SECTION_TITLE: Record<ModelSource, string> = {
   builtin: "기본 모델",
-  store: "에셋 스토어",
+  store: "체형 스토어",
   user: "내 모델",
 };
 
@@ -22,6 +24,11 @@ const SECTION_ORDER: ModelSource[] = ["builtin", "user", "store"];
  * 이미 진행 중인 작업은 시작할 때 고정된 모델을 그대로 쓴다.
  */
 export function ModelsPage() {
+  const query = useBodyPreferences();
+  if (query.isError && legacyPreferences(query.error)) return <LegacyModelsPage />;
+  return <BodyPreferencesPage />;
+}
+function LegacyModelsPage() {
   const { catalog, characters, isPending, isError, error, refetch, selectedId, select } =
     useSelectedModel();
 
@@ -39,8 +46,7 @@ export function ModelsPage() {
             className="mt-4 flex items-start gap-2 rounded-lg border border-border bg-surface-0 p-3 text-[13px] text-text-secondary"
           >
             <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            지금 연결된 서버는 모델 선택을 아직 제공하지 않습니다. 당분간 기본 남성 모델로
-            저장됩니다.
+            지금은 다른 체형을 고를 수 없어 기본 남성 체형으로 저장돼요.
           </p>
         )}
 

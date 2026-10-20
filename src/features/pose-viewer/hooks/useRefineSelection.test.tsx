@@ -12,7 +12,10 @@ const { usePoseSelectionStore } = await import("../store/poseSelectionStore");
 
 function person(overrides: Partial<PersonResult> & { index: number }): PersonResult {
   return {
-    candidates: [],
+    candidates: [
+      { id: `cand-${overrides.index}` },
+      { id: "old-candidate" },
+    ] as PersonResult["candidates"],
     confidence: "high",
     skeletonState: "valid",
     skeletonSource: "full_image",
@@ -197,4 +200,97 @@ describe("useRefineSelection", () => {
     await waitFor(() => expect(result.current.status).toBe("done"));
     expect(result.current.refineByPerson[0]).toBeUndefined();
   });
+});
+
+it("body-only review revisits reuse the same refined BVH", async () => {
+  const saved = {
+    jobId: "server-job",
+    personIndex: 0,
+    candidateId: "cand-0",
+    refined: true,
+    reasonCode: "ok_partial",
+    adjustedLimbs: [],
+    exportUrl: "/v1/old-refined",
+    previewUrl: "",
+  };
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    selectedByPerson: { 0: "cand-0" },
+    refineByPerson: { 0: saved },
+  });
+  refineSelection.mockClear();
+  const data = analysis([person({ index: 0 })]);
+  data.capabilities.bodyPreviews = true;
+  const { result, unmount } = renderHook(() => useRefineSelection(data));
+  await waitFor(() => expect(result.current.status).toBe("done"));
+  expect(refineSelection).not.toHaveBeenCalled();
+  expect(result.current.refineByPerson[0]).toEqual(saved);
+  unmount();
+  usePoseSelectionStore.getState().clearSelection();
+});
+
+it("review-only candidates never call refine even when person permission is stale", async () => {
+  refineSelection.mockClear();
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    refineByPerson: {},
+    selectedByPerson: { 0: "dynamic::pose" },
+  });
+  const { result } = renderHook(() =>
+    useRefineSelection(
+      analysis([
+        person({
+          index: 0,
+          refineAllowed: true,
+          candidates: [
+            {
+              id: "dynamic::pose",
+              source: "dynamic",
+              releaseAllowed: false,
+            } as PersonResult["candidates"][number],
+          ],
+        }),
+      ]),
+    ),
+  );
+  await waitFor(() => expect(result.current.status).toBe("done"));
+  expect(refineSelection).not.toHaveBeenCalled();
+});
+
+it("explicit qualified library selection refines despite soft search confidence and manual release", async () => {
+  refineSelection.mockClear();
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    refineByPerson: {},
+    selectedByPerson: { 0: "qualified" },
+  });
+  const data = analysis([
+    person({
+      index: 0,
+      confidence: "low",
+      fallbackMode: "soft",
+      candidates: [
+        {
+          id: "qualified",
+          source: "library",
+          refineAllowed: true,
+          manualExportAllowed: true,
+          lookupAllowed: true,
+          releaseAllowed: false,
+          presentationKind: "library_match",
+          notExactMatch: false,
+          sourceBvhSha256: "a".repeat(64),
+        } as PersonResult["candidates"][number],
+      ],
+    }),
+  ]);
+  const { result, unmount } = renderHook(() => useRefineSelection(data));
+  await waitFor(() => expect(result.current.status).toBe("done"));
+  expect(refineSelection).toHaveBeenCalledTimes(1);
+  expect(refineSelection.mock.calls[0][0]).toMatchObject({
+    candidateId: "qualified",
+    personIndex: 0,
+  });
+  unmount();
+  usePoseSelectionStore.getState().clearSelection();
 });

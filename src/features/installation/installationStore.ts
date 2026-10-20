@@ -3,10 +3,22 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { apiFetch, setInstallationCredentials } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
 import { messageOf } from "@/shared/api/errors";
+import { env } from "@/shared/lib/env";
 import { installationStorage, type InstallationCredentials } from "./installationStorage";
 import { resetAnalyticsQueue } from "@/features/analytics/analyticsClient";
 
+import {
+  useQualityConsentStore,
+  QUALITY_CONSENT_VERSION,
+  NO_QUALITY_CONSENT,
+  type QualityChoices,
+} from "./qualityConsentStore";
+
 export const CONSENT_VERSION = "2026-08-02";
+
+function mockInstallation() {
+  return env.useMockApi && !env.isProduction && import.meta.env.MODE !== "test";
+}
 
 type InstallationStatus = "initializing" | "consent_required" | "registered" | "error";
 
@@ -15,7 +27,7 @@ interface InstallationState {
   credentials: InstallationCredentials | null;
   error: string | null;
   initialize(): Promise<void>;
-  register(): Promise<void>;
+  register(quality?: QualityChoices): Promise<void>;
   withdraw(): Promise<void>;
 }
 
@@ -62,6 +74,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
   credentials: null,
   error: null,
   async initialize() {
+    useQualityConsentStore.getState().reset();
     try {
       const credentials = await installationStorage.get();
       if (!credentials || credentials.consentVersion !== CONSENT_VERSION) {
@@ -71,41 +84,79 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
         return;
       }
       setInstallationCredentials(credentials);
+      await useQualityConsentStore.getState().refresh();
       set({ status: "registered", credentials, error: null });
     } catch {
-      set({ status: "error", error: "설치 인증정보를 불러오지 못했습니다." });
+      set({
+        status: "error",
+        error: "이 기기의 이용 정보를 불러오지 못했어요. 앱을 다시 시작해 주세요.",
+      });
     }
   },
-  async register() {
+  async register(quality = { personalData: false, contentLicense: false }) {
+    useQualityConsentStore.getState().reset();
     set({ status: "initializing", error: null });
     try {
       resetAnalyticsQueue();
       const environment = await getInstallationEnvironment();
-      const response = await apiFetch<InstallationCredentials>(endpoints.installations.register, {
-        method: "POST",
-        auth: false,
-        installation: false,
-        body: {
-          consentVersion: CONSENT_VERSION,
-          consentedAt: new Date().toISOString(),
-          ...environment,
-          locale: navigator.language || "unknown",
-        },
-      });
-      const credentials = { ...response, consentVersion: CONSENT_VERSION };
+      // 브라우저 Mock 개발 모드(`npm run dev`)에서는 BFF 없이도 앱을 끝까지 볼 수 있게
+      // 가짜 설치 자격증명을 쓴다. 테스트·배포 빌드에서는 언제나 실서버에 등록한다.
+      const response = mockInstallation()
+        ? {
+            installationId: "mock-installation",
+            deviceToken: "mock-device-token",
+            qualityConsent: {
+              ...NO_QUALITY_CONSENT,
+              ...quality,
+              consentId:
+                quality.personalData && quality.contentLicense ? crypto.randomUUID() : null,
+              grantedAt:
+                quality.personalData && quality.contentLicense ? new Date().toISOString() : null,
+            },
+          }
+        : await apiFetch<InstallationCredentials & { qualityConsent?: unknown }>(
+            endpoints.installations.register,
+            {
+              method: "POST",
+              auth: false,
+              installation: false,
+              body: {
+                qualityConsent: { ...quality, version: QUALITY_CONSENT_VERSION },
+                consentVersion: CONSENT_VERSION,
+                consentedAt: new Date().toISOString(),
+                ...environment,
+                locale: navigator.language || "unknown",
+              },
+            },
+          );
+      const credentials = {
+        installationId: response.installationId,
+        deviceToken: response.deviceToken,
+        consentVersion: CONSENT_VERSION,
+      };
       await installationStorage.set(credentials);
       setInstallationCredentials(credentials);
+      // Older servers leave review disabled; basic access remains available.
+      try {
+        if (response.qualityConsent)
+          useQualityConsentStore.getState().accept(response.qualityConsent);
+        else await useQualityConsentStore.getState().refresh();
+      } catch {
+        // A malformed optional response must not discard successful basic registration.
+        await useQualityConsentStore.getState().refresh();
+      }
       set({ status: "registered", credentials, error: null });
     } catch (err) {
       // IP 속도 제한(429)에 걸리면 "다시 시도"는 잘못된 안내다 — 원인과 다음 사용
       // 가능 시점을 그대로 보여준다(BFF docs/API.md 「사용량 제한」).
       set({
         status: "consent_required",
-        error: messageOf(err, "설치 등록에 실패했습니다. 다시 시도해 주세요."),
+        error: messageOf(err, "이 기기의 사용 준비를 마치지 못했어요. 다시 시도해 주세요."),
       });
     }
   },
   async withdraw() {
+    useQualityConsentStore.getState().reset();
     set({ error: null });
     if (get().status === "registered") {
       try {

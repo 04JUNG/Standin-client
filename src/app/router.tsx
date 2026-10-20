@@ -1,9 +1,13 @@
+import { BarSearchPage } from "@/features/bar/pages/BarSearchPage";
+import { HandLibraryPage } from "@/features/hand-selection/HandLibraryPage";
+import { SearchPage } from "@/features/semantic-search/SearchPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { HomePage } from "@/features/home/pages/HomePage";
 import { InputPreviewPage } from "@/features/upload/pages/InputPreviewPage";
 import { CaptureOverlayPage } from "@/features/capture/pages/CaptureOverlayPage";
 import { ScreenPermissionPage } from "@/features/capture/pages/ScreenPermissionPage";
 import { ModelsPage } from "@/features/models/pages/ModelsPage";
+import { BodyCustomPage } from "@/features/body-selection/BodyCustomPage";
 import { SettingsPage } from "@/features/settings/pages/SettingsPage";
 import { PoseViewerPage } from "@/features/pose-viewer/pages/PoseViewerPage";
 import { ReviewPage } from "@/features/pose-viewer/pages/ReviewPage";
@@ -29,10 +33,26 @@ export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
+      {
+        path: "/app/hands",
+        element: (
+          <RequireInstallation>
+            <HandLibraryPage />
+          </RequireInstallation>
+        ),
+      },
       { path: "/", element: <Navigate to="/app/home" replace /> },
       { path: "/auth/login", element: <Navigate to="/app/home" replace /> },
       { path: "/auth/callback", element: <Navigate to="/app/home" replace /> },
       { path: "/beta-consent", element: <BetaConsentPage /> },
+      {
+        path: "/app/search",
+        element: (
+          <RequireInstallation>
+            <SearchPage />
+          </RequireInstallation>
+        ),
+      },
       {
         path: "/app/home",
         element: (
@@ -71,6 +91,23 @@ export const router = createBrowserRouter([
         element: (
           <RequireInstallation>
             <ModelsPage />
+          </RequireInstallation>
+        ),
+      },
+      // 체형 커스텀 편집: 새 카드(?base=시작 체형, ?kind=성별)와 저장한 카드 편집.
+      {
+        path: "/app/models/custom",
+        element: (
+          <RequireInstallation>
+            <BodyCustomPage />
+          </RequireInstallation>
+        ),
+      },
+      {
+        path: "/app/models/custom/:cardId",
+        element: (
+          <RequireInstallation>
+            <BodyCustomPage />
           </RequireInstallation>
         ),
       },
@@ -131,6 +168,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireInstallation>
             <BarActionsPage />
+          </RequireInstallation>
+        ),
+      },
+      {
+        path: "/bar/search",
+        element: (
+          <RequireInstallation>
+            <BarSearchPage />
           </RequireInstallation>
         ),
       },

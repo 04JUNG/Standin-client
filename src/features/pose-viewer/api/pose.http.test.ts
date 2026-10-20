@@ -29,6 +29,344 @@ describe("poseHttp", () => {
     __resetAnalysisJobs();
   });
 
+  it.each([true, false])(
+    "preserves explicit dynamic library refine only with its bound camera (%s)",
+    async (validCamera) => {
+      const hash = "a".repeat(64);
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_saved",
+          notes: [],
+          capabilities: { refine: true },
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              tags: {},
+              confidence: "low",
+              fallbackMode: "soft",
+              refineAllowed: true,
+              refinableLimbs: ["left_arm"],
+              posePresentation: { version: "dynamic-pose-presentation-v1" },
+              candidates: [
+                {
+                  id: "qualified",
+                  poseId: "registered",
+                  rank: 1,
+                  view: "front",
+                  tags: [],
+                  matchLevel: "low",
+                  source: "library",
+                  manualExportAllowed: true,
+                  lookupAllowed: true,
+                  releaseAllowed: false,
+                  refineAllowed: true,
+                  presentationKind: "library_match",
+                  notExactMatch: false,
+                  sourceBvhSha256: hash,
+                  bvhAvailable: true,
+                  camera: validCamera
+                    ? {
+                        version: "candidate-camera-v2",
+                        source_bvh_sha256: hash,
+                        rotation: [
+                          [1, 0, 0],
+                          [0, 1, 0],
+                          [0, 0, 1],
+                        ],
+                      }
+                    : undefined,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const result = await poseHttp.loadResult({ jobId: "job_saved" });
+      expect(result.people[0].refineAllowed).toBe(validCamera);
+      expect(result.people[0].candidates[0].refineAllowed).toBe(validCamera);
+      expect(result.people[0].candidates[0].releaseAllowed).toBe(false);
+      expect(result.people[0].candidates[0].bvhAvailable).toBe(true);
+    },
+  );
+
+  it.each([null, "pretend-library-id"])(
+    "reads generated identity without inventing a library ID (%s)",
+    async (poseId) => {
+      const id = "preview_" + "a".repeat(64),
+        hash = "b".repeat(64);
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_saved",
+          notes: [],
+          capabilities: { sceneExport: true, sceneRefinement: true, fbxExport: true },
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              tags: {},
+              candidates: [
+                {
+                  id,
+                  poseId,
+                  rank: 1,
+                  view: "front",
+                  tags: ["새로 만든 포즈"],
+                  matchLevel: "low",
+                  source: "generation",
+                  bvhAvailable: true,
+                  manualExportAllowed: true,
+                  lookupAllowed: true,
+                  releaseAllowed: false,
+                  sourceBvhSha256: hash,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const result = await poseHttp.loadResult({ jobId: "job_saved" });
+      const c = result.people[0].candidates[0];
+      expect(c.id).toBe(id);
+      expect(c.poseId).toBe(poseId);
+      expect(c.source).toBe("generation");
+      expect(c.releaseAllowed).toBe(false);
+      expect(c.refineAllowed).toBe(false);
+      expect(c.bvhAvailable).toBe(poseId === null);
+      if (poseId === null) {
+        expect(c.bvhUrl).toContain(`/pose-candidates/${id}/export?`);
+        expect(c.posterUrl).toContain(`/people/0/pose-previews/${id}/${hash}/poster`);
+      } else expect(c.bvhUrl).toBeUndefined();
+      expect(result.capabilities.sceneExport).toBe(false);
+    },
+  );
+
+  function semanticPayload(thumbnailUrl?: string) {
+    return {
+      jobId: "job_saved",
+      source: "semantic",
+      semantic: { query: "공을 던지는 자세", index: {} },
+      notes: [],
+      candidatesByPerson: [
+        {
+          personIndex: 0,
+          box: null,
+          tags: {},
+          refineAllowed: false,
+          candidates: Array.from({ length: 38 }, (_, i) => ({
+            id: `candidate-${i}`,
+            poseId: `throw-${i}`,
+            rank: i + 1,
+            view: "front",
+            tags: [],
+            matchLevel: "low",
+            bvhAvailable: true,
+            source: "semantic",
+            manualExportAllowed: true,
+            releaseAllowed: false,
+            semantic: { familyId: `throw-${i}`, alternate: false, description: "던지는 자세" },
+            thumbnailUrl:
+              i === 0 && thumbnailUrl !== undefined
+                ? thumbnailUrl
+                : `/v1/pose-candidates/throw-${i}/thumbnail?view=front&revision=${"a".repeat(40)}`,
+          })),
+        },
+      ],
+    };
+  }
+
+  it("loads all 38 semantic results with deployed revisioned thumbnails without rendering", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(semanticPayload()));
+    const result = await poseHttp.loadResult({ jobId: "job_saved" });
+    expect(result.people[0].candidates).toHaveLength(38);
+    expect(result.people[0].candidates[37].quickThumbnailUrl).toContain("&revision=");
+    expect(result.people[0].candidates[37].posterUrl).toContain("/throw-37/poster?");
+    expect(result.people[0].candidates[37].releaseAllowed).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    "/v1/pose-candidates/throw-0/thumbnail?view=front",
+    `/v1/pose-candidates/throw-0/thumbnail?revision=${"b".repeat(64)}&view=front`,
+  ])("accepts the legacy path and reordered revision parameters: %s", async (thumbnailUrl) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(semanticPayload(thumbnailUrl)));
+    await expect(poseHttp.loadResult({ jobId: "job_saved" })).resolves.toMatchObject({
+      source: "semantic",
+    });
+  });
+
+  it.each([
+    "/v1/pose-candidates/other/thumbnail?view=front",
+    "https://other.example/v1/pose-candidates/throw-0/thumbnail?view=front",
+    "/v1/pose-candidates/throw-0/thumbnail?view=back",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&revision=not-a-hash",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&view=front",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&revision=abcdef1&revision=abcdef2",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&format=glb",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front#fragment",
+  ])("still rejects foreign or malformed semantic thumbnail %s", async (thumbnailUrl) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(semanticPayload(thumbnailUrl)));
+    await expect(poseHttp.loadResult({ jobId: "job_saved" })).rejects.toMatchObject({
+      code: "SEMANTIC_CONTRACT",
+    });
+  });
+
+  it.each(["library", "semantic"])(
+    "loads owned manual %s assets for save without upgrading search validation",
+    async (source) => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_saved",
+          ...(source === "semantic" ? { source, semantic: { query: "던지기", index: {} } } : {}),
+          notes: [],
+          capabilities: { bodyPreviews: true, refine: true },
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              box: null,
+              tags: {},
+              fallbackMode: "hard",
+              refineAllowed: false,
+              routedSearch: {
+                status: "partial_error",
+                reason: "hand_skin_screen_unavailable_no_generation",
+              },
+              candidates: [
+                {
+                  id: "preview-owned",
+                  poseId: "real-mirror",
+                  rank: 1,
+                  view: "front",
+                  tags: [],
+                  matchLevel: "low",
+                  source,
+                  manualExportAllowed: true,
+                  releaseAllowed: false,
+                  lookupAllowed: true,
+                  sourceBvhSha256: "f".repeat(64),
+                  bvhAvailable: true,
+                  presentationKind: "mirror_reference",
+                  ...(source === "semantic"
+                    ? { semantic: { familyId: "pose", alternate: true, description: "반대 방향" } }
+                    : {}),
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const result = await poseHttp.loadResult({ jobId: "job_saved" });
+      const person = result.people[0],
+        candidate = person.candidates[0];
+      expect(candidate).toMatchObject({
+        manualExportAllowed: true,
+        releaseAllowed: false,
+        actualMeshValidated: false,
+        refineAllowed: false,
+        bvhAvailable: true,
+        source,
+        sourceBvhSha256: "f".repeat(64),
+        presentationKind: "mirror_reference",
+      });
+      expect(candidate.bvhUrl).toContain(
+        "real-mirror/export?jobId=job_saved&personIndex=0&candidateId=preview-owned",
+      );
+      expect(person.fallbackMode).toBe("soft");
+      expect(person.routedSearch?.status).toBe("partial_error");
+      expect(result.capabilities.bodyPreviews).toBe(true);
+      expect(person.refineAllowed).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("preserves routed results but refuses refined/export URLs despite contradictory legacy permissions", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        jobId: "job_saved",
+        notes: [],
+        candidatesByPerson: [
+          {
+            personIndex: 0,
+            box: null,
+            tags: {},
+            confidence: "low",
+            fallbackMode: "soft",
+            refineAllowed: true,
+            routedSearch: {
+              version: "fullbody-dynamic-v1",
+              route: "hybrid",
+              status: "ok",
+              nearCandidateCount: 2,
+            },
+            candidates: [
+              {
+                id: "dynamic::pose",
+                poseId: "pose",
+                rank: 1,
+                view: "front",
+                tags: [],
+                matchLevel: "low",
+                source: "dynamic",
+                rankScore: 0.01,
+                releaseAllowed: true,
+                refineAllowed: true,
+                bvhAvailable: true,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const result = await poseHttp.loadResult({ jobId: "job_saved" });
+    expect(result.people[0].routedSearch).toMatchObject({
+      route: "hybrid",
+      status: "ok",
+      nearCandidateCount: 2,
+    });
+    expect(result.people[0].refineAllowed).toBe(false);
+    expect(result.people[0].candidates[0]).toMatchObject({
+      source: "dynamic",
+      releaseAllowed: false,
+      refineAllowed: false,
+      rankScore: 0.01,
+      bvhAvailable: false,
+    });
+    expect(result.people[0].candidates[0].bvhUrl).toBeUndefined();
+  });
+
+  it("camera rendering does not block an already completed analysis result", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        jobId: "job_saved",
+        notes: [],
+        candidatesByPerson: [
+          {
+            personIndex: 0,
+            box: null,
+            tags: {},
+            candidates: [
+              {
+                id: "pose::back",
+                poseId: "pose",
+                rank: 1,
+                view: "back",
+                tags: ["front"],
+                matchLevel: "medium",
+                bvhAvailable: true,
+                camera: { version: "candidate-camera-v1" },
+                thumbnailUrl: "/v1/pose-candidates/pose/aligned?jobId=job_saved",
+                quickThumbnailUrl: "/v1/pose-candidates/pose/thumbnail?view=back",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const result = await poseHttp.loadResult({ jobId: "job_saved" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.people[0]?.candidates[0]?.thumbnailUrl).toBe("");
+    expect(result.people[0]?.candidates[0]?.deferredThumbnailUrl).toContain("/aligned?");
+    expect(result.people[0]?.candidates[0]?.quickThumbnailUrl).toContain("/thumbnail?view=back");
+  });
+
   it("인증된 multipart Job을 만들고 완료 결과를 클라이언트 후보로 변환한다", async () => {
     fetchMock
       .mockResolvedValueOnce(
@@ -83,7 +421,7 @@ describe("poseHttp", () => {
       height: 1,
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[0][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs`);
     const createInit = fetchMock.mock.calls[0][1] as RequestInit;
     expect(createInit.body).toBeInstanceOf(FormData);
@@ -92,14 +430,7 @@ describe("poseHttp", () => {
     expect((createInit.headers as Record<string, string>)["X-Installation-Id"]).toBe("inst_1");
     expect(fetchMock.mock.calls[1][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs/server-job`);
     expect(fetchMock.mock.calls[2][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs/server-job/result`);
-    expect(fetchMock.mock.calls[3][0]).toBe(
-      `${env.apiBaseUrl}/v1/pose-candidates/wave%20pose/thumbnail?view=front`,
-    );
-    expect(
-      ((fetchMock.mock.calls[3][1] as RequestInit).headers as Record<string, string>)[
-        "Authorization"
-      ],
-    ).toBeUndefined();
+    expect(result.people[0].candidates[0].posterUrl).toContain("/poster?jobId=server-job");
     const requestSignals = fetchMock.mock.calls.map(
       (call) => (call[1] as RequestInit).signal as AbortSignal,
     );
@@ -114,10 +445,33 @@ describe("poseHttp", () => {
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
       jobId: "server-job",
-      capabilities: { refine: false, fbxExport: false, characterSelection: false },
+      capabilities: {
+        handSelection: false,
+        semanticBodySelection: false,
+        refine: false,
+        fbxExport: false,
+        sceneExport: false,
+        characterSelection: false,
+        outputScopeSelection: false,
+        outputScopeCropping: false,
+        bodyPreviews: false,
+        presentationBodyPreviews: false,
+        bodyPreviewAssets: false,
+        modelPreview: false,
+        candidateRerun: false,
+      },
       people: [
         {
           index: 0,
+          box: [0, 0, 100, 100],
+          candidateShortfallReason: null,
+          outputScope: {
+            selection: "auto",
+            detected: null,
+            detectionSource: "unknown",
+            resolved: "full",
+            resolutionSource: "fallback",
+          },
           confidence: "low",
           skeletonState: "invalid",
           skeletonSource: "none",
@@ -133,8 +487,12 @@ describe("poseHttp", () => {
               title: "포즈 wave pose",
               tags: ["standing", "solo"],
               matchLevel: "high",
-              thumbnailUrl: "data:image/png;base64,iVBORw==",
-              previewImages: [{ view: "front", url: "data:image/png;base64,iVBORw==" }],
+              thumbnailUrl: "",
+              posterUrl:
+                "/v1/pose-candidates/wave%20pose/poster?jobId=server-job&personIndex=0&candidateId=wave+pose",
+              posterScope: "full",
+              quickThumbnailUrl: "/v1/pose-candidates/wave%20pose/thumbnail?view=front",
+              previewImages: [],
               modelUrl: null,
               bvhAvailable: true,
               bvhUrl:
@@ -444,6 +802,33 @@ describe("poseHttp", () => {
         height: 1,
       }),
     ).rejects.toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
+  });
+
+  it.each([
+    ["ANALYSIS_RATE_LIMITED", "UPSTREAM_RATE_LIMITED", "잠시 사용할 수 있는 분석 횟수"],
+    [
+      "ANALYSIS_DAILY_QUOTA_EXHAUSTED",
+      "UPSTREAM_DAILY_QUOTA_EXHAUSTED",
+      "오늘 사용할 수 있는 분석 횟수",
+    ],
+    ["ANALYSIS_UPSTREAM_TIMEOUT", "UPSTREAM_TIMEOUT", "시간이 너무 오래"],
+    ["ANALYSIS_UPSTREAM_ERROR", "UPSTREAM_ERROR", "분석 중 잠시 문제"],
+  ])("Job 실패 %s의 원인을 유지한다", async (error, code, message) => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "failed-job", status: "queued", createdAt: "now" }, 202),
+      )
+      .mockResolvedValueOnce(jsonResponse({ jobId: "failed-job", status: "failed", error }));
+    await expect(
+      poseHttp.analyze({
+        jobId: "client-route-job",
+        file: new File(["image"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 1,
+        height: 1,
+      }),
+    ).rejects.toMatchObject({ code, message: expect.stringContaining(message) });
+    expect(fetchMock).toHaveBeenCalledTimes(2); // 자동 재분석 호출 없음
   });
 
   it("쿼터 초과(429)는 원인과 다음 사용 가능 시점을 담은 오류로 올라간다", async () => {

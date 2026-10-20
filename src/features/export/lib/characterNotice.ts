@@ -19,10 +19,10 @@ export function characterNotice(input: {
   if (downgradeReason === null) {
     // 인물마다 다른 체형을 골랐으면 이름 하나를 대는 것이 곧 거짓말이 된다.
     if (mixedCharacters) {
-      return { text: "인물마다 고른 모델로 저장했습니다.", isDowngrade: false };
+      return { text: "인물마다 고른 체형으로 저장했어요.", isDowngrade: false };
     }
     return characterName
-      ? { text: `${characterName} 모델로 저장했습니다.`, isDowngrade: false }
+      ? { text: `${characterName} 체형으로 저장했어요.`, isDowngrade: false }
       : null;
   }
 
@@ -30,17 +30,17 @@ export function characterNotice(input: {
   switch (downgradeReason) {
     case "bvh":
       return {
-        text: "BVH는 동작만 담아 모델 선택이 적용되지 않습니다.",
+        text: "BVH에는 동작만 저장돼요. 고른 체형은 FBX 파일에 적용돼요.",
         isDowngrade: true,
       };
     case "server":
       return {
-        text: `지금 연결된 서버는 모델 선택을 아직 제공하지 않아 기본 모델로 저장했습니다. (${wanted} 모델 선택됨)`,
+        text: `고른 체형을 지금은 사용할 수 없어 기본 체형으로 저장했어요. (고른 체형: ${wanted})`,
         isDowngrade: true,
       };
     case "unavailable":
       return {
-        text: `${wanted} 모델은 아직 준비 중이라 기본 모델로 저장했습니다.`,
+        text: `${wanted} 체형은 아직 준비 중이라 기본 체형으로 저장했어요.`,
         isDowngrade: true,
       };
   }

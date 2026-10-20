@@ -1,0 +1,25 @@
+<!doctype html><meta charset="UTF-8" /><title>Offline human poster bake</title>
+<style>
+  body {
+    font: 14px system-ui;
+    margin: 24px;
+  }
+  button {
+    padding: 12px;
+  }
+  pre {
+    white-space: pre-wrap;
+  }
+  img {
+    width: 128px;
+  }
+</style>
+<h1>Offline default human reference posters</h1>
+<p>
+  Exact registered source BVH + pinned human mesh. Approximate reference skinning, not final
+  Converter output. No Converter calls or remote writes.
+</p>
+<button id="start">Start / resume verified local bake</button>
+<pre id="status">Idle</pre>
+<div id="samples"></div>
+<script type="module" src="./main.ts"></script>

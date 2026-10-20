@@ -82,3 +82,10 @@ describe("왕복", () => {
     }
   });
 });
+
+it("search entry remains on the same stage in both window modes", () => {
+  expect(barRouteForAppPath("/app/search")).toBe("/bar/search");
+  expect(appRouteForBarPath("/bar/search", { jobId: "old_job", hasDraft: true })).toBe(
+    "/app/search",
+  );
+});

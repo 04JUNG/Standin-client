@@ -1,3 +1,9 @@
+import { loadPosePoster } from "../api/posePoster";
+import { useInstallationStore } from "@/features/installation/installationStore";
+import { useQueries } from "@tanstack/react-query";
+import { useExportStore } from "@/features/export/store/exportStore";
+import { candidateThumbnailOptions } from "../api/candidateThumbnail";
+import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { useMemo } from "react";
 import type { PoseCandidate } from "../api/pose.contract";
 import { useAnalysisResult } from "./useAnalysisResult";
@@ -11,11 +17,12 @@ export type ReviewItem = {
   /**
    * 저장될 포즈의 미리보기 이미지.
    *
-   * 조정 결과의 그림이 있으면 그것이고, 없으면 사용자가 고른 후보 썸네일이다. 둘 다
-   * 서버가 **같은 렌더러**로 그린 그림이라 나란히 놓아도 시각 언어가 갈리지 않는다.
+   * 조정 결과는 해당 결과의 그림만 쓴다. 원본 결과만 후보 썸네일을 쓸 수 있다.
+   * FBX 확인은 useFramedReview가 최종 모델 또는 범위별 PNG로 대체한다.
    * 비어 있을 수도 있다 — 그때 화면은 자리표시자를 그린다.
    */
   previewUrl: string;
+  previewReference?: boolean;
   /** 조정본이 만들어졌는가. false면 베이스 포즈가 그대로 저장된다. */
   refined: boolean;
   /** refine을 아예 시도하지 않은 선택(저신뢰 인물, 기능 off 등). */
@@ -30,8 +37,16 @@ export type ReviewItem = {
  */
 export function useSelectionReview(jobId: string | undefined) {
   const analysis = useAnalysisResult(jobId);
+  const characterId = usePoseSelectionStore((s) => s.characterId);
+  const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const { status, refineByPerson } = useRefineSelection(analysis.data);
   const { data, selectedByPerson } = analysis;
+  const format = useExportStore((s) => s.format);
+  const framed =
+    format === "fbx" &&
+    data?.capabilities.fbxExport &&
+    (analysis.bodies.enabled || data.capabilities.outputScopeCropping);
+  const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
 
   const items = useMemo((): ReviewItem[] => {
     if (!data) return [];
@@ -43,16 +58,20 @@ export function useSelectionReview(jobId: string | undefined) {
       if (!candidate) return [];
       const outcome = refineByPerson[personIndex];
       const currentOutcome =
-        outcome?.jobId === data.jobId && outcome.candidateId === candidateId ? outcome : undefined;
+        data.source !== "semantic" &&
+        outcome?.jobId === data.jobId &&
+        outcome.candidateId === candidateId
+          ? outcome
+          : undefined;
       return [
         {
           personIndex,
           candidate,
           // 조정 결과가 있으면 그 URL이 최종이다. 없으면 후보의 베이스 URL로 저장한다.
           exportUrl: currentOutcome?.exportUrl ?? candidate.bvhUrl,
-          // 조정본 그림이 없을 때 후보 썸네일을 쓰는 것은 "비슷한 그림"이 아니다.
-          // 그 경우 저장되는 것이 실제로 그 후보의 베이스 포즈다.
-          previewUrl: currentOutcome?.previewUrl || candidate.thumbnailUrl,
+          // A deferred refined preview must never show the unmodified pose.
+          previewUrl:
+            currentOutcome?.previewUrl || (currentOutcome?.refined ? "" : candidate.thumbnailUrl),
           refined: currentOutcome?.refined === true,
           skipped: !currentOutcome,
         },
@@ -60,9 +79,67 @@ export function useSelectionReview(jobId: string | undefined) {
     });
   }, [data, selectedByPerson, refineByPerson]);
 
+  const previews = useQueries({
+    queries: items.map((item) => {
+      const reference =
+        !item.candidate.deferredThumbnailUrl || format === "bvh" || analysis.bodies.enabled;
+      const scope = item.candidate.posterScope ?? "full";
+      const params = new URLSearchParams({
+        jobId: data?.jobId ?? "",
+        personIndex: String(item.personIndex),
+        candidateId: item.candidate.id,
+        scope,
+      });
+      const rawUrl =
+        item.candidate.posterUrl ??
+        `/v1/pose-candidates/${encodeURIComponent(item.candidate.poseId ?? item.candidate.id)}/poster?${params}`;
+      const parsed = new URL(rawUrl, "https://standin.invalid");
+      parsed.searchParams.set("scope", scope);
+      const url = parsed.pathname + parsed.search;
+      const legacy = candidateThumbnailOptions(
+        item.candidate.deferredThumbnailUrl,
+        item.candidate.previewModel,
+        byPerson[item.personIndex] ?? characterId ?? undefined,
+      );
+      return {
+        ...(reference
+          ? {
+              queryKey: [
+                "selection-pose-reference",
+                owner,
+                url,
+                item.candidate.sourceBvhSha256 ?? item.candidate.previewModel?.sourceSha,
+              ],
+              queryFn: async ({ signal }: { signal: AbortSignal }) =>
+                (
+                  await loadPosePoster(
+                    url,
+                    signal,
+                    item.candidate.sourceBvhSha256 ?? item.candidate.previewModel?.sourceSha,
+                    scope,
+                  )
+                ).url,
+              retry: false,
+              staleTime: 600_000,
+              gcTime: 600_000,
+            }
+          : legacy),
+        enabled:
+          !framed &&
+          !item.refined &&
+          !item.previewUrl &&
+          (data?.source === "semantic" || status === "done"),
+      };
+    }),
+  });
+
   return {
     ...analysis,
-    items,
+    items: items.map((item, i) => ({
+      ...item,
+      previewUrl: item.previewUrl || previews[i]?.data || "",
+      previewReference: !item.refined && !framed && format === "bvh",
+    })),
     /**
      * 조정이 끝나지 않았다 — 저장 대상 URL이 아직 바뀔 수 있다.
      *
@@ -70,6 +147,6 @@ export function useSelectionReview(jobId: string | undefined) {
      * `idle`인데, 그걸 "끝남"으로 다루면 첫 렌더가 완료 화면을 보여주고 저장 버튼도
      * 활성이 된다 — 그 사이에 저장하면 조정본 대신 베이스 URL이 내려간다.
      */
-    isRefining: status !== "done",
+    isRefining: data?.source !== "semantic" && status !== "done",
   };
 }

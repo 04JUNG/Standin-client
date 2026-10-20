@@ -1,0 +1,13 @@
+# Final FBX before display preview (2026-10-21)
+
+The review pages prepare a verified FBX receipt first. Its PNG is requested independently from the exact persisted final FBX; no image decoding, image loading, GLB mounting, or GPU status gates the download button. The user must click download. Hand edits only prepare a new file, and the status changes to “변경한 손을 적용하고 있어요…” / “변경한 포즈 다운로드”. Both full and floating surfaces share this behavior.
+
+The current request binding includes owner/job/person/candidate/source/refine, model/body/shape, hands and output scope. A selection mutation removes old receipts and cancels their requests. Explicit binding checks close the render while React Query changes observers, and signal checks reject transports that finish after cancellation. The save flow also checks the selection snapshot immediately before writing any files. Readiness requires all included people; head/bust/shoulder-head previews do not wait for another person's hand selection.
+
+Saved files remain on disk. The first revision retains the normal filename. A changed confirmed receipt uses `_v2`, `_v3`, etc.; re-downloading the same receipt reuses that version name, and native atomic `create_new` allocation appends `(1)`, `(2)`, etc. without overwriting. Revision labels are session-local; native collision protection also works after restart. Save results accumulate in the existing file list. “포즈·손 변경” returns from saved files to review; it does not automatically write another file.
+
+A scene-refinement receipt can be accepted while its final image is pending or unavailable. Model-driven scene changes still require explicit acceptance, shown on both surfaces. Re-downloads reuse the cached prepared scene receipt; expired/stale receipts fail closed and require preparing again. Semantic and generated poses retain their existing individual-only export rules, and BVH reference behavior remains unchanged.
+
+Validation: frontend build/typecheck; complete Vitest suite (Node 26 uses `NODE_OPTIONS=--no-experimental-webstorage` so jsdom supplies browser storage); A→B→C with out-of-order responses and abort checks; cache hits; image-only failure; FBX failure; head/mixed-person paths; manual/generated existing save coverage; stale multi-person save response; receipt/digest checks; revision naming; and standalone Rust concurrent destination allocation test.
+
+No installed Standin app was launched or controlled. Tauri packaging, CSP import, live production S3, and installed-app E2E were not run. The backend's headless Blender evidence is in the server PR. Deploy server, BFF, then client; older clients retain their paired preview contract.

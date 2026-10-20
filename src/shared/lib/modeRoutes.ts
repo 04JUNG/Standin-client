@@ -20,6 +20,7 @@ export function appRouteForBarPath(
 ): string {
   const { jobId, hasDraft } = state;
 
+  if (pathname === "/bar/search") return "/app/search";
   if (pathname === "/bar/save") return jobId ? `/app/jobs/${jobId}/save` : "/app/home";
   if (pathname === "/bar/review") return jobId ? `/app/jobs/${jobId}/review` : "/app/home";
   if (pathname === "/bar/candidates") return jobId ? `/app/jobs/${jobId}` : "/app/home";
@@ -42,6 +43,7 @@ export function barRouteForAppPath(
   pathname: string,
   idle: "/bar" | "/bar/actions" = "/bar",
 ): string {
+  if (pathname === "/app/search") return "/bar/search";
   if (/^\/app\/jobs\/[^/]+\/save$/.test(pathname)) return "/bar/save";
   if (/^\/app\/jobs\/[^/]+\/review$/.test(pathname)) return "/bar/review";
   if (/^\/app\/jobs\/[^/]+$/.test(pathname)) return "/bar/candidates";

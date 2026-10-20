@@ -1,4 +1,12 @@
-import type { AnalysisResult, MatchLevel, PersonResult, PoseCandidate, PoseResultService } from "./pose.contract";
+import { mockOutputScope } from "./outputScope";
+import { bodyMockEnabled, registerMockPeople } from "@/features/body-selection/mock";
+import type {
+  AnalysisResult,
+  MatchLevel,
+  PersonResult,
+  PoseCandidate,
+  PoseResultService,
+} from "./pose.contract";
 
 /**
  * 브라우저(Vite) 개발용 Mock. capture.mock.ts와 동일하게 canvas로 플레이스홀더 썸네일을 만든다.
@@ -83,14 +91,35 @@ export const poseMock: PoseResultService = {
     });
   },
 
-  async analyze({ jobId }: { jobId: string; file: File }): Promise<AnalysisResult> {
+  async analyze({
+    jobId,
+    width = 0,
+    height = 0,
+  }: {
+    jobId: string;
+    file: File;
+    width?: number;
+    height?: number;
+  }): Promise<AnalysisResult> {
     await delay(600);
+    // 원본 패널을 볼 수 있게 올린 그림을 세로로 셋 나눈 상자를 준다(실제 검출이 아니다).
+    const box = (i: number): PersonResult["box"] =>
+      width > 0 && height > 0
+        ? [
+            (width / 3) * i + width * 0.02,
+            height * 0.04,
+            (width / 3) * (i + 1) - width * 0.02,
+            height * 0.98,
+          ]
+        : null;
 
-    // 다인 컷과 **세 가지 폴백 상태를 모두** 개발 중에 확인할 수 있게 흉내낸다.
-    // 셋을 다 넣지 않으면 soft/hard 화면은 실서버에 붙기 전까지 아무도 보지 못한다.
+    // 다인 컷과 soft 폴백을 개발 중에 확인할 수 있게 흉내낸다. 세 인물 모두 후보가 있다
+    // (hard 폴백 화면은 PersonFallbackNotice 테스트로 확인한다).
     const people: PersonResult[] = [
       {
         index: 0,
+        box: box(0),
+        outputScope: mockOutputScope(jobId, 0, "full"),
         candidates: buildCandidates(jobId, 0),
         confidence: "high",
         skeletonState: "valid",
@@ -103,33 +132,47 @@ export const poseMock: PoseResultService = {
       {
         // soft — 후보는 있지만 스켈레톤 인식이 불확실하다. refine 금지.
         index: 1,
+        box: box(1),
+        outputScope: mockOutputScope(jobId, 1, "half"),
         candidates: buildCandidates(jobId, 1, ["low", "low", "low", "low", "low"]),
         confidence: "low",
         skeletonState: "partial",
-        skeletonSource: "crop_retry",
-        coverageClass: "reduced",
+        skeletonSource: "full_image",
+        coverageClass: "upper_only",
         fallbackMode: "soft",
         refineAllowed: false,
         refinableLimbs: [],
       },
       {
-        // hard — 자동 후보가 없다. 다른 인물의 선택·저장은 계속 가능해야 한다.
+        // 세 번째 인물도 후보를 보여 준다(뒷모습처럼 일치도가 낮은 인물).
         index: 2,
-        candidates: [],
-        confidence: "low",
-        skeletonState: "missing",
-        skeletonSource: "none",
-        coverageClass: "insufficient",
-        fallbackMode: "hard",
+        box: box(2),
+        outputScope: mockOutputScope(jobId, 2, "full"),
+        candidates: buildCandidates(jobId, 2, ["medium", "medium", "low", "low", "low"]),
+        confidence: "high",
+        skeletonState: "valid",
+        skeletonSource: "full_image",
+        coverageClass: "full",
+        fallbackMode: "none",
         refineAllowed: false,
         refinableLimbs: [],
       },
     ];
 
+    const bodies = bodyMockEnabled();
+    if (bodies) registerMockPeople(jobId, people);
     return {
       jobId,
       people,
-      capabilities: { refine: true, fbxExport: true, characterSelection: true },
+      capabilities: {
+        bodyPreviews: bodies,
+        bodyPreviewAssets: bodies,
+        refine: true,
+        fbxExport: true,
+        characterSelection: true,
+        outputScopeSelection: true,
+        outputScopeCropping: false,
+      },
     };
   },
 };

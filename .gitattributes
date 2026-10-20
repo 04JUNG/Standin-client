@@ -10,3 +10,5 @@
 *.icns binary
 *.woff binary
 *.woff2 binary
+# Preserve the supplied circular floating-bar logo bytes.
+public/favicon_circle.svg -text whitespace=cr-at-eol

@@ -1,0 +1,439 @@
+{
+  "fixture": true,
+  "realFbx": false,
+  "checks": [
+    "9 cards",
+    "rapid body 2→3 latest wins",
+    "all images ready",
+    "confirm collapses",
+    "person isolation",
+    "pose preserved across bar/app",
+    "fixed footer at 720×460",
+    "final review fingerprint",
+    "saved body 3 and body 1",
+    "no analyze request",
+    "preferences auto/fixed explicit and existing job unchanged",
+    "direct save without review blocked"
+  ],
+  "saved": [
+    "FBX-fixture-body-1",
+    "FBX-fixture-body-3"
+  ],
+  "downloads": [
+    "body-3",
+    "body-1"
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-options",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-options",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-1/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-1/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-1/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-1/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-2/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-2/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-2/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-2/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-3/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-3/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-3/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-3/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-4/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-4/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-4/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-4/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-5/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-5/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/72112ab55d00e4a30bfe719b77706f997fa6c1ece5e946bd15f20fdae70f8e41/pose-5/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-previews/7a8ddd56501c9124b095bba5ea02d5aba7348b10b4841b7d9f6b485785c4354b/pose-5/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-1/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-2/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-3/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-4/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-5/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-6/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-7/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-8/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-9/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-1/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-2/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-3/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-4/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-5/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-6/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-7/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-8/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/models/body-9/body-preview/09a8c8de46fb9dac4872c9b1b6daa3358a711c0b0c4bd2b5d6a5ac12b666519d",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "PUT",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/bcae7fdcd3657d1e833a386627c499a7318a1423f57c32ede60238292d547788/pose-1/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/bcae7fdcd3657d1e833a386627c499a7318a1423f57c32ede60238292d547788/pose-1/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "PUT",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-1/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-1/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-2/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-2/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-3/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-3/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-4/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-4/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-5/glb",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-previews/9ee4e9ce55a0e40577cfa9fc5f10b0b9c87195917fd0c1761bb8a5668f9ce7e9/pose-5/png",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-options",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-options",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/0/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/analysis/jobs/job_fixture/people/1/body-selection",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/pose-candidates/pose-3/framed",
+      "method": "GET",
+      "query": "?jobId=job_fixture&personIndex=0&candidateId=pose-3&outputScope=full&format=preview&bodySelectionRevision=2"
+    },
+    {
+      "path": "/v1/pose-candidates/pose-1/framed",
+      "method": "GET",
+      "query": "?jobId=job_fixture&personIndex=1&candidateId=pose-1&outputScope=full&format=preview&bodySelectionRevision=0"
+    },
+    {
+      "path": "/v1/pose-candidates/pose-3/framed",
+      "method": "GET",
+      "query": "?jobId=job_fixture&personIndex=0&candidateId=pose-3&outputScope=full&format=fbx&bodySelectionRevision=2&reviewKey=d2c849fa341acc52fecbec74d74bbf62ef39e7ed07f833e9ea15a1ce8116517d"
+    },
+    {
+      "path": "/v1/pose-candidates/pose-1/framed",
+      "method": "GET",
+      "query": "?jobId=job_fixture&personIndex=1&candidateId=pose-1&outputScope=full&format=fbx&bodySelectionRevision=0&reviewKey=997143265fad7e7cf35b209ce3a0524f6896c2c55507e70e09f721a58bd64526"
+    },
+    {
+      "path": "/v1/installations/current/body-preferences",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/installations/current/body-preferences",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/installations/current/body-preferences",
+      "method": "PUT",
+      "query": ""
+    },
+    {
+      "path": "/v1/installations/current/body-preferences",
+      "method": "GET",
+      "query": ""
+    },
+    {
+      "path": "/v1/installations/current/body-preferences",
+      "method": "PUT",
+      "query": ""
+    },
+    {
+      "path": "/v1/installations/current/body-preferences",
+      "method": "GET",
+      "query": ""
+    }
+  ]
+}

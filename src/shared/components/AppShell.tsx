@@ -36,7 +36,8 @@ const navItems: NavItem[] = [
   // 아이콘은 PersonStanding이 아니라 UserRound다. 사이드바의 나머지(집·시계·톱니)가
   // 상자를 채우는 둥근 도형인데 PersonStanding은 획이 가늘고 여백이 많아 혼자 떠 보였다.
   // 전신 실루엣이 필요한 자리는 미리보기 플레이스홀더이고, 거기는 PersonStanding 그대로다.
-  { to: "/app/models", label: "모델", icon: UserRound },
+  // 체형 커스텀(/app/models/custom…)도 이 항목의 하위 화면이다.
+  { to: "/app/models", label: "체형 커스텀", icon: UserRound },
   // end를 켜지 않으면 라이브 분석 중(/app/jobs/<uuid>)에도 "작업 기록"이 활성으로 보인다.
   { to: "/app/jobs", label: "작업 기록", icon: History, end: true },
   { to: "/app/settings", label: "설정", icon: Settings },
@@ -62,10 +63,10 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
   // 바 전환은 경로 이동이면 충분하다. shared에서 features를 import하지 않기 위해
   // navigate만 쓴다(인증 가드는 /bar 라우트의 RequireAuth가 담당).
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, state: routeState } = useLocation();
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0 overflow-hidden">
       <aside
         {...tourAnchor("shell.sidebar")}
         className="flex w-sidebar flex-col bg-brand-ink text-white/90"
@@ -105,20 +106,24 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         {env.useMockApi && (
           <div className="px-4 py-3">
             <span className="rounded bg-brand-coral/20 px-2 py-1 text-[11px] font-semibold text-brand-coral">
-              MOCK 모드
+              체험 모드 · 실제 분석 아님
             </span>
           </div>
         )}
       </aside>
 
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-topbar items-center justify-between border-b border-border bg-surface-0 px-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex h-topbar shrink-0 items-center justify-between border-b border-border bg-surface-0 px-6">
           <h1 className="text-[16px] font-bold text-text-primary">{title}</h1>
           <div className="flex items-center gap-3">
             <button
               type="button"
               // 지금 단계를 바에서 그대로 이어간다 — 흐름 도중에 눌러도 처음으로 돌아가지 않는다.
-              onClick={() => navigate(barRouteForAppPath(pathname, "/bar/actions"))}
+              onClick={() =>
+                navigate(barRouteForAppPath(pathname, "/bar/actions"), {
+                  state: pathname === "/app/search" ? routeState : undefined,
+                })
+              }
               aria-label="플로팅 바로 전환"
               title="플로팅 바로 전환 — 작업 화면 위에 작게 띄웁니다"
               className={cn(
@@ -167,7 +172,8 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         {/* 전역 단축키가 죽어 있으면 모든 앱 화면에서 보이게 한다. 설정 화면에만 두면
             시연 중에 아무도 모른 채 지나간다(작가 인터뷰). */}
         <GlobalShortcutAlert />
-        <main className="flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
+        {/* sr-only처럼 absolute인 자식도 이 스크롤 영역 안에 둔다. */}
+        <main className="relative min-h-0 flex-1 overflow-auto bg-surface-1 p-6">{children}</main>
       </div>
 
       <ShortcutCheatSheet />

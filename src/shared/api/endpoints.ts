@@ -2,8 +2,10 @@
  * 서버 엔드포인트 정본. docs/08_API_CONTRACT.md 기준(`/v1` prefix).
  */
 export const endpoints = {
+  semantic: { search: "/v1/semantic-search", capabilities: "/v1/semantic-search/capabilities" },
   installations: {
     register: "/v1/installations",
+    qualityConsent: "/v1/installations/current/quality-consent",
     currentData: "/v1/installations/current/data",
   },
   events: { batch: "/v1/events/batch" },
@@ -19,8 +21,15 @@ export const endpoints = {
     oauthExchange: "/v1/auth/oauth/exchange",
     resendVerification: "/v1/auth/resend-verification",
   },
+  hands: {
+    catalog: "/v1/hands/catalog",
+    thumbnail: (preset: string, side: "left" | "right", library: string) =>
+      `/v1/hands/${encodeURIComponent(preset)}/thumbnail?${new URLSearchParams({ side, library })}`,
+  },
   analysis: {
     jobs: "/v1/analysis/jobs",
+    hands: (id: string, personIndex: number) =>
+      `/v1/analysis/jobs/${encodeURIComponent(id)}/people/${personIndex}/hands`,
     /** 작업 기록 목록. 커서 페이지네이션(`limit`/`cursor`/`status`). */
     jobList: (params: { limit?: number; cursor?: string | null; status?: string | null }) => {
       const query = new URLSearchParams();
@@ -36,6 +45,8 @@ export const endpoints = {
     cancel: (id: string) => `/v1/analysis/jobs/${id}/cancel`,
     selections: (id: string) => `/v1/analysis/jobs/${id}/selections`,
     feedback: (id: string) => `/v1/analysis/jobs/${id}/feedback`,
+    outputScope: (id: string, personIndex: number) =>
+      `/v1/analysis/jobs/${encodeURIComponent(id)}/people/${personIndex}/output-scope`,
     /** 선택 후보를 러프에 맞춰 조정한다. 본문은 candidateId 하나뿐이다. */
     refine: (id: string, personIndex: number) =>
       `/v1/analysis/jobs/${id}/people/${personIndex}/refine`,

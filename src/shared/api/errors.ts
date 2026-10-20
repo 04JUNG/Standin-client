@@ -53,7 +53,9 @@ export type AppError =
   | { kind: "validation"; message: string; fields?: Record<string, string> }
   | { kind: "native"; message: string; code?: string; retryable: boolean };
 
-export function networkError(message = "서버에 연결할 수 없습니다."): AppError {
+export function networkError(
+  message = "연결이 끊겼어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.",
+): AppError {
   return { kind: "network", message, retryable: true };
 }
 

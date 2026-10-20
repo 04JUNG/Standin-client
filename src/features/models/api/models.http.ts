@@ -1,7 +1,9 @@
+import { bodyRefSchema } from "@/features/body-selection/contract";
 import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
 import { FALLBACK_CATALOG } from "../lib/fallbackCatalog";
+import { isRetiredCharacter } from "../lib/retiredCharacters";
 import type {
   ModelAvailability,
   ModelCatalog,
@@ -37,6 +39,9 @@ function toCharacter(raw: RawCharacter): ModelCharacter | null {
   const characterId = text(raw.characterId);
   if (!characterId) return null;
   return {
+    ...(bodyRefSchema.safeParse(raw.bodyRef).success
+      ? { bodyRef: bodyRefSchema.parse(raw.bodyRef) }
+      : {}),
     characterId,
     displayName: text(raw.displayName) ?? characterId,
     gender: narrow(GENDERS, raw.gender, "unspecified"),
@@ -81,7 +86,7 @@ export const modelsHttp: ModelCatalogService = {
 
     const characters = (Array.isArray(raw.characters) ? raw.characters : [])
       .map((item) => toCharacter((item ?? {}) as RawCharacter))
-      .filter((item): item is ModelCharacter => item !== null);
+      .filter((item): item is ModelCharacter => item !== null && !isRetiredCharacter(item.characterId));
 
     // 아무것도 못 주는 서버는 변환도 못 한다. 빈 화면 대신 폴백을 보여준다.
     if (characters.length === 0) return FALLBACK_CATALOG;

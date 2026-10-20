@@ -15,6 +15,8 @@ import { pendingUpdate, useUpdateStore } from "../store/updateStore";
 export function UpdateBanner() {
   const update = useUpdateStore(pendingUpdate);
   const dismiss = useUpdateStore((s) => s.dismissBanner);
+  const phase = useUpdateStore((s) => s.installPhase);
+  const attempted = useUpdateStore((s) => s.cached?.attempted);
   const navigate = useNavigate();
 
   if (!update) return null;
@@ -29,7 +31,13 @@ export function UpdateBanner() {
     >
       <ArrowUpCircle className="h-4 w-4 shrink-0 text-brand-sky" aria-hidden />
       <span className="font-semibold">새 버전 {update.version}이(가) 있습니다.</span>
-      <span className="text-text-secondary">설정에서 설치할 수 있습니다.</span>
+      <span className="text-text-secondary">
+        {phase === "downloading"
+          ? "백그라운드에서 내려받고 있습니다."
+          : phase === "ready" && !attempted
+            ? "다음 실행 시 자동 업데이트됩니다."
+            : "설정에서 업데이트 상태를 확인해 주세요."}
+      </span>
       <div className="ml-auto flex shrink-0 items-center gap-1">
         <button
           type="button"

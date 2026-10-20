@@ -1,0 +1,69 @@
+import type { BodyScope } from "@/features/pose-viewer/api/outputScope";
+
+// Keep the PNG fallback's paired FBX as the download target too. URLs include
+// job, person, candidate, scope and character; the suffix distinguishes refine.
+export type ReviewedIdentity = {
+  sourceSha: string;
+  characterSha: string;
+  revision?: string;
+  reviewKey?: string;
+  artifactSha256?: string;
+  prepared?: boolean;
+};
+const reviewedFormats = new Map<string, { model: boolean; identity?: ReviewedIdentity }>();
+export function rememberFramedFormat(key: string, model: boolean, identity?: ReviewedIdentity) {
+  reviewedFormats.delete(key);
+  reviewedFormats.set(key, { model, identity });
+  if (reviewedFormats.size > 64) reviewedFormats.delete(reviewedFormats.keys().next().value!);
+}
+export function reviewedArtifactSha(key: string) {
+  return reviewedFormats.get(key)?.identity?.artifactSha256;
+}
+export function reviewedModelFormat(key: string, fallback: boolean) {
+  return reviewedFormats.get(key)?.model ?? fallback;
+}
+
+export function reviewedExportUrl(url: string, key: string) {
+  const identity = reviewedFormats.get(key)?.identity;
+  if (!identity) return url;
+  const parsed = new URL(url, "https://standin.invalid");
+  parsed.searchParams.set("expectedBvhSha256", identity.sourceSha);
+  parsed.searchParams.set("expectedCharacterSha256", identity.characterSha);
+  if (identity.revision) parsed.searchParams.set("expectedModelRevision", identity.revision);
+  if (identity.reviewKey) parsed.searchParams.set("reviewKey", identity.reviewKey);
+  if (identity.prepared && identity.reviewKey)
+    parsed.searchParams.set("artifactReceipt", identity.reviewKey);
+  return `${parsed.pathname}${parsed.search}`;
+}
+
+/** One URL builder for the review image and the FBX download. */
+export function framedExportUrl(
+  url: string,
+  scope: BodyScope,
+  format: "preview" | "fbx" | "model" | "ready",
+  characterId: string | null,
+  modelPreview = false,
+): string {
+  const parsed = new URL(url, "https://standin.invalid");
+  if (!/^\/v1\/pose-candidates\/[^/]+\/export$/.test(parsed.pathname))
+    throw new Error("저장할 포즈 주소를 확인하지 못했습니다. 후보를 다시 선택해 주세요.");
+  parsed.pathname = parsed.pathname.replace(/\/export$/, "/framed");
+  parsed.searchParams.set("outputScope", scope);
+  parsed.searchParams.set("format", format);
+  if (modelPreview || format === "model") parsed.searchParams.set("previewType", "model");
+  else parsed.searchParams.delete("previewType");
+  if (characterId) parsed.searchParams.set("characterId", characterId);
+  else parsed.searchParams.delete("characterId");
+  return `${parsed.pathname}${parsed.search}`;
+}
+
+export function forgetFramedJob(job: string) {
+  for (const key of reviewedFormats.keys()) {
+    try {
+      if (new URL(key, "https://standin.invalid").searchParams.get("jobId") === job)
+        reviewedFormats.delete(key);
+    } catch {
+      /* malformed legacy keys never grant a receipt */
+    }
+  }
+}

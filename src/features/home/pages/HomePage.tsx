@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { Camera, MessageSquare, AlertCircle, ExternalLink } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
@@ -25,6 +27,7 @@ const RECOVERY_BUTTON = [
 ].join(" ");
 
 export function HomePage() {
+  const navigate = useNavigate();
   const {
     start: startCapture,
     isStarting,
@@ -112,6 +115,28 @@ export function HomePage() {
           </button>
         </div>
 
+        <button
+          type="button"
+          onClick={() => navigate("/app/search")}
+          className="mt-4 flex w-full items-center gap-3 rounded-xl border border-border bg-surface-0 p-4 text-left transition-colors hover:border-brand-sky focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
+        >
+          <Search className="h-5 w-5 text-brand-sky" aria-hidden />
+          <span>
+            <span className="block text-[14px] font-semibold text-text-primary">
+              문장으로 포즈 찾기
+            </span>
+            <span className="text-[12px] text-text-secondary">
+              찾고 싶은 동작을 적고 비슷한 포즈를 골라보세요.
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/app/hands")}
+          className="mt-3 rounded-lg border border-border bg-surface-0 px-4 py-3 text-sm hover:border-brand-sky focus-visible:ring-2 focus-visible:ring-brand-sky"
+        >
+          손 라이브러리 보기
+        </button>
         {captureError && (
           <div role="alert" className="mt-3 flex items-start gap-2 text-[13px] text-brand-coral">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />

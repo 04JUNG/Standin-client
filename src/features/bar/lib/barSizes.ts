@@ -5,12 +5,7 @@ import type { WindowMode, WindowSize } from "../api/windowMode.contract";
  * 크기 표는 UI 관심사라 TS가 소유한다(CLAUDE.md §9). Rust는 받은 값을 적용만 한다.
  */
 export type BarState =
-  | "collapsed"
-  | "actions"
-  | "progress"
-  | "candidates"
-  | "review"
-  | "save";
+  "collapsed" | "actions" | "search" | "progress" | "candidates" | "review" | "save";
 
 export const BAR_SIZES: Record<BarState, WindowSize> = {
   /**
@@ -25,13 +20,12 @@ export const BAR_SIZES: Record<BarState, WindowSize> = {
   // 실측으로 확인했다 — 72·84에서는 세로 스크롤바가 났다.
   /** 캡처 / 업로드 */
   actions: { width: 360, height: 88 },
+  /** 문장 입력부터 작은 창 안에서 시작한다. */
+  search: { width: 420, height: 300 },
   /** 분석 진행 상태 */
   progress: { width: 360, height: 96 },
-  // 인물 줄(스테퍼 + 체형 선택)이 늘었지만 460 그대로 둔다. 후보 카드는 자기 내용으로
-  // 높이가 정해져 창을 키워도 커지지 않는다(720×400~498에서 전부 232px 실측) — 올리면
-  // 카드가 아니라 빈 공간만 늘어난다. 바는 작업 화면 위에 뜨므로 작을수록 낫다.
   /** 후보 5개 비교·선택 · 인물별 체형 */
-  candidates: { width: 720, height: 460 },
+  candidates: { width: 680, height: 360 },
   /**
    * 저장 전 확인.
    *
@@ -48,6 +42,31 @@ export const BAR_SIZES: Record<BarState, WindowSize> = {
   save: { width: 420, height: 300 },
 };
 
+/** 여러 인물·체형 조절은 이 높이까지만 커지고 이후 셸 본문에서 스크롤한다. */
+export const BAR_CANDIDATES_MAX_HEIGHT = 560;
+
+/** 콘텐츠 높이는 viewport에 의존하지 않는 래퍼에서 측정한다. */
+export function fitBarContent(
+  state: BarState,
+  base: WindowSize,
+  height: number | null,
+  width: number | null,
+): WindowSize {
+  if (state === "collapsed") return base;
+  const minimumHeight = state === "actions" ? BAR_SIZES.actions.height : 96;
+  return {
+    ...base,
+    width: width && Number.isFinite(width) ? Math.min(720, Math.max(320, width)) : base.width,
+    height:
+      height && Number.isFinite(height)
+        ? Math.min(
+            state === "candidates" ? BAR_CANDIDATES_MAX_HEIGHT : 760,
+            Math.max(minimumHeight, height),
+          )
+        : base.height,
+  };
+}
+
 export const APP_SIZE: WindowSize = { width: 1280, height: 800 };
 
 /** 앱 모드 최소 크기(CLAUDE.md §11). Rust가 복원하는 값과 같아야 한다. */
@@ -57,6 +76,7 @@ export const APP_MIN_SIZE: WindowSize = { width: 960, height: 640 };
 export function barStateForPath(pathname: string): BarState | null {
   if (pathname === "/bar") return "collapsed";
   if (pathname === "/bar/actions") return "actions";
+  if (pathname === "/bar/search") return "search";
   if (pathname === "/bar/progress") return "progress";
   if (pathname === "/bar/candidates") return "candidates";
   if (pathname === "/bar/review") return "review";

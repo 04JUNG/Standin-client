@@ -16,10 +16,10 @@ type BffRefineResponse = {
 };
 
 export const refineHttp: RefineService = {
-  async refineSelection({ jobId, personIndex, candidateId }): Promise<RefineOutcome> {
+  async refineSelection({ jobId, personIndex, candidateId, deferPreview }): Promise<RefineOutcome> {
     const res = await apiFetch<BffRefineResponse>(endpoints.analysis.refine(jobId, personIndex), {
       method: "POST",
-      body: { candidateId },
+      body: { candidateId, ...(deferPreview ? { deferPreview: true } : {}) },
       auth: false,
     });
     return {

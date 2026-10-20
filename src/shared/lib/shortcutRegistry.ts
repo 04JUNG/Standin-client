@@ -16,7 +16,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     id: "capture.start",
     label: "캡처 바 열기",
     scope: "global",
-    hint: "앱이 백그라운드여도 바가 화면 위에 뜹니다.",
+    hint: "다른 프로그램을 쓰는 중에도 캡처 바를 열어요.",
     // Windows Ctrl+Alt+S / macOS ⌘⌥S (docs/07 §7)
     //
     // Ctrl+Shift+S를 쓰지 않는다. 클립스튜디오 기본 "다른 이름으로 저장"이 같은
@@ -30,7 +30,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     id: "home.startCapture",
     label: "캡처 바 열기(앱 내)",
     scope: "home",
-    hint: "전역 등록에 실패했거나 브라우저 개발 모드일 때만 동작합니다.",
+    hint: "다른 프로그램에서 캡처 단축키를 쓸 수 없을 때, Standin 안에서 대신 사용할 수 있어요.",
     defaultAccelerator: "Mod+Alt+KeyS",
     customizable: false,
     mirrorOf: "capture.start",
@@ -114,7 +114,7 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     id: "save.save",
     label: "다시 저장",
     scope: "save",
-    hint: "저장에 실패했을 때만 동작합니다. 저장은 후보를 고르면 자동으로 시작됩니다.",
+    hint: "저장에 실패했을 때 다시 시도해요. 저장 전 확인 화면에서 ‘이 포즈로 저장’을 누르면 파일이 저장돼요.",
     defaultAccelerator: "Mod+KeyS",
     customizable: false,
     allowWhileTyping: true,
@@ -163,7 +163,7 @@ export function resolveAccelerator(
 }
 
 export const SCOPE_LABEL: Record<ShortcutScope, string> = {
-  global: "전역",
+  global: "다른 프로그램에서도",
   app: "모든 화면",
   bar: "플로팅 바",
   home: "홈",

@@ -1,3 +1,4 @@
+import { setAnalyticsConsent } from "@/features/analytics/analyticsClient";
 import { createElement, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -69,6 +70,7 @@ function wrapperFor(client: QueryClient) {
 
 describe("useAnalysisResult 실패 계측", () => {
   beforeEach(() => {
+    setAnalyticsConsent("test-consent");
     safeStorage.removeItem(QUEUE_KEY);
     safeStorage.removeItem("standin.analytics.sequence.v1");
     useUploadStore.setState({ draft: draftFixture(), origin: "app" });
@@ -211,6 +213,75 @@ describe("useAnalysisResult 실패 계측", () => {
     await waitFor(() => expect(result.current.allSelected).toBe(true));
   });
 
+  it("내보내기를 끈 인물은 진행 조건과 확정 요청에서 빠진다", async () => {
+    const { usePoseSelectionStore } = await import("../store/poseSelectionStore");
+    usePoseSelectionStore.setState({
+      selectedByPerson: {},
+      refineByPerson: {},
+      excludedPeople: {},
+    });
+    const candidate = (id: string) => ({
+      id,
+      poseId: id,
+      rank: 1,
+      title: id,
+      tags: [],
+      matchLevel: "high" as const,
+      thumbnailUrl: "",
+      previewImages: [],
+      modelUrl: null,
+      bvhAvailable: false,
+    });
+    const person = (index: number) => ({
+      index,
+      fallbackMode: "none",
+      confidence: "high",
+      skeletonState: "valid",
+      skeletonSource: "full_image",
+      coverageClass: "full",
+      refineAllowed: false,
+      refinableLimbs: [],
+      candidates: [candidate(`p${index}-a`), candidate(`p${index}-b`)],
+    });
+    analyze.mockResolvedValue({
+      jobId: "server-job-exclude",
+      capabilities: { refine: false },
+      people: [person(0), person(1), person(2)],
+    });
+
+    const { result } = renderHook(() => useAnalysisResult("client-job-exclude"), { wrapper });
+    await waitFor(() => expect(result.current.people).toHaveLength(3));
+
+    result.current.selectCandidate(0, "p0-a");
+    await waitFor(() => expect(result.current.selectedCount).toBe(1));
+    expect(result.current.allSelected).toBe(false);
+    expect(result.current.pendingPeople.map((p) => p.index)).toEqual([1, 2]);
+
+    // 2, 3번째 인물을 끄면 고르지 않아도 진행할 수 있다.
+    result.current.setPersonIncluded(1, false);
+    result.current.setPersonIncluded(2, false);
+    await waitFor(() => expect(result.current.allSelected).toBe(true));
+    expect(result.current.includedPeople.map((p) => p.index)).toEqual([0]);
+    expect(result.current.confirmedSelections).toEqual([{ personIndex: 0, candidateId: "p0-a" }]);
+
+    // 고른 뒤 끈 인물은 확정 요청에 실리지 않고, 다시 켜면 고른 후보가 돌아온다.
+    result.current.setPersonIncluded(1, true);
+    result.current.selectCandidate(1, "p1-b");
+    await waitFor(() => expect(result.current.allSelected).toBe(true));
+    result.current.setPersonIncluded(1, false);
+    await waitFor(() =>
+      expect(result.current.confirmedSelections).toEqual([{ personIndex: 0, candidateId: "p0-a" }]),
+    );
+    result.current.setPersonIncluded(1, true);
+    await waitFor(() => expect(result.current.selectedByPerson[1]).toBe("p1-b"));
+
+    // 모두 끄면 진행할 수 없다.
+    result.current.setPersonIncluded(0, false);
+    result.current.setPersonIncluded(1, false);
+    await waitFor(() => expect(result.current.includedPeople).toHaveLength(0));
+    expect(result.current.allSelected).toBe(false);
+  });
+
   // 최소화는 라우트를 앱(/app/jobs/:id)에서 바(/bar/candidates)로 바꾸므로 이 훅이 다시
   // 마운트된다. 실패해서 데이터가 없는 쿼리는 `refetchOnMount: false`가 막아 주지 못하고
   // 새 옵저버마다 queryFn이 다시 도는 것이 React Query 기본값(retryOnMount)이다.
@@ -266,6 +337,7 @@ describe("useAnalysisResult 실패 계측", () => {
 
 describe("작업 기록 재진입", () => {
   beforeEach(() => {
+    setAnalyticsConsent("test-consent");
     safeStorage.removeItem(QUEUE_KEY);
     safeStorage.removeItem("standin.analytics.sequence.v1");
     analyze.mockReset();
@@ -305,9 +377,7 @@ describe("작업 기록 재진입", () => {
     const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
 
     await waitFor(() => expect(result.current.data).toBeTruthy());
-    expect(loadResult).toHaveBeenCalledWith(
-      expect.objectContaining({ jobId: SERVER_JOB_ID }),
-    );
+    expect(loadResult).toHaveBeenCalledWith(expect.objectContaining({ jobId: SERVER_JOB_ID }));
     expect(analyze).not.toHaveBeenCalled();
     expect(result.current.restoreOnly).toBe(true);
   });
@@ -346,14 +416,42 @@ describe("작업 기록 재진입", () => {
     useUploadStore.getState().setDraft(draftFixture());
     analyze.mockResolvedValue({ ...storedResult(), jobId: "server-side-id" });
 
-    const { result } = renderHook(
-      () => useAnalysisResult("0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"),
-      { wrapper },
-    );
+    const { result } = renderHook(() => useAnalysisResult("0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e"), {
+      wrapper,
+    });
 
     await waitFor(() => expect(result.current.data).toBeTruthy());
     expect(analyze).toHaveBeenCalledTimes(1);
     expect(loadResult).not.toHaveBeenCalled();
     expect(result.current.restoreOnly).toBe(false);
+  });
+  it("review-only candidates can be compared but cannot advance to save", async () => {
+    const { usePoseSelectionStore } = await import("../store/poseSelectionStore");
+    usePoseSelectionStore.setState({
+      selectedByPerson: {},
+      refineByPerson: {},
+      excludedPeople: {},
+    });
+    loadResult.mockResolvedValue({
+      jobId: "server-job-review",
+      capabilities: {},
+      people: [
+        {
+          index: 0,
+          candidates: [
+            { id: "dynamic::pose", poseId: "pose", source: "dynamic", releaseAllowed: false },
+          ],
+          fallbackMode: "soft",
+          confidence: "low",
+          refineAllowed: false,
+        },
+      ],
+    });
+    const { result } = renderHook(() => useAnalysisResult(SERVER_JOB_ID), { wrapper });
+    await waitFor(() => expect(result.current.people).toHaveLength(1));
+    result.current.selectCandidate(0, "dynamic::pose");
+    expect(result.current.selectedCount).toBe(0);
+    expect(result.current.allSelected).toBe(false);
+    expect(result.current.selectablePeople).toHaveLength(0);
   });
 });

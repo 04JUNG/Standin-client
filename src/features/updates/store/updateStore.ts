@@ -1,49 +1,36 @@
 import { create } from "zustand";
 import { trackEvent } from "@/features/analytics/analyticsClient";
+import { safeStorage } from "@/shared/lib/safeStorage";
 import { updateService } from "../api/update.service";
-import type { UpdateAvailability } from "../api/update.contract";
-import { updateFailureReason } from "../lib/updateFailure";
-
-/**
- * 업데이트 확인 결과를 앱 전역에서 공유한다(ADR-011).
- *
- * 배너(시작 시 자동 확인)와 설정 화면(수동 확인)이 같은 결과를 본다. 각자 확인하면
- * 배너를 보고 설정으로 넘어온 사용자가 같은 버튼을 한 번 더 눌러야 하고, 확인 요청도
- * 두 번 나간다.
- *
- * 영속하지 않는다. "나중에"로 닫은 배너는 다음 실행에 다시 떠야 한다 — 업데이트를
- * 미룬 것과 영영 숨기는 것은 다르다.
- */
+import type { CachedUpdate, UpdateAvailability } from "../api/update.contract";
+import { updateFailureReason, updateFailureMessage } from "../lib/updateFailure";
 
 type CheckPhase = "idle" | "checking" | "done" | "error";
+type InstallPhase = "idle" | "downloading" | "ready" | "installing" | "restarting";
+type Trigger = "startup" | "manual" | "periodic" | "reconnect";
+const NORMAL_INTERVAL = 6 * 60 * 60 * 1000;
+const RETRY_INTERVAL = 15 * 60 * 1000;
+const INSTALL_ATTEMPT = "standin.updates.installAttempt";
 
 type UpdateState = {
-  /** 실행 중인 앱 버전. 피드 설정 여부와 무관하게 채운다. */
   version: string | null;
-  /** 이 빌드에 업데이트 피드가 있는지. 확인 전에는 null. */
   configured: boolean | null;
   phase: CheckPhase;
   result: UpdateAvailability | null;
   error: string | null;
+  installPhase: InstallPhase;
+  ratio: number | null;
+  cached: CachedUpdate | null;
+  startupComplete: boolean;
   bannerDismissed: boolean;
-
-  /** 버전과 피드 설정 여부를 읽는다. 이미 읽었으면 다시 부르지 않는다. */
+  nextCheckAt: number;
   loadInfo(): Promise<void>;
-  /**
-   * 업데이트를 확인한다. 피드가 없으면 아무것도 하지 않는다.
-   *
-   * `trigger`는 지표에만 쓴다 — 시작 시 자동 확인이 실제로 도는지와 사용자가
-   * 직접 누른 것을 갈라야 자동 업데이트가 동작하는지 알 수 있다.
-   */
-  check(trigger: "startup" | "manual"): Promise<void>;
+  bootstrap(): Promise<void>;
+  check(trigger: Trigger): Promise<void>;
+  install(blockReason: () => string | null): Promise<void>;
   dismissBanner(): void;
   reset(): void;
 };
-
-function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return "업데이트를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
-}
 
 const initial = {
   version: null,
@@ -51,53 +38,171 @@ const initial = {
   phase: "idle",
   result: null,
   error: null,
+  installPhase: "idle",
+  ratio: null,
+  cached: null,
+  startupComplete: false,
   bannerDismissed: false,
-} satisfies Omit<UpdateState, "loadInfo" | "check" | "dismissBanner" | "reset">;
+  nextCheckAt: 0,
+} satisfies Omit<
+  UpdateState,
+  "loadInfo" | "bootstrap" | "check" | "install" | "dismissBanner" | "reset"
+>;
+
+let infoPromise: Promise<void> | null = null;
+let bootstrapPromise: Promise<void> | null = null;
+
+/** Confirm success only after the newly installed binary actually starts. */
+export function reportInstalledUpdate(version: string, analyticsEnabled: boolean) {
+  try {
+    const attempt = JSON.parse(safeStorage.getItem(INSTALL_ATTEMPT) ?? "null") as {
+      fromVersion?: string;
+      toVersion?: string;
+    } | null;
+    if (attempt?.toVersion === version && attempt.fromVersion !== version) {
+      if (analyticsEnabled) {
+        trackEvent("update_installed", {
+          fromVersion: attempt.fromVersion ?? null,
+          toVersion: version,
+        });
+      }
+      safeStorage.removeItem(INSTALL_ATTEMPT);
+    }
+  } catch {
+    safeStorage.removeItem(INSTALL_ATTEMPT);
+  }
+}
 
 export const useUpdateStore = create<UpdateState>((set, get) => ({
   ...initial,
-
   async loadInfo() {
     if (get().configured !== null) return;
-    const [version, configured] = await Promise.all([
-      updateService.currentVersion().catch(() => null),
-      updateService.isConfigured().catch(() => false),
-    ]);
-    set({ version, configured });
+    if (!infoPromise) {
+      infoPromise = (async () => {
+        const [version, configured] = await Promise.all([
+          updateService.currentVersion().catch(() => null),
+          updateService.isConfigured().catch(() => false),
+        ]);
+        set({ version, configured });
+      })();
+    }
+    await infoPromise;
+  },
+
+  async bootstrap() {
+    if (!bootstrapPromise) {
+      bootstrapPromise = (async () => {
+        await get().loadInfo();
+        if (!get().configured) {
+          set({ startupComplete: true });
+          return;
+        }
+        try {
+          const cached = await updateService.cached();
+          if (cached) {
+            set({
+              cached,
+              installPhase: "ready",
+              result: { kind: "available", ...cached },
+              phase: "done",
+            });
+            if (!cached.attempted) {
+              // Children have not mounted: capture/jobs/shortcuts cannot start here.
+              await get().install(() => null);
+              if (get().installPhase === "restarting") return;
+            }
+          }
+        } catch (error) {
+          set({ error: updateFailureMessage(error, "install") });
+        }
+        set({ startupComplete: true });
+        // Failed install is shown in Settings; don't immediately repeat its network request.
+        if (!get().error) void get().check("startup");
+      })();
+    }
+    await bootstrapPromise;
   },
 
   async check(trigger) {
     await get().loadInfo();
-    // 피드가 없는 빌드에서는 확인 자체를 하지 않는다. 실패를 보여줄 이유가 없다.
-    // 지표도 남기지 않는다 — 브라우저 개발 모드가 집계를 오염시킨다.
-    if (!get().configured) return;
-    if (get().phase === "checking") return;
-
-    set({ phase: "checking", error: null });
+    if (
+      !get().configured ||
+      get().phase === "checking" ||
+      ["downloading", "installing", "restarting"].includes(get().installPhase)
+    )
+      return;
+    if (trigger !== "manual" && Date.now() < get().nextCheckAt) return;
+    const previous = get().result;
+    const previousVersion = previous?.kind === "available" ? previous.version : null;
+    set({ phase: "checking", error: null, nextCheckAt: Date.now() + NORMAL_INTERVAL });
+    let failurePhase: "check" | "download" = "check";
     try {
       const result = await updateService.check();
-      // 새 결과가 오면 이전에 닫은 배너를 되살린다. 다른 버전이면 다시 알려야 한다.
-      set({ phase: "done", result, bannerDismissed: false });
+      set({ phase: "done", result });
       trackEvent("update_check", { trigger, result: result.kind });
+      if (result.kind !== "available") {
+        set({ cached: null, installPhase: "idle" });
+        return;
+      }
+      failurePhase = "download";
+      set({
+        cached: get().cached?.version === result.version ? get().cached : null,
+        installPhase: "downloading",
+        ratio: null,
+        bannerDismissed: result.version === previousVersion ? get().bannerDismissed : false,
+      });
+      const cached = await updateService.download(({ ratio }) => set({ ratio }));
+      set({ cached, installPhase: "ready", ratio: 1 });
     } catch (error) {
-      set({ phase: "error", error: errorMessage(error) });
-      trackEvent("update_check", { trigger, result: "error" });
-      trackEvent("update_failed", { phase: "check", reason: updateFailureReason(error) });
+      set({
+        phase: failurePhase === "check" ? "error" : "done",
+        installPhase: get().cached ? "ready" : "idle",
+        error: updateFailureMessage(error, failurePhase),
+        nextCheckAt: Date.now() + RETRY_INTERVAL,
+      });
+      if (failurePhase === "check") trackEvent("update_check", { trigger, result: "error" });
+      trackEvent("update_failed", { phase: failurePhase, reason: updateFailureReason(error) });
     }
   },
 
-  dismissBanner() {
-    set({ bannerDismissed: true });
+  async install(blockReason) {
+    if (get().installPhase !== "ready" || get().phase === "checking" || !get().cached) return;
+    const reason = blockReason();
+    if (reason) {
+      set({ error: reason });
+      return;
+    }
+    const cached = get().cached!;
+    set({ installPhase: "installing", error: null });
+    safeStorage.setItem(
+      INSTALL_ATTEMPT,
+      JSON.stringify({ fromVersion: get().version, toVersion: cached.version }),
+    );
+    try {
+      await updateService.install();
+      set({ installPhase: "restarting" });
+      await updateService.relaunch();
+    } catch (error) {
+      set({
+        installPhase: "ready",
+        cached: { ...cached, attempted: true },
+        error: updateFailureMessage(error, "install"),
+        nextCheckAt: Date.now() + RETRY_INTERVAL,
+      });
+      trackEvent("update_failed", { phase: "install", reason: updateFailureReason(error) });
+    }
   },
-
+  dismissBanner: () => set({ bannerDismissed: true }),
   reset() {
+    infoPromise = null;
+    bootstrapPromise = null;
     set({ ...initial });
   },
 }));
 
-/** 배너에 띄울 업데이트. 없으면 null. */
-export function pendingUpdate(state: UpdateState): { version: string; notes?: string } | null {
-  if (state.bannerDismissed) return null;
-  if (state.result?.kind !== "available") return null;
+export function pendingUpdate(
+  state: UpdateState,
+): { version: string; notes?: string | null } | null {
+  if (state.bannerDismissed || state.result?.kind !== "available") return null;
   return { version: state.result.version, notes: state.result.notes };
 }

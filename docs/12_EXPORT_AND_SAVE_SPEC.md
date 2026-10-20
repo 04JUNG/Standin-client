@@ -1,5 +1,19 @@
 # 포즈 후보 뷰어 및 저장·전달 명세
 
+## v4 보정 장면 최종 확인
+
+BFF가 `capabilities.sceneRefinement=true`를 명시한 이미지 작업은 기존 인물별 확인 후
+`POST /v1/analysis/jobs/:jobId/scene`에 `{ persons, prepare: true }`를 보냅니다.
+`persons`는 확정한 후보와 검수 FBX의 URL·SHA 참조입니다. `version=scene-refinement-v4`,
+`reviewKey`, `artifactSha256`, `previewSha256`, `previewBase64`, `personCount`, `summary`를 받으면
+PNG 해시를 확인하고 최종 장면을 표시합니다. 사용자가 **이 장면으로 저장**을 누른 뒤에만
+같은 참조와 `reviewKey`로 다운로드하며, 검수한 FBX SHA와 응답 SHA가 일치해야 native writer에 넘깁니다.
+취소 또는 화면 이탈 시 저장하지 않습니다. 검수 만료·서버 재시작·선택 변경은 새 확인이 필요합니다.
+
+클라이언트가 방향·좌표·관절을 수동 조정하지 않습니다. capability가 없으면 기존 저장 경로를 유지합니다.
+기본 기능 스위치는 BFF에서 꺼져 있습니다. 이번 변경의 설치 앱 네이티브 저장·Windows/macOS E2E와
+CSP의 FBX 카메라/구도 채택은 미검증입니다. 웹 타입 검사·빌드·계약 테스트 결과를 설치 앱 검증으로 대체하지 않습니다.
+
 ## 1. 목표
 
 - 포즈 후보 5개를 비교하고 마음에 드는 후보를 선택하는 뷰어 구현
@@ -12,6 +26,14 @@
 ---
 
 ## 2. 포즈 후보 뷰어
+
+각도 보정이 걸린 후보 카드도 서버가 이미 준비해 둔 작은 라이브러리 JPEG를 먼저
+표시한다. 카드는 정밀 각도 렌더를 기다리지 않는다. 이 그림의 시점은 근사치이며
+선택 후 저장 전 확인 화면은 실제 체형·범위·각도가 적용된 결과를 사용한다.
+플로팅바 후보 화면은 고정 높이로 두고, 내용이 넘칠 때만 내부에서 스크롤한다.
+저장 전 확인의 사진 영역은 서버 준비·PNG 디코딩·GLB 첫 프레임을 기다리는 동안 회전 표시를 제공한다.
+단일 인물은 남는 공간을 사용하되 전체 화면은 창 높이에 맞춰 크기를 제한하고, 플로팅 바는 최대 320px로 표시한다.
+“고른 포즈예요 · 러프에 맞춘 자동 조정은 하지 않아요” 문구는 표시하지 않는다.
 
 `docs/01_PRODUCT_AND_MVP.md` §5의 후보 뷰어 요구사항을 따른다.
 
@@ -26,6 +48,14 @@
 ---
 
 ## 3. 전달 흐름
+
+`capabilities.modelPreview`와 WebGL2를 지원하는 FBX 확인 화면은 GLB 표면을 GPU에
+유지한다. 서버가 원본·전신임을 확인하면 사전 생성 모델을 즉시 반환하며 FBX를 함께
+준비한다. 리파인·부분 출력은 최종 FBX에서 만든 표면을 기다린다. 첫 프레임을 확인한
+뒤 저장을 허용하고 준비된 FBX를 재사용한다. WebGL 실패 시 범위별 PNG로 전환한다.
+저장은 미리보기의 BVH·체형 해시(최종 모델은 exporter revision 포함)를 전송하며,
+변경됐다면 재확인을 요구한다. 리파인 응답을 놓쳐도 앱이 원본 모델을 임의로 선택하지 않는다.
+새 흐름의 리파인 요청은 중간 PNG 생성을 생략한다. BVH·구 서버 경로는 기존 동작을 유지한다.
 
 ```text
 후보 선택
@@ -266,3 +296,59 @@ lineage 헤더 세 개를 대조한 FBX만 앱으로 내려온다. 계약은
 - `docs/11_QA_SECURITY_RELEASE.md` §2 내보내기 오류, §3 보안
 - `docs/adr/ADR-006-bvh-download.md` 다운로드·저장 계층
 - `docs/adr/ADR-009-pose-file-delivery.md` 전달 방식 결정
+
+
+## 10. 부분 FBX 출력 (2026-10-02)
+
+`outputScopeCropping=true`이고 저장 포맷이 FBX이면, 보정 완료 후 검토 화면에서
+인물별 resolved scope와 실제 저장 체형으로 `/framed?format=preview`를 요청한다.
+미리보기 생성 중/실패 시 저장 버튼은 잠긴다. 재시도 및 후보 돌아가기를 제공하고
+실패한 부분 결과를 전신 이미지로 대체하지 않는다. 다운로드는 동일 URL 빌더의
+`format=fbx`를 사용한다. 서버의 409 범위 변경은 후보 화면에서 재확인하도록 안내한다.
+BVH는 전체 동작/뼈대 파일이며 부분 메시를 담지 않는다고 명시한다.
+
+검증: 기본 체형의 3포즈×4범위 실제 Blender FBX 재import, 내부 API/worker 실제 호출,
+Windows 브라우저의 앱·바 실제 컴포넌트+격리 Mock API, 실패 시 저장 차단.
+외부 CSP/Tauri 네이티브 import, 다른 체형, macOS, 운영 DB는 이번 검증에 포함하지 않았다.
+뼈대가 전신으로 남으므로 외부 프로그램에서 자동 화면 맞춤은 별도 확인해야 한다.
+
+
+## 체형 선택 UX 확장 (2026-10-08)
+
+새 계약을 지원하는 작업의 기본 설정·인물별 선택·Top-K·최종 확인·저장 기준은 [BODY_SELECTION_UI.md](BODY_SELECTION_UI.md)를 따른다. 구 계약 설명보다 이 확장이 우선한다.
+
+
+## 러프 배치가 포함된 통합 FBX (로컬 검증, 기본 꺼짐)
+
+이미지 작업에서 BFF가 `capabilities.sceneExport=true`를 명시하면, FBX 저장 시 기존
+최종 체형·손·범위 검수 다운로드를 먼저 수행합니다. 받은 파일의 SHA와 정확한 검수 URL,
+job/person/candidate ID만 `/v1/analysis/jobs/:jobId/scene`으로 보내고, 서버가 소유 작업의
+러프 관측으로 배치한 통합 FBX를 반환합니다. 앱은 인원 수·버전·파일 SHA를 검증한 뒤
+기존 native writer로 `{기본명}_scene.fbx` 한 파일을 저장합니다. 합성 실패 시 저장 실패를
+표시하며 개별 파일로 조용히 대체하지 않습니다. BVH·문장 검색·구 BFF 흐름은 유지합니다.
+
+검증 범위: 최신 develop 기반 타입 검사·웹 빌드·저장 계약 회귀, 로컬 BFF 핸들러와 실제
+HTTP Converter/Blender, T001·p0718 CSP 실제 import. 설치된 Tauri 앱이나 운영 서버는
+업데이트하지 않았습니다. **CSP 자체 카메라가 원본 구도/절대 크기를 다시 맞추는 문제가
+남아 있어 BFF flag는 기본 false이고, CSP 구도 기능이 완료됐다고 판단하지 않습니다.**
+
+## 직접 선택한 참고 포즈 저장 (2026-10-19)
+
+자동 검색 실패와 사용자가 고른 실제 포즈 파일의 저장 가능 여부를 분리한다. BFF가 설치 소유 작업의
+등록 BVH·해시·후보 연결을 확인해 `manualExportAllowed=true`를 명시한 library/semantic 후보는
+근접·구도·반대손 참고 그룹에서도 직접 선택할 수 있다. `releaseAllowed=false`, `actualMeshValidated=false`,
+`refineAllowed=false`는 유지하며 자동 일치 성공이나 자동 보정 대상으로 승격하지 않는다.
+동일 그룹에서 선택 상태를 표시하고 인물별 선택 수·확정 요청·앱/바 최종 확인·저장으로 이어진다.
+등록 파일이 확인되지 않은 생성 inline 후보와 구 BFF의 권한 없는 후보는 계속 미리보기 전용이다.
+
+문장 검색도 동일한 선택 확정과 최종 확인 흐름을 사용한다. 저장 전 실제 선택 체형·손·출력 범위가 적용된
+FBX 미리보기를 확인하며, 실패·이전 revision·원본 해시 불일치는 저장을 차단한다. 체형/손 리뷰 경로는
+기존 receipt를 재사용한다. 체형/손 선택 없는 수동 FBX 경로도 `X-Standin-Review-Key`, Source-BVH,
+Character, Preview-Artifact 및 최종 Artifact SHA256를 확인하고 동일 reviewKey로 저장한다.
+Preview-Artifact는 표시 PNG/GLB의 해시이며 Artifact는 짝지어진 최종 FBX의 해시다.
+BVH는 원본 전체 관절 파일이며 체형·손·부분 메시를 담지 않는다고 계속 안내한다.
+초기 후보 그리드는 사전 포스터만 사용하며 후보별 Converter 일괄 호출을 하지 않는다.
+
+검증 범위: 앱/바에서 근접·실제 mirror·문장 후보의 직접 선택 → 정확한 candidateId 확정 → 검토 화면 이동,
+수동 권한/해시 누락 거부, 최종 미리보기 source·응답 바이트·receipt 검증 및 변경 거부.
+설치 앱의 네이티브 파일 저장과 스테이징 E2E는 이 단위 테스트만으로 완료라고 보고하지 않는다.

@@ -6,6 +6,11 @@ on:
   push:
     branches: [develop]
   workflow_dispatch:
+    inputs:
+      staging:
+        description: "Build isolated staging installers against the real staging API"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,6 +39,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Validate release notes
+        run: npm run release:check
 
       - name: Test
         run: npm test
@@ -144,6 +152,69 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: standin-dev-${{ matrix.target }}-${{ github.run_number }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}/*
+          if-no-files-found: error
+          retention-days: 14
+
+  build-staging:
+    name: Build Standin Staging (${{ matrix.target }})
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.staging }}
+    needs: gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            rustTargets: x86_64-pc-windows-msvc
+            bundles: nsis
+          # macOS는 릴리스와 같은 universal 단일 빌드다(ADR-011). dev 빌드만 아키텍처별로
+          # 갈라두면 테스터가 받는 것과 릴리스로 나가는 것이 다른 구성이 된다.
+          - platform: macos-latest
+            target: universal-apple-darwin
+            rustTargets: aarch64-apple-darwin,x86_64-apple-darwin
+            bundles: dmg
+    runs-on: ${{ matrix.platform }}
+    env:
+      STANDIN_KEYRING_SERVICE: app.standin.desktop.staging
+      VITE_API_BASE_URL: https://api-staging.standinpose.com
+      VITE_WEB_BASE_URL: https://standin-seven.vercel.app
+      VITE_USE_MOCK_API: "false"
+      VITE_USE_MOCK_POSE_API: "false"
+      VITE_APP_ENV: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rustTargets }}
+
+      # macOS는 universal이라 아키텍처 두 개를 각각 컴파일한다. 캐시가 없으면
+      # develop에 푸시할 때마다 그 비용을 처음부터 다시 낸다.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set develop build version
+        run: node scripts/set-version.mjs --develop-build "${{ github.run_number }}"
+
+      - name: Build Standin Staging
+        run: npm run tauri build -- --config src-tauri/tauri.staging.conf.json --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: standin-staging-${{ matrix.target }}-${{ github.run_number }}
           path: src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundles }}/*
           if-no-files-found: error
           retention-days: 14

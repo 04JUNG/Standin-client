@@ -1,0 +1,106 @@
+.compact-pose-layout {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.compact-pose-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: start;
+  gap: 6px;
+}
+
+.compact-pose-grid > * {
+  min-width: 0;
+}
+
+.compact-pose-image {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 4px;
+  background: var(--surface-1);
+  text-align: center;
+}
+
+.compact-pose-image img {
+  width: 100%;
+  height: 112px;
+  object-fit: contain;
+}
+
+/* Both built-in presentation rows and semantic custom cards use this scoped grid.
+   Normal 3+2 cards and desktop pages are outside this selector. */
+.compact-pose-layout
+  section[aria-label$="포즈 표시 결과"]:has([data-presentation-candidate], [data-semantic-model])
+  .grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  align-items: start;
+}
+
+.compact-pose-layout [data-presentation-candidate],
+.compact-pose-layout [data-semantic-model] {
+  min-width: 0;
+  padding: 6px;
+}
+
+@container (max-width: 560px) {
+  .compact-pose-layout
+    section[aria-label$="포즈 표시 결과"]:has([data-presentation-candidate], [data-semantic-model])
+    .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Empty groups have no poses to compare and must not add a scroll-only tail. */
+.compact-pose-layout
+  section[aria-label$="포즈 표시 결과"]:has([data-presentation-candidate], [data-semantic-model])
+  > div:has(> h3):not(:has(.grid)) {
+  display: none;
+}
+
+.compact-pose-layout [data-pose-candidate] > div:last-child {
+  gap: 2px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.compact-pose-layout [data-pose-candidate] > div:last-child {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@container (max-width: 680px) {
+  .compact-pose-layout > .p-3 {
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .compact-pose-layout > .p-3 > p {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .compact-pose-layout > .p-3 > button {
+    height: 32px;
+    flex-shrink: 0;
+  }
+
+  /* Selected text may wrap, but must not grow the row after a user picks it. */
+  .compact-pose-layout [data-presentation-candidate] > button[aria-pressed] {
+    height: 32px;
+    padding: 3px 2px;
+    font-size: 11px;
+    line-height: 12px;
+  }
+}
+
+/* Continuous text results use the shell's single scroll area. A viewport-height
+   wrapper would end the sticky search field after its first screen. */
+.compact-pose-layout:has([data-semantic-results]) > [data-semantic-results] {
+  height: auto;
+}

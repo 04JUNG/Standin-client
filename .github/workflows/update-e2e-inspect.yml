@@ -1,0 +1,41 @@
+name: Inspect existing signed updater artifacts
+on:
+  push:
+    branches: [codex/automatic-updates-e2e]
+    paths:
+      - "scripts/update-e2e/inspect.py"
+      - ".github/workflows/update-e2e-inspect.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            platform: windows-x86_64
+          - runner: macos-15-intel
+            platform: darwin-x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 39417504387
+          name: updater-e2e-installers-${{ matrix.platform }}
+          path: inspect-packages
+      - name: Inspect OS signature and notarization
+        run: python scripts/update-e2e/inspect.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: updater-signature-inspection-${{ matrix.platform }}
+          path: inspect-results.json
+          retention-days: 14
