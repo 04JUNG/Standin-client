@@ -283,6 +283,14 @@ fn cover_current_monitor(window: &WebviewWindow) {
 pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), WindowError> {
     let window = main_window(&app)?;
     let max_width_fraction = validated_width_fraction(req.max_width_fraction)?;
+    // Simple fullscreen restores its saved frame/style. Leave it BEFORE applying
+    // the destination size, otherwise that restoration overwrites the bar.
+    #[cfg(target_os = "macos")]
+    if req.mode != "overlay" {
+        window
+            .set_simple_fullscreen(false)
+            .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
+    }
     // Clear the policy before an app/overlay resize emits native window events.
     *BAR_MAX_WIDTH_FRACTION
         .lock()
@@ -359,17 +367,34 @@ pub fn set_window_mode(app: AppHandle, req: WindowModeRequest) -> Result<(), Win
             // 결과는 "캡처 후 앱이 화면 전체를 검게 덮고 그 안에 바가 떠 있는" 상태다
             // (0.1.1-beta.4에서 실측). 모니터 좌표로 직접 맞추면 전부 동기라 이 창이 없다.
             //
-            // 잃는 것: 메뉴 막대와 Dock이 오버레이 위에 남는다. 전체화면일 때도 메뉴
-            // 막대는 이미 보였고, 바가 깨지는 것보다 낫다.
+            // Simple fullscreen uses a synchronous frame/style change, without
+            // toggleFullScreen: or a new Space. It also auto-hides the real menu
+            // bar/Dock so the captured menu bar is displayed only once and the
+            // frame starts at the actual screen origin (including the notch).
             #[cfg(target_os = "macos")]
             if req.monitor.is_none() {
                 cover_current_monitor(&window);
             }
 
+            #[cfg(target_os = "macos")]
+            window
+                .set_simple_fullscreen(true)
+                .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
+
             #[cfg(not(target_os = "macos"))]
             window
                 .set_fullscreen(true)
                 .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
+
+            // macOS style-mask changes (including set_resizable above) make tao's
+            // parent NSView the first responder. Focusing only the NSWindow does
+            // not give WKWebView key events back; a click used to be required.
+            // Restore webview focus AFTER every overlay window mutation so Esc
+            // works immediately, before the user starts a selection.
+            window
+                .set_focus()
+                .and_then(|()| tauri::Webview::set_focus(window.as_ref()))
+                .map_err(|e| WindowError::new("FOCUS_FAILED", e.to_string()))?;
         }
 
         "app" => {
