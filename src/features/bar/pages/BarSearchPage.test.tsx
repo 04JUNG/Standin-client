@@ -16,7 +16,12 @@ vi.mock("@/features/pose-viewer/api/pose.service", () => ({
   poseService: { loadResult: api.loadResult },
 }));
 vi.mock("../components/BarShell", () => ({
-  BarShell: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  BarShell: ({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) => (
+    <section>
+      {children}
+      {footer}
+    </section>
+  ),
 }));
 beforeEach(() => {
   clearSearchDrafts();
@@ -166,4 +171,21 @@ it("session clear cannot resurrect a pending draft or publish its late response"
   expect(usePoseSelectionStore.getState().jobId).not.toBe("job_late");
   hook.unmount();
   expect(readSearchDraft(undefined, "entry", "")).toBeUndefined();
+});
+
+it("has a bottom back action returning to the bar main screen while keeping the text draft", async () => {
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={["/auth/login", "/bar/search"]}>
+        <Routes>
+          <Route path="/bar/search" element={<BarSearchPage />} />
+          <Route path="/bar/actions" element={<p>바 메인</p>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "돌아서는 자세" } });
+  fireEvent.click(screen.getByRole("button", { name: "뒤로가기" }));
+  expect(await screen.findByText("바 메인")).toBeInTheDocument();
+  expect(readSearchDraft(undefined, "entry", "")?.query).toBe("돌아서는 자세");
 });

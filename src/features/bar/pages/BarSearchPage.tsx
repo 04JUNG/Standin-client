@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import { BarSearchBackButton } from "../components/BarSearchBackButton";
 import { BarShell } from "../components/BarShell";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { initialSearchQuery } from "@/features/semantic-search/searchDraft";
@@ -6,7 +7,14 @@ import { initialSearchQuery } from "@/features/semantic-search/searchDraft";
 export function BarSearchPage() {
   const { state } = useLocation();
   return (
-    <BarShell title="문장으로 포즈 찾기">
+    <BarShell
+      title="문장으로 포즈 찾기"
+      footer={
+        <div className="py-2">
+          <BarSearchBackButton />
+        </div>
+      }
+    >
       <div className="min-w-0 space-y-3 p-3">
         <SemanticSearchBar
           initialQuery={initialSearchQuery(state)}

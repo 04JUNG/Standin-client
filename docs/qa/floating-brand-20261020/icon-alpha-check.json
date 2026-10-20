@@ -1,0 +1,546 @@
+{
+  "128x128.png": [
+    {
+      "size": [
+        128,
+        128
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "128x128@2x.png": [
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "32x32.png": [
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "64x64.png": [
+    {
+      "size": [
+        64,
+        64
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square107x107Logo.png": [
+    {
+      "size": [
+        107,
+        107
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square142x142Logo.png": [
+    {
+      "size": [
+        142,
+        142
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square150x150Logo.png": [
+    {
+      "size": [
+        150,
+        150
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square284x284Logo.png": [
+    {
+      "size": [
+        284,
+        284
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square30x30Logo.png": [
+    {
+      "size": [
+        30,
+        30
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square310x310Logo.png": [
+    {
+      "size": [
+        310,
+        310
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square44x44Logo.png": [
+    {
+      "size": [
+        44,
+        44
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square71x71Logo.png": [
+    {
+      "size": [
+        71,
+        71
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "Square89x89Logo.png": [
+    {
+      "size": [
+        89,
+        89
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "StoreLogo.png": [
+    {
+      "size": [
+        50,
+        50
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "icon.icns": [
+    {
+      "size": [
+        1024,
+        1024
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        128,
+        128
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        64,
+        64
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    },
+    {
+      "size": [
+        16,
+        16
+      ],
+      "alphaExtrema": [
+        255,
+        255
+      ],
+      "cornerAlpha": [
+        255,
+        255,
+        255,
+        255
+      ]
+    }
+  ],
+  "icon.ico": [
+    {
+      "size": [
+        16,
+        16
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "size": [
+        24,
+        24
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "size": [
+        48,
+        48
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "size": [
+        64,
+        64
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "icon.png": [
+    {
+      "size": [
+        512,
+        512
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "favicon.svg": {
+    "originalBytesPreserved": true,
+    "sha256": "8d62b5cdbf95580f62989c88acd447c5d303e966e51c1ebd6600ea197c1406dc"
+  },
+  "favicon_circle.svg": {
+    "originalBytesPreserved": true,
+    "sha256": "766b5eb97c7d157b711564d4c39cdc35b39fcdeb4df1c6f03902302cb934f659"
+  },
+  "package": {
+    "CFBundleIdentifier": "app.standin.dock-qa-20261020",
+    "appPath": "/private/tmp/standin-floating-brand-ui-20261020/src-tauri/target/debug/bundle/macos/Standin Dock QA.app",
+    "icnsSha256": "ced5926fbfbe1c90e25f1d010727643e7e023c03c76ef5fa0c3a874cf8da81e6",
+    "packagedMacIconMatches": true
+  }
+}

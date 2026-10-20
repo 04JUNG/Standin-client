@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { Camera } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { windowModeService } from "../api/windowMode.service";
 import { useDragOrClick } from "../hooks/useDragOrClick";
@@ -19,7 +18,7 @@ export function BarCollapsedPage() {
 
   return (
     // 창 경계에서 원이 잘리지 않도록 4px 안쪽에 그린다(barSizes 주석 참고).
-    <div className="flex h-full w-full items-center justify-center bg-transparent p-1">
+    <div className="flex h-full w-full items-center justify-center pointer-events-none bg-transparent p-1">
       <button
         type="button"
         {...handlers}
@@ -37,14 +36,18 @@ export function BarCollapsedPage() {
         aria-label="Standin 열기"
         title="눌러서 열기 · 끌어서 옮기기 · 우클릭으로 닫기"
         className={cn(
-          "flex h-full w-full cursor-pointer items-center justify-center rounded-full",
-          // 창이 원과 같은 크기라 그림자는 잘려 네모 얼룩으로 보인다. ring만 쓴다(실측).
-          "bg-brand-coral text-white ring-1 ring-black/20 transition-colors",
-          "hover:bg-brand-coral-dark active:cursor-grabbing",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+          "pointer-events-auto flex h-full w-full cursor-pointer items-center justify-center rounded-full [clip-path:circle(50%)]",
+          // 제공된 로고 바깥에 배경·테두리·그림자를 더하지 않는다.
+          "border-0 bg-transparent p-0 transition-[filter] hover:brightness-110 active:cursor-grabbing",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-sky",
         )}
       >
-        <Camera className="h-5 w-5 shrink-0" aria-hidden />
+        <img
+          src="/standinLogo.png"
+          alt=""
+          draggable={false}
+          className="pointer-events-none h-full w-full select-none"
+        />
       </button>
     </div>
   );
