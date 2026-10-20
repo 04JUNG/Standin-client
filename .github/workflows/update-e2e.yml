@@ -10,6 +10,8 @@ name: Signed updater end-to-end verification
       - "scripts/update-e2e/inspect.py"
       - ".github/workflows/update-e2e-inspect.yml"
       - ".github/workflows/update-e2e.yml"
+      - ".github/workflows/update-startup-replay.yml"
+      - "scripts/update-e2e/replay-startup.py"
   workflow_dispatch: {}
 permissions:
   contents: read

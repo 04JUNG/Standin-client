@@ -1,0 +1,38 @@
+name: Replay original signed macOS startup
+on:
+  push:
+    branches: [codex/automatic-updates-e2e]
+    paths:
+      - ".github/workflows/update-startup-replay.yml"
+      - "scripts/update-e2e/replay-startup.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  replay:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download exact installers from the first failed attempt
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 39422374014
+          artifact-ids: "12265671389"
+          merge-multiple: true
+          path: startup-replay-packages
+      - name: Probe original unmodified A and B startup
+        env:
+          STANDIN_E2E_ROOT: ${{ runner.temp }}/standin-updater-e2e
+        run: python scripts/update-e2e/replay-startup.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-startup-replay
+          path: startup-replay-evidence/
+          retention-days: 14
