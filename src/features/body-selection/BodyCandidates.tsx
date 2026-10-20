@@ -18,7 +18,7 @@ import { ShapeControlGrid } from "./ShapeControls";
 import { shapeDefaults as defaults } from "./shapeValues";
 import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
 import type { BodyCard, BodyOption, BodySelection } from "./contract";
-import "./BodyCandidates.css";
+import "@/shared/styles/horizontal-scroll.css";
 
 export function selectionFallbackMessage(selection?: BodySelection) {
   return selection?.resolvedSource === "catalog_default_fallback" &&
@@ -459,7 +459,7 @@ export function BodyExpand({
               role="radiogroup"
               aria-label="내 체형과 체형 프리셋"
               tabIndex={0}
-              className="body-preset-scroll flex min-w-0 snap-x gap-2 overflow-x-auto overflow-y-hidden pb-2"
+              className="horizontal-scroll flex min-w-0 snap-x gap-2 overflow-x-auto overflow-y-hidden pb-2"
             >
               {visibleCards.map((card) => {
                 const base = baseOf(card)!;
