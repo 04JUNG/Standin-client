@@ -1,3 +1,4 @@
+import { hasPresentationCandidates, presentationNotice } from "../api/presentationState";
 import { ChevronRight } from "lucide-react";
 import { BodyLabel } from "@/features/body-selection/BodyCandidates";
 import type { BodyEntry } from "@/features/body-selection/hooks";
@@ -33,7 +34,8 @@ export function PersonIndexRow({
   onOpen(): void;
 }) {
   const hard = person.fallbackMode === "hard";
-  const reference = !!person.posePresentation && person.candidates.length === 0;
+  const empty = person.candidates.length === 0;
+  const reference = hasPresentationCandidates(person.posePresentation) && empty;
   return (
     <div
       className={cn(
@@ -45,7 +47,7 @@ export function PersonIndexRow({
       <div className="w-[128px] shrink-0">
         {reference ? (
           <span className="text-xs">참고용 포즈</span>
-        ) : hard ? (
+        ) : empty ? (
           <span className="text-[11.5px] text-text-secondary">후보 없음</span>
         ) : (
           <ExportSwitch
@@ -79,8 +81,9 @@ export function PersonIndexRow({
         <span className="truncate text-[12px] text-text-secondary">
           {reference
             ? "참고 포즈 펼치기"
-            : hard
-              ? "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
+            : empty
+              ? (person.posePresentation && presentationNotice(person.posePresentation)) ||
+                "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
               : !included
                 ? "인물 선택 꺼짐"
                 : selectedTitle

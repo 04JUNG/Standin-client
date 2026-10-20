@@ -471,3 +471,93 @@ it.each([
     await screen.findByText("최종 파일 확인");
   },
 );
+
+it.each(["app", "bar"] as const)(
+  "%s keeps empty presentations distinct from real reference poses after the layout merge",
+  async (mode) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const presentation = {
+      version: "dynamic-pose-presentation-v1",
+      person_index: 0,
+      route: "hybrid",
+      status: "error",
+      search_status: "error",
+      search_reason: "hand_skin_screen_unavailable_no_generation",
+      generation_status: "not_requested",
+      generation_reason: null,
+      output_scope: "full",
+      unobserved_body_is_default: null,
+      library_candidates: [],
+      review_candidates: [],
+      generated_candidates: [],
+      basic_model: null,
+      issues: [],
+      preview_status: "unavailable",
+      auto_apply_allowed: false,
+      refine_allowed: false,
+      export_allowed: false,
+    } as const;
+    const data = {
+      jobId: "empty-layout-test",
+      capabilities: { refine: false, fbxExport: true, characterSelection: false },
+      people: [
+        {
+          index: 0,
+          confidence: "low",
+          skeletonState: "missing",
+          skeletonSource: "none",
+          coverageClass: "insufficient",
+          fallbackMode: "hard",
+          refineAllowed: false,
+          refinableLimbs: [],
+          candidates: [],
+          posePresentation: presentation,
+        },
+      ],
+    } as unknown as AnalysisResult;
+    client.setQueryData(poseQueryKeys.result("click-test"), data);
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/app/jobs/click-test"]}>
+          <Routes>
+            <Route
+              path="/app/jobs/:jobId"
+              element={mode === "app" ? <PoseViewerPage /> : <BarCandidatesPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    for (const notice of await screen.findAllByText(/포즈 검색을 마치지 못했어요/))
+      expect(notice).toBeVisible();
+    expect(screen.getAllByText("후보 없음").length).toBeGreaterThan(0);
+    expect(screen.queryByText("참고용 포즈")).toBeNull();
+    expect(screen.queryByText("참고 포즈 펼치기")).toBeNull();
+    expect(screen.queryByText("참고용 미리보기")).toBeNull();
+    expect(screen.queryByRole("switch")).toBeNull();
+
+    const next = structuredClone(data);
+    next.people[0].posePresentation!.search_status = "no_result";
+    next.people[0].posePresentation!.search_reason = null;
+    next.people[0].posePresentation!.review_candidates = [
+      {
+        candidate_id: "reference-only",
+        pose_id: "pose-reference",
+        kind: "near_match",
+        source: "library",
+        rank: 1,
+        asset: {
+          transport: "library_bvh",
+          bvh_sha256: "a".repeat(64),
+          preview_bvh_url: "/v1/reference",
+        },
+        render_camera: {},
+      } as unknown as import("../api/posePresentation").PreviewCandidate,
+    ];
+    client.setQueryData(poseQueryKeys.result("click-test"), next);
+    expect(await screen.findByAltText("후보 이미지 1")).toBeVisible();
+    expect(screen.getByText("참고용 미리보기")).toBeVisible();
+    if (mode === "app") expect(screen.getByText("참고 포즈 펼치기")).toBeVisible();
+    expect(screen.queryByRole("switch")).toBeNull();
+  },
+);

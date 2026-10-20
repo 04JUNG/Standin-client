@@ -1,3 +1,4 @@
+import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { cn } from "@/shared/lib/cn";
 import {
   BodyCandidateCard,
@@ -94,9 +95,13 @@ export function BarPersonCandidates({
               인물 {person.index + 1}
             </h2>
           )}
-          {included && selected && (
+          {person.candidates.length === 0 ? (
+            <span className="text-[11px] text-text-secondary">
+              {hasPresentationCandidates(person.posePresentation) ? "참고용 미리보기" : "후보 없음"}
+            </span>
+          ) : included && selected ? (
             <span className="text-[11px] text-text-secondary">포즈 선택됨</span>
-          )}
+          ) : null}
         </div>
         {!semantic &&
           selectable &&

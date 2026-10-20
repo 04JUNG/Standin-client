@@ -1,3 +1,4 @@
+import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { PosePresentationPanel } from "../components/PosePresentationPanel";
 import { useExportStore } from "@/features/export/store/exportStore";
@@ -479,9 +480,9 @@ function ActivePersonCard({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[12px] text-text-secondary">
-            {person.posePresentation && person.candidates.length === 0
+            {hasPresentationCandidates(person.posePresentation) && person.candidates.length === 0
               ? "참고용 미리보기"
-              : hard
+              : person.candidates.length === 0
                 ? "후보 없음"
                 : !included
                   ? "인물 선택 꺼짐"
