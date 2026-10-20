@@ -104,6 +104,7 @@ export const useExportStore = create<ExportState>()(
           status: "saved",
           savedPaths: [...state.savedPaths, ...paths],
           error: null,
+          errorCode: undefined,
         })),
       setError: (message, errorCode) => set({ status: "error", error: message, errorCode }),
       clearError: () => set({ status: "idle", error: null, errorCode: undefined }),

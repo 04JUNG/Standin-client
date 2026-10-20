@@ -1,3 +1,4 @@
+import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
 import { apiFetch, apiFetchResponse } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
@@ -72,7 +73,7 @@ export function handReviewFromResponse(
     response.headers.get("X-Standin-Hand-Revision") !== String(selection.revision) ||
     response.headers.get("X-Standin-Hand-Library-SHA256") !== selection.library_sha256
   )
-    throw new Error("손 선택이 변경되었습니다. 다시 확인해 주세요.");
+    throw new ApiError(409, "HANDS_CHANGED", "손 선택이 변경되었습니다. 다시 확인해 주세요.");
   const reviewKey = sha.parse(response.headers.get("X-Standin-Review-Key"));
   const url = new URL(downloadUrl, "https://standin.invalid");
   url.searchParams.set("handSelectionRevision", String(selection.revision));
@@ -93,7 +94,11 @@ export async function downloadHandReview(receipt: HandReview) {
     response.headers.get("X-Standin-Hand-Revision") !== String(receipt.revision) ||
     response.headers.get("X-Standin-Hand-Library-SHA256") !== receipt.librarySha256
   )
-    throw new Error("확인한 손과 파일이 다릅니다. 확인 화면으로 돌아가 주세요.");
+    throw new ApiError(
+      409,
+      "HANDS_CHANGED",
+      "확인한 손과 파일이 다릅니다. 확인 화면으로 돌아가 주세요.",
+    );
   const bytes = await response.arrayBuffer();
   await verifyDigest(bytes, receipt.artifactSha256);
   return new Uint8Array(bytes);

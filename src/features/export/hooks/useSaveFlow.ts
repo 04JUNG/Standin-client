@@ -72,9 +72,10 @@ async function resolvePoseBytes(
   // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
   // exportUrl을 optional로 낮추는 대신 여기서 갈라낸다: "미리보기와 저장이 같은 URL"은
   // 낮추면 안 되는 production 계약이다(refine.contract.ts).
-  if (!exportUrl || (env.useMockPoseApi && !env.isProduction)) {
+  if (env.useMockPoseApi && !env.isProduction) {
     return mockBvhContent(candidateId);
   }
+  if (!exportUrl) throw new ApiError(409, "INVALID_EXPORT", "");
   try {
     const url =
       scope && format === "fbx"

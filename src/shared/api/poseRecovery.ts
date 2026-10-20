@@ -2,6 +2,7 @@ import { ApiError } from "./errors";
 import { messageForCode } from "./errorMessages";
 
 const CHOOSE = new Set([
+  "GENERATED_SOURCE_UNAVAILABLE",
   "PREVIEW_UNAVAILABLE",
   "PREVIEW_SOURCE_CHANGED",
   "PREVIEW_HASH_MISMATCH",

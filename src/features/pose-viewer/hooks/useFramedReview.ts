@@ -1,3 +1,4 @@
+import { ApiError } from "@/shared/api/errors";
 import { poseRecovery } from "@/shared/api/poseRecovery";
 import { useHands } from "@/features/hand-selection/hooks";
 import { loadHandReview, type HandReview } from "@/features/hand-selection/api";
@@ -179,9 +180,9 @@ export function useFramedReview(jobId: string | undefined) {
             }
           : undefined;
         if (receipt && Object.values(receipt).some((v) => !/^[a-f0-9]{64}$/.test(v)))
-          throw new Error("저장할 포즈의 확인 정보를 받지 못했습니다.");
+          throw new ApiError(409, "MANUAL_REVIEW_REQUIRED", "");
         if (receipt && receipt.sourceSha !== review.items[index]!.candidate.sourceBvhSha256)
-          throw new Error("선택한 포즈와 미리보기의 원본이 다릅니다.");
+          throw new ApiError(409, "PREVIEW_HASH_MISMATCH", "");
         const blob = response
           ? await response.blob()
           : await apiFetchBlob(request.url, { auth: false, signal });
@@ -210,7 +211,7 @@ export function useFramedReview(jobId: string | undefined) {
             (meta.source_bvh_sha256 !== receipt.sourceSha ||
               meta.character_sha256 !== receipt.characterSha)
           )
-            throw new Error("선택한 포즈와 체형을 확인하지 못했습니다.");
+            throw new ApiError(409, "PREVIEW_CHANGED", "");
           if (
             !/^[a-f0-9]{64}$/.test(meta.character_sha256) ||
             !/^[a-f0-9]{64}$/.test(meta.revision)
