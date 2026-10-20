@@ -30,7 +30,6 @@ export function ReviewPage() {
     requiresFbx,
     previewNotice,
     retryPreview,
-    shapedBake,
   } = useFramedReview(jobId);
 
   if (!jobId) return <Navigate to="/app/home" replace />;
@@ -46,11 +45,6 @@ export function ReviewPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
-            <p className="text-[13px] text-text-secondary">
-              {hands?.pending || previewLoading
-                ? "최종 미리보기를 준비하고 있습니다…"
-                : "아래 포즈를 확인한 뒤 저장하세요."}
-            </p>
             <ul
               className={`grid gap-3 ${items.length === 1 ? "mx-auto w-full max-w-[clamp(140px,calc(100dvh_-_480px),480px)] grid-cols-1" : "grid-cols-2"}`}
             >
@@ -103,12 +97,12 @@ export function ReviewPage() {
           </div>
         )}
 
-        {previewNotice && <p className="text-[12px] text-text-secondary">{previewNotice}</p>}
-        {previewLoading && (
+        {!previewLoading && !previewError && !requiresFbx && previewNotice && (
+          <p className="text-[12px] text-text-secondary">{previewNotice}</p>
+        )}
+        {previewLoading && !isRefining && (
           <p role="status" className="text-[12px] text-text-secondary">
-            {shapedBake
-              ? `고른 체형${hands?.enabled ? "과 손 모양" : ""}으로 저장할 모습을 만들고 있어요. 1~2분 걸릴 수 있어요.`
-              : "저장할 모습을 준비하고 있어요…"}
+            저장할 모습을 준비하고 있어요…
           </p>
         )}
         {requiresFbx && <GeneratedFbxNotice />}

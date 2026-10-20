@@ -89,7 +89,7 @@ export function HandChips({
       className={`flex flex-col gap-2 border-t border-border ${compact ? "p-2" : "p-3"}`}
     >
       <div className="flex items-center justify-between gap-2 text-[12px] text-text-secondary">
-        <span>인물 {personIndex + 1}의 손 · 그림 속 인물의 왼쪽과 오른쪽이에요</span>
+        <span>인물 {personIndex + 1}의 손 · 인물 기준</span>
         <button
           type="button"
           disabled={state.pending || !selection.changed.length}
@@ -102,7 +102,7 @@ export function HandChips({
       </div>
       {selection.observation.status === "unavailable" && (
         <p className="text-[12px] text-text-secondary">
-          러프에서 손 모양을 읽지 못해 힘을 뺀 손으로 보여드려요. 원하는 모양으로 바꿀 수 있어요.
+          손 모양을 확인하고 골라 주세요.
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -134,11 +134,11 @@ export function HandChips({
           </button>
         ))}
       </div>
-      <p role="status" className="text-[12px] text-text-secondary">
-        {state.pending
-          ? "손 선택 저장 중…"
-          : "고른 손 모양은 저장 전 미리보기와 FBX 파일에 적용돼요."}
-      </p>
+      {state.pending && (
+        <p role="status" className="text-[12px] text-text-secondary">
+          손 선택 저장 중…
+        </p>
+      )}
       {state.changeError && (
         <p role="alert" className="text-[12px] text-brand-coral">
           {messageOf(
