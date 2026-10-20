@@ -214,6 +214,27 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+function validSemanticThumbnail(url: string, poseId: string): boolean {
+  const [path, query, extra] = url.split("?");
+  if (
+    path !== `/v1/pose-candidates/${encodeURIComponent(poseId)}/thumbnail` ||
+    !query ||
+    extra !== undefined ||
+    url.includes("#")
+  )
+    return false;
+  const params = new URLSearchParams(query);
+  const entries = [...params.entries()];
+  return (
+    params.getAll("view").length === 1 &&
+    params.get("view") === "front" &&
+    params.getAll("revision").length <= 1 &&
+    entries.every(
+      ([key, value]) => key === "view" || (key === "revision" && /^[a-f0-9]{7,64}$/.test(value)),
+    )
+  );
+}
+
 async function toPoseCandidate(
   raw: BffCandidate,
   jobId: string,
@@ -223,12 +244,7 @@ async function toPoseCandidate(
 ): Promise<PoseCandidate> {
   const semantic =
     raw.semantic === undefined ? undefined : semanticCandidateSchema.parse(raw.semantic);
-  if (
-    semantic &&
-    raw.thumbnailUrl &&
-    raw.thumbnailUrl !==
-      `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/thumbnail?view=front`
-  )
+  if (semantic && raw.thumbnailUrl && !validSemanticThumbnail(raw.thumbnailUrl, raw.poseId))
     throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid thumbnail path");
   const deferred = !!raw.camera && !!raw.thumbnailUrl;
   // Do not fetch aligned images or wait for all 20 thumbnails before returning
