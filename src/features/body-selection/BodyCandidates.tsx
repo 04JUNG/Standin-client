@@ -19,6 +19,14 @@ import { shapeDefaults as defaults } from "./shapeValues";
 import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
 import type { BodyCard, BodyOption, BodySelection } from "./contract";
 
+export function selectionFallbackMessage(selection?: BodySelection) {
+  return selection?.resolvedSource === "catalog_default_fallback" &&
+    selection.resolutionStatus === "ready" &&
+    selection.recommendation.status !== "available"
+    ? "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요."
+    : undefined;
+}
+
 function sourceLabel(selection?: BodySelection, card?: BodyCard) {
   if (card) return "내 체형";
   if (selection?.resolvedSource === "last_used") return "마지막 체형";
@@ -26,8 +34,6 @@ function sourceLabel(selection?: BodySelection, card?: BodyCard) {
   switch (selection?.resolvedSource) {
     case "manual":
       return "고른 체형";
-    case "fixed_default":
-      return "내 기본 체형";
     case "auto_recommendation":
       return "자동 추천";
     default:
@@ -78,6 +84,7 @@ export function BodyChip({
   const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span
+      title={selectionFallbackMessage(entry?.selection)}
       className={cn(
         "inline-flex min-w-0 items-center gap-1.5 rounded-full border border-border bg-surface-0 py-0.5 pl-2.5 pr-0.5 text-[12px]",
         className,
@@ -554,6 +561,12 @@ export function BodyExpand({
         </div>
       )}
 
+      {selectionFallbackMessage(selection) && (
+        <p role="status" className="text-[11.5px] text-text-secondary">
+          {selectionFallbackMessage(selection)}
+        </p>
+      )}
+
       {/* 조절 바 */}
       <div className="flex shrink-0 flex-col gap-1.5 rounded-xl border border-border bg-surface-0 px-2.5 py-2">
         <div className="flex items-center justify-between gap-2 text-[11.5px] text-text-secondary">
@@ -592,7 +605,7 @@ export function BodyExpand({
         )}
         <div className="flex flex-wrap items-center gap-1.5">
           <ToolButton
-            disabled={busy || selection?.recommendation.status !== "available"}
+            disabled={busy || !selection || selection.resolutionStatus === "not_applicable"}
             onClick={() => {
               setKindView(null);
               mutation.mutate({ intent: "auto" });
@@ -600,7 +613,7 @@ export function BodyExpand({
             title={
               selection?.recommendation.status === "available"
                 ? "러프에 맞춰 추천한 체형으로 바꿉니다"
-                : "이 인물은 자동 추천을 만들지 못했어요"
+                : "추천을 찾지 못하면 남성 기본형으로 바꿉니다"
             }
           >
             <Sparkles className="h-3 w-3 text-brand-coral" aria-hidden />

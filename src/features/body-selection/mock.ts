@@ -469,8 +469,6 @@ let preferences: BodyPreferences = {
   version: "body-preferences.v1",
   scope: "installation",
   mode: "last_used",
-  defaultCharacterId: null,
-  shapeDefault: null,
   // 처음에는 비어 있다 — 체형 커스텀에서 카드를 만드는 흐름을 처음부터 볼 수 있게.
   cards: [],
   lastUsed: null,
@@ -592,11 +590,6 @@ export const bodyMock = {
     preferences = {
       ...preferences,
       mode: value.mode ?? preferences.mode,
-      defaultCharacterId:
-        value.defaultCharacterId !== undefined
-          ? value.defaultCharacterId
-          : preferences.defaultCharacterId,
-      ...("shapeDefault" in value ? { shapeDefault: value.shapeDefault ?? null } : {}),
       revision: preferences.revision + 1,
     };
     return { ...structuredClone(preferences), shapeEditable: shapeEditable() };

@@ -110,7 +110,11 @@ export function useBodies(
       selections[i]?.error ??
       groups[i]?.error ??
       (selections[i]?.data && selections[i]?.data?.resolutionStatus !== "ready"
-        ? new Error("사용할 체형을 선택해 주세요.")
+        ? new Error(
+            selections[i]?.data?.resolvedSource === "catalog_default_fallback"
+              ? "남성 기본형을 불러올 수 없어요. 체형 더보기에서 다른 체형을 고르거나 다시 시도해 주세요."
+              : "사용할 체형을 선택해 주세요.",
+          )
         : null),
     retry: async () => {
       await selections[i]?.refetch();

@@ -73,7 +73,7 @@ beforeEach(() => {
     credentials: { installationId: "owner", deviceToken: "fixture", consentVersion: "2026-08-02" },
   });
 });
-function mount(scopes: string[], bodyMode = false, staleBodyHands = false) {
+function mount(scopes: string[], bodyMode = false, staleBodyHands = false, selectedBody = body) {
   const qc = new QueryClient();
   qc.setQueryData(poseQueryKeys.result("job"), {
     jobId: "job",
@@ -102,13 +102,13 @@ function mount(scopes: string[], bodyMode = false, staleBodyHands = false) {
   scopes.forEach((scope, i) => {
     qc.setQueryData(handKeys.selection("owner", "job", i), { ...hands, personIndex: i });
     if (bodyMode) {
-      qc.setQueryData(bodyKeys.selection("owner", "job", i), body);
+      qc.setQueryData(bodyKeys.selection("owner", "job", i), selectedBody);
       qc.setQueryData([...bodyKeys.person("owner", "job", i), "review", `pick${i}`], {
         candidateId: `pick${i}`,
         personIndex: i,
         exportUrl: url(i),
         scope,
-        selection: body,
+        selection: selectedBody,
         downloadUrl: "/fixture/paired.fbx",
         ...(staleBodyHands
           ? { hands: { revision: hands.revision, librarySha256: hands.library_sha256 } }
@@ -159,4 +159,17 @@ it("head rejects an old body receipt that still carries hand identity", async ()
   await waitFor(() => expect(hook.result.current.status).toBe("error"));
   expect(mock.body).not.toHaveBeenCalled();
   expect(mock.save).not.toHaveBeenCalled();
+});
+
+it("saves the reviewed male fallback when body detection failed", async () => {
+  const fallback = {
+    ...body,
+    resolvedBody: { ...body.resolvedBody!, characterId: "male-base-v0-7-2" },
+    resolvedSource: "catalog_default_fallback",
+    recommendation: { status: "unavailable", body: null, reasonCodes: [] },
+  } as BodySelection;
+  const hook = mount(["head"], true, false, fallback);
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.body.mock.calls[0]?.[0].selection.resolvedBody.characterId).toBe("male-base-v0-7-2");
+  expect(mock.save).toHaveBeenCalledTimes(1);
 });

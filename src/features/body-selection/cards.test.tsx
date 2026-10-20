@@ -27,8 +27,6 @@ const prefs = (over: Partial<BodyPreferences> = {}): BodyPreferences => ({
   version: "body-preferences.v1",
   scope: "installation",
   mode: "last_used",
-  defaultCharacterId: null,
-  shapeDefault: null,
   cards: [],
   lastUsed: null,
   revision: 4,
@@ -61,12 +59,20 @@ beforeEach(() => {
 });
 
 describe("체형 카드 규칙", () => {
-  it("shows an older 내 기본값 as one card when the server has no cards yet", () => {
+  it("shows the personal card migrated by the server", () => {
     expect(cardsOf(null)).toEqual([]);
     expect(cardsOf(prefs({ cards: [card()] }))).toEqual([card()]);
     const legacy = prefs({
-      cards: undefined,
-      shapeDefault: { characterId: "male-bulk", controls: { muscle: 1 } },
+      cards: [
+        {
+          cardId: "my-default",
+          name: "내 기본 체형",
+          characterId: "male-bulk",
+          controls: { muscle: 1 },
+          createdAt: "",
+          updatedAt: "",
+        },
+      ],
     });
     expect(cardsOf(legacy)).toMatchObject([{ cardId: "my-default", name: "내 기본 체형" }]);
   });

@@ -69,8 +69,6 @@ const base = (over: Partial<BodyPreferences> = {}): BodyPreferences => ({
   version: "body-preferences.v1",
   scope: "installation",
   mode: "last_used",
-  defaultCharacterId: null,
-  shapeDefault: null,
   cards: [
     {
       cardId: "card_1",
@@ -155,6 +153,6 @@ it("starts new jobs with the last used body by default and can switch to auto", 
   expect(await screen.findByText(/지금은 ‘주인공 A’/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("radio", { name: /^자동 추천/ }));
   await waitFor(() =>
-    expect(putPreferences).toHaveBeenCalledWith({ mode: "auto", defaultCharacterId: null }, 2),
+    expect(putPreferences).toHaveBeenCalledWith({ mode: "auto" }, 2),
   );
 });
