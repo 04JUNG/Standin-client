@@ -4,6 +4,9 @@
 [ADR-014](adr/ADR-014-automatic-update-and-release-notes.md)를 따른다.
 설치 중 작업 보호, 캐시 서명 재검증, 실패 후 재시작 반복 방지와 변경 내역 누락 검사를 포함한다.
 [서명된 A→B 설치 검증 결과](qa/2026-10-20-signed-updater.md)에 플랫폼별 증거와 남은 배포 확인 항목을 기록한다.
+[후속 Universal DMG 검증·초기 실행 조사](qa/2026-10-20-universal-updater.md)에서
+양쪽 Mac CPU의 실제 업데이트와 DMG 공간 부족 수정을 확인했다. 추가 시작 300회에서
+시간 초과가 재현되지 않았으나 과거 1건의 근본 원인은 미확정이다.
 
 ## 1. 지원 운영체제
 

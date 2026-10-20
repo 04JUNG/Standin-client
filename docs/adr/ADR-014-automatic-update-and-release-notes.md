@@ -86,6 +86,12 @@ dev와 staging의 빈 endpoints, 별도 앱 identifier, staging prerelease 정�
 Apple Silicon·Intel에서 7개씩 21개 시나리오를 통과했다. 아래 전체 배포 점검 목록과
 실제로 수행한 E2E 범위는 검증 보고서에서 구분한다.
 
+[후속 Universal 검증](../qa/2026-10-20-universal-updater.md)에서는 두 Mac CPU 모두
+Universal DMG의 A→B 업데이트와 추가 시작 검사를 통과했다.
+DMG 재구성용 볼륨에 Universal 실행 파일을 교체할 공간을 확보하도록 수정했다.
+원본 바이너리 조사를 포함한 시작 300회에서 과거 시간 초과는 재현되지 않았으나,
+근본 원인을 확정한 것은 아니다.
+
 - Windows NSIS, macOS Apple Silicon/Intel: A에서 B 다운로드→종료→다음 실행 설치→재실행.
 - 다운로드 도중 종료/네트워크 단절, 다운로드 후 오프라인 실행, 파일 변조·디스크 오류.
 - 설치 권한 거부/설치 실패 후 기존 버전 실행, 자동 설치 반복 방지와 수동 재시도.

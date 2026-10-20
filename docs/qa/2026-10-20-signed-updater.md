@@ -3,6 +3,11 @@
 상태: Windows x64, macOS Apple Silicon·Intel의 서명된 QA 앱에서 21/21 시나리오 통과.
 production 배포는 수행하지 않았다.
 
+이 문서는 CPU별 패키지 검증 당시의 기록이다.
+[후속 Universal DMG 검증·시작 시간 초과 조사](2026-10-20-universal-updater.md)에서
+Universal 양쪽 CPU 검증과 패키징 공간 부족 수정을 완료했다.
+과거 초기 시간 초과는 추가 시작 300회에서 재현되지 않았으며 근본 원인은 미확정이다.
+
 ## 검증 대상
 
 Windows x64, macOS Apple Silicon, macOS Intel의 GitHub 호스팅 러너에서
