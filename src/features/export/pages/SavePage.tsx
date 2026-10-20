@@ -44,6 +44,9 @@ export function SavePage() {
   const [feedbackError, setFeedbackError] = useState(false);
 
   const {
+    sceneReview,
+    confirmScene,
+    cancelScene,
     bodyMode,
     returnToReview,
     folder,
@@ -111,13 +114,32 @@ export function SavePage() {
   return (
     <AppShell title={isSaved ? "저장 완료" : "저장"}>
       <div className="mx-auto flex max-w-[520px] flex-col gap-5 rounded-xl border border-border bg-surface-0 p-6">
-        {status === "saving" && (
+        {status === "saving" && !sceneReview && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
             <p className="text-[14px] text-text-secondary">
               포즈 {selections.length}개를 {format.toUpperCase()}로 저장하고 있습니다…
             </p>
             <p className="break-all text-[12px] text-text-secondary">{folder}</p>
+          </div>
+        )}
+
+        {sceneReview && (
+          <div className="flex flex-col gap-3">
+            <p className="text-[15px] font-semibold">보정된 장면 확인</p>
+            <img
+              src={`data:image/png;base64,${sceneReview.previewBase64}`}
+              alt="최종 FBX의 인물 방향·범위·팔·배치 미리보기"
+              className="max-h-[500px] w-full object-contain"
+            />
+            <p className="text-[13px] text-text-secondary">
+              러프에 맞춰 방향·출력 범위·팔 동작·인물 배치를 보정했습니다. 이 장면으로 저장할지
+              확인해 주세요.
+            </p>
+            <Button onClick={confirmScene}>이 장면으로 저장</Button>
+            <Button variant="secondary" onClick={cancelScene}>
+              취소
+            </Button>
           </div>
         )}
 

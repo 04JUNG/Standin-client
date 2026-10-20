@@ -72,6 +72,7 @@ type BffAnalysisResult = {
     refine?: boolean;
     fbxExport?: boolean;
     sceneExport?: boolean;
+    sceneRefinement?: boolean;
     characterSelection?: boolean;
     bodyPreviews?: boolean;
     presentationBodyPreviews?: boolean;
@@ -391,6 +392,9 @@ async function toAnalysisResult(
       refine: !semantic && raw.capabilities?.refine === true,
       // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
       fbxExport: raw.capabilities?.fbxExport === true,
+      ...(raw.capabilities?.sceneRefinement === true
+        ? { sceneRefinement: !semantic && raw.capabilities?.sceneExport === true }
+        : {}),
       sceneExport: !semantic && raw.capabilities?.sceneExport === true,
       // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
       // 않아 이 기능이 없던 때와 바이트까지 같은 파일이 나온다.
