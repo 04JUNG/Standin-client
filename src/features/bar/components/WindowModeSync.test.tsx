@@ -189,34 +189,40 @@ describe("WindowModeSync", () => {
  * 자리로 튀었다.
  */
 describe("WindowModeSync 바 위치", () => {
-  it("후보 이미지와 줄바꿈으로 내용 높이가 바뀌어도 창 크기와 위치를 고정한다", async () => {
+  it("후보 내용에 맞춰 줄고 늘지만 여러 인물이 있어도 높이 상한을 넘지 않는다", async () => {
     renderAt("/bar/candidates");
     await settle();
-    service.setMode.mockClear();
-    service.setPosition.mockClear();
+    await setContentHeight(280);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(280);
     await setContentHeight(510);
-    await setContentHeight(575);
-    await setContentHeight(535);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(510);
+    await setContentHeight(1800);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(560);
+    service.setMode.mockClear();
+    await setContentHeight(2400);
     expect(service.setMode).not.toHaveBeenCalled();
-    expect(service.setPosition).not.toHaveBeenCalled();
+    await setContentHeight(280);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(280);
   });
-  it("후보를 넘겨 내용 높이만 바뀌면 사용자가 옮긴 창을 건드리지 않는다", async () => {
+
+  it("후보 창이 줄어들 때도 사용자가 옮긴 자리를 보존한다", async () => {
     useWindowModeStore.getState().setBarPosition({ x: 200, y: 200 });
     renderAt("/bar/candidates");
     await settle();
-    expect(windowAt).toEqual({ x: 200, y: 200 });
+    windowAt = { x: 900, y: 400 };
+    await setContentHeight(280);
+    expect(windowAt).toEqual({ x: 900, y: 400 });
+    expect(useWindowModeStore.getState().barPosition).toEqual(windowAt);
+  });
 
-    windowAt = { x: 900, y: 500 }; // 사용자가 끌어 옮긴다.
-    service.setMode.mockClear();
-    service.setPosition.mockClear();
-
-    // 인물·후보마다 내용 높이가 다르지만 둘 다 표 높이(460) 안이다.
-    await setContentHeight(380);
-    await setContentHeight(420);
-
-    expect(windowAt).toEqual({ x: 900, y: 500 });
-    expect(service.setMode).not.toHaveBeenCalled();
-    expect(service.setPosition).not.toHaveBeenCalled();
+  it("검색 대기는 좁게, 결과가 도착하면 카드 비교 너비로 바꾼다", async () => {
+    useWindowModeStore.getState().setBarContentWidth(360);
+    renderAt("/bar/candidates");
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.width).toBe(360);
+    act(() => useWindowModeStore.getState().setBarContentWidth(680));
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.width).toBe(680);
   });
 
   it("내용이 넘쳐 창이 커져도 사용자가 옮긴 자리를 지킨다", async () => {
@@ -256,7 +262,10 @@ describe("WindowModeSync 바 위치", () => {
     expect(windowAt).toEqual({ x: 1500, y: 950 });
 
     await go("/bar/candidates");
-    expect(windowAt).toEqual({ x: 1200, y: 520 });
+    expect(windowAt).toEqual({
+      x: SCREEN.width - BAR_SIZES.candidates.width,
+      y: SCREEN.height - BAR_SIZES.candidates.height,
+    });
 
     await go("/bar/actions");
     expect(windowAt).toEqual({ x: 1500, y: 950 });

@@ -38,7 +38,12 @@ vi.mock("@/shared/components/AppShell", () => ({
   AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 vi.mock("@/features/bar/components/BarShell", () => ({
-  BarShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  BarShell: ({ children, footer }: { children: ReactNode; footer?: ReactNode }) => (
+    <div>
+      {children}
+      {footer}
+    </div>
+  ),
 }));
 
 beforeEach(() => usePoseSelectionStore.getState().setJobId("client-test"));
