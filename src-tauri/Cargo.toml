@@ -1,6 +1,6 @@
 [package]
 name = "standin-desktop"
-version = "0.1.1-beta.8"
+version = "0.1.1-beta.9"
 description = "Standin Desktop"
 edition = "2021"
 
@@ -11,6 +11,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+# Built only by the isolated signed-updater integration workflow.
+update-e2e = ["dep:reqwest"]
+
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
@@ -20,6 +24,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 xcap = "0.9.7"
 base64 = "0.22"
+minisign-verify = "0.2.5"
+semver = "1"
+reqwest = { version = "0.13", default-features = false, optional = true }
 tokio = { version = "1", features = ["sync"] }
 # refresh token을 OS 키체인에 보관(ADR-002). 기본 feature가 Windows Credential Manager와
 # macOS Keychain 백엔드를 켠다.

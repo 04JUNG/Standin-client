@@ -1,7 +1,7 @@
 {
   "name": "standin-desktop",
   "private": true,
-  "version": "0.1.1-beta.8",
+  "version": "0.1.1-beta.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "release:check": "node scripts/release-notes.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "tauri": "tauri"

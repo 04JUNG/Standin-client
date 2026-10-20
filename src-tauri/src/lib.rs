@@ -1,5 +1,7 @@
 // 네이티브 command는 작고 단일 책임으로 추가한다(CLAUDE.md §10).
 mod commands;
+#[cfg(feature = "update-e2e")]
+mod update_e2e;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -36,6 +38,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init());
 
     builder
+        .manage(commands::updates::UpdateRuntime::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
@@ -60,7 +63,12 @@ pub fn run() {
                 }
             }
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(move |invoke| {
+            #[cfg(feature = "update-e2e")]
+            if invoke.message.command().starts_with("e2e_") {
+                return update_e2e::handle(invoke);
+            }
+            let handler: fn(tauri::ipc::Invoke) -> bool = tauri::generate_handler![
             commands::capture::grab_screen,
             commands::export::default_save_dir,
             commands::export::choose_save_folder,
@@ -82,11 +90,17 @@ pub fn run() {
             commands::shortcuts::unregister_capture_shortcut,
             commands::shortcuts::focus_main_window,
             commands::updates::updates_configured,
+            commands::updates::updates_cached,
+            commands::updates::updates_check,
+            commands::updates::updates_download,
+            commands::updates::updates_install,
             commands::window_mode::set_window_mode,
             commands::window_mode::get_window_position,
             commands::window_mode::set_window_position,
             commands::window_mode::window_control,
-        ])
+            ];
+            handler(invoke)
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
