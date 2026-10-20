@@ -25,6 +25,7 @@ const json = (name, value) => writeFileSync(path.join(root, name), JSON.stringif
 const versions = { a: "0.1.1-beta.9", b: "0.1.1-beta.10" };
 
 if (command === "init") {
+  env("STANDIN_E2E_ROOT", root);
   mkdirSync(root, { recursive: true });
   mkdirSync(path.join(root, "packages"), { recursive: true });
   mkdirSync(path.join(root, "evidence"), { recursive: true });

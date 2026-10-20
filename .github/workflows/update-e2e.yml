@@ -32,7 +32,6 @@ jobs:
             platformKey: darwin-x86_64
             bundles: app,dmg
     env:
-      STANDIN_E2E_ROOT: ${{ runner.temp }}/standin-updater-e2e
       STANDIN_KEYRING_SERVICE: app.standin.desktop.update-e2e
       E2E_TARGET: ${{ matrix.target }}
       E2E_PLATFORM: ${{ matrix.platformKey }}
@@ -55,6 +54,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Create isolated updater key and TLS certificate
+        env:
+          STANDIN_E2E_ROOT: ${{ runner.temp }}/standin-updater-e2e
         run: node scripts/update-e2e/prepare.mjs init
       - name: Resolve Windows code signing
         id: winsign
