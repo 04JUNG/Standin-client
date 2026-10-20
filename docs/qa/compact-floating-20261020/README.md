@@ -17,7 +17,7 @@ The actual BarCandidatesPage, BarShell and WindowModeSync were rendered in a loc
 
 ## Automated checks
 
-- Full Vitest suite: 995 passed, 1 skipped, using bundled Node 24.19.0.
+- Full Vitest suite: 996 passed, 1 skipped, using bundled Node 24.19.0.
 - The two-person body-panel test opens each person's body controls independently, closes the first while the second stays open, and confirms both pose selections are preserved.
 - Multi-person selection tests cover exclusion/reinclusion and confirming the actual selected IDs for both people.
 - WindowModeSync tests cover content shrink/grow, the height cap, pending/result width changes, and preservation of user-moved window anchors.
@@ -27,6 +27,6 @@ The actual BarCandidatesPage, BarShell and WindowModeSync were rendered in a loc
 
 ## Scope and remaining platform check
 
-No API contract, logo asset, app-mode layout or native Rust code changes. A separate native macOS Standin Scroll QA app was opened with three Mock people; scrolling, per-person body controls and alternating backgrounds were exercised. The approved alternating section colors are white and #c4c5c7, with the sticky person header matching its section. This styling is scoped to BarPersonCandidates, which only BarCandidatesPage uses; the full app page keeps its existing appearance.
+No API contract, logo asset, app-mode layout or native Rust code changes. A separate native macOS Standin Scroll QA app was opened with three Mock people; scrolling, per-person body controls and alternating backgrounds were exercised. The approved alternating section colors are white and #c4c5c7, with the sticky person header matching its section. This styling is scoped to BarPersonCandidates, which only BarCandidatesPage uses; the full app page keeps its existing colors. Its later complete people-index change is recorded in ../fullscreen-people-20261021/README.md.
 
 Real API analysis, Windows runtime and native multi-monitor edge placement were not exercised. Before release, check pending → results → body panel → pose on Windows and macOS, especially near a monitor edge.

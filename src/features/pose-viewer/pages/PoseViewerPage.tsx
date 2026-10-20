@@ -5,20 +5,19 @@ import {
   BodyCandidateCards,
   BodyChip,
   BodyExpand,
-  BodyLabel,
   BodyRenderStatus,
 } from "@/features/body-selection/BodyCandidates";
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import { cn } from "@/shared/lib/cn";
 import type { PersonResult } from "../api/pose.contract";
-import { RoughOverview, RoughPanel, RoughThumb } from "../components/RoughPanel";
-import { ExcludedOverlay, ExportSwitch } from "../components/ExportSwitch";
+import { RoughOverview, RoughPanel } from "../components/RoughPanel";
+import { PersonIndexRow } from "../components/PersonIndexRow";
 import { CandidateRerunTile } from "../components/CandidateRerun";
 import { useCandidateRerun } from "../hooks/useCandidateRerun";
 import { useEffect, useState, type ReactNode } from "react";
 import type { BodyEntry } from "@/features/body-selection/hooks";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Info, RotateCw } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Info, RotateCw } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
@@ -231,10 +230,10 @@ export function PoseViewerPage() {
   const pick = (index: number) => setActiveIndex(index);
   const progressText =
     includedPeople.length === 0
-      ? "내보낼 인물이 없어요 · 한 명 이상 포함해 주세요"
+      ? "저장할 인물을 한 명 이상 선택해 주세요"
       : pendingPeople.length > 0
-        ? `포즈 안 고른 인물 ${pendingPeople.map((p) => p.index + 1).join(", ")} · 저장하지 않으려면 내보내기에서 제외하세요`
-        : `내보낼 인물 ${includedPeople.length}명의 포즈를 모두 골랐어요`;
+        ? `포즈를 고를 인물: ${pendingPeople.map((p) => p.index + 1).join(", ")}`
+        : `선택한 인물 ${includedPeople.length}명의 포즈를 모두 골랐어요`;
   const activeNeedsPick =
     !!active &&
     active.fallbackMode !== "hard" &&
@@ -247,7 +246,7 @@ export function PoseViewerPage() {
 
   return (
     <AppShell title="포즈 후보">
-      <div className="flex h-full flex-col gap-3">
+      <div className="flex min-h-full flex-col gap-3">
         {restoreOnly && (
           <div className="flex items-start gap-2 rounded-xl border border-brand-sky/40 bg-brand-sky/10 p-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-sky" aria-hidden />
@@ -281,9 +280,7 @@ export function PoseViewerPage() {
             <span className="text-[13px] font-semibold text-text-primary">
               원본 · 인물 {people.length}명을 찾았어요
             </span>
-            <p className="text-[12.5px] text-text-secondary">
-              인물을 선택해 포즈를 골라 주세요.
-            </p>
+            <p className="text-[12.5px] text-text-secondary">인물을 선택해 포즈를 골라 주세요.</p>
             <p className="text-[12.5px] text-text-secondary">
               내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈 고름{" "}
               <b className="text-text-primary">{selectedCount}</b>
@@ -304,7 +301,6 @@ export function PoseViewerPage() {
             expanded={expanded}
             excluded={excludedPeople}
             included={!(active.index in excludedPeople)}
-            onIncluded={(value) => setPersonIncluded(active.index, value)}
             selectedId={selectedByPerson[active.index]}
             onSelect={(id) => selectCandidate(active.index, id)}
             onPick={pick}
@@ -321,91 +317,91 @@ export function PoseViewerPage() {
           />
         )}
 
-        {people.length > 1 && (
-          <div className="rounded-xl border border-border bg-surface-0 px-4 py-1.5">
-            {expanded ? (
-              <p className="py-1.5 text-[12px] text-text-secondary">
-                다른 인물 {people.length - 1}명 · 포즈로 돌아가면 다시 보여요
-              </p>
-            ) : (
-              people
-                .filter((p) => p.index !== active?.index)
-                .map((p, i) => (
-                  <OtherPersonRow
-                    key={p.index}
-                    first={i === 0}
-                    jobId={data.jobId}
-                    person={p}
-                    roughUrl={roughUrl}
-                    bodiesEnabled={bodies.enabled}
-                    entry={bodies.entries.find((e) => e.personIndex === p.index)}
-                    included={!(p.index in excludedPeople)}
-                    onIncluded={(value) => setPersonIncluded(p.index, value)}
-                    selectedTitle={
-                      p.candidates.find((c) => c.id === selectedByPerson[p.index])?.title
-                    }
-                    onOpen={() => pick(p.index)}
-                  />
-                ))
-            )}
-          </div>
-        )}
-
         {failedPeople.length > 0 && selectablePeople.length === 0 && (
           <p className="flex items-center gap-2 text-[13px] text-brand-coral">
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />이 장면에서 저장할 수 있는
             포즈를 찾지 못했어요. 다른 러프로 다시 시도해 주세요.
           </p>
         )}
-
-        <div className="flex items-center justify-between gap-4 border-t border-border pt-3">
-          {/* "다른 후보 찾기"가 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
+        <div className="border-t border-border pt-3">
+          <nav
+            aria-label="인물 목록"
+            className="rounded-xl border border-border bg-surface-0 px-4 py-1.5"
+          >
+            {people.map((person, i) => (
+              <PersonIndexRow
+                key={person.index}
+                first={i === 0}
+                jobId={data.jobId}
+                person={person}
+                roughUrl={roughUrl}
+                bodiesEnabled={bodies.enabled}
+                entry={bodies.entries.find((entry) => entry.personIndex === person.index)}
+                active={person.index === active?.index}
+                included={!(person.index in excludedPeople)}
+                onIncluded={(value) => setPersonIncluded(person.index, value)}
+                selectedTitle={
+                  person.candidates.find(
+                    (candidate) => candidate.id === selectedByPerson[person.index],
+                  )?.title
+                }
+                onOpen={() => pick(person.index)}
+              />
+            ))}
+          </nav>
+          <div className="flex items-center justify-between gap-4 pt-3">
+            {/* "다른 후보 찾기"가 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
               안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
               대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
-          <div className="flex min-w-0 items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate("/app/home")}>
-              홈으로 돌아가기
-            </Button>
-            <span className="truncate text-[12px] text-text-secondary" aria-live="polite">
-              {progressText}
-            </span>
+            <div className="flex min-w-0 items-center gap-3">
+              <Button variant="ghost" onClick={() => navigate("/app/home")}>
+                홈으로 돌아가기
+              </Button>
+              <span className="truncate text-[12px] text-text-secondary" aria-live="polite">
+                {progressText}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {people.length > 1 && (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  data-body-prev
+                  disabled={!prevPerson}
+                  onClick={() => prevPerson && pick(prevPerson.index)}
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                  이전 인물{prevPerson ? ` · 인물 ${prevPerson.index + 1}` : ""}
+                </Button>
+              )}
+              {nextPending ? (
+                <Button data-body-next size="lg" onClick={() => pick(nextPending.index)}>
+                  다음 인물로 · 인물 {nextPending.index + 1}
+                </Button>
+              ) : (
+                <Button
+                  data-body-next
+                  {...tourAnchor("jobs.confirm")}
+                  size="lg"
+                  disabled={!allSelected || isConfirming}
+                  loading={isConfirming}
+                  onClick={() => void confirmAndContinue()}
+                >
+                  이 포즈 사용하기 ({selectedCount}/{includedPeople.length})
+                  <ShortcutKey
+                    accelerator={resolveAccelerator("poseViewer.confirm", bindings)!}
+                    className="ml-1"
+                  />
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {people.length > 1 && (
-              <Button
-                variant="secondary"
-                size="lg"
-                data-body-prev
-                disabled={!prevPerson}
-                onClick={() => prevPerson && pick(prevPerson.index)}
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden />
-                이전 인물{prevPerson ? ` · 인물 ${prevPerson.index + 1}` : ""}
-              </Button>
-            )}
-            {nextPending ? (
-              <Button data-body-next size="lg" onClick={() => pick(nextPending.index)}>
-                다음 인물로 · 인물 {nextPending.index + 1}
-              </Button>
-            ) : (
-              <Button
-                data-body-next
-                {...tourAnchor("jobs.confirm")}
-                size="lg"
-                disabled={!allSelected || isConfirming}
-                loading={isConfirming}
-                onClick={() => void confirmAndContinue()}
-              >
-                이 포즈 사용하기 ({selectedCount}/{includedPeople.length})
-                <ShortcutKey
-                  accelerator={resolveAccelerator("poseViewer.confirm", bindings)!}
-                  className="ml-1"
-                />
-              </Button>
-            )}
-          </div>
+          {confirmError && (
+            <p role="alert" className="mt-2 text-[12px] text-brand-coral">
+              {confirmError}
+            </p>
+          )}
         </div>
-        {confirmError && <p className="text-[12px] text-brand-coral">{confirmError}</p>}
       </div>
     </AppShell>
   );
@@ -423,7 +419,6 @@ function ActivePersonCard({
   expanded,
   excluded,
   included,
-  onIncluded,
   selectedId,
   onSelect,
   onPick,
@@ -441,7 +436,6 @@ function ActivePersonCard({
   expanded: boolean;
   excluded: Readonly<Record<number, unknown>>;
   included: boolean;
-  onIncluded(value: boolean): void;
   selectedId?: string;
   onSelect(id: string): void;
   onPick(index: number): void;
@@ -453,7 +447,8 @@ function ActivePersonCard({
   const gridCandidates = person.candidates.filter((c) => !c.manualExportAllowed);
   const selectedCandidate = person.candidates.find((c) => c.id === selectedId) ?? null;
   return (
-    <div
+    <section
+      aria-label={`인물 ${person.index + 1} 후보`}
       className={cn(
         "flex min-w-0 flex-col gap-3 rounded-xl border bg-surface-0 p-4",
         hard ? "border-brand-coral/40" : "border-border",
@@ -461,9 +456,6 @@ function ActivePersonCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          {!hard && person.candidates.length > 0 && (
-            <ExportSwitch personIndex={person.index} included={included} onChange={onIncluded} />
-          )}
           <span className="text-[13px] font-semibold text-text-primary">
             인물 {person.index + 1}
           </span>
@@ -480,7 +472,7 @@ function ActivePersonCard({
               : hard
                 ? "후보 없음"
                 : !included
-                  ? "내보내기 제외"
+                  ? "인물 선택 꺼짐"
                   : selectedCandidate
                     ? `선택됨: ${selectedCandidate.title}`
                     : "후보를 선택하세요"}
@@ -563,98 +555,16 @@ function ActivePersonCard({
                 {onRerun && included && (
                   <CandidateRerunTile onRerun={onRerun} className="mt-3 h-14 w-full" />
                 )}
-                {!included && <ExcludedOverlay onInclude={() => onIncluded(true)} />}
+                {!included && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-surface-1/90 p-3 text-center text-sm text-text-primary">
+                    아래 인물 목록에서 ‘인물 {person.index + 1} 선택’을 켜 주세요.
+                  </div>
+                )}
               </div>
             </div>
           )}
         </>
       )}
-    </div>
-  );
-}
-
-/** 접힌 인물 줄: 스위치 · 원본 썸네일 · 체형 · 고른 포즈. 줄 어디를 눌러도 그 인물이 펼쳐진다. */
-function OtherPersonRow({
-  first,
-  jobId,
-  person,
-  roughUrl,
-  bodiesEnabled,
-  entry,
-  included,
-  onIncluded,
-  selectedTitle,
-  onOpen,
-}: {
-  first: boolean;
-  jobId: string;
-  person: PersonResult;
-  roughUrl?: string;
-  bodiesEnabled: boolean;
-  entry?: BodyEntry;
-  included: boolean;
-  onIncluded(value: boolean): void;
-  selectedTitle?: string;
-  onOpen(): void;
-}) {
-  const hard = person.fallbackMode === "hard";
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`인물 ${person.index + 1} 펼치기`}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className={cn(
-        "group -mx-2 grid cursor-pointer grid-cols-[128px_36px_minmax(0,1.2fr)_minmax(0,1fr)_16px] items-center gap-3 rounded-lg px-2 py-1.5",
-        "transition-colors duration-150 hover:bg-surface-1 active:bg-surface-2",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
-        !first && "border-t border-surface-2 hover:border-transparent",
-      )}
-    >
-      {person.posePresentation && person.candidates.length === 0 ? (
-        <span className="text-xs">참고용 포즈</span>
-      ) : hard ? (
-        <span className="text-[11.5px] text-text-secondary">후보 없음</span>
-      ) : (
-        <ExportSwitch personIndex={person.index} included={included} onChange={onIncluded} />
-      )}
-      <RoughThumb
-        url={roughUrl}
-        box={person.box}
-        personIndex={person.index}
-        className={cn(
-          "h-[46px] w-9 transition-shadow group-hover:shadow-sm",
-          (!included || hard) && "opacity-60",
-        )}
-      />
-      <div className="flex min-w-0 flex-col">
-        <span className="text-[12.5px] font-semibold text-text-primary">
-          인물 {person.index + 1}
-        </span>
-        {bodiesEnabled && !hard && <BodyLabel job={jobId} person={person} entry={entry} />}
-      </div>
-      <span className="truncate text-[12px] text-text-secondary">
-        {person.posePresentation && person.candidates.length === 0
-          ? "참고 포즈 펼치기"
-          : hard
-            ? "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
-            : !included
-              ? "내보내기 제외"
-              : selectedTitle
-                ? `고름: ${selectedTitle}`
-                : "포즈를 아직 안 골랐어요"}
-      </span>
-      <ChevronRight
-        aria-hidden
-        className="h-4 w-4 -translate-x-1 text-text-secondary opacity-0 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 motion-reduce:transition-none"
-      />
-    </div>
+    </section>
   );
 }

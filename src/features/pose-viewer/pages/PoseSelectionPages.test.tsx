@@ -97,6 +97,7 @@ it.each([
   ["app", false, 1],
   ["bar", false, 1],
   ["app", true, 1],
+  ["app", true, 3],
   ["bar", true, 1],
   ["bar", true, 2],
 ] as const)(
@@ -165,7 +166,7 @@ it.each([
         },
       ],
     };
-    if (personCount === 2) {
+    if (personCount >= 2) {
       const first = data.people[0];
       data.people.push({
         ...first,
@@ -177,6 +178,17 @@ it.each([
           ...candidate,
           id: `second-${candidate.id}`,
         })),
+      });
+    }
+    if (personCount === 3) {
+      const reference = data.people[0];
+      data.people.push({
+        ...reference,
+        index: 2,
+        candidates: [],
+        posePresentation: reference.posePresentation
+          ? { ...reference.posePresentation, person_index: 2 }
+          : undefined,
       });
     }
     client.setQueryData(poseQueryKeys.result("click-test"), data);
@@ -208,6 +220,52 @@ it.each([
         "true",
       );
       expect(screen.queryByRole("dialog")).toBeNull();
+    }
+    if (mode === "app" && personCount === 3) {
+      const index = within(screen.getByRole("navigation", { name: "인물 목록" }));
+      // Active and reference-only people remain in the complete ordered index.
+      expect(
+        index
+          .getAllByRole("button", { name: /인물 \d+ 펼치기/ })
+          .map((button) => button.getAttribute("aria-label")),
+      ).toEqual(["인물 1 펼치기", "인물 2 펼치기", "인물 3 펼치기"]);
+      expect(screen.getAllByRole("switch")).toHaveLength(2);
+      expect(
+        within(screen.getByRole("region", { name: "인물 1 후보" })).queryByRole("switch"),
+      ).toBeNull();
+      expect(index.getByRole("button", { name: "인물 1 펼치기" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      fireEvent.click(index.getByRole("button", { name: "인물 2 펼치기" }));
+      expect(index.getByRole("button", { name: "인물 2 펼치기" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(index.getAllByRole("button", { name: /인물 \d+ 펼치기/ })).toHaveLength(3);
+      fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
+      expect(await screen.findByRole("region", { name: "인물 2 체형 선택" })).toBeVisible();
+      expect(index.getAllByRole("button", { name: /인물 \d+ 펼치기/ })).toHaveLength(3);
+      fireEvent.click(index.getByRole("switch", { name: "인물 2 선택" }));
+      expect(index.getByRole("button", { name: "인물 2 펼치기" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      fireEvent.click(index.getByRole("switch", { name: "인물 2 선택" }));
+      fireEvent.click(screen.getByRole("button", { name: "포즈" }));
+      fireEvent.click(screen.getByAltText("포즈 2"));
+      expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({
+        0: "pick-4",
+        1: "second-pick-1",
+      });
+      fireEvent.click(index.getByRole("button", { name: "인물 3 펼치기" }));
+      expect(screen.getByRole("region", { name: "인물 3 후보" })).toBeVisible();
+      expect(index.getAllByRole("button", { name: /인물 \d+ 펼치기/ })).toHaveLength(3);
+      fireEvent.click(index.getByRole("button", { name: "인물 1 펼치기" }));
+      expect(screen.getByAltText("포즈 5").closest("button")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
     }
     if (personCount === 2) {
       const second = within(screen.getByRole("region", { name: "인물 2" }));
