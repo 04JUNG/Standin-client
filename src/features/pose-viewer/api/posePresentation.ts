@@ -17,6 +17,7 @@ export interface RenderCamera {
   bvh_camera_rotation_applied: false;
 }
 export interface PreviewCandidate {
+  manual_use_block_reason?: string;
   candidate_id: string;
   pose_id: string | null;
   source: "library" | "generation";

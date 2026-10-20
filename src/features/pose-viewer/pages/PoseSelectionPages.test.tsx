@@ -199,6 +199,8 @@ it.each([
 it.each([
   ["app", "near_match", false],
   ["bar", "near_match", false],
+  ["app", "generated_review", false],
+  ["bar", "generated_review", false],
   ["app", "mirror_reference", false],
   ["bar", "mirror_reference", false],
   ["app", "library_match", true],
@@ -274,6 +276,20 @@ it.each([
         },
       ],
     } as AnalysisResult;
+    if (kind === "generated_review") {
+      const p = data.people[0],
+        c = p.candidates[0];
+      c.source = "generation";
+      c.poseId = null;
+      presentation.generated_candidates = presentation.review_candidates;
+      presentation.review_candidates = [];
+      const row = presentation.generated_candidates[0];
+      row.source = "generation";
+      row.pose_id = null;
+      row.asset.transport = "inline_bvh";
+      presentation.generation_status = "preview_ready";
+      presentation.search_status = "no_result";
+    }
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     client.setQueryData(poseQueryKeys.result("click-test"), data);
     render(
@@ -294,7 +310,13 @@ it.each([
     expect(screen.queryByTestId("candidate-hand-library")).toBeNull();
     expect(screen.queryByText(/이 장면에는 사용할 수 있는/)).toBeNull();
     expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
-    fireEvent.click(await screen.findByAltText("후보 이미지 1"));
+    if (kind === "generated_review") {
+      fireEvent.click(screen.getByRole("button", { name: /새로 만든 포즈 확대/ }));
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBeUndefined();
+      fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+      fireEvent.click(screen.getByRole("button", { name: "1번 새로 만든 참고 포즈 선택" }));
+    } else fireEvent.click(await screen.findByAltText("후보 이미지 1"));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByRole("button", { name: /이미지 확대/ })).toBeNull();
     expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBe(id);

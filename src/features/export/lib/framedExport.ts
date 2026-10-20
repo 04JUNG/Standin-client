@@ -53,3 +53,14 @@ export function framedExportUrl(
   else parsed.searchParams.delete("characterId");
   return `${parsed.pathname}${parsed.search}`;
 }
+
+export function forgetFramedJob(job: string) {
+  for (const key of reviewedFormats.keys()) {
+    try {
+      if (new URL(key, "https://standin.invalid").searchParams.get("jobId") === job)
+        reviewedFormats.delete(key);
+    } catch {
+      /* malformed legacy keys never grant a receipt */
+    }
+  }
+}

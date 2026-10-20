@@ -12,7 +12,7 @@ export interface RoutedSearch {
   basicModel: boolean;
 }
 export interface CandidatePolicy {
-  source?: "dynamic" | "semantic" | "library";
+  source?: "dynamic" | "semantic" | "library" | "generation";
   sourceBvhSha256?: string;
   rankScore?: number;
   lookupAllowed?: boolean;
@@ -28,6 +28,7 @@ export interface CandidatePolicy {
 }
 export function reviewOnly(candidate: CandidatePolicy | undefined): boolean {
   return (
+    candidate?.source === "generation" ||
     candidate?.source === "dynamic" ||
     candidate?.source === "semantic" ||
     (candidate?.source === "library" &&
@@ -42,7 +43,9 @@ export function canRelease(candidate: PoseCandidate | undefined): boolean {
     !!candidate &&
     (!reviewOnly(candidate) ||
       (candidate.manualExportAllowed === true &&
-        (candidate.source === "library" || candidate.source === "semantic") &&
+        (candidate.source === "library" ||
+          candidate.source === "semantic" ||
+          candidate.source === "generation") &&
         candidate.lookupAllowed === true &&
         candidate.bvhAvailable === true &&
         /^[a-f0-9]{64}$/.test(candidate.sourceBvhSha256 ?? "")))
@@ -67,7 +70,7 @@ export function readCandidatePolicy(raw: CandidatePolicy): CandidatePolicy {
       actualMeshValidated: false,
     };
   if (
-    (raw.source === "library" || raw.source === "semantic") &&
+    (raw.source === "library" || raw.source === "semantic" || raw.source === "generation") &&
     raw.manualExportAllowed === true &&
     raw.lookupAllowed === true &&
     /^[a-f0-9]{64}$/.test(raw.sourceBvhSha256 ?? "")

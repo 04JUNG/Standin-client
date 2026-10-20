@@ -47,6 +47,8 @@ export function useFramedReview(jobId: string | undefined) {
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
+  const requiresFbx =
+    format !== "fbx" && review.items.some((i) => i.candidate.source === "generation");
   const requests = review.items.map((item) => {
     const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
     const character = resolveCharacter({
@@ -310,6 +312,7 @@ export function useFramedReview(jobId: string | undefined) {
         }),
       scopeLabel: enabled ? SCOPE_LABELS[requests[index]!.scope] : "",
     })),
+    requiresFbx,
     previewLoading,
     previewError,
     previewFailure: poseRecovery(

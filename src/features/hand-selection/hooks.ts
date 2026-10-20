@@ -1,3 +1,4 @@
+import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBodyOwner } from "@/features/body-selection/hooks";
 import { ApiError } from "@/shared/api/client";
@@ -45,6 +46,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       return putHandSelection(job, selection, patch);
     },
     onMutate: async ({ selection }) => {
+      invalidateFinalReview(qc, job);
       await qc.cancelQueries({ queryKey: handKeys.selection(owner, job, selection.personIndex) });
       await qc.cancelQueries({
         queryKey: ["body", owner, job, selection.personIndex],

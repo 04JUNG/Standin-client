@@ -75,3 +75,37 @@ describe("poseSelectionStore 내보내기", () => {
     expect(usePoseSelectionStore.getState().excludedPeople).toEqual({});
   });
 });
+
+it("keeps the exact generated pick through exclusion, job changes and history reentry, scoped to the installation", async () => {
+  const { useInstallationStore } = await import("@/features/installation/installationStore");
+  usePoseSelectionStore.getState().clearSelection();
+  usePoseSelectionStore.setState({ jobId: null });
+  useInstallationStore.setState({
+    credentials: { installationId: "owner", deviceToken: "test", consentVersion: "test" },
+  });
+  const id = "preview_" + "a".repeat(64);
+  usePoseSelectionStore.getState().startJob("job_a", "female");
+  usePoseSelectionStore.getState().setServerJobId("job_server_a");
+  usePoseSelectionStore.getState().selectCandidate(0, id);
+  usePoseSelectionStore.getState().setPersonIncluded(0, false);
+  usePoseSelectionStore.getState().setJobId("job_b");
+  expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({});
+  usePoseSelectionStore.getState().setJobId("job_a");
+  expect(usePoseSelectionStore.getState().excludedPeople).toEqual({ 0: id });
+  usePoseSelectionStore.getState().restoreSelections("job_a", { 0: "old-confirmed" });
+  expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({});
+  usePoseSelectionStore.getState().setPersonIncluded(0, true);
+  expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({ 0: id });
+  expect(usePoseSelectionStore.getState().refineByPerson).toEqual({});
+  usePoseSelectionStore.getState().setJobId("job_b");
+  usePoseSelectionStore.getState().setJobId("job_server_a");
+  expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({ 0: id });
+  usePoseSelectionStore.getState().setJobId("job_b");
+  useInstallationStore.setState({
+    credentials: { installationId: "other", deviceToken: "test", consentVersion: "test" },
+  });
+  usePoseSelectionStore.getState().setJobId("job_a");
+  expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({});
+  useInstallationStore.setState({ credentials: null });
+  usePoseSelectionStore.getState().clearSelection();
+});

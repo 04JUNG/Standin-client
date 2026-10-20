@@ -1,3 +1,4 @@
+import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Loader2, Save } from "lucide-react";
@@ -23,6 +24,7 @@ export function BarReviewPage() {
     previewLoading,
     previewError,
     previewFailure,
+    requiresFbx,
     previewNotice,
     retryPreview,
   } = useFramedReview(jobId ?? undefined);
@@ -92,6 +94,7 @@ export function BarReviewPage() {
             저장할 모습을 준비하고 있어요…
           </p>
         )}
+        {requiresFbx && <GeneratedFbxNotice />}
         {previewError && (
           <p role="alert" className="text-[11px] text-brand-coral">
             {previewFailure.message}{" "}
@@ -124,7 +127,7 @@ export function BarReviewPage() {
           <Button
             size="sm"
             className="min-w-0 flex-1"
-            disabled={isRefining || previewLoading || previewError}
+            disabled={isRefining || previewLoading || previewError || requiresFbx}
             onClick={() => navigate("/bar/save")}
           >
             <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />이 포즈로 저장

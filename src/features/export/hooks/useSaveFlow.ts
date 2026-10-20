@@ -369,6 +369,8 @@ export function useSaveFlow(jobId: string | undefined) {
             if (!candidate) {
               throw new ApiError(409, "INVALID_SELECTION", "");
             }
+            if (candidate.source === "generation" && format !== "fbx")
+              throw new ApiError(409, "GENERATED_FBX_REQUIRED", "");
             if (!canRelease(candidate)) throw new ApiError(409, "MANUAL_SELECTION_REQUIRED", "");
             // 조정 결과가 있으면 BFF가 확정한 URL이 최종이다. 확인 화면이 보여 준 것과
             // 같은 URL이어야 "본 것과 저장된 것이 다르다"가 생기지 않는다.
@@ -476,6 +478,7 @@ export function useSaveFlow(jobId: string | undefined) {
           format === "fbx" &&
           analysisResult.source !== "semantic" &&
           analysisResult.capabilities.sceneExport === true &&
+          !analysisResult.people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
           !env.useMockPoseApi
         ) {
           if (files.some((f) => !f.downloadPath))

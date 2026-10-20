@@ -1,7 +1,9 @@
+import { Modal } from "@/shared/components/Modal";
+import { generatedPoseNotice } from "../api/generatedPoseNotice";
 import { canRelease } from "../api/routedSearch";
 import type { PoseCandidate } from "../api/pose.contract";
 import { cn } from "@/shared/lib/cn";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
 import { bodyKeys, getSelection } from "@/features/body-selection/api";
@@ -41,6 +43,8 @@ function Preview({
   savedOnly?: boolean;
   pick?: PoseCandidate;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const generated = candidate.source === "generation";
   const selectable = canRelease(pick);
   const selected = selection?.selected === candidate.candidate_id;
   return (
@@ -72,6 +76,32 @@ function Preview({
           {candidate.rank}. {candidateLabel(candidate.kind)}
         </span>
       </button>
+      {generated && (
+        <>
+          <button
+            type="button"
+            className="mt-1 w-full text-xs underline"
+            onClick={() => setExpanded(true)}
+            aria-label={`${candidate.rank}번 새로 만든 포즈 확대`}
+          >
+            크게 보기
+          </button>
+          <Modal
+            open={expanded}
+            onClose={() => setExpanded(false)}
+            title="새로 만든 포즈"
+            width="lg"
+          >
+            <DefaultPoseImage candidate={candidate} scope={scope} savedOnly={savedOnly} />
+            <p className="text-xs text-text-secondary">
+              원본 그림과 다를 수 있으니 저장 전에 확인해 주세요.
+            </p>
+          </Modal>
+          <p className="text-[11px] text-text-secondary">
+            원본 그림과 다를 수 있으니 저장 전에 확인해 주세요.
+          </p>
+        </>
+      )}
       {selectable && selection ? (
         <button
           type="button"
@@ -84,7 +114,10 @@ function Preview({
           {selected ? "선택한 포즈" : "이 포즈 선택"}
         </button>
       ) : (
-        <p className="text-[11px] text-text-secondary">미리보기 전용</p>
+        <div className="text-[11px] text-text-secondary">
+          <p>미리보기 전용</p>
+          {generated && <p>{generatedPoseNotice(null, candidate.manual_use_block_reason)}</p>}
+        </div>
       )}
     </div>
   );
@@ -124,6 +157,9 @@ function PresentationContent({
   const gridClass = `grid gap-2 ${compact ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
   return (
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
+      {["timeout", "rejected", "failed", "error"].includes(p.generation_status ?? "") && (
+        <p className="text-xs text-text-secondary">{generatedPoseNotice(p.generation_status)}</p>
+      )}
       {(
         [
           ["검색 후보", p.library_candidates],
