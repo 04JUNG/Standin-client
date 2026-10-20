@@ -74,11 +74,14 @@ export function BodyChip({
   person,
   entry,
   className,
+  onViewChange,
 }: {
   job: string;
   person: Pick<PersonResult, "index">;
   entry?: BodyEntry;
   className?: string;
+  /** Capture the floating viewport before its panel changes height. */
+  onViewChange?(expanded: boolean): void;
 }) {
   const { open, setOpen } = useBodyPanel(job, person.index);
   const { source, title } = useBodyTitle(job, person, entry?.selection);
@@ -118,7 +121,10 @@ export function BodyChip({
             {...(value ? { "data-body-toggle": "" } : { "data-pose-view": "" })}
             aria-pressed={open === value}
             aria-controls={value ? "body-panel-" + person.index : undefined}
-            onClick={() => setOpen(value)}
+            onClick={() => {
+              onViewChange?.(value);
+              setOpen(value);
+            }}
             className={cn(
               "relative z-10 whitespace-nowrap rounded-full px-3 py-1 text-center text-[12px] font-semibold transition-colors duration-300",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",

@@ -118,6 +118,27 @@ it("opens and closes the body panel while all five previews are unavailable", ()
   expect(more).toHaveAttribute("aria-pressed", "false");
 });
 
+it("captures the viewport before either view changes, including keyboard activation", () => {
+  const pressedBeforeChange: boolean[] = [];
+  wrap(
+    createElement(BodyChip, {
+      job: "job-scroll-capture",
+      person,
+      entry,
+      onViewChange: () =>
+        pressedBeforeChange.push(
+          screen.getByRole("button", { name: "체형 더보기" }).getAttribute("aria-pressed") ===
+            "true",
+        ),
+    }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
+  // Keyboard-generated clicks have no pointer event; capture must still run.
+  fireEvent.click(screen.getByRole("button", { name: "포즈" }), { detail: 0 });
+  expect(pressedBeforeChange).toEqual([false, true]);
+  expect(screen.getByRole("button", { name: "포즈" })).toHaveAttribute("aria-pressed", "true");
+});
+
 it("saves a picked body without waiting for the previews", () => {
   wrap(createElement(BodyExpand, { job: "job-panel", person, entry, variant: "app" }));
   const card = screen.getByRole("radio", { name: /근육형/ });

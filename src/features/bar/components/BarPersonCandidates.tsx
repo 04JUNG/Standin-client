@@ -18,6 +18,7 @@ import { PosePresentationPanel } from "@/features/pose-viewer/components/PosePre
 import { RoughPanel } from "@/features/pose-viewer/components/RoughPanel";
 import type { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { useBarPanelScroll } from "../hooks/useBarPanelScroll";
 
 /** 각 인물의 체형 열림·선택을 독립적으로 유지하며 한 스크롤 목록에 표시한다. */
 export function BarPersonCandidates({
@@ -44,6 +45,7 @@ export function BarPersonCandidates({
     usePoseSelectionStore((s) => s.characterByPerson[person.index]) ?? jobCharacterId;
   const setPersonCharacter = usePoseSelectionStore((s) => s.setPersonCharacter);
   const panel = useBodyPanel(data?.jobId ?? "", person.index);
+  const scroll = useBarPanelScroll(JSON.stringify([data?.jobId, person.index]), panel.open);
   if (!data) return null;
 
   const semantic = data.source === "semantic";
@@ -66,6 +68,7 @@ export function BarPersonCandidates({
 
   return (
     <section
+      ref={scroll.sectionRef}
       id={`bar-person-${person.index}`}
       aria-label={`인물 ${person.index + 1}`}
       data-bar-person={person.index}
@@ -106,7 +109,13 @@ export function BarPersonCandidates({
         {!semantic &&
           selectable &&
           (bodies.enabled ? (
-            <BodyChip job={data.jobId} person={person} entry={entry} className="min-w-0" />
+            <BodyChip
+              job={data.jobId}
+              person={person}
+              entry={entry}
+              className="min-w-0"
+              onViewChange={scroll.beforeSwitch}
+            />
           ) : (
             <ModelSelect
               variant="compact"
