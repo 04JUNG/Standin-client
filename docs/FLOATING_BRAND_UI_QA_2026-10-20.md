@@ -46,9 +46,11 @@ PNG/ICO/ICNS 크기와 alpha, SVG hash, 브라우저 computed style, 번들 검�
 ![접힌 원형 로고](qa/floating-brand-20261020/collapsed-logo-browser.png)
 ![원 안쪽 키보드 포커스](qa/floating-brand-20261020/collapsed-logo-focus-browser.png)
 
-입력 단계 헤더 (뒤로가기 비활성):
+펼친 바의 macOS native fixture 헤더 (뒤로가기 비활성):
 
-![뒤로가기·접기·앱 확대](qa/floating-brand-20261020/bar-header-browser.png)
+![네이티브 헤더 한 줄 정상 렌더링](qa/floating-brand-20261020/native-header.png)
+
+기존 `bar-header-browser.png`는 헤더가 반복되는 잘못된 이미지여서 정상 UI 검증 근거에서 제외했다. 원인은 아직 확정하지 않았다. 이후 macOS Tauri/WKWebView native fixture를 다시 실행해 직접 펼친 화면에서는 헤더 한 줄과 버튼 3개가 정상 렌더링됐고 반복 현상은 재현되지 않았다. 이는 실제 컴포넌트와 Rust 백엔드를 쓰는 격리된 검증 실행본의 결과이며, 기존 설치 앱을 교체하거나 전체 사용자 흐름을 검증한 결과는 아니다.
 
 ## 후속 macOS 네이티브 클릭 검사 — 실패 재현
 
