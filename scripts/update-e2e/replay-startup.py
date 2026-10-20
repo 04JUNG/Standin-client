@@ -80,6 +80,23 @@ try:
         binary = app / "Contents" / "MacOS" / "standin-desktop"
         binary_hash = hashlib.sha256(binary.read_bytes()).hexdigest()
         for iteration in range(50):
+            if version == "a" and iteration == 25:
+                # Recreate the ready-to-install state preceding the historical
+                # timeout. The original TLS private key was deliberately not
+                # uploaded, so this probes its offline startup path only.
+                cache = Path(records()[-1]["cacheDir"]).resolve()
+                assert cache == (
+                    Path.home() / "Library" / "Application Support"
+                    / "app.standin.desktop.update-e2e" / "updates-v1"
+                ).resolve(), cache
+                cache.mkdir(parents=True, exist_ok=True)
+                package = next((Path("startup-replay-packages") / "b").glob("*.app.tar.gz"))
+                shutil.copyfile(package, cache / "package.bin")
+                (cache / "pending.json").write_text(json.dumps({
+                    "version": VERSIONS["b"], "notes": "Original startup cache probe",
+                    "signature": Path(str(package) + ".sig").read_text().strip(),
+                    "attempted": False,
+                }), encoding="utf8")
             label = f"{version}-{iteration:02d}"
             before = len(records())
             started = time.monotonic()
@@ -103,11 +120,26 @@ try:
                         assert process.returncode == 0, process.returncode
                         RESULTS.append({
                             "version": ready["version"], "iteration": iteration, "pid": ready["pid"],
+                            "cacheState": (
+                                "pending-b-offline" if version == "a" and iteration >= 25
+                                else "installed-b-cleanup" if version == "b" and iteration == 0
+                                else "empty"
+                            ),
                             "binarySha256": binary_hash, "startupReady": True,
                             "firstEventSeconds": round(first_event, 3),
                             "durationSeconds": round(time.monotonic() - started, 3),
                             "terminalEvent": ready["event"],
                         })
+                        if version == "a" and iteration >= 25:
+                            assert not json.loads((cache / "pending.json").read_text())["attempted"]
+                            assert any(
+                                r["event"]["type"] == "state"
+                                and r["event"]["detail"].get("startupComplete")
+                                and r["event"]["detail"].get("error")
+                                for r in matching
+                            ), "Offline cached startup did not reach the expected recoverable error"
+                        if version == "b":
+                            assert not (cache / "pending.json").exists()
                         print(f"READY {label}: {first_event:.3f}s", flush=True)
                         break
                     time.sleep(0.1)
