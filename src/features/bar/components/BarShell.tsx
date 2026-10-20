@@ -132,7 +132,13 @@ export function BarShell({ title, hideCollapse, children, footer, preferredWidth
         </BarIconButton>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div
+        data-bar-scroll
+        className={cn(
+          "min-h-0 flex-1 overflow-auto",
+          pathname === "/bar/candidates" && "[overflow-anchor:none]",
+        )}
+      >
         {/* 내용 높이를 재기 위한 래퍼. 스크롤 영역 자체는 창 크기를 따라가므로 잴 수 없다. */}
         <div ref={contentRef}>
           {pathname === "/bar/candidates" ? (

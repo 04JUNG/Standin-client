@@ -79,6 +79,16 @@ it("still collapses to the logo", () => {
   expect(screen.getByRole("status")).toHaveTextContent(/^\/bar$/);
   expect(control).not.toHaveBeenCalled();
 });
+
+it.each(["/bar/candidates", "/bar/review"])(
+  "limits manual scroll anchoring to candidates: %s",
+  (path) => {
+    mount(path);
+    const scroller = screen.getByText("내용").closest("[data-bar-scroll]")!;
+    expect(scroller).toHaveClass("overflow-auto");
+    expect(scroller.classList.contains("[overflow-anchor:none]")).toBe(path === "/bar/candidates");
+  },
+);
 it("restores the main body even when an old resume marker is present", () => {
   mount("/bar/actions");
   expect(screen.queryByRole("button", { name: "현재 작업 이어보기" })).toBeNull();
