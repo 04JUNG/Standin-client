@@ -14,6 +14,7 @@ import { RoughOverview, RoughPanel } from "../components/RoughPanel";
 import { PersonIndexRow } from "../components/PersonIndexRow";
 import { CandidateRerunTile } from "../components/CandidateRerun";
 import { useCandidateRerun } from "../hooks/useCandidateRerun";
+import { usePersonScrollContinuity } from "../hooks/usePersonScrollContinuity";
 import { useEffect, useState, type ReactNode } from "react";
 import type { BodyEntry } from "@/features/body-selection/hooks";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
@@ -90,6 +91,7 @@ export function PoseViewerPage() {
     (active?.candidates.length ?? 0) > 0 &&
     active?.fallbackMode !== "hard";
   const onRerun = useCandidateRerun(data, active);
+  const continuity = usePersonScrollContinuity(data?.jobId ?? jobId ?? "", active?.index);
 
   usePoseViewerShortcuts({
     canConfirm: allSelected,
@@ -227,7 +229,13 @@ export function PoseViewerPage() {
       </AppShell>
     );
 
-  const pick = (index: number) => setActiveIndex(index);
+  const pick = (index: number) => {
+    if (index === active?.index) return;
+    continuity.beforeSwitch(index);
+    // 후보가 없어 체형을 표시하지 못하는 인물도 보기 모드는 기억한다.
+    panel.setOpenForPerson(index, panel.open);
+    setActiveIndex(index);
+  };
   const progressText =
     includedPeople.length === 0
       ? "저장할 인물을 한 명 이상 선택해 주세요"
@@ -246,7 +254,10 @@ export function PoseViewerPage() {
 
   return (
     <AppShell title="포즈 후보">
-      <div className="flex min-h-full flex-col gap-3">
+      <div
+        ref={continuity.contentRef}
+        className="flex min-h-full flex-col gap-3 [overflow-anchor:none]"
+      >
         {restoreOnly && (
           <div className="flex items-start gap-2 rounded-xl border border-brand-sky/40 bg-brand-sky/10 p-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-sky" aria-hidden />
@@ -325,6 +336,7 @@ export function PoseViewerPage() {
         )}
         <div className="border-t border-border pt-3">
           <nav
+            ref={continuity.indexRef}
             aria-label="인물 목록"
             className="rounded-xl border border-border bg-surface-0 px-4 py-1.5"
           >

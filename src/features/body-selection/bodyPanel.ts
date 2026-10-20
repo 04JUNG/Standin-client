@@ -21,7 +21,13 @@ export function useBodyPanel(job: string, personIndex: number) {
   const key = JSON.stringify([owner, job, personIndex]);
   const open = usePanels((s) => s.open[key] === true);
   const set = usePanels((s) => s.set);
-  return { open, setOpen: (value: boolean) => set(key, value) };
+  return {
+    open,
+    setOpen: (value: boolean) => set(key, value),
+    /** 인물을 전환할 때 현재 보기 모드를 다음 인물에도 이어 준다. */
+    setOpenForPerson: (index: number, value: boolean) =>
+      set(JSON.stringify([owner, job, index]), value),
+  };
 }
 
 /* ------------------------------------------------------------------ 표시 도우미 */

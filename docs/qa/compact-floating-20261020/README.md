@@ -17,7 +17,7 @@ The actual BarCandidatesPage, BarShell and WindowModeSync were rendered in a loc
 
 ## Automated checks
 
-- Full Vitest suite: 996 passed, 1 skipped, using bundled Node 24.19.0.
+- Full Vitest suite: 995 passed, 1 skipped, using bundled Node 24.19.0.
 - The two-person body-panel test opens each person's body controls independently, closes the first while the second stays open, and confirms both pose selections are preserved.
 - Multi-person selection tests cover exclusion/reinclusion and confirming the actual selected IDs for both people.
 - WindowModeSync tests cover content shrink/grow, the height cap, pending/result width changes, and preservation of user-moved window anchors.

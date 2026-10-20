@@ -266,6 +266,19 @@ it.each([
         "aria-pressed",
         "true",
       );
+      // Keep the current view when switching, even through a reference-only person.
+      fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
+      expect(await screen.findByRole("region", { name: "인물 1 체형 선택" })).toBeVisible();
+      fireEvent.click(index.getByRole("button", { name: "인물 3 펼치기" }));
+      expect(screen.queryByRole("region", { name: "인물 3 체형 선택" })).toBeNull();
+      fireEvent.click(index.getByRole("button", { name: "인물 2 펼치기" }));
+      expect(await screen.findByRole("region", { name: "인물 2 체형 선택" })).toBeVisible();
+      fireEvent.click(index.getByRole("button", { name: "인물 1 펼치기" }));
+      expect(screen.getByRole("region", { name: "인물 1 체형 선택" })).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "포즈" }));
+      fireEvent.click(index.getByRole("button", { name: "인물 2 펼치기" }));
+      expect(screen.queryByRole("region", { name: "인물 2 체형 선택" })).toBeNull();
+      fireEvent.click(index.getByRole("button", { name: "인물 1 펼치기" }));
     }
     if (personCount === 2) {
       const second = within(screen.getByRole("region", { name: "인물 2" }));
