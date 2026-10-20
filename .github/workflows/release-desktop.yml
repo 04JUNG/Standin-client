@@ -16,6 +16,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: desktop-release-${{ inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   build:
     strategy:
@@ -87,6 +91,27 @@ jobs:
           VERSION="$(node -p "require('./package.json').version")"
           node scripts/set-version.mjs "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        id: notes
+        run: node scripts/release-notes.mjs --github-output
+
+      - name: Refuse to replace a published version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TARGET_ENV: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+          if [ "$TARGET_ENV" = staging ]; then TAG="$TAG-staging"; fi
+          EXISTING="$(gh release list --limit 1000 --json tagName,isDraft)"
+          TAG="$TAG" RELEASES="$EXISTING" node -e '
+            const release = JSON.parse(process.env.RELEASES).find(r => r.tagName === process.env.TAG);
+            if (release && !release.isDraft) throw new Error("Published version already exists; bump the version.");
+          '
 
       # Updater artifacts are signed with a minisign keypair, which is separate from
       # OS code signing (ADR-011). The public key lives in tauri.conf.json; the private
@@ -298,6 +323,7 @@ jobs:
           # Updater package signing (minisign). Unrelated to OS code signing (ADR-011).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          STANDIN_VERIFY_MACOS_UPDATER: ${{ steps.updater.outputs.enabled }}
           # macOS code signing (ADR-011). Empty on Windows runners by design.
           APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
@@ -330,34 +356,11 @@ jobs:
           # 릴리스에 자산을 얹고, 사용자가 그걸 내려받을 수 있다.
           tagName: v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && '-staging' || '' }}
           releaseName: Standin Desktop v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && ' (staging)' || '' }}
-          # Starting template. Releases are drafts by default, so add the
-          # per-release changes on top before publishing.
-          releaseBody: |
-            ## 설치
-
-            - **Windows** — `.exe` 설치 파일
-            - **macOS** — `.dmg` (Apple Silicon·Intel 공용 universal 빌드라 칩을 고르실 필요 없습니다)
-
-            ### macOS는 이것만 지켜 주세요
-
-            `.dmg`를 열고 **Standin을 `응용 프로그램` 폴더로 옮긴 뒤 실행**해 주세요.
-
-            다운로드 폴더나 dmg 안에서 바로 실행하면 macOS가 앱을 격리된 위치에서 실행합니다. 이 경우 **화면 기록 권한이 저장되지 않아** 허용해도 다시 물어보고, 캡처에는 작업 중인 창 대신 배경화면이 찍힙니다.
-
-            첫 캡처 때 화면 기록 권한을 요청합니다. 허용하면 macOS가 앱을 다시 시작할지 물어보니 다시 시작해 주세요. 나중에 바꾸시려면 **설정 > 화면 캡처 권한**에 있습니다.
-
-            ## 알아두실 점
-
-            - 새 버전이 나오면 앱이 알려드립니다. 0.1.1-beta.4보다 이전 버전을 쓰고 계시다면 이번 한 번만 직접 내려받아 주세요.
-            - Windows에서 SmartScreen 경고("Windows의 PC 보호")가 뜰 수 있습니다. 새로 발급받은 인증서라 다운로드가 쌓이기 전까지 경고가 남을 수 있습니다. `추가 정보` → `실행`으로 진행하실 수 있습니다.
-            - macOS는 서명·공증돼 있어 내려받아 바로 여시면 됩니다.
-            - 현재 버전은 **설정 화면**에서 확인할 수 있습니다. 문의하실 때 함께 알려주시면 원인을 찾기 쉽습니다.
-
-            ## 이번 버전의 변경
-
-            <!-- 배포 전에 채워 주세요 -->
+          releaseBody: ${{ steps.notes.outputs.body }}
+          tauriScript: node scripts/tauri-release.mjs
           # staging 빌드는 공개 릴리스로 나가지 않는다.
-          releaseDraft: ${{ inputs.environment == 'staging' || inputs.draft }}
+          # All platforms and updater metadata must pass before publication.
+          releaseDraft: true
           # GitHub's releases/latest path skips prereleases, and the updater feed points
           # at it. Marking releases as prerelease means the update never appears (ADR-011).
           # The -beta.N in the version string carries the beta signal instead; publish the
@@ -380,6 +383,7 @@ jobs:
         shell: pwsh
         env:
           SIGNING_ENABLED: ${{ steps.winsign.outputs.enabled }}
+          TARGET_ENV: ${{ inputs.environment }}
         run: |
           $ErrorActionPreference = 'Stop'
           $release = 'src-tauri/target/x86_64-pc-windows-msvc/release'
@@ -401,6 +405,9 @@ jobs:
           }
 
           if ($env:SIGNING_ENABLED -ne 'true') {
+            if ($env:TARGET_ENV -eq 'production') {
+              throw 'Production releases require Windows code signing.'
+            }
             Write-Host ''
             Write-Host 'Windows code signing was not enabled (staging build, or no ES_* secrets), so this build is UNSIGNED.'
             Write-Host 'SmartScreen will show "Unknown publisher". For production, register the ES_* secrets and re-run.'
@@ -418,6 +425,7 @@ jobs:
         shell: bash
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          TARGET_ENV: ${{ inputs.environment }}
         run: |
           set -euo pipefail
           BUNDLE="src-tauri/target/universal-apple-darwin/release/bundle"
@@ -441,6 +449,10 @@ jobs:
           done
 
           if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            if [ "$TARGET_ENV" = production ]; then
+              echo "Production releases require macOS signing and notarization."
+              exit 1
+            fi
             echo
             echo "APPLE_SIGNING_IDENTITY is not set, so this build is UNSIGNED."
             echo "Gatekeeper will block it. Do not hand this release to testers."
@@ -472,3 +484,32 @@ jobs:
           fi
 
           echo "macOS signing and notarization verified."
+
+  finalize:
+    name: Validate updater feed and finalize release
+    needs: build
+    if: ${{ inputs.environment == 'production' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate all platform entries and attach canonical notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          gh release download "v$VERSION" --pattern latest.json --dir updater-feed
+          node scripts/release-notes.mjs --manifest updater-feed/latest.json
+          gh release upload "v$VERSION" updater-feed/latest.json --clobber
+      - name: Publish verified release
+        if: ${{ !inputs.draft }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          gh release edit "v$VERSION" --draft=false --latest

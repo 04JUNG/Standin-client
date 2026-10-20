@@ -1,0 +1,285 @@
+# Isolated QA apps only. Never creates a release or modifies the production feed.
+name: Signed updater end-to-end verification
+"on":
+  push:
+    branches:
+      - codex/automatic-updates-e2e
+    paths-ignore:
+      - "docs/**"
+      - "scripts/update-e2e/README.md"
+      - "scripts/update-e2e/inspect.py"
+      - ".github/workflows/update-e2e-inspect.yml"
+      - ".github/workflows/update-e2e.yml"
+      - ".github/workflows/update-startup-replay.yml"
+      - "scripts/update-e2e/replay-startup.py"
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: signed-updater-e2e-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    name: Signed A to B (${{ matrix.platformKey }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            rustTargets: x86_64-pc-windows-msvc
+            platformKey: windows-x86_64
+            bundles: nsis
+          - runner: macos-15
+            target: universal-apple-darwin
+            rustTargets: aarch64-apple-darwin,x86_64-apple-darwin
+            platformKey: darwin-aarch64
+            bundles: app,dmg
+          - runner: macos-15-intel
+            target: universal-apple-darwin
+            rustTargets: aarch64-apple-darwin,x86_64-apple-darwin
+            platformKey: darwin-x86_64
+            bundles: app,dmg
+    env:
+      STANDIN_KEYRING_SERVICE: app.standin.desktop.update-e2e
+      E2E_TARGET: ${{ matrix.target }}
+      E2E_PLATFORM: ${{ matrix.platformKey }}
+      STANDIN_VERIFY_MACOS_UPDATER: "true"
+      E2E_STARTUP_REPETITIONS: ${{ matrix.platformKey != 'windows-x86_64' && '25' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rustTargets }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: updater-e2e-${{ matrix.target }}
+          cache-on-failure: true
+      - name: Install dependencies
+        run: npm ci
+      - name: Create isolated updater key and TLS certificate
+        env:
+          STANDIN_E2E_ROOT: ${{ runner.temp }}/standin-updater-e2e
+        run: node scripts/update-e2e/prepare.mjs init
+      - name: Resolve Windows code signing
+        id: winsign
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TARGET_ENV: production
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
+          ES_CREDENTIAL_ID: ${{ secrets.ES_CREDENTIAL_ID }}
+          ES_TOTP_SECRET: ${{ secrets.ES_TOTP_SECRET }}
+          CODESIGNTOOL_URL: https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.2/CodeSignTool-v1.3.2.zip
+          CODESIGNTOOL_SHA256: f14b1e1ef14bfa1fd00279c363aab0debbf5dcfba0e4bcdce5d22bb771de0e3a
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ($env:TARGET_ENV -eq 'staging') {
+            Add-Content $env:GITHUB_OUTPUT 'enabled=false'
+            Write-Host 'staging build: Windows code signing skipped.'
+            exit 0
+          }
+
+          $names = 'ES_USERNAME', 'ES_PASSWORD', 'ES_CREDENTIAL_ID', 'ES_TOTP_SECRET'
+          $missing = @($names | Where-Object { -not [Environment]::GetEnvironmentVariable($_) })
+          if ($missing.Count -eq $names.Count) {
+            Add-Content $env:GITHUB_OUTPUT 'enabled=false'
+            Write-Host '::warning::No eSigner secrets; the Windows installer will be unsigned (ADR-011).'
+            exit 0
+          }
+          # A partial set fails on the first file, after the slow Rust build. Stop now.
+          if ($missing.Count -gt 0) {
+            Write-Host "Windows signing secrets are incomplete. Missing: $($missing -join ', ')"
+            exit 1
+          }
+
+          # CodeSignTool's Windows zip bundles a JDK (200MB+). The runner already has one.
+          $java = Join-Path "$env:JAVA_HOME_17_X64" 'bin\java.exe'
+          if (-not $env:JAVA_HOME_17_X64 -or -not (Test-Path $java)) {
+            Write-Host 'JDK 17 (JAVA_HOME_17_X64) not found on the runner; CodeSignTool needs Java 11+.'
+            exit 1
+          }
+
+          $zip = Join-Path $env:RUNNER_TEMP 'codesigntool.zip'
+          Invoke-WebRequest -Uri $env:CODESIGNTOOL_URL -OutFile $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:CODESIGNTOOL_SHA256) {
+            Write-Host "CodeSignTool checksum mismatch: $hash"
+            exit 1
+          }
+          $tool = Join-Path $env:RUNNER_TEMP 'codesigntool'
+          Expand-Archive $zip -DestinationPath $tool -Force
+
+          $script = Join-Path $env:GITHUB_WORKSPACE 'scripts\sign-windows.mjs'
+          $config = @{ bundle = @{ windows = @{ signCommand = @{ cmd = 'node'; args = @($script, '%1') } } } }
+          # Forward slashes: tauri-action splits `args` as a command line.
+          $configPath = (Join-Path $env:RUNNER_TEMP 'windows-signing.conf.json') -replace '\\', '/'
+          $config | ConvertTo-Json -Depth 6 | Set-Content $configPath -Encoding utf8NoBOM
+
+          Add-Content $env:GITHUB_ENV "CODESIGNTOOL_DIR=$tool"
+          Add-Content $env:GITHUB_ENV "CODESIGNTOOL_JAVA=$java"
+          Add-Content $env:GITHUB_OUTPUT 'enabled=true'
+          Add-Content $env:GITHUB_OUTPUT "extraArgs=--config $configPath"
+          Write-Host 'Windows code signing enabled (SSL.com eSigner).'
+      - name: Prepare Apple notarization key
+        id: apple-key
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          # Signing succeeds without a Team ID; notarization does not. Catch it here
+          # instead of after the (slow) universal build.
+          if [ -n "${APPLE_CERTIFICATE:-}" ] && [ -z "${APPLE_TEAM_ID:-}" ]; then
+            echo "APPLE_CERTIFICATE is set but APPLE_TEAM_ID is missing."
+            echo "Notarization will fail. The Team ID is the 10-character code in the"
+            echo "signing identity: Developer ID Application: NAME (TEAMID)."
+            exit 1
+          fi
+          if [ -z "${APPLE_API_KEY_CONTENT:-}" ]; then
+            echo "No APPLE_API_KEY_CONTENT secret; will use Apple ID credentials if they are set."
+            exit 0
+          fi
+          KEY_DIR="$RUNNER_TEMP/apple-api-key"
+          KEY_PATH="$KEY_DIR/AuthKey.p8"
+          mkdir -p "$KEY_DIR"
+          printf '%s' "$APPLE_API_KEY_CONTENT" | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+
+          # base64 can decode cleanly and still not be a private key — for instance when
+          # the secret holds the wrong file. Check the shape before trusting it.
+          if ! grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"; then
+            echo "APPLE_API_KEY_CONTENT did not decode to a .p8 private key."
+            echo "Store the base64 of the AuthKey_*.p8 file downloaded from App Store Connect."
+            exit 1
+          fi
+
+          for required in APPLE_API_KEY APPLE_API_ISSUER; do
+            if [ -z "${!required:-}" ]; then
+              echo "$required is missing; notarization with an API key needs it."
+              exit 1
+            fi
+          done
+
+          # Authenticate against Apple before building. Without this the credentials are
+          # only exercised after the universal build, so every wrong value costs a full
+          # build cycle — we burned two that way.
+          echo "Checking notarization credentials..."
+          if ! xcrun notarytool history \
+            --key "$KEY_PATH" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            >/dev/null 2>"$RUNNER_TEMP/notarytool-auth.log"; then
+            echo "Apple rejected the notarization credentials:"
+            cat "$RUNNER_TEMP/notarytool-auth.log"
+            echo
+            echo "Check these three in App Store Connect > Users and Access > Integrations:"
+            echo "  APPLE_API_KEY         Key ID, 10 characters. It is in the filename: AuthKey_<KEYID>.p8"
+            echo "  APPLE_API_ISSUER      Issuer ID, a 36-character UUID. Not the Team ID."
+            echo "  APPLE_API_KEY_CONTENT base64 of that same key's .p8 file"
+            echo "The key also needs the Developer role or higher to notarize."
+            exit 1
+          fi
+          echo "Notarization credentials accepted."
+
+          echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
+      - name: Prepare version A
+        run: node scripts/update-e2e/prepare.mjs version a
+      - name: Build signed version A
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_API_BASE_URL: https://127.0.0.1:17443
+          VITE_WEB_BASE_URL: https://127.0.0.1:17443
+          VITE_USE_MOCK_API: "false"
+          VITE_USE_MOCK_POSE_API: "false"
+          VITE_APP_ENV: staging
+          STANDIN_KEYRING_SERVICE: app.standin.desktop.update-e2e
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_API_KEY: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_KEY || '' }}
+          APPLE_API_ISSUER: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_ISSUER || '' }}
+          APPLE_API_KEY_PATH: ${{ steps.apple-key.outputs.path }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+          ES_USERNAME: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_USERNAME || '' }}
+          ES_PASSWORD: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_PASSWORD || '' }}
+          ES_CREDENTIAL_ID: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_CREDENTIAL_ID || '' }}
+          ES_TOTP_SECRET: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_TOTP_SECRET || '' }}
+        with:
+          args: >-
+            --target ${{ matrix.target }} --features update-e2e --config ${{ env.STANDIN_E2E_ROOT
+            }}/tauri.e2e.json --bundles ${{ matrix.bundles }} ${{ steps.winsign.outputs.extraArgs }}
+          tauriScript: node scripts/tauri-release.mjs
+          uploadWorkflowArtifacts: false
+          uploadUpdaterJson: false
+      - name: Preserve signed version A
+        run: node scripts/update-e2e/prepare.mjs stage a
+      - name: Prepare version B
+        run: node scripts/update-e2e/prepare.mjs version b
+      - name: Build signed version B
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_API_BASE_URL: https://127.0.0.1:17443
+          VITE_WEB_BASE_URL: https://127.0.0.1:17443
+          VITE_USE_MOCK_API: "false"
+          VITE_USE_MOCK_POSE_API: "false"
+          VITE_APP_ENV: staging
+          STANDIN_KEYRING_SERVICE: app.standin.desktop.update-e2e
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_API_KEY: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_KEY || '' }}
+          APPLE_API_ISSUER: ${{ steps.apple-key.outputs.path && secrets.APPLE_API_ISSUER || '' }}
+          APPLE_API_KEY_PATH: ${{ steps.apple-key.outputs.path }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+          ES_USERNAME: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_USERNAME || '' }}
+          ES_PASSWORD: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_PASSWORD || '' }}
+          ES_CREDENTIAL_ID: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_CREDENTIAL_ID || '' }}
+          ES_TOTP_SECRET: ${{ steps.winsign.outputs.enabled == 'true' && secrets.ES_TOTP_SECRET || '' }}
+        with:
+          args: >-
+            --target ${{ matrix.target }} --features update-e2e --config ${{ env.STANDIN_E2E_ROOT
+            }}/tauri.e2e.json --bundles ${{ matrix.bundles }} ${{ steps.winsign.outputs.extraArgs }}
+          tauriScript: node scripts/tauri-release.mjs
+          uploadWorkflowArtifacts: false
+          uploadUpdaterJson: false
+      - name: Preserve signed version B
+        run: node scripts/update-e2e/prepare.mjs stage b
+      - name: Install A and exercise the signed updater
+        run: python scripts/update-e2e/run.py
+      - name: Upload verification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-e2e-evidence-${{ matrix.platformKey }}
+          path: ${{ env.STANDIN_E2E_ROOT }}/evidence/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload isolated signed test installers
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-e2e-installers-${{ matrix.platformKey }}
+          path: ${{ env.STANDIN_E2E_ROOT }}/packages/
+          if-no-files-found: warn
+          retention-days: 7

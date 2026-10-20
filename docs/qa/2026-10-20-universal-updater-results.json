@@ -1,0 +1,420 @@
+{
+  "runId": 39435409376,
+  "url": "https://github.com/04JUNG/Standin-client/actions/runs/39435409376",
+  "testedCommit": "5e9e279109c33d1f2782e7ceebf0f59743a9cb8f",
+  "allPassed": true,
+  "platforms": {
+    "darwin-aarch64": {
+      "os": "macOS-15.7.9-arm64-arm-64bit",
+      "buildTarget": "universal-apple-darwin",
+      "scenarios": [
+        {
+          "scenario": "reject-signature",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 15041,
+          "architecture": "aarch64",
+          "firstEventSeconds": 2.07,
+          "durationSeconds": 2.824
+        },
+        {
+          "scenario": "download",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 15167,
+          "architecture": "aarch64",
+          "firstEventSeconds": 1.742,
+          "durationSeconds": 2.122
+        },
+        {
+          "scenario": "offline",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 15178,
+          "architecture": "aarch64",
+          "firstEventSeconds": 1.699,
+          "durationSeconds": 1.735
+        },
+        {
+          "scenario": "tamper",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 15187,
+          "architecture": "aarch64",
+          "firstEventSeconds": 1.755,
+          "durationSeconds": 1.755
+        },
+        {
+          "scenario": "recover",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 15194,
+          "architecture": "aarch64",
+          "firstEventSeconds": 1.76,
+          "durationSeconds": 2.134
+        },
+        {
+          "scenario": "upgrade",
+          "version": "0.1.1-beta.10",
+          "passed": true,
+          "pid": 15451,
+          "architecture": "aarch64",
+          "firstEventSeconds": 1.433,
+          "durationSeconds": 4.329
+        },
+        {
+          "scenario": "no-repeat",
+          "version": "0.1.1-beta.10",
+          "passed": true,
+          "pid": 15473,
+          "architecture": "aarch64",
+          "firstEventSeconds": 1.786,
+          "durationSeconds": 4.341
+        }
+      ],
+      "packages": [
+        {
+          "version": "0.1.1-beta.9",
+          "dmg": "Standin Updater QA_0.1.1-beta.9_universal.dmg",
+          "dmgSha256": "b1967b1550cf7034581ea7e93f50ac62b59e0a86c24cabb86242d5a81d878d2f",
+          "binarySha256": "cd2d7a779ecbc4491d963be09bf908b5d02e7c6e01dfe0d81d91618d6cddd2a0",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "version": "0.1.1-beta.10",
+          "dmg": "Standin Updater QA_0.1.1-beta.10_universal.dmg",
+          "dmgSha256": "03f410cb1b4953234c2aa00041fd077fa390acf1820ae26f8f42c29636f60d67",
+          "binarySha256": "b84d2139252bbbe9687021a3a2d25d2bd7d9e34bc2ac59d81cb8031b45fb2e5c",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        }
+      ],
+      "nativeStageCounts": {
+        "native-entry": 58,
+        "build-start": 58,
+        "e2e-before-single-instance": 58,
+        "e2e-plugins-ready": 58,
+        "build-complete": 58,
+        "app-setup": 58,
+        "event-loop-ready": 58,
+        "page-Started": 58,
+        "page-Finished": 58,
+        "webview-entry": 58,
+        "control-ipc": 58,
+        "control-received": 58,
+        "exit-request": 57,
+        "exit-requested-event": 58,
+        "exit-event": 58
+      },
+      "startupStatsByVersion": {
+        "0.1.1-beta.9": {
+          "count": 25,
+          "firstEventMinSeconds": 1.493,
+          "firstEventMedianSeconds": 1.848,
+          "firstEventMaxSeconds": 2.73
+        },
+        "0.1.1-beta.10": {
+          "count": 25,
+          "firstEventMinSeconds": 1.46,
+          "firstEventMedianSeconds": 1.746,
+          "firstEventMaxSeconds": 1.918
+        }
+      },
+      "localDmgAndArchiveHashesVerified": true,
+      "localMachOArchitecturesVerified": [
+        "x86_64",
+        "arm64"
+      ],
+      "osSignatureNotarizationGatekeeperChecks": 4
+    },
+    "darwin-x86_64": {
+      "os": "macOS-15.7.9-x86_64-i386-64bit",
+      "buildTarget": "universal-apple-darwin",
+      "scenarios": [
+        {
+          "scenario": "reject-signature",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 23408,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.91,
+          "durationSeconds": 1.576
+        },
+        {
+          "scenario": "download",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 23420,
+          "architecture": "x86_64",
+          "firstEventSeconds": 1.068,
+          "durationSeconds": 1.433
+        },
+        {
+          "scenario": "offline",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 23540,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.953,
+          "durationSeconds": 0.953
+        },
+        {
+          "scenario": "tamper",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 23548,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.931,
+          "durationSeconds": 0.931
+        },
+        {
+          "scenario": "recover",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 23558,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.953,
+          "durationSeconds": 1.318
+        },
+        {
+          "scenario": "upgrade",
+          "version": "0.1.1-beta.10",
+          "passed": true,
+          "pid": 23591,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.967,
+          "durationSeconds": 2.545
+        },
+        {
+          "scenario": "no-repeat",
+          "version": "0.1.1-beta.10",
+          "passed": true,
+          "pid": 23613,
+          "architecture": "x86_64",
+          "firstEventSeconds": 1.037,
+          "durationSeconds": 3.757
+        }
+      ],
+      "packages": [
+        {
+          "version": "0.1.1-beta.9",
+          "dmg": "Standin Updater QA_0.1.1-beta.9_universal.dmg",
+          "dmgSha256": "f7db01e328f688a4d1e995e1820f5796abb8a877215cf77ab6c49db721d931e5",
+          "binarySha256": "36db37644c2c0c14689bcaf28c0cfb4a4ef0e4abe702ed3c323d117c833ed90c",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        },
+        {
+          "version": "0.1.1-beta.10",
+          "dmg": "Standin Updater QA_0.1.1-beta.10_universal.dmg",
+          "dmgSha256": "552a0eadf8de45d216490237c97a131e17cc6d114b1f7871a7ec104b053ccaa9",
+          "binarySha256": "b7ac077d52503cda121c3c6c74097ea0dc080b26b99a6efa70c28af7cd11b321",
+          "architectures": [
+            "x86_64",
+            "arm64"
+          ]
+        }
+      ],
+      "nativeStageCounts": {
+        "native-entry": 58,
+        "build-start": 58,
+        "e2e-before-single-instance": 58,
+        "e2e-plugins-ready": 58,
+        "build-complete": 58,
+        "app-setup": 58,
+        "event-loop-ready": 58,
+        "page-Started": 58,
+        "page-Finished": 58,
+        "webview-entry": 58,
+        "control-ipc": 58,
+        "control-received": 58,
+        "exit-request": 57,
+        "exit-requested-event": 58,
+        "exit-event": 58,
+        "main-module-complete": 1
+      },
+      "startupStatsByVersion": {
+        "0.1.1-beta.9": {
+          "count": 25,
+          "firstEventMinSeconds": 0.929,
+          "firstEventMedianSeconds": 1.125,
+          "firstEventMaxSeconds": 3.53
+        },
+        "0.1.1-beta.10": {
+          "count": 25,
+          "firstEventMinSeconds": 0.963,
+          "firstEventMedianSeconds": 1.159,
+          "firstEventMaxSeconds": 1.966
+        }
+      },
+      "localDmgAndArchiveHashesVerified": true,
+      "localMachOArchitecturesVerified": [
+        "x86_64",
+        "arm64"
+      ],
+      "osSignatureNotarizationGatekeeperChecks": 4
+    },
+    "windows-x86_64": {
+      "os": "Windows-2025Server-10.0.26100-SP0",
+      "buildTarget": "x86_64-pc-windows-msvc",
+      "scenarios": [
+        {
+          "scenario": "reject-signature",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 8616,
+          "architecture": "x86_64",
+          "firstEventSeconds": 4.266,
+          "durationSeconds": 5.016
+        },
+        {
+          "scenario": "download",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 8104,
+          "architecture": "x86_64",
+          "firstEventSeconds": 2.516,
+          "durationSeconds": 2.766
+        },
+        {
+          "scenario": "offline",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 5400,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.75,
+          "durationSeconds": 2.766
+        },
+        {
+          "scenario": "tamper",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 8228,
+          "architecture": "x86_64",
+          "firstEventSeconds": 1.5,
+          "durationSeconds": 1.75
+        },
+        {
+          "scenario": "recover",
+          "version": "0.1.1-beta.9",
+          "passed": true,
+          "pid": 1820,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.813,
+          "durationSeconds": 1.063
+        },
+        {
+          "scenario": "upgrade",
+          "version": "0.1.1-beta.10",
+          "passed": true,
+          "pid": 3828,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.812,
+          "durationSeconds": 2.937
+        },
+        {
+          "scenario": "no-repeat",
+          "version": "0.1.1-beta.10",
+          "passed": true,
+          "pid": 1836,
+          "architecture": "x86_64",
+          "firstEventSeconds": 0.797,
+          "durationSeconds": 3.109
+        }
+      ],
+      "packages": [],
+      "nativeStageCounts": {
+        "native-entry": 8,
+        "build-start": 8,
+        "e2e-before-single-instance": 8,
+        "e2e-plugins-ready": 8,
+        "build-complete": 8,
+        "app-setup": 8,
+        "event-loop-ready": 8,
+        "page-Started": 8,
+        "page-Finished": 8,
+        "webview-entry": 8,
+        "control-ipc": 8,
+        "control-received": 8,
+        "exit-request": 7,
+        "exit-requested-event": 7,
+        "exit-event": 7
+      },
+      "startupStatsByVersion": {},
+      "validTimestampedAuthenticodeChecks": 6
+    }
+  },
+  "originalBinaryProbes": [
+    {
+      "runId": 39437017030,
+      "url": "https://github.com/04JUNG/Standin-client/actions/runs/39437017030",
+      "sourceRunId": 39422374014,
+      "artifactId": 12265671389,
+      "mode": "startup-only, offline, original unmodified native arm64 binaries",
+      "allReady": true,
+      "statistics": {
+        "count": 100,
+        "firstEventMinSeconds": 0.344,
+        "firstEventMedianSeconds": 0.7,
+        "firstEventMaxSeconds": 4.553
+      },
+      "binarySha256ByVersion": {
+        "0.1.1-beta.9": "7ade9d6c88c4939ea62b3e08e296ddccf414a967138cd3fa299838329edffa93",
+        "0.1.1-beta.10": "48d79d47b528158db5e15e385010951a4bc5e8c169e447e8ad4de679cfa2fdac"
+      }
+    },
+    {
+      "runId": 39437819011,
+      "url": "https://github.com/04JUNG/Standin-client/actions/runs/39437819011",
+      "sourceRunId": 39422374014,
+      "artifactId": 12265671389,
+      "mode": "startup-only, offline, original unmodified native arm64 binaries",
+      "allReady": true,
+      "statistics": {
+        "count": 100,
+        "firstEventMinSeconds": 0.396,
+        "firstEventMedianSeconds": 0.865,
+        "firstEventMaxSeconds": 4.05
+      },
+      "binarySha256ByVersion": {
+        "0.1.1-beta.9": "7ade9d6c88c4939ea62b3e08e296ddccf414a967138cd3fa299838329edffa93",
+        "0.1.1-beta.10": "48d79d47b528158db5e15e385010951a4bc5e8c169e447e8ad4de679cfa2fdac"
+      },
+      "statisticsByCacheState": {
+        "empty": {
+          "count": 74,
+          "firstEventMinSeconds": 0.4,
+          "firstEventMedianSeconds": 1.668,
+          "firstEventMaxSeconds": 4.05
+        },
+        "pending-b-offline": {
+          "count": 25,
+          "firstEventMinSeconds": 0.396,
+          "firstEventMedianSeconds": 0.491,
+          "firstEventMaxSeconds": 1.094
+        },
+        "installed-b-cleanup": {
+          "count": 1,
+          "firstEventMinSeconds": 0.637,
+          "firstEventMedianSeconds": 0.637,
+          "firstEventMaxSeconds": 0.637
+        }
+      }
+    }
+  ],
+  "historicalStartupTimeoutRootCause": "undetermined; not reproduced; no native stack was captured in the historical failure",
+  "productionPublished": false,
+  "counts": {
+    "updaterScenarios": 21,
+    "universalStartupChecks": 100,
+    "unmodifiedOriginalStartupProbes": 200,
+    "startupTimeoutsObserved": 0
+  }
+}

@@ -9,9 +9,10 @@
 //   CODESIGNTOOL_DIR   CodeSignTool 압축을 푼 폴더(conf/, jar/가 있는 곳)
 //   CODESIGNTOOL_JAVA  java.exe 경로
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import process from "node:process";
 
 const ATTEMPTS = 3;
 // eSigner OTP는 30초 단위로 바뀐다. 실패한 시도와 같은 코드로 다시 보내지 않도록 한 주기를 넘겨 기다린다.
@@ -71,6 +72,16 @@ function readSignature(target) {
 }
 
 function signOnce(outDir) {
+  // NSIS creates its PE uninstaller as nst*.tmp. SSL.com selects formats by
+  // extension and rejects .tmp even though the bytes are a Windows executable.
+  // Sign a private .exe copy, then copy back only after signature verification.
+  let input = path.resolve(file);
+  if (path.extname(input).toLowerCase() === ".tmp") {
+    const inputDir = path.join(outDir, "input");
+    mkdirSync(inputDir);
+    input = path.join(inputDir, "uninstaller.exe");
+    copyFileSync(file, input);
+  }
   // 셸을 거치지 않고 인자 배열로 넘긴다. 비밀번호에 특수문자가 있어도 .bat처럼 깨지지 않는다.
   // 출력은 별도 폴더로 받는다. 입력 파일 덮어쓰기는 CodeSignTool이 확인을 물어 CI에서 멈춘다.
   const result = spawnSync(
@@ -83,7 +94,7 @@ function signOnce(outDir) {
       `-password=${process.env.ES_PASSWORD}`,
       `-credential_id=${process.env.ES_CREDENTIAL_ID}`,
       `-totp_secret=${process.env.ES_TOTP_SECRET}`,
-      `-input_file_path=${path.resolve(file)}`,
+      `-input_file_path=${input}`,
       `-output_dir_path=${outDir}`,
     ],
     // conf/code_sign_tool.properties를 작업 디렉터리 기준으로 읽는다.
@@ -93,7 +104,7 @@ function signOnce(outDir) {
   if (output) console.log(output);
   if (result.error) console.error(`sign-windows: ${result.error.message}`);
 
-  const signed = path.join(outDir, path.basename(file));
+  const signed = path.join(outDir, path.basename(input));
   if (!existsSync(signed)) return false;
 
   const signature = readSignature(signed);

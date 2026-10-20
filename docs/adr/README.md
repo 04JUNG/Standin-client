@@ -19,6 +19,8 @@
 
 ## 목록
 
+자동 업데이트 정책의 현재 기준은 [ADR-014](ADR-014-automatic-update-and-release-notes.md)다.
+
 | ADR | 제목 | 상태 |
 |---|---|---|
 | [ADR-001](ADR-001-styling.md) | 스타일링 방식 | 제안됨 |

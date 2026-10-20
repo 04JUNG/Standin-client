@@ -40,11 +40,11 @@ describe("updateFailureMessage", () => {
     "keeps native diagnostics out of product copy: %s",
     (reason) => {
       const raw = `${reason}: /Users/private/update.bin at https://internal.invalid/package`;
-      for (const phase of ["check", "install"] as const) {
+      for (const phase of ["check", "download", "install"] as const) {
         const message = updateFailureMessage(new Error(raw), phase);
         expect(message).not.toContain(raw);
         expect(message).not.toMatch(/\/Users\/|https:\/\/|internal\.invalid|signature|404/);
-        expect(message).toMatch(/확인|설치|연결/);
+        expect(message).toMatch(/확인|설치|연결|내려받/);
       }
     },
   );

@@ -1,12 +1,14 @@
 import { readFile, writeFile } from "node:fs/promises";
 
 const packagePath = new URL("../package.json", import.meta.url);
+const packageLockPath = new URL("../package-lock.json", import.meta.url);
 const tauriConfigPath = new URL("../src-tauri/tauri.conf.json", import.meta.url);
 const cargoPath = new URL("../src-tauri/Cargo.toml", import.meta.url);
 const cargoLockPath = new URL("../src-tauri/Cargo.lock", import.meta.url);
 
 const packageText = await readFile(packagePath, "utf8");
 const packageJson = JSON.parse(packageText);
+const packageLock = JSON.parse(await readFile(packageLockPath, "utf8"));
 
 function requestedVersion() {
   if (process.argv[2] === "--develop-build") {
@@ -59,6 +61,18 @@ if (!standinLockPackage?.[0].includes(`version = "${version}"`)) {
 
 await Promise.all([
   writeFile(packagePath, nextPackageText),
+  writeFile(
+    packageLockPath,
+    JSON.stringify(
+      {
+        ...packageLock,
+        version,
+        packages: { ...packageLock.packages, "": { ...packageLock.packages[""], version } },
+      },
+      null,
+      2,
+    ) + "\n",
+  ),
   writeFile(tauriConfigPath, nextTauriConfigText),
   writeFile(cargoPath, nextCargoToml),
   writeFile(cargoLockPath, nextCargoLock),

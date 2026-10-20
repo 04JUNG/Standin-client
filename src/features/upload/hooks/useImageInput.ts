@@ -4,6 +4,7 @@ import { afterInputRoute, type FlowOrigin } from "@/features/bar/lib/flowOrigin"
 import { useUploadStore } from "../store/uploadStore";
 import { validateImageFile } from "../lib/validateImage";
 import { createUploadDraft } from "../lib/createUploadDraft";
+import { beginWork } from "@/shared/stores/workActivityStore";
 
 /**
  * File을 받아 검증 → UploadDraft 생성 → store 저장 → 다음 단계로 이동.
@@ -22,6 +23,7 @@ export function useImageInput(options: { origin?: FlowOrigin } = {}) {
     async (file: File) => {
       setError(null);
       setIsProcessing(true);
+      const finishWork = beginWork();
       try {
         const result = await validateImageFile(file);
         if (!result.ok) {
@@ -35,6 +37,7 @@ export function useImageInput(options: { origin?: FlowOrigin } = {}) {
         setDraft(draft, origin);
         navigate(afterInputRoute(origin));
       } finally {
+        finishWork();
         setIsProcessing(false);
       }
     },
