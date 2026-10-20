@@ -1,3 +1,4 @@
+import { preparedIdentity, preparedUrl } from "@/features/export/lib/preparedArtifact";
 import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
 import { apiFetch, apiFetchResponse } from "@/shared/api/client";
@@ -108,9 +109,16 @@ export async function loadHandReview(
   downloadUrl: string,
   selection: HandSelection,
   signal: AbortSignal,
+  prepareOnly = false,
 ) {
   const response = await apiFetchResponse(previewUrl, { auth: false, signal });
   const handReceipt = handReviewFromResponse(response, selection, downloadUrl);
+  if (prepareOnly) {
+    preparedIdentity(response);
+    handReceipt.downloadUrl = preparedUrl(handReceipt.downloadUrl, handReceipt.reviewKey, "fbx");
+    signal.throwIfAborted();
+    return { image: "", handReceipt };
+  }
   const blob = await response.blob();
   if (blob.type !== "image/png") throw new Error("손이 적용된 미리보기를 확인하지 못했습니다.");
   return { image: await blobToDataUrl(blob), handReceipt };

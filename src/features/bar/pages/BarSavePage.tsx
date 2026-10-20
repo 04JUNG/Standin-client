@@ -1,3 +1,4 @@
+import { SceneReviewPanel } from "@/features/export/components/SceneReviewPanel";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
@@ -53,6 +54,9 @@ export function BarSavePage() {
     error,
     selections,
     isSaved,
+    sceneReview,
+    confirmScene,
+    cancelScene,
     characterName,
     requestedCharacterName,
     characterDowngradeReason,
@@ -101,13 +105,18 @@ export function BarSavePage() {
   return (
     <BarShell title={isSaved ? "저장 완료" : "저장"}>
       <div className="flex h-full flex-col gap-2 p-2.5">
-        {status === "saving" && (
+        {status === "saving" && !sceneReview && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
             <p className="text-[12px]">포즈 {selections.length}개를 저장하고 있습니다…</p>
           </div>
         )}
 
+        {sceneReview && (
+          <div className="min-h-0 overflow-auto">
+            <SceneReviewPanel review={sceneReview} confirm={confirmScene} cancel={cancelScene} />
+          </div>
+        )}
         {status === "error" && (
           <>
             <p role="alert" className="flex items-start gap-1 text-[11px] text-brand-coral">
@@ -220,6 +229,9 @@ export function BarSavePage() {
               md + 22px 칩으로는 "다른 폴더"가 두 줄로 깨졌다.
             */}
             <div className="flex shrink-0 flex-col gap-1.5">
+              <Button variant="secondary" size="sm" onClick={() => navigate("/bar/review")}>
+                포즈·손 변경
+              </Button>
               <Button variant="secondary" size="sm" onClick={revealSaved}>
                 <FolderOpen className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 폴더 열기

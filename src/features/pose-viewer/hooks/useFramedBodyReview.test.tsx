@@ -1,3 +1,6 @@
+vi.mock("@/features/export/lib/preparedArtifact", () => ({
+  loadPreparedImage: async () => "verified-new-body",
+}));
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -9,6 +12,7 @@ vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
     bodies: {
       enabled: true,
+      ready: true,
       entries: [
         {
           personIndex: 0,
@@ -45,19 +49,19 @@ const { useFramedReview } = await import("./useFramedReview");
 it("refreshes body state and revalidates the final preview on retry, without requiring the legacy catalog", async () => {
   fixtures.retryBody.mockResolvedValue(undefined);
   fixtures.load.mockRejectedValueOnce(new Error("BODY_PREVIEW_STALE"));
-  fixtures.load.mockResolvedValue({ previewUrl: "verified-new-body" });
+  fixtures.load.mockResolvedValue({ previewUrl: "", downloadUrl: "/prepared" });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const { result } = renderHook(() => useFramedReview("job"), {
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     ),
   });
-  await waitFor(() => expect(result.current.previewError).toBe(true));
+  await waitFor(() => expect(result.current.preparationError).toBe(true));
   await act(async () => {
     await result.current.retryPreview();
   });
   await waitFor(() => expect(result.current.items[0]?.previewUrl).toBe("verified-new-body"));
   expect(fixtures.retryBody).toHaveBeenCalledTimes(1);
   expect(fixtures.load).toHaveBeenCalledTimes(2);
-  expect(result.current.previewError).toBe(false);
+  expect(result.current.preparationError).toBe(false);
 });
