@@ -1,3 +1,4 @@
+import { clearSearchDrafts } from "./searchDraft";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -6,6 +7,8 @@ import { SearchPage } from "./SearchPage";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { ApiError } from "@/shared/api/client";
 
+const loadResult = vi.hoisted(() => vi.fn());
+vi.mock("@/features/pose-viewer/api/pose.service", () => ({ poseService: { loadResult } }));
 const api = vi.hoisted(() => ({ searchCapabilities: vi.fn(), searchPoses: vi.fn() }));
 vi.mock("./api", () => api);
 vi.mock("@/shared/components/AppShell", () => ({
@@ -28,8 +31,15 @@ function setup() {
   );
 }
 beforeEach(() => {
-  api.searchCapabilities.mockResolvedValue({ available: true, maxQueryLength: 500, maxTopK: 20 });
+  clearSearchDrafts();
+  api.searchCapabilities.mockResolvedValue({
+    available: true,
+    maxQueryLength: 500,
+    maxTopK: 20,
+    supportsAllResults: true,
+  });
   api.searchPoses.mockReset();
+  loadResult.mockResolvedValue({ jobId: "job_new", source: "semantic", people: [] });
   usePoseSelectionStore.getState().clearSelection();
 });
 afterEach(() => vi.clearAllMocks());
@@ -54,12 +64,22 @@ it("IME composition does not submit; Enter after composition submits", async () 
   expect(screen.getByRole("textbox")).toHaveValue("던지는 자세");
 });
 it("unavailable service cannot submit and can be checked again", async () => {
-  api.searchCapabilities.mockResolvedValue({ available: false, maxQueryLength: 500, maxTopK: 20 });
+  api.searchCapabilities.mockResolvedValue({
+    available: false,
+    maxQueryLength: 500,
+    maxTopK: 20,
+    supportsAllResults: true,
+  });
   setup();
   await screen.findByRole("alert");
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "서 있는 자세" } });
   expect(screen.getByRole("button", { name: "포즈 찾기" })).toBeDisabled();
-  api.searchCapabilities.mockResolvedValue({ available: true, maxQueryLength: 500, maxTopK: 20 });
+  api.searchCapabilities.mockResolvedValue({
+    available: true,
+    maxQueryLength: 500,
+    maxTopK: 20,
+    supportsAllResults: true,
+  });
   fireEvent.click(screen.getByRole("button", { name: "다시 확인" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "포즈 찾기" })).toBeEnabled());
 });
@@ -90,7 +110,7 @@ it("a successful search opens the issued job without selecting the first candida
   await waitFor(() => expect(screen.getByRole("button", { name: "포즈 찾기" })).toBeEnabled());
   fireEvent.click(screen.getByRole("button", { name: "포즈 찾기" }));
   await screen.findByText("후보 화면");
-  expect(api.searchPoses).toHaveBeenCalledWith("던지는 자세", expect.any(AbortSignal), 20);
+  expect(api.searchPoses).toHaveBeenCalledWith("던지는 자세", expect.any(AbortSignal), null);
   expect(usePoseSelectionStore.getState().jobId).toBe("job_new");
   expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({});
 });
@@ -109,14 +129,16 @@ it("server errors use the safe app message and differ from an empty result", asy
   expect(screen.queryByText("secret internal path")).not.toBeInTheDocument();
 });
 
-it("uses the advertised ten-result limit during a staggered server rollout", async () => {
-  api.searchCapabilities.mockResolvedValue({ available: true, maxQueryLength: 500, maxTopK: 10 });
-  api.searchPoses.mockResolvedValue({ status: "no_result", jobId: null });
+it("waits for the all-results BFF capability during rollout", async () => {
+  api.searchCapabilities.mockResolvedValue({
+    available: true,
+    maxQueryLength: 500,
+    maxTopK: 20,
+    supportsAllResults: false,
+  });
   setup();
-  await screen.findByText("최대 10개의 검색 후보를 5개씩 비교할 수 있어요.");
+  await screen.findByRole("alert");
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "던지는 자세" } });
-  fireEvent.click(screen.getByRole("button", { name: "포즈 찾기" }));
-  await waitFor(() =>
-    expect(api.searchPoses).toHaveBeenCalledWith("던지는 자세", expect.any(AbortSignal), 10),
-  );
+  expect(screen.getByRole("button", { name: "포즈 찾기" })).toBeDisabled();
+  expect(api.searchPoses).not.toHaveBeenCalled();
 });

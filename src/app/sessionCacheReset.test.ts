@@ -1,3 +1,4 @@
+import { saveSearchDraft, readSearchDraft } from "@/features/semantic-search/searchDraft";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 
@@ -37,8 +38,10 @@ describe("clearQueryCacheOnSessionEnd", () => {
   it("로그아웃하면 이전 사용자의 캐시가 남지 않는다", () => {
     // docs/06 §9 — "Query cache에 이전 사용자 데이터가 남지 않음".
     seedCache();
+    saveSearchDraft("owner", "entry", { seed: "", query: "private draft", needsSearch: true });
 
     useAuthStore.setState({ status: "unauthenticated", user: null });
+    expect(readSearchDraft("owner", "entry", "")).toBeUndefined();
 
     expect(queryClient.getQueryData(["auth", "me"])).toBeUndefined();
     expect(queryClient.getQueryData(["analysis", "jobs"])).toBeUndefined();
@@ -47,7 +50,7 @@ describe("clearQueryCacheOnSessionEnd", () => {
   it("토큰 만료로 세션이 끊겨도 캐시를 비운다", () => {
     seedCache();
 
-    useAuthStore.getState().endSession("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    useAuthStore.getState().endSession("로그인이 풀렸어요. 다시 로그인해 주세요.");
 
     expect(queryClient.getQueryData(["analysis", "jobs"])).toBeUndefined();
   });

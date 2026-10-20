@@ -1,15 +1,27 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
+import {
+  useIsMutating,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useBodyOwner } from "@/features/body-selection/hooks";
 import { ApiError } from "@/shared/api/client";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { getHandCatalog, getHandSelection, putHandSelection, handKeys } from "./api";
 import type { HandSelection } from "./contract";
+import { previewScope, scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
 
 export function useHands(result: AnalysisResult | undefined, people: number[], enabled: boolean) {
   const owner = useBodyOwner(),
     qc = useQueryClient(),
     job = result?.jobId ?? "";
-  const active = enabled && result?.capabilities.handSelection === true;
+  const applicablePeople = people.filter((index) =>
+    scopeIncludesHands(previewScope(result?.people?.find((p) => p.index === index))),
+  );
+  const active =
+    enabled && result?.capabilities.handSelection === true && applicablePeople.length > 0;
   const catalog = useQuery({
     queryKey: handKeys.catalog(owner),
     queryFn: ({ signal }) => getHandCatalog(signal),
@@ -18,7 +30,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     staleTime: 300_000,
   });
   const queries = useQueries({
-    queries: people.map((person) => ({
+    queries: (active ? applicablePeople : []).map((person) => ({
       queryKey: handKeys.selection(owner, job, person),
       queryFn: ({ signal }: { signal: AbortSignal }) => getHandSelection(job, person, signal),
       enabled: active && !!owner && !!job,
@@ -34,8 +46,13 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     }: {
       selection: HandSelection;
       patch: { left?: string; right?: string };
-    }) => putHandSelection(job, selection, patch),
+    }) => {
+      if (!active || !applicablePeople.includes(selection.personIndex))
+        throw new Error("이 출력 범위에는 손이 포함되지 않습니다.");
+      return putHandSelection(job, selection, patch);
+    },
     onMutate: async ({ selection }) => {
+      invalidateFinalReview(qc, job);
       await qc.cancelQueries({ queryKey: handKeys.selection(owner, job, selection.personIndex) });
       await qc.cancelQueries({
         queryKey: ["body", owner, job, selection.personIndex],
@@ -63,14 +80,14 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       });
       if (error instanceof ApiError && error.status === 409) {
         await Promise.all(
-          people
+          applicablePeople
             .filter((p) => p !== selection.personIndex)
             .map((p) => qc.invalidateQueries({ queryKey: handKeys.selection(owner, job, p) })),
         );
       }
     },
   });
-  const entries = people.map((personIndex, i) => ({
+  const entries = (active ? applicablePeople : []).map((personIndex, i) => ({
     personIndex,
     selection: queries[i]?.data,
     loading: queries[i]?.isPending || queries[i]?.isFetching,
@@ -87,21 +104,23 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       await queries[i]?.refetch();
     },
   }));
+  const pendingCount = useIsMutating({ mutationKey: ["hand-change", owner, job] });
+  const pending = active && pendingCount > 0;
   const ready =
     !active ||
-    (!!catalog.data &&
-      entries.every((e) => e.selection && !e.loading && !e.error) &&
-      !mutation.isPending);
+    (!!catalog.data && entries.every((e) => e.selection && !e.loading && !e.error) && !pending);
   return {
     enabled: active,
     catalog: catalog.data,
     entries,
     ready,
-    pending: mutation.isPending,
+    pending,
     error: active && (catalog.isError || entries.some((e) => e.error)),
     changeError: mutation.error,
-    change: (selection: HandSelection, patch: { left?: string; right?: string }) =>
-      mutation.mutate({ selection, patch }),
+    change: (selection: HandSelection, patch: { left?: string; right?: string }) => {
+      if (active && applicablePeople.includes(selection.personIndex))
+        mutation.mutate({ selection, patch });
+    },
   };
 }
 export type HandsState = ReturnType<typeof useHands>;

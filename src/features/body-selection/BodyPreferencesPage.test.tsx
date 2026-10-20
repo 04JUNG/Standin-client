@@ -69,8 +69,6 @@ const base = (over: Partial<BodyPreferences> = {}): BodyPreferences => ({
   version: "body-preferences.v1",
   scope: "installation",
   mode: "last_used",
-  defaultCharacterId: null,
-  shapeDefault: null,
   cards: [
     {
       cardId: "card_1",
@@ -152,9 +150,9 @@ it("starts new jobs with the last used body by default and can switch to auto", 
   const last = screen.getByRole("radio", { name: /마지막으로 쓴 체형/ });
   expect(last).toBeChecked();
   // 마지막 체형이 카드와 같으면 카드 이름으로 알려 준다.
-  expect(await screen.findByText(/지금은 ‘주인공 A’/)).toBeInTheDocument();
+  expect(await screen.findByText("현재 체형: 주인공 A")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("radio", { name: /^자동 추천/ }));
   await waitFor(() =>
-    expect(putPreferences).toHaveBeenCalledWith({ mode: "auto", defaultCharacterId: null }, 2),
+    expect(putPreferences).toHaveBeenCalledWith({ mode: "auto" }, 2),
   );
 });

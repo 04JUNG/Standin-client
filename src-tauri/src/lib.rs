@@ -53,6 +53,10 @@ pub fn run() {
         .setup(|_app| {
             #[cfg(feature = "update-e2e")]
             update_e2e::trace("app-setup");
+            // A context-menu failure must not prevent the main app from opening.
+            if let Err(error) = commands::window_mode::init_bar_context_menu(_app) {
+                eprintln!("Could not initialize floating bar menu: {error}");
+            }
             // Windows/Linux 개발 환경에선 런타임에 스킴을 등록해야 딥링크가 잡힌다.
             #[cfg(any(windows, target_os = "linux"))]
             {
@@ -64,6 +68,13 @@ pub fn run() {
         // 앱 창을 최소화하면 작업 표시줄로 숨는 대신 플로팅 바로 접는다(ADR-008).
         // Tauri v2에는 Minimized 이벤트가 없어 Resized에서 상태를 확인한다.
         .on_window_event(|window, event| {
+            #[cfg(desktop)]
+            if matches!(
+                event,
+                tauri::WindowEvent::Moved(_) | tauri::WindowEvent::ScaleFactorChanged { .. }
+            ) {
+                commands::window_mode::enforce_bar_width_for_monitor(window);
+            }
             #[cfg(desktop)]
             if let tauri::WindowEvent::Resized(_) = event {
                 if window.is_minimized().unwrap_or(false) {

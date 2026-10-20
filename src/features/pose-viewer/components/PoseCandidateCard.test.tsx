@@ -73,7 +73,7 @@ it("body changes keep the same default image and issue zero new render requests"
   expect(screen.getByRole("img")).toHaveAttribute("src", url);
   expect(screen.getByRole("button")).toBeEnabled();
   expect(apiFetchResponse).toHaveBeenCalledOnce();
-  expect(screen.getByText(/선택 체형·손·검색 시점 미적용/)).toBeTruthy();
+  expect(screen.queryByText(/체형·손·보는 각도는 최종 결과와 다를 수 있어요/)).toBeNull();
 });
 it("a malformed source-bound poster fails closed and never starts an expensive fallback", async () => {
   vi.mocked(apiFetchResponse).mockImplementation(() =>
@@ -109,5 +109,6 @@ it("scope changes require that exact scope, while a delayed old response cannot 
   expect(screen.queryByRole("img")).toBeNull();
   await act(async () => finish[1](await posterResponse({}, "half")));
   await screen.findByRole("img");
-  expect(screen.getByText(/정면 반신 참고/)).toBeTruthy();
+  expect(screen.queryByText(/정면 반신 참고/)).toBeNull();
+  expect(vi.mocked(apiFetchResponse).mock.calls[1][0]).toContain("scope=half");
 });

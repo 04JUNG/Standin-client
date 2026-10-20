@@ -2,12 +2,22 @@ import type { BodyScope } from "@/features/pose-viewer/api/outputScope";
 
 // Keep the PNG fallback's paired FBX as the download target too. URLs include
 // job, person, candidate, scope and character; the suffix distinguishes refine.
-export type ReviewedIdentity = { sourceSha: string; characterSha: string; revision?: string };
+export type ReviewedIdentity = {
+  sourceSha: string;
+  characterSha: string;
+  revision?: string;
+  reviewKey?: string;
+  artifactSha256?: string;
+  prepared?: boolean;
+};
 const reviewedFormats = new Map<string, { model: boolean; identity?: ReviewedIdentity }>();
 export function rememberFramedFormat(key: string, model: boolean, identity?: ReviewedIdentity) {
   reviewedFormats.delete(key);
   reviewedFormats.set(key, { model, identity });
   if (reviewedFormats.size > 64) reviewedFormats.delete(reviewedFormats.keys().next().value!);
+}
+export function reviewedArtifactSha(key: string) {
+  return reviewedFormats.get(key)?.identity?.artifactSha256;
 }
 export function reviewedModelFormat(key: string, fallback: boolean) {
   return reviewedFormats.get(key)?.model ?? fallback;
@@ -20,6 +30,9 @@ export function reviewedExportUrl(url: string, key: string) {
   parsed.searchParams.set("expectedBvhSha256", identity.sourceSha);
   parsed.searchParams.set("expectedCharacterSha256", identity.characterSha);
   if (identity.revision) parsed.searchParams.set("expectedModelRevision", identity.revision);
+  if (identity.reviewKey) parsed.searchParams.set("reviewKey", identity.reviewKey);
+  if (identity.prepared && identity.reviewKey)
+    parsed.searchParams.set("artifactReceipt", identity.reviewKey);
   return `${parsed.pathname}${parsed.search}`;
 }
 
@@ -27,7 +40,7 @@ export function reviewedExportUrl(url: string, key: string) {
 export function framedExportUrl(
   url: string,
   scope: BodyScope,
-  format: "preview" | "fbx" | "model",
+  format: "preview" | "fbx" | "model" | "ready",
   characterId: string | null,
   modelPreview = false,
 ): string {
@@ -42,4 +55,15 @@ export function framedExportUrl(
   if (characterId) parsed.searchParams.set("characterId", characterId);
   else parsed.searchParams.delete("characterId");
   return `${parsed.pathname}${parsed.search}`;
+}
+
+export function forgetFramedJob(job: string) {
+  for (const key of reviewedFormats.keys()) {
+    try {
+      if (new URL(key, "https://standin.invalid").searchParams.get("jobId") === job)
+        reviewedFormats.delete(key);
+    } catch {
+      /* malformed legacy keys never grant a receipt */
+    }
+  }
 }

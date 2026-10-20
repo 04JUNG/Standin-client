@@ -48,7 +48,7 @@ export function HandChips({
   const byId = new Map(presets.map((p) => [p.id, p]));
   const status = (s: Side) =>
     selection.changed.includes(s)
-      ? "직접 선택"
+      ? "고른 손 모양"
       : selection.observation[s].source === "vlm"
         ? selection.observation[s].confidence === "low"
           ? "확인 필요"
@@ -102,7 +102,7 @@ export function HandChips({
       </div>
       {selection.observation.status === "unavailable" && (
         <p className="text-[12px] text-text-secondary">
-          손 자동 인식을 완료하지 못해 기본 손을 선택했습니다.
+          손 모양을 확인하고 골라 주세요.
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -134,9 +134,11 @@ export function HandChips({
           </button>
         ))}
       </div>
-      <p role="status" className="text-[12px] text-text-secondary">
-        {state.pending ? "손 선택 저장 중…" : "손 모양은 최종 미리보기와 FBX에 반영됩니다."}
-      </p>
+      {state.pending && (
+        <p role="status" className="text-[12px] text-text-secondary">
+          손 선택 저장 중…
+        </p>
+      )}
       {state.changeError && (
         <p role="alert" className="text-[12px] text-brand-coral">
           {messageOf(
@@ -148,7 +150,7 @@ export function HandChips({
       <Modal
         open={side !== null}
         onClose={() => setSide(null)}
-        title={`인물 ${personIndex + 1}의 ${side ? labels[side] : "손"} · 인물 기준`}
+        title={`인물 ${personIndex + 1}의 ${side ? labels[side] : "손"} · 그림 속 인물 기준`}
         width="lg"
       >
         <div className="flex flex-col gap-3">

@@ -1,4 +1,5 @@
-import { apiFetch, apiFetchBlob, apiFetchResponse, ApiError } from "@/shared/api/client";
+import { ApiError } from "@/shared/api/errors";
+import { apiFetch, apiFetchBlob, apiFetchResponse } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { validRotation } from "@/features/pose-viewer/preview/modelContract";
 import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
@@ -15,6 +16,7 @@ import {
   type BodyLook,
 } from "./contract";
 import { bodyMock, bodyMockEnabled } from "./mock";
+import { scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
 export const personPath = (job: string, person: number) =>
   `/v1/analysis/jobs/${encodeURIComponent(job)}/people/${person}`;
 export const bodyKeys = {
@@ -69,9 +71,6 @@ export async function getPreferences(signal?: AbortSignal) {
 export async function putPreferences(
   value: {
     mode: BodyPreferences["mode"];
-    defaultCharacterId: string | null;
-    /** Omit to keep the saved value; null clears it. */
-    shapeDefault?: { characterId: string; controls: Record<string, number> } | null;
   },
   revision: number,
 ) {
@@ -127,6 +126,7 @@ export async function getManifest(
     manifest.jobId !== job ||
     manifest.personIndex !== person ||
     manifest.selectionRevision !== selection.selectionRevision ||
+    (!scopeIncludesHands(manifest.outputScope) && !!manifest.hands) ||
     !sameBody(manifest.resolvedBody, selection.resolvedBody)
   )
     throw new Error("체형 선택이 변경되었습니다. 다시 확인해 주세요.");
@@ -151,7 +151,7 @@ export async function verifyDigest(bytes: ArrayBuffer, expected: string) {
   if (
     Array.from(new Uint8Array(hash), (x) => x.toString(16).padStart(2, "0")).join("") !== expected
   )
-    throw new Error("미리보기 파일이 변경되었습니다.");
+    throw new ApiError(409, "CONVERTER_INTEGRITY", "미리보기 파일이 변경되었습니다.");
 }
 async function bodyBytes(
   url: string,

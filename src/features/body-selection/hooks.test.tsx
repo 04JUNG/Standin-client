@@ -251,3 +251,30 @@ it("default Top-5 and body changes never request selected-body manifests or rend
   h.unmount();
   qc.clear();
 });
+
+it("a ready male fallback unlocks confirmation, while missing assets still block it", async () => {
+  const { wrapper, qc } = setup();
+  const fallback = (index: number): BodySelection => ({
+    ...selection(0, "a", index),
+    recommendation: { status: "disabled", body: null, reasonCodes: [] },
+    resolvedBody: { ...ref("a"), characterId: "male-base-v0-7-2" },
+    resolvedSource: "catalog_default_fallback",
+  });
+  api.getSelection.mockImplementation(async (_job, index) => fallback(index));
+  const { result: hook } = renderHook(() => useBodies(result), { wrapper });
+  await waitFor(() => expect(hook.current.ready).toBe(true));
+  expect(
+    hook.current.entries.every(
+      (e) => e.selection?.resolvedBody?.characterId === "male-base-v0-7-2",
+    ),
+  ).toBe(true);
+  act(() =>
+    qc.setQueryData(bodyKeys.selection("owner", "server-job", 0), {
+      ...fallback(0),
+      resolvedBody: null,
+      resolutionStatus: "unavailable",
+    }),
+  );
+  await waitFor(() => expect(hook.current.ready).toBe(false));
+  expect(hook.current.entries[0].error?.message).toContain("남성 기본형을 불러올 수 없어요");
+});

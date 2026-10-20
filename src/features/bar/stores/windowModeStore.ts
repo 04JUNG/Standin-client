@@ -16,12 +16,14 @@ type WindowModeState = {
   /**
    * 바 내용이 실제로 차지하는 높이(px). 화면이 측정해 올린다.
    *
-   * 크기 표(BAR_SIZES)는 평상시 높이만 담는다. 오류 안내처럼 그때만 생기는 줄까지
-   * 표에 넣을 수는 없으므로, 표보다 내용이 크면 이 값으로 창을 키운다. 창을 키우는
-   * 것은 여전히 WindowModeSync 하나뿐이다 — 크기를 쓰는 곳이 둘이 되면 서로 덮어쓴다.
+   * 크기 표(BAR_SIZES)는 측정 전 기본값이다. 측정 후에는 내용에 맞춰 줄이거나 키우되
+   * 상태별 상한을 지킨다. 실제 크기는 WindowModeSync 한 곳에서만 적용한다.
    */
   barContentHeight: number | null;
   setBarContentHeight(height: number | null): void;
+  /** 화면이 필요로 하는 너비. 검색 대기는 좁게, 후보 비교는 카드 너비를 확보한다. */
+  barContentWidth: number | null;
+  setBarContentWidth(width: number | null): void;
   reset(): void;
 };
 
@@ -30,9 +32,11 @@ export const useWindowModeStore = create<WindowModeState>()(
     (set) => ({
       barPosition: null,
       barContentHeight: null,
+      barContentWidth: null,
       setBarPosition: (barPosition) => set({ barPosition }),
       setBarContentHeight: (barContentHeight) => set({ barContentHeight }),
-      reset: () => set({ barPosition: null, barContentHeight: null }),
+      setBarContentWidth: (barContentWidth) => set({ barContentWidth }),
+      reset: () => set({ barPosition: null, barContentHeight: null, barContentWidth: null }),
     }),
     {
       name: "standin-window",

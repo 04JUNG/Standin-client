@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useUpdateStore } from "@/features/updates/store/updateStore";
+import { updateService } from "@/features/updates/api/update.service";
 import { useStartupUpdateCheck } from "@/features/updates/hooks/useStartupUpdateCheck";
 import { updateBlockReason } from "@/features/updates/hooks/useUpdateBlockReason";
 import { ReleaseNotesDialog } from "@/features/updates/components/ReleaseNotesDialog";
@@ -24,6 +25,27 @@ await invoke("e2e_trace", { stage: "control-received" });
 const client = new QueryClient();
 const report = (type: string, detail: unknown = null) =>
   invoke("e2e_report", { event: { scenario: control.scenario, type, detail } });
+// Product copy intentionally hides native diagnostics. Keep real rejections in
+// this QA entry point so signature checks do not depend on translated UI text.
+const nativeFailures: { phase: string; message: string }[] = [];
+function observeFailure<Args extends unknown[], Result>(
+  phase: string,
+  operation: (...args: Args) => Promise<Result>,
+) {
+  return async (...args: Args): Promise<Result> => {
+    try {
+      return await operation(...args);
+    } catch (error) {
+      const failure = { phase, message: error instanceof Error ? error.message : String(error) };
+      nativeFailures.push(failure);
+      await report("native-update-failure", failure);
+      throw error;
+    }
+  };
+}
+updateService.check = observeFailure("check", updateService.check);
+updateService.download = observeFailure("download", updateService.download);
+updateService.install = observeFailure("install", updateService.install);
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const waitFor = async (predicate: () => boolean, timeout = 90_000) => {
   const started = Date.now();
@@ -118,7 +140,14 @@ try {
       break;
     case "reject-signature":
       await waitFor(() => Boolean(state().error));
-      assert(/signature|base64|decode/i.test(state().error!), "Expected signature rejection");
+      assert(
+        nativeFailures.some(
+          (failure) =>
+            ["check", "download"].includes(failure.phase) &&
+            /signature|base64|decode/i.test(failure.message),
+        ),
+        "Expected native signature rejection",
+      );
       assert(!state().cached, "Unverified download must not be cached");
       break;
     case "download":
@@ -154,7 +183,12 @@ try {
       assert(state().version === control.a, "Failed install must retain A");
       assert(state().error, "Expected install failure");
       if (control.scenario === "tamper")
-        assert(/signature/i.test(state().error!), "Tampered bytes were not rejected");
+        assert(
+          nativeFailures.some(
+            (failure) => failure.phase === "install" && /signature/i.test(failure.message),
+          ),
+          "Tampered bytes were not rejected by the native installer",
+        );
       break;
     case "upgrade":
       assert(state().version === control.b, "New binary must actually run");

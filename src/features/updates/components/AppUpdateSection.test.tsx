@@ -88,7 +88,7 @@ describe("AppUpdateSection", () => {
     isConfigured.mockResolvedValue(false);
     renderSection();
 
-    expect(await screen.findByText(/자동 업데이트를 사용하지 않습니다/)).toBeInTheDocument();
+    expect(await screen.findByText(/자동으로 업데이트되지 않아요/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "업데이트 확인" })).not.toBeInTheDocument();
   });
 
@@ -146,13 +146,15 @@ describe("AppUpdateSection", () => {
   });
 
   it("확인이 실패하면 조용히 넘기지 않는다", async () => {
-    check.mockRejectedValue(new Error("업데이트 서버에 연결하지 못했습니다."));
+    check.mockRejectedValue(
+      new Error("새 버전 정보를 불러오지 못했어요. 잠시 후 다시 확인해 주세요."),
+    );
     renderSection();
 
     await userEvent.click(await screen.findByRole("button", { name: "업데이트 확인" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "업데이트 서버에 연결하지 못했습니다.",
+      "새 버전 정보를 불러오지 못했어요. 잠시 후 다시 확인해 주세요.",
     );
   });
 });

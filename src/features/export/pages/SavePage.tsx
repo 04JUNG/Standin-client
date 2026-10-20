@@ -1,3 +1,4 @@
+import { SceneReviewPanel } from "../components/SceneReviewPanel";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
@@ -44,7 +45,10 @@ export function SavePage() {
   const [feedbackError, setFeedbackError] = useState(false);
 
   const {
-    bodyMode,
+    sceneReview,
+    confirmScene,
+    cancelScene,
+    recovery,
     returnToReview,
     folder,
     format,
@@ -101,7 +105,7 @@ export function SavePage() {
   useShortcuts({
     "save.revealFolder": isSaved ? () => revealSaved() : undefined,
     "save.chooseFolder": status !== "saving" ? () => void saveToAnotherFolder() : undefined,
-    "save.save": status === "error" ? () => void retry() : undefined,
+    "save.save": status === "error" && recovery.action === "retry" ? () => void retry() : undefined,
     "save.newScene": isSaved ? () => handleNewScene() : undefined,
   });
 
@@ -111,7 +115,7 @@ export function SavePage() {
   return (
     <AppShell title={isSaved ? "저장 완료" : "저장"}>
       <div className="mx-auto flex max-w-[520px] flex-col gap-5 rounded-xl border border-border bg-surface-0 p-6">
-        {status === "saving" && (
+        {status === "saving" && !sceneReview && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
             <p className="text-[14px] text-text-secondary">
@@ -121,28 +125,36 @@ export function SavePage() {
           </div>
         )}
 
+        {sceneReview && (
+          <SceneReviewPanel review={sceneReview} confirm={confirmScene} cancel={cancelScene} />
+        )}
+
         {status === "error" && (
           <div {...tourAnchor("save.error")} className="flex flex-col gap-3">
             <div className="flex items-start gap-2 rounded-lg bg-brand-coral/10 p-3 text-[13px] text-brand-coral">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <p role="alert">{error}</p>
             </div>
-            {bodyMode && (
+            {recovery.action !== "retry" && (
               <Button
                 variant="secondary"
                 onClick={() => {
                   returnToReview();
-                  navigate(`/app/jobs/${jobId}/review`);
+                  navigate(
+                    recovery.action === "choose"
+                      ? `/app/jobs/${jobId}`
+                      : `/app/jobs/${jobId}/review`,
+                  );
                 }}
               >
-                체형·포즈 다시 확인
+                {recovery.label}
               </Button>
             )}
             <p className="break-all text-[12px] text-text-secondary">
               저장을 시도한 폴더: {folder}
             </p>
             <div className="flex flex-col gap-2">
-              <Button size="lg" onClick={() => void retry()}>
+              <Button size="lg" disabled={recovery.action !== "retry"} onClick={() => void retry()}>
                 <RotateCcw className="h-4 w-4" aria-hidden />
                 다시 저장
                 <ShortcutKey
@@ -212,7 +224,8 @@ export function SavePage() {
               {formatDowngraded && (
                 <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  지금 연결된 서버는 FBX 저장을 아직 제공하지 않아 BVH로 저장했습니다.
+                  지금은 FBX로 저장할 수 없어 BVH로 저장했어요. BVH에는 체형·손 모양 없이 동작만
+                  들어가요.
                 </p>
               )}
               {modelNotice && (
@@ -241,8 +254,8 @@ export function SavePage() {
                       {[
                         ["good", "좋아요"],
                         ["person_missing", "인물 누락"],
-                        ["skeleton_wrong", "스켈레톤 오류"],
-                        ["candidates_irrelevant", "후보 불일치"],
+                        ["skeleton_wrong", "팔다리 인식 문제"],
+                        ["candidates_irrelevant", "러프와 다른 포즈"],
                         ["export_problem", "저장 문제"],
                         ["other", "기타"],
                       ].map(([reason, label]) => (
@@ -267,6 +280,13 @@ export function SavePage() {
             )}
 
             <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => navigate(`/app/jobs/${jobId}/review`)}
+              >
+                포즈·손 변경
+              </Button>
               <Button variant="secondary" size="md" onClick={revealSaved}>
                 <FolderOpen className="h-4 w-4" aria-hidden />
                 폴더 열기

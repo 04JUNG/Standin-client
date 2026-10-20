@@ -92,7 +92,7 @@ export function useSelectionReview(jobId: string | undefined) {
       });
       const rawUrl =
         item.candidate.posterUrl ??
-        `/v1/pose-candidates/${encodeURIComponent(item.candidate.poseId)}/poster?${params}`;
+        `/v1/pose-candidates/${encodeURIComponent(item.candidate.poseId ?? item.candidate.id)}/poster?${params}`;
       const parsed = new URL(rawUrl, "https://standin.invalid");
       parsed.searchParams.set("scope", scope);
       const url = parsed.pathname + parsed.search;

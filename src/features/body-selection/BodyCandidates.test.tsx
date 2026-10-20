@@ -77,7 +77,6 @@ const withCard = (): BodyPreferences => ({
   version: "body-preferences.v1",
   scope: "installation",
   mode: "last_used",
-  defaultCharacterId: null,
   cards: [
     {
       cardId: "card_1",
@@ -119,6 +118,27 @@ it("opens and closes the body panel while all five previews are unavailable", ()
   expect(more).toHaveAttribute("aria-pressed", "false");
 });
 
+it("captures the viewport before either view changes, including keyboard activation", () => {
+  const pressedBeforeChange: boolean[] = [];
+  wrap(
+    createElement(BodyChip, {
+      job: "job-scroll-capture",
+      person,
+      entry,
+      onViewChange: () =>
+        pressedBeforeChange.push(
+          screen.getByRole("button", { name: "체형 더보기" }).getAttribute("aria-pressed") ===
+            "true",
+        ),
+    }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "체형 더보기" }));
+  // Keyboard-generated clicks have no pointer event; capture must still run.
+  fireEvent.click(screen.getByRole("button", { name: "포즈" }), { detail: 0 });
+  expect(pressedBeforeChange).toEqual([false, true]);
+  expect(screen.getByRole("button", { name: "포즈" })).toHaveAttribute("aria-pressed", "true");
+});
+
 it("saves a picked body without waiting for the previews", () => {
   wrap(createElement(BodyExpand, { job: "job-panel", person, entry, variant: "app" }));
   const card = screen.getByRole("radio", { name: /근육형/ });
@@ -156,3 +176,29 @@ it("names the person's body after the card it matches", () => {
   expect(screen.getByText("내 체형")).toBeInTheDocument();
   expect(screen.getByText("주인공 A")).toBeInTheDocument();
 });
+
+for (const variant of ["app", "bar"] as const) {
+  it(`${variant}: shows the male fallback and allows explicit auto when no recommendation exists`, () => {
+    const fallback = {
+      ...entry,
+      selection: {
+        ...entry.selection!,
+        resolvedSource: "catalog_default_fallback",
+        resolvedBody: { ...entry.selection!.resolvedBody!, characterId: "male-base-v0-7-2" },
+        recommendation: { status: "unavailable", body: null, reasonCodes: ["provider_error"] },
+      },
+    } as BodyEntry;
+    wrap(
+      createElement(BodyExpand, { job: "fallback-" + variant, person, entry: fallback, variant }),
+    );
+    expect(
+      screen.getByText(
+        "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요.",
+      ),
+    ).toBeInTheDocument();
+    const auto = screen.getByRole("button", { name: "자동 추천" });
+    expect(auto).not.toBeDisabled();
+    fireEvent.click(auto);
+    expect(mutate).toHaveBeenCalledWith({ intent: "auto" });
+  });
+}

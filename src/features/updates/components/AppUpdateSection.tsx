@@ -28,7 +28,17 @@ export function AppUpdateSection() {
       </div>
       <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
         <div className="flex items-center justify-between gap-4">
-          <p className="text-[14px] text-text-primary">Standin {state.version ?? "불러오는 중…"}</p>
+          <div className="min-w-0">
+            <p className="text-[14px] text-text-primary">
+              Standin {state.version ?? "불러오는 중…"}
+            </p>
+            {state.configured === false && (
+              <p className="mt-1 text-[12px] text-text-secondary">
+                이 버전은 자동으로 업데이트되지 않아요. 새 설치 파일을 내려받아 설치해 주세요.
+              </p>
+            )}
+          </div>
+
           {state.configured && (
             <Button
               variant="secondary"
@@ -41,11 +51,6 @@ export function AppUpdateSection() {
             </Button>
           )}
         </div>
-        {state.configured === false && (
-          <p className="text-[12px] text-text-secondary">
-            이 빌드는 자동 업데이트를 사용하지 않습니다. 새 버전은 직접 내려받아 설치해 주세요.
-          </p>
-        )}
         {state.result?.kind === "up-to-date" && (
           <p className="flex items-center gap-1.5 text-[12px] text-text-secondary">
             <Check className="h-3.5 w-3.5" aria-hidden />

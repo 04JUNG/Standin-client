@@ -1,10 +1,11 @@
+import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { ImageOff, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "../hooks/useFramedReview";
-import { ReviewModelPreview } from "../components/ReviewModelPreview";
+import { ReviewPosePreview } from "../components/ReviewPosePreview";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
 
 /**
@@ -24,10 +25,17 @@ export function ReviewPage() {
     hands,
     isRefining,
     previewLoading,
+    preparationLoading,
+    preparationError,
+    preparationNotice,
+    downloadReady,
+    downloadLabel,
+    requestDownload,
     previewError,
+    previewFailure,
+    requiresFbx,
     previewNotice,
     retryPreview,
-    shapedBake,
   } = useFramedReview(jobId);
 
   if (!jobId) return <Navigate to="/app/home" replace />;
@@ -35,7 +43,7 @@ export function ReviewPage() {
 
   return (
     <AppShell title="저장할 포즈 확인">
-      <div className="mx-auto flex h-full w-full max-w-[520px] flex-col gap-4">
+      <div className="mx-auto flex h-full w-full max-w-[760px] flex-col gap-4">
         {isRefining ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-text-secondary">
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
@@ -43,34 +51,26 @@ export function ReviewPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
-            <p className="text-[13px] text-text-secondary">
-              {hands?.pending || previewLoading
-                ? "최종 미리보기를 준비하고 있습니다…"
-                : "아래 포즈를 확인한 뒤 저장하세요."}
-            </p>
-            <ul className="grid grid-cols-2 gap-3">
+            <ul
+              className={`grid gap-3 ${items.length === 1 ? "mx-auto w-full max-w-[clamp(140px,calc(100dvh_-_480px),480px)] grid-cols-1" : "grid-cols-2"}`}
+            >
               {items.map((item) => (
                 <li
                   key={item.personIndex}
                   className="flex flex-col overflow-hidden rounded-lg border border-border"
                 >
-                  {item.previewModel ? (
-                    <ReviewModelPreview model={item.previewModel} onStatus={item.onModelStatus} />
-                  ) : item.previewUrl ? (
-                    <img
-                      src={item.previewUrl}
-                      alt={
-                        item.previewReference
-                          ? `인물 ${item.personIndex + 1}의 원본 BVH 포즈 참고`
-                          : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
-                      }
-                      className="aspect-square w-full bg-surface-2 object-contain"
-                    />
-                  ) : (
-                    <div className="flex aspect-square w-full items-center justify-center bg-surface-2 text-text-secondary">
-                      <ImageOff className="h-6 w-6" aria-hidden />
-                    </div>
-                  )}
+                  <ReviewPosePreview
+                    model={item.previewModel}
+                    src={item.previewUrl}
+                    label={
+                      item.previewReference
+                        ? `인물 ${item.personIndex + 1}의 동작 미리보기`
+                        : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
+                    }
+                    loading={previewLoading}
+                    error={previewError}
+                    onModelStatus={item.onModelStatus}
+                  />
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">
                       인물 {item.personIndex + 1}
@@ -81,7 +81,8 @@ export function ReviewPage() {
                     </span>
                     {item.previewReference && (
                       <p className="px-2 text-[10px] text-text-secondary">
-                        포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장
+                        포즈만 확인하는 모습이에요. BVH에는 체형
+                        {item.includesHands ? "·손 모양" : ""} 없이 전체 동작이 저장돼요.
                       </p>
                     )}
                     {/* 조정 여부는 그림만 봐서는 알 수 없다. 러프에 맞춰 손댄 결과라는 것을
@@ -102,19 +103,29 @@ export function ReviewPage() {
           </div>
         )}
 
-        {previewNotice && <p className="text-[12px] text-text-secondary">{previewNotice}</p>}
-        {previewLoading && (
+        {!previewLoading && !previewError && !requiresFbx && previewNotice && (
+          <p className="text-[12px] text-text-secondary">{previewNotice}</p>
+        )}
+        {preparationLoading && !isRefining && (
           <p role="status" className="text-[12px] text-text-secondary">
-            {shapedBake
-              ? "조절한 체형을 실제 포즈에 반영하는 중… 1~2분 걸릴 수 있어요."
-              : "선택한 범위의 미리보기를 만드는 중…"}
+            {preparationNotice}
           </p>
         )}
-        {previewError && (
+        {requiresFbx && <GeneratedFbxNotice />}
+        {(preparationError || previewError) && (
           <div role="alert" className="text-[12px] text-brand-coral">
-            미리보기를 만들지 못했습니다.{" "}
-            <button onClick={retryPreview} className="underline">
-              다시 시도
+            {preparationError
+              ? previewFailure.message
+              : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
+            <button
+              onClick={() =>
+                previewFailure.action === "choose"
+                  ? navigate(`/app/jobs/${jobId}`)
+                  : void retryPreview()
+              }
+              className="underline"
+            >
+              {previewFailure.label}
             </button>
           </div>
         )}
@@ -125,10 +136,13 @@ export function ReviewPage() {
           <Button
             {...tourAnchor("review.confirm")}
             size="lg"
-            disabled={isRefining || previewLoading || previewError}
-            onClick={() => navigate(`/app/jobs/${jobId}/save`)}
+            disabled={!downloadReady}
+            onClick={() => {
+              if (requestDownload()) navigate(`/app/jobs/${jobId}/save`);
+            }}
           >
-            <Save className="h-4 w-4" aria-hidden />이 포즈로 저장 ({items.length})
+            <Save className="h-4 w-4" aria-hidden />
+            {downloadLabel} ({items.length})
           </Button>
         </div>
       </div>

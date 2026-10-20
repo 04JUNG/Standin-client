@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
+import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import type { WindowModeService, WindowPosition, WindowSize } from "../api/windowMode.contract";
 import { BAR_SIZES } from "../lib/barSizes";
@@ -50,12 +53,16 @@ function Navigator() {
   return null;
 }
 
+let queryClient: QueryClient;
+
 function renderAt(path: string) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <WindowModeSync />
-      <Navigator />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <WindowModeSync />
+        <Navigator />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -75,6 +82,9 @@ async function setContentHeight(height: number | null) {
 }
 
 beforeEach(() => {
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  usePoseSelectionStore.setState({ jobId: null, serverJobId: null });
+  usePoseSelectionStore.getState().clearSelection();
   windowAt = { x: 200, y: 200 };
   service.setMode.mockReset().mockImplementation(async (_mode, size) => {
     if (size) windowAt = clamp(windowAt, size);
@@ -92,6 +102,18 @@ afterEach(() => {
 });
 
 describe("WindowModeSync", () => {
+  it("sets and restores both HTML and body backgrounds before a collapsed bar is painted", async () => {
+    renderAt("/app/home");
+    expect(document.documentElement.dataset.windowMode).toBe("app");
+    expect(document.body.dataset.windowMode).toBe("app");
+    await go("/bar");
+    expect(document.documentElement.dataset.windowMode).toBe("bar");
+    expect(document.body.dataset.windowMode).toBe("bar");
+    await go("/app/home");
+    expect(document.documentElement.dataset.windowMode).toBe("app");
+    expect(document.body.dataset.windowMode).toBe("app");
+  });
+
   it("오버레이는 캡처한 모니터를 그대로 받는다", async () => {
     useCaptureStore.getState().setFrame({
       dataUrl: "data:image/png;base64,x",
@@ -167,34 +189,40 @@ describe("WindowModeSync", () => {
  * 자리로 튀었다.
  */
 describe("WindowModeSync 바 위치", () => {
-  it("후보 이미지와 줄바꿈으로 내용 높이가 바뀌어도 창 크기와 위치를 고정한다", async () => {
+  it("후보 내용에 맞춰 줄고 늘지만 여러 인물이 있어도 높이 상한을 넘지 않는다", async () => {
     renderAt("/bar/candidates");
     await settle();
-    service.setMode.mockClear();
-    service.setPosition.mockClear();
+    await setContentHeight(280);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(280);
     await setContentHeight(510);
-    await setContentHeight(575);
-    await setContentHeight(535);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(510);
+    await setContentHeight(1800);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(560);
+    service.setMode.mockClear();
+    await setContentHeight(2400);
     expect(service.setMode).not.toHaveBeenCalled();
-    expect(service.setPosition).not.toHaveBeenCalled();
+    await setContentHeight(280);
+    expect(service.setMode.mock.lastCall?.[1]?.height).toBe(280);
   });
-  it("후보를 넘겨 내용 높이만 바뀌면 사용자가 옮긴 창을 건드리지 않는다", async () => {
+
+  it("후보 창이 줄어들 때도 사용자가 옮긴 자리를 보존한다", async () => {
     useWindowModeStore.getState().setBarPosition({ x: 200, y: 200 });
     renderAt("/bar/candidates");
     await settle();
-    expect(windowAt).toEqual({ x: 200, y: 200 });
+    windowAt = { x: 900, y: 400 };
+    await setContentHeight(280);
+    expect(windowAt).toEqual({ x: 900, y: 400 });
+    expect(useWindowModeStore.getState().barPosition).toEqual(windowAt);
+  });
 
-    windowAt = { x: 900, y: 500 }; // 사용자가 끌어 옮긴다.
-    service.setMode.mockClear();
-    service.setPosition.mockClear();
-
-    // 인물·후보마다 내용 높이가 다르지만 둘 다 표 높이(460) 안이다.
-    await setContentHeight(380);
-    await setContentHeight(420);
-
-    expect(windowAt).toEqual({ x: 900, y: 500 });
-    expect(service.setMode).not.toHaveBeenCalled();
-    expect(service.setPosition).not.toHaveBeenCalled();
+  it("검색 대기는 좁게, 결과가 도착하면 카드 비교 너비로 바꾼다", async () => {
+    useWindowModeStore.getState().setBarContentWidth(360);
+    renderAt("/bar/candidates");
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.width).toBe(360);
+    act(() => useWindowModeStore.getState().setBarContentWidth(680));
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.width).toBe(680);
   });
 
   it("내용이 넘쳐 창이 커져도 사용자가 옮긴 자리를 지킨다", async () => {
@@ -234,7 +262,10 @@ describe("WindowModeSync 바 위치", () => {
     expect(windowAt).toEqual({ x: 1500, y: 950 });
 
     await go("/bar/candidates");
-    expect(windowAt).toEqual({ x: 1200, y: 520 });
+    expect(windowAt).toEqual({
+      x: SCREEN.width - BAR_SIZES.candidates.width,
+      y: SCREEN.height - BAR_SIZES.candidates.height,
+    });
 
     await go("/bar/actions");
     expect(windowAt).toEqual({ x: 1500, y: 950 });
@@ -261,5 +292,71 @@ describe("WindowModeSync 바 위치", () => {
 
     expect(service.setPosition).not.toHaveBeenCalled();
     expect(useWindowModeStore.getState().barPosition).toEqual({ x: 200, y: 200 });
+  });
+});
+
+describe("semantic bar monitor-width policy", () => {
+  it("새 문장 검색 화면은 모니터 절반 미만의 너비를 요청한다", async () => {
+    renderAt("/bar/search");
+    await settle();
+    expect(service.setMode).toHaveBeenLastCalledWith(
+      "bar",
+      expect.objectContaining({ maxWidthFraction: 0.49 }),
+      undefined,
+    );
+  });
+
+  it("문장 검색 결과·확인·저장까지 같은 너비 제한을 전달한다", async () => {
+    usePoseSelectionStore.getState().startJob("semantic-job", null);
+    queryClient.setQueryData(poseQueryKeys.result("semantic-job"), { source: "semantic" });
+    useWindowModeStore.getState().setBarPosition({ x: 200, y: 200 });
+    renderAt("/bar/candidates");
+    await settle();
+    for (const path of ["/bar/candidates", "/bar/review", "/bar/save"]) {
+      if (path !== "/bar/candidates") await go(path);
+      expect(service.setMode).toHaveBeenLastCalledWith(
+        "bar",
+        expect.objectContaining({ maxWidthFraction: 0.49 }),
+        undefined,
+      );
+      expect(service.setPosition).toHaveBeenLastCalledWith(
+        expect.anything(),
+        expect.objectContaining({ maxWidthFraction: 0.49 }),
+      );
+    }
+  });
+
+  it("같은 화면에서 결과 출처가 확인되면 크기 정책도 다시 적용한다", async () => {
+    usePoseSelectionStore.getState().startJob("restored-job", null);
+    renderAt("/bar/candidates");
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined();
+    act(() =>
+      queryClient.setQueryData(poseQueryKeys.result("restored-job"), { source: "semantic" }),
+    );
+    await waitFor(() => expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBe(0.49));
+    act(() => queryClient.setQueryData(poseQueryKeys.result("restored-job"), { source: "image" }));
+    await waitFor(() =>
+      expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined(),
+    );
+  });
+
+  it("러프 바와 앱에는 너비 제한을 추가하지 않는다", async () => {
+    usePoseSelectionStore.getState().startJob("rough-job", null);
+    queryClient.setQueryData(poseQueryKeys.result("rough-job"), { source: "image" });
+    renderAt("/bar/candidates");
+    await settle();
+    expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined();
+    await go("/app/home");
+    expect(service.setMode.mock.lastCall?.[1]?.maxWidthFraction).toBeUndefined();
+  });
+
+  it("창 크기 구독은 분석이나 결과 네트워크 요청을 만들지 않는다", async () => {
+    usePoseSelectionStore.getState().startJob("uncached-job", null);
+    const queryFn = vi.fn();
+    queryClient.setDefaultOptions({ queries: { queryFn, retry: false } });
+    renderAt("/bar/candidates");
+    await settle();
+    expect(queryFn).not.toHaveBeenCalled();
   });
 });

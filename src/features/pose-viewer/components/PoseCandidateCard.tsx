@@ -1,5 +1,4 @@
-import { SCOPE_LABELS } from "../api/outputScope";
-import { reviewOnly } from "../api/routedSearch";
+import { reviewOnly, canRelease } from "../api/routedSearch";
 import { useDefaultPosePoster } from "../api/posePoster";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -7,9 +6,9 @@ import type { MatchLevel, PoseCandidate } from "../api/pose.contract";
 
 /** 후보 카드(docs/03 §7, docs/01 §6 권장 문구). */
 const MATCH_LABEL: Record<MatchLevel, string> = {
-  high: "높은 일치",
+  high: "많이 비슷함",
   medium: "유사",
-  low: "보정 필요",
+  low: "조정이 필요할 수 있어요",
 };
 
 const MATCH_BADGE_CLASS: Record<MatchLevel, string> = {
@@ -67,7 +66,7 @@ export function PoseCandidateCard({
             }
           : onSelect
       }
-      disabled={pending || disabled}
+      disabled={pending || disabled || !canRelease(candidate)}
       aria-busy={pending}
       aria-pressed={isSelected}
       className={cn(
@@ -105,11 +104,6 @@ export function PoseCandidateCard({
           )}
         </div>
       )}
-      <span className="px-2 text-[11px] text-text-secondary">
-        {preview.data?.kind === "default-body" ? "기본 체형" : "관절 기반"} · 정면{" "}
-        {SCOPE_LABELS[candidate.posterScope ?? "full"]} 참고
-      </span>
-      <span className="px-2 text-[10px] text-text-secondary">선택 체형·손·검색 시점 미적용</span>
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
         <div className="flex items-center justify-between">
           <span
@@ -128,11 +122,13 @@ export function PoseCandidateCard({
             )}
           >
             {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
-            {reviewOnly(candidate)
-              ? "검수용 · 보정·저장 불가"
-              : candidate.semantic
-                ? "문장 검색"
-                : MATCH_LABEL[candidate.matchLevel]}
+            {candidate.manualExportAllowed
+              ? "선택하고 확인 후 저장"
+              : reviewOnly(candidate)
+                ? "미리보기 전용"
+                : candidate.semantic
+                  ? "문장 검색"
+                  : MATCH_LABEL[candidate.matchLevel]}
           </span>
           {!fill &&
             candidate.tags.map((tag) => (

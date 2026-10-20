@@ -1,4 +1,4 @@
-import { reviewOnly } from "../api/routedSearch";
+import { canRefineCandidate } from "../api/routedSearch";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useExportStore } from "@/features/export/store/exportStore";
 import { modelRenderingAvailable } from "../preview/modelSupport";
@@ -37,26 +37,27 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
     if (!result) return;
 
     // 서버가 refine을 노출하지 않으면 클라이언트는 호출하지 않는다(OPS-02).
-    const targets = result.source !== "semantic" && result.capabilities.refine
-      ? result.people.flatMap((person) => {
-          const candidateId = picks[person.index];
-          // 저신뢰(soft) 인물은 후보를 고르고 베이스로 저장할 수 있지만 refine은 금지다.
-          if (
-            !candidateId ||
-            !person.refineAllowed ||
-            reviewOnly(person.candidates.find((c) => c.id === candidateId))
-          )
-            return [];
-          const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
-          if (
-            result.capabilities.bodyPreviews &&
-            saved?.jobId === result.jobId &&
-            saved.candidateId === candidateId
-          )
-            return [];
-          return [{ personIndex: person.index, candidateId }];
-        })
-      : [];
+    const targets =
+      result.source !== "semantic" && result.capabilities.refine
+        ? result.people.flatMap((person) => {
+            const candidateId = picks[person.index];
+            // Search confidence and manual release are separate from refine eligibility.
+            if (
+              !candidateId ||
+              !person.refineAllowed ||
+              !canRefineCandidate(person.candidates.find((c) => c.id === candidateId))
+            )
+              return [];
+            const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
+            if (
+              result.capabilities.bodyPreviews &&
+              saved?.jobId === result.jobId &&
+              saved.candidateId === candidateId
+            )
+              return [];
+            return [{ personIndex: person.index, candidateId }];
+          })
+        : [];
 
     if (targets.length === 0) {
       setStatus("done");

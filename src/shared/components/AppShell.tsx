@@ -63,7 +63,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
   // 바 전환은 경로 이동이면 충분하다. shared에서 features를 import하지 않기 위해
   // navigate만 쓴다(인증 가드는 /bar 라우트의 RequireAuth가 담당).
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, state: routeState } = useLocation();
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
@@ -106,7 +106,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         {env.useMockApi && (
           <div className="px-4 py-3">
             <span className="rounded bg-brand-coral/20 px-2 py-1 text-[11px] font-semibold text-brand-coral">
-              MOCK 모드
+              체험 모드 · 실제 분석 아님
             </span>
           </div>
         )}
@@ -119,7 +119,11 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
             <button
               type="button"
               // 지금 단계를 바에서 그대로 이어간다 — 흐름 도중에 눌러도 처음으로 돌아가지 않는다.
-              onClick={() => navigate(barRouteForAppPath(pathname, "/bar/actions"))}
+              onClick={() =>
+                navigate(barRouteForAppPath(pathname, "/bar/actions"), {
+                  state: pathname === "/app/search" ? routeState : undefined,
+                })
+              }
               aria-label="플로팅 바로 전환"
               title="플로팅 바로 전환 — 작업 화면 위에 작게 띄웁니다"
               className={cn(

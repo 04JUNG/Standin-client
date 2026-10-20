@@ -1,3 +1,4 @@
+import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import {
   useIsMutating,
@@ -8,7 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import type { AnalysisResult, PersonResult } from "@/features/pose-viewer/api/pose.contract";
-import { bodyScopeSchema, readOutputScope } from "@/features/pose-viewer/api/outputScope";
+import { previewScope, scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
 import {
   bodyKeys,
   getManifest,
@@ -50,9 +51,7 @@ export function useBodies(
   const groups = useQueries({
     queries: people.map((person, i) => {
       const selection = selections[i]?.data;
-      const scope = person.outputScope
-        ? readOutputScope(person.outputScope).resolved
-        : (bodyScopeSchema.safeParse(person.posePresentation?.output_scope).data ?? "full");
+      const scope = previewScope(person);
       return {
         queryKey: [
           ...bodyKeys.person(owner, job, person.index),
@@ -85,7 +84,16 @@ export function useBodies(
     }),
   });
   const bodyPending = useIsMutating({ mutationKey: ["body-change", owner, job] }) > 0;
-  const handPending = useIsMutating({ mutationKey: ["hand-change", owner, job] }) > 0;
+  const handPending =
+    useIsMutating({
+      mutationKey: ["hand-change", owner, job],
+      predicate: (mutation) => {
+        const index = (
+          mutation.state.variables as { selection?: { personIndex?: number } } | undefined
+        )?.selection?.personIndex;
+        return people.some((p) => p.index === index && scopeIncludesHands(previewScope(p)));
+      },
+    }) > 0;
   const pending = bodyPending || handPending;
   const entries = people.map((person, i) => ({
     personIndex: person.index,
@@ -103,7 +111,11 @@ export function useBodies(
       selections[i]?.error ??
       groups[i]?.error ??
       (selections[i]?.data && selections[i]?.data?.resolutionStatus !== "ready"
-        ? new Error("사용할 체형을 선택해 주세요.")
+        ? new Error(
+            selections[i]?.data?.resolvedSource === "catalog_default_fallback"
+              ? "남성 기본형을 불러올 수 없어요. 체형 더보기에서 다른 체형을 고르거나 다시 시도해 주세요."
+              : "사용할 체형을 선택해 주세요.",
+          )
         : null),
     retry: async () => {
       await selections[i]?.refetch();
@@ -147,6 +159,7 @@ export function useBodyControls(
       return putSelection(job, person.index, change, selection.selectionRevision);
     },
     onMutate: async () => {
+      invalidateFinalReview(qc, job);
       await qc.cancelQueries({
         queryKey: bodyKeys.person(owner, job, person.index),
         predicate: (q) => q.queryKey[4] === "images",

@@ -32,10 +32,7 @@ export function BodyPreferencesPage() {
   const mode = useMutation({
     mutationFn: (next: BodyPreferences["mode"]) => {
       if (!prefs.data) throw new Error("preferences missing");
-      return putPreferences(
-        { mode: next, defaultCharacterId: prefs.data.defaultCharacterId },
-        prefs.data.revision,
-      );
+      return putPreferences({ mode: next }, prefs.data.revision);
     },
     onSuccess: (value) => {
       if (useInstallationStore.getState().credentials?.installationId === owner)
@@ -101,28 +98,17 @@ export function BodyPreferencesPage() {
                 checked={value.mode === "last_used"}
                 onChange={() => mode.mutate("last_used")}
                 title="마지막으로 쓴 체형 (기본)"
-                description={
-                  lastLabel
-                    ? `후보 화면에서 마지막으로 고른 체형으로 시작해요 · 지금은 ‘${lastLabel}’. 그 포즈에 쓸 수 없으면 자동 추천을 써요.`
-                    : "후보 화면에서 마지막으로 고른 체형·카드로 시작해요. 아직 고른 적이 없으면 자동 추천을 써요."
-                }
+                description="마지막으로 사용한 체형으로 시작해요."
               />
+              {value.mode === "last_used" && lastLabel && (
+                <p className="pl-7 text-xs text-text-secondary">현재 체형: {lastLabel}</p>
+              )}
               <ModeOption
                 checked={value.mode === "auto"}
                 onChange={() => mode.mutate("auto")}
                 title="자동 추천"
-                description="러프에 맞춰 매번 추천한 체형으로 시작해요."
+                description="러프에 맞는 체형으로 시작해요."
               />
-              {value.mode === "fixed_default" && (
-                <ModeOption
-                  checked
-                  onChange={() => undefined}
-                  title={`예전 설정 · 내 기본값으로 시작${
-                    value.defaultCharacterId ? ` (${name(value.defaultCharacterId)})` : ""
-                  }`}
-                  description="이전 버전에서 고른 설정이에요. 위 두 가지 중 하나를 고르면 바뀝니다."
-                />
-              )}
             </fieldset>
             {mode.isError && (
               <p role="alert" className="text-[12px] text-brand-coral">
@@ -144,7 +130,7 @@ export function BodyPreferencesPage() {
             </div>
             {!supported && cards.length > 0 && (
               <p role="status" className="mt-1 text-[12px] text-text-secondary">
-                연결된 서버가 아직 체형 카드를 지원하지 않아 이름 변경·삭제를 할 수 없어요.
+                이 버전에서는 저장한 체형의 이름을 바꾸거나 카드를 지울 수 없어요.
               </p>
             )}
             <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -425,7 +411,7 @@ function PresetTile({ look, onCustomize }: { look: BodyLook; onCustomize?: () =>
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-[14px] font-semibold text-text-primary">
-          {look.displayName ?? look.characterId}
+          {look.displayName ?? "기본 체형"}
         </span>
         <span className="text-[12px] text-text-secondary">
           {kind} · {onCustomize ? "눌러서 커스텀" : "고정 체형"}

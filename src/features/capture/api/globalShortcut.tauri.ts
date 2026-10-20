@@ -5,21 +5,24 @@ import {
   type GlobalShortcutService,
 } from "./globalShortcut.contract";
 
-const KNOWN_CODES: GlobalShortcutErrorCode[] = [
-  "INVALID_ACCELERATOR",
-  "REGISTER_FAILED",
-  "UNREGISTER_FAILED",
-  "UNSUPPORTED",
-];
+const ERROR_MESSAGES: Record<GlobalShortcutErrorCode, string> = {
+  INVALID_ACCELERATOR: "이 키 조합은 캡처 단축키로 쓸 수 없어요. 다른 키를 골라 주세요.",
+  REGISTER_FAILED: "캡처 단축키를 설정하지 못했어요. 다른 키를 골라 다시 시도해 주세요.",
+  UNREGISTER_FAILED: "이전 캡처 단축키를 해제하지 못했어요. 앱을 다시 열고 시도해 주세요.",
+  UNSUPPORTED: "이 환경에서는 캡처 단축키를 쓸 수 없어요. 설치한 앱에서 사용해 주세요.",
+};
 
 function toGlobalShortcutError(raw: unknown): GlobalShortcutError {
   // Rust command은 { code, message } 형태로 오류를 반환한다.
   if (typeof raw === "object" && raw !== null && "code" in raw) {
     const code = (raw as { code: string }).code as GlobalShortcutErrorCode;
-    const message = (raw as { message?: string }).message ?? "전역 단축키를 등록하지 못했습니다.";
-    if (KNOWN_CODES.includes(code)) return new GlobalShortcutError(code, message);
+    if (Object.prototype.hasOwnProperty.call(ERROR_MESSAGES, code))
+      return new GlobalShortcutError(code, ERROR_MESSAGES[code]);
   }
-  return new GlobalShortcutError("REGISTER_FAILED", "전역 단축키를 등록하지 못했습니다.");
+  return new GlobalShortcutError(
+    "REGISTER_FAILED",
+    "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요.",
+  );
 }
 
 export const globalShortcutTauri: GlobalShortcutService = {

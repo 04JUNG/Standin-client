@@ -1,4 +1,3 @@
-import { SinglePoseDetail } from "./SinglePoseDetail";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -20,15 +19,21 @@ import { shapeDefaults as defaults } from "./shapeValues";
 import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
 import type { BodyCard, BodyOption, BodySelection } from "./contract";
 
+export function selectionFallbackMessage(selection?: BodySelection) {
+  return selection?.resolvedSource === "catalog_default_fallback" &&
+    selection.resolutionStatus === "ready" &&
+    selection.recommendation.status !== "available"
+    ? "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요."
+    : undefined;
+}
+
 function sourceLabel(selection?: BodySelection, card?: BodyCard) {
   if (card) return "내 체형";
   if (selection?.resolvedSource === "last_used") return "마지막 체형";
   if (selection?.shape) return "직접 조절";
   switch (selection?.resolvedSource) {
     case "manual":
-      return "직접 선택";
-    case "fixed_default":
-      return "내 기본 체형";
+      return "고른 체형";
     case "auto_recommendation":
       return "자동 추천";
     default:
@@ -44,7 +49,6 @@ function useBodyName(job: string, person: Pick<PersonResult, "index">, selection
       ? "지원 종료 체형"
       : (options.data?.characters.find((c) => c.characterId === id)?.displayName ??
         catalog.data?.characters.find((c) => c.characterId === id)?.displayName ??
-        id ??
         (selection?.resolutionStatus === "needs_selection" ? "체형 미선택" : "체형 확인 중"));
 }
 
@@ -70,16 +74,20 @@ export function BodyChip({
   person,
   entry,
   className,
+  onViewChange,
 }: {
   job: string;
   person: Pick<PersonResult, "index">;
   entry?: BodyEntry;
   className?: string;
+  /** Capture the floating viewport before its panel changes height. */
+  onViewChange?(expanded: boolean): void;
 }) {
   const { open, setOpen } = useBodyPanel(job, person.index);
   const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span
+      title={selectionFallbackMessage(entry?.selection)}
       className={cn(
         "inline-flex min-w-0 items-center gap-1.5 rounded-full border border-border bg-surface-0 py-0.5 pl-2.5 pr-0.5 text-[12px]",
         className,
@@ -113,7 +121,10 @@ export function BodyChip({
             {...(value ? { "data-body-toggle": "" } : { "data-pose-view": "" })}
             aria-pressed={open === value}
             aria-controls={value ? "body-panel-" + person.index : undefined}
-            onClick={() => setOpen(value)}
+            onClick={() => {
+              onViewChange?.(value);
+              setOpen(value);
+            }}
             className={cn(
               "relative z-10 whitespace-nowrap rounded-full px-3 py-1 text-center text-[12px] font-semibold transition-colors duration-300",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
@@ -148,11 +159,9 @@ export function BodyLabel({
 
 /* ------------------------------------------------------------------ Top-5 카드 */
 
-/** 기본 체형 참고 카드. 선택 체형은 명시한 단일 후보 상세에서만 렌더한다. */
+/** 기본 체형 참고 카드. 사진을 누르면 포즈를 고르고 최종 모습은 다음 화면에서 확인한다. */
 export function BodyCandidateCards({
-  job,
   person,
-  entry,
   selected,
   onSelect,
   layout,
@@ -179,26 +188,15 @@ export function BodyCandidateCards({
             layout={layout}
             disabled={disabled}
           />
-          {job && (
-            <SinglePoseDetail
-              job={job}
-              selection={entry?.selection}
-              candidateId={candidate.id}
-              scope={candidate.posterScope ?? person.outputScope?.resolved ?? "full"}
-              sourceIdentity={candidate}
-            />
-          )}
         </div>
       ))}
     </>
   );
 }
 
-/** 플로팅 바의 기본 참고 카드와 별도 단일 후보 상세 요청. */
+/** 플로팅 바의 기본 참고 카드. 사진 클릭은 포즈 선택으로 이어진다. */
 export function BodyCandidateCard({
-  job,
   candidate,
-  entry,
   selected,
   onSelect,
   disabled,
@@ -219,15 +217,6 @@ export function BodyCandidateCard({
         layout="fill"
         disabled={disabled}
       />
-      {job && (
-        <SinglePoseDetail
-          job={job}
-          selection={entry?.selection}
-          candidateId={candidate.id}
-          scope={candidate.posterScope ?? "full"}
-          sourceIdentity={candidate}
-        />
-      )}
     </div>
   );
 }
@@ -426,7 +415,7 @@ export function BodyExpand({
           </div>
         </div>
         <p className="text-[11px] text-text-secondary">
-          체형을 누르면 바로 적용 · 이 인물만 바뀌고, 다음 작업도 마지막으로 고른 체형으로 시작해요
+          선택한 인물에 바로 적용돼요.
         </p>
       </div>
 
@@ -578,6 +567,12 @@ export function BodyExpand({
         </div>
       )}
 
+      {selectionFallbackMessage(selection) && (
+        <p role="status" className="text-[11.5px] text-text-secondary">
+          {selectionFallbackMessage(selection)}
+        </p>
+      )}
+
       {/* 조절 바 */}
       <div className="flex shrink-0 flex-col gap-1.5 rounded-xl border border-border bg-surface-0 px-2.5 py-2">
         <div className="flex items-center justify-between gap-2 text-[11.5px] text-text-secondary">
@@ -616,7 +611,7 @@ export function BodyExpand({
         )}
         <div className="flex flex-wrap items-center gap-1.5">
           <ToolButton
-            disabled={busy || selection?.recommendation.status !== "available"}
+            disabled={busy || !selection || selection.resolutionStatus === "not_applicable"}
             onClick={() => {
               setKindView(null);
               mutation.mutate({ intent: "auto" });
@@ -624,7 +619,7 @@ export function BodyExpand({
             title={
               selection?.recommendation.status === "available"
                 ? "러프에 맞춰 추천한 체형으로 바꿉니다"
-                : "이 인물은 자동 추천을 만들지 못했어요"
+                : "추천을 찾지 못하면 남성 기본형으로 바꿉니다"
             }
           >
             <Sparkles className="h-3 w-3 text-brand-coral" aria-hidden />

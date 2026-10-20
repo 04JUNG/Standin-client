@@ -39,7 +39,8 @@ import { validRotation } from "../preview/modelContract";
 
 import {
   readCandidatePolicy,
-  reviewOnly,
+  canRefineCandidate,
+  canRelease,
   type CandidatePolicy,
   type RoutedSearch,
 } from "./routedSearch";
@@ -47,13 +48,14 @@ import {
 type BffCandidate = CandidatePolicy & {
   semantic?: unknown;
   id: string;
-  poseId: string;
+  poseId: string | null;
   rank: number;
   view: string;
   tags: string[];
   matchLevel: MatchLevel;
   bvhAvailable: boolean;
   thumbnailUrl?: string;
+  posterUrl?: string;
   quickThumbnailUrl?: string;
   previewModelUrl?: string;
   camera?: { version?: string; rotation?: unknown; source_bvh_sha256?: string } | null;
@@ -71,6 +73,8 @@ type BffAnalysisResult = {
     handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
+    sceneExport?: boolean;
+    sceneRefinement?: boolean;
     characterSelection?: boolean;
     bodyPreviews?: boolean;
     presentationBodyPreviews?: boolean;
@@ -214,6 +218,27 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+function validSemanticThumbnail(url: string, poseId: string): boolean {
+  const [path, query, extra] = url.split("?");
+  if (
+    path !== `/v1/pose-candidates/${encodeURIComponent(poseId)}/thumbnail` ||
+    !query ||
+    extra !== undefined ||
+    url.includes("#")
+  )
+    return false;
+  const params = new URLSearchParams(query);
+  const entries = [...params.entries()];
+  return (
+    params.getAll("view").length === 1 &&
+    params.get("view") === "front" &&
+    params.getAll("revision").length <= 1 &&
+    entries.every(
+      ([key, value]) => key === "view" || (key === "revision" && /^[a-f0-9]{7,64}$/.test(value)),
+    )
+  );
+}
+
 async function toPoseCandidate(
   raw: BffCandidate,
   jobId: string,
@@ -223,39 +248,59 @@ async function toPoseCandidate(
 ): Promise<PoseCandidate> {
   const semantic =
     raw.semantic === undefined ? undefined : semanticCandidateSchema.parse(raw.semantic);
-  if (
-    semantic &&
-    raw.thumbnailUrl &&
-    raw.thumbnailUrl !==
-      `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/thumbnail?view=front`
-  )
+  if (semantic && raw.thumbnailUrl && !validSemanticThumbnail(raw.thumbnailUrl, raw.poseId ?? ""))
     throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid thumbnail path");
   const deferred = !!raw.camera && !!raw.thumbnailUrl;
   // Do not fetch aligned images or wait for all 20 thumbnails before returning
   // search results. Visible cards load their source-bound static poster lazily.
   signal.throwIfAborted();
   const thumbnailUrl = "";
+  const policy = readCandidatePolicy(raw);
+  if (
+    policy.refineAllowed === true &&
+    (raw.camera?.version !== "candidate-camera-v2" ||
+      !validRotation(raw.camera.rotation) ||
+      raw.camera.source_bvh_sha256 !== policy.sourceBvhSha256)
+  )
+    policy.refineAllowed = false;
+  const downloadable =
+    canRelease({ ...policy, bvhAvailable: raw.bvhAvailable } as PoseCandidate) &&
+    raw.bvhAvailable &&
+    (policy.source === "generation"
+      ? raw.poseId === null
+      : typeof raw.poseId === "string" && !!raw.poseId);
   const posterParams = new URLSearchParams({
     jobId,
     personIndex: String(personIndex),
     candidateId: raw.id,
   });
   return {
-    ...readCandidatePolicy(raw),
+    ...policy,
     id: raw.id,
     poseId: raw.poseId,
     rank: raw.rank,
     ...(semantic ? { semantic } : {}),
     title: semantic
       ? semantic.description || `포즈 ${raw.rank}`
-      : raw.source === "library"
-        ? `포즈 ${raw.rank}`
-        : `포즈 ${raw.id}`,
+      : raw.source === "generation"
+        ? `새로 만든 포즈 ${raw.rank}`
+        : raw.source === "library"
+          ? `포즈 ${raw.rank}`
+          : `포즈 ${raw.id}`,
     tags: raw.tags,
     matchLevel: raw.matchLevel,
     thumbnailUrl,
     posterScope,
-    posterUrl: `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/poster?${posterParams}`,
+    ...(policy.source === "generation" && raw.poseId === null
+      ? {
+          posterUrl: `/v1/analysis/jobs/${encodeURIComponent(jobId)}/people/${personIndex}/pose-previews/${encodeURIComponent(raw.id)}/${policy.sourceBvhSha256}/poster`,
+        }
+      : {}),
+    ...(raw.poseId
+      ? {
+          posterUrl: `/v1/pose-candidates/${encodeURIComponent(raw.poseId)}/poster?${posterParams}`,
+        }
+      : {}),
     ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
     ...(raw.quickThumbnailUrl || (!deferred && raw.thumbnailUrl)
       ? {
@@ -276,11 +321,10 @@ async function toPoseCandidate(
       : {}),
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
-    bvhAvailable: !reviewOnly(raw) && raw.bvhAvailable,
-    bvhUrl:
-      !reviewOnly(raw) && raw.bvhAvailable
-        ? endpoints.poseCandidates.export(raw.poseId, jobId, personIndex, raw.id)
-        : undefined,
+    bvhAvailable: downloadable,
+    bvhUrl: downloadable
+      ? endpoints.poseCandidates.export(raw.poseId ?? raw.id, jobId, personIndex, raw.id)
+      : undefined,
   };
 }
 
@@ -309,6 +353,17 @@ async function toAnalysisResult(
   const people: PersonResult[] = await Promise.all(
     raw.candidatesByPerson.map(async (person) => {
       const confidence = narrow(CONFIDENCE, person.confidence, "low");
+      const candidates = await Promise.all(
+        person.candidates.map((candidate) =>
+          toPoseCandidate(
+            candidate,
+            raw.jobId,
+            person.personIndex,
+            signal,
+            readOutputScope(person.outputScope).resolved,
+          ),
+        ),
+      );
       return {
         // 서버 personIndex를 그대로 쓴다. 화면에서 탐지 순서로 다시 번호를 매기지 않는다.
         index: person.personIndex,
@@ -321,17 +376,7 @@ async function toAnalysisResult(
         outputScope: readOutputScope(person.outputScope),
         candidateShortfallReason: person.candidateShortfallReason ?? null,
         box: readPersonBox(person.box),
-        candidates: await Promise.all(
-          person.candidates.map((candidate) =>
-            toPoseCandidate(
-              candidate,
-              raw.jobId,
-              person.personIndex,
-              signal,
-              readOutputScope(person.outputScope).resolved,
-            ),
-          ),
-        ),
+        candidates,
         confidence,
         skeletonState: narrow(SKELETON_STATE, person.skeletonState, "invalid"),
         skeletonSource: narrow(SKELETON_SOURCE, person.skeletonSource, "none"),
@@ -342,8 +387,7 @@ async function toAnalysisResult(
           person.candidates.length,
         ),
         // 허용은 명시적일 때만. 구 BFF 응답에서는 refine을 걸지 않는다.
-        refineAllowed:
-          !person.posePresentation && !person.routedSearch && person.refineAllowed === true,
+        refineAllowed: person.refineAllowed === true && candidates.some(canRefineCandidate),
         refinableLimbs: person.refinableLimbs ?? [],
       } satisfies PersonResult;
     }),
@@ -363,11 +407,27 @@ async function toAnalysisResult(
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
       semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,
-      bodyPreviews: !semantic && raw.capabilities?.bodyPreviews === true,
-      bodyPreviewAssets: !semantic && raw.capabilities?.bodyPreviewAssets === true,
+      bodyPreviews:
+        (!semantic || people.some((p) => p.candidates.some((c) => c.manualExportAllowed))) &&
+        raw.capabilities?.bodyPreviews === true,
+      bodyPreviewAssets:
+        (!semantic || people.some((p) => p.candidates.some((c) => c.manualExportAllowed))) &&
+        raw.capabilities?.bodyPreviewAssets === true,
       refine: !semantic && raw.capabilities?.refine === true,
       // 구버전 BFF에는 이 필드가 없다. 없으면 FBX를 노출하지 않는 쪽으로 좁힌다.
       fbxExport: raw.capabilities?.fbxExport === true,
+      ...(raw.capabilities?.sceneRefinement === true
+        ? {
+            sceneRefinement:
+              !semantic &&
+              !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
+              raw.capabilities?.sceneExport === true,
+          }
+        : {}),
+      sceneExport:
+        !semantic &&
+        !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
+        raw.capabilities?.sceneExport === true,
       // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
       // 않아 이 기능이 없던 때와 바이트까지 같은 파일이 나온다.
       characterSelection: raw.capabilities?.characterSelection === true,

@@ -18,7 +18,7 @@ import { ShortcutKey } from "./ShortcutKey";
  */
 
 /** 실패 시 사용자가 실제로 쓸 수 있는 대체 경로. 문구를 한 곳에서만 관리한다. */
-const FALLBACK_HINT = "지금은 Standin 창이 활성일 때만 이 키가 동작합니다.";
+const FALLBACK_HINT = "지금은 Standin 창을 선택한 상태에서만 이 키를 쓸 수 있어요.";
 
 function useGlobalShortcutFailure() {
   const status = useShortcutStore((s) => s.globalStatus);
@@ -28,7 +28,7 @@ function useGlobalShortcutFailure() {
   if (status !== "failed") return null;
   return {
     accelerator: resolveAccelerator("capture.start", bindings),
-    message: error ?? "전역 단축키를 등록하지 못했습니다.",
+    message: error ?? "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요.",
   };
 }
 
@@ -49,7 +49,9 @@ export function GlobalShortcutAlert() {
     >
       <AlertTriangle className="h-4 w-4 shrink-0 text-brand-coral" aria-hidden />
       {failure.accelerator && <ShortcutKey accelerator={failure.accelerator} muted compact />}
-      <span className="font-semibold text-brand-coral">전역 단축키가 등록되지 않았습니다.</span>
+      <span className="font-semibold text-brand-coral">
+        다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요.
+      </span>
       <span className="text-text-secondary">
         {failure.message} {FALLBACK_HINT}
       </span>
@@ -82,8 +84,8 @@ export function GlobalShortcutIndicator() {
     <button
       type="button"
       onClick={() => navigate("/app/settings")}
-      aria-label={`전역 단축키가 등록되지 않았습니다. ${failure.message} 설정에서 변경하기`}
-      title={`전역 단축키가 등록되지 않았습니다.\n${failure.message}\n${FALLBACK_HINT}\n\n누르면 앱 창의 설정으로 이동합니다.`}
+      aria-label={`다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요. ${failure.message} 설정에서 변경하기`}
+      title={`다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요.\n${failure.message}\n${FALLBACK_HINT}\n\n누르면 앱 창의 설정으로 이동합니다.`}
       className={cn(
         "flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors",
         "text-brand-coral hover:bg-brand-coral/15",

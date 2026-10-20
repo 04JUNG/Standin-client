@@ -31,9 +31,7 @@ function Surface({ model, label = "기본 남성" }: { model: ReviewModel; label
         className="max-h-[58vh]"
         onStatus={(s) => setFailed(s === "failed")}
       />
-      {failed && (
-        <p role="alert">체형 모델을 표시하지 못했습니다. 미리보기를 다시 불러와 주세요.</p>
-      )}
+      {failed && <p role="alert">체형을 보여드리지 못했어요. 미리보기를 다시 불러와 주세요.</p>}
     </div>
   );
 }
@@ -105,7 +103,7 @@ function Candidate({
       className="rounded-lg border border-border bg-surface-0 p-2"
       data-semantic-model={candidate.candidate_id}
     >
-      <DefaultPoseImage candidate={candidate} scope={scope} />
+      <DefaultPoseImage candidate={candidate} scope={scope} savedOnly lazy />
       <p className="text-xs">
         {candidate.rank}. {candidate.kind === "library_match" ? "검색 후보" : "근접 참고"}
       </p>
@@ -130,7 +128,6 @@ function Candidate({
       >
         미리보기 다시 불러오기
       </button>
-      <p className="text-[11px] text-text-secondary">정면 참고 · 검수용 · 보정·저장 불가</p>
       <Modal
         open={open}
         onClose={() => {
@@ -146,7 +143,7 @@ function Candidate({
           ) : (
             <img
               src={q.data.png}
-              alt="선택한 체형과 출력 범위를 적용한 단일 포즈"
+              alt="고른 체형으로 본 포즈"
               className="max-h-[55vh] w-full object-contain"
             />
           )
@@ -175,8 +172,8 @@ function Candidate({
           </button>
         </div>
         <p className="text-xs">
-          {label}·기본 손의 참고 모델입니다. 자동 적용·refine·내보내기는 지원하지 않습니다. 손 선택
-          결과는 아래 손 적용 참고 렌더에서 확인하세요.
+          {label}에 기본 손 모양을 적용한 참고 모습이에요. 이 이미지는 저장할 최종 모습과 다를 수
+          있어요. 고른 손 모양은 아래 ‘손 적용 미리보기’에서 확인해 주세요.
         </p>
       </Modal>
     </article>

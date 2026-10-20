@@ -11,7 +11,7 @@ export type MatchLevel = "high" | "medium" | "low";
 export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
   semantic?: { familyId: string; alternate: boolean; description: string };
   id: string;
-  poseId: string;
+  poseId: string | null;
   rank: number;
   title: string;
   tags: string[];
@@ -41,7 +41,7 @@ export type CoverageClass = "full" | "reduced" | "sparse" | "upper_only" | "insu
  * 인물 단위 폴백 상태(BFF `fallbackMode`).
  *
  * - `none` — 일반 Top-5
- * - `soft` — 스켈레톤 인식이 불확실하다. 후보는 보여주되 참고용이라고 알리고 refine은 금지
+ * - `soft` — 참고용 후보. 보정 여부는 인물과 선택 후보의 명시적 refine 권한으로 판단
  * - `hard` — 이 인물에 자동 후보가 없다. 다른 인물의 흐름은 계속 진행한다
  *
  * soft와 hard를 하나로 뭉치면 "참고용 후보가 있다"와 "후보가 없다"를 화면이 구분할 수 없다.
@@ -90,6 +90,8 @@ export type AnalysisResult = {
      * 함께 켜지지 않는다. false면 저장 포맷 선택에서 FBX를 고를 수 없다.
      */
     fbxExport: boolean;
+    sceneExport?: boolean;
+    sceneRefinement?: boolean;
     /**
      * 서버가 export의 `characterId`를 존중하는가. 모델 카탈로그(`/v1/models`)와 export
      * 처리는 **따로 배포될 수 있으므로** 플래그도 따로 둔다 — 카탈로그가 여성을

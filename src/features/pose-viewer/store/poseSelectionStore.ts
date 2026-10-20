@@ -1,3 +1,4 @@
+import { useInstallationStore } from "@/features/installation/installationStore";
 import { create } from "zustand";
 import type { RefineOutcome } from "../api/refine.contract";
 
@@ -49,6 +50,49 @@ type PoseSelectionState = {
   clearSelection(): void;
 };
 
+type JobChoice = Pick<
+  PoseSelectionState,
+  "serverJobId" | "selectedByPerson" | "excludedPeople" | "characterId" | "characterByPerson"
+>;
+// Only explicit choices, never downloaded files or review receipts. Bounded and session-local.
+const jobChoices = new Map<string, JobChoice>();
+const owner = () => useInstallationStore.getState().credentials?.installationId;
+useInstallationStore.subscribe((next, previous) => {
+  if (next.credentials?.installationId !== previous.credentials?.installationId) {
+    jobChoices.clear();
+    usePoseSelectionStore.setState({
+      selectedByPerson: {},
+      excludedPeople: {},
+      refineByPerson: {},
+      characterId: null,
+      characterByPerson: {},
+      serverJobId: null,
+    });
+  }
+});
+function rememberChoice(state: PoseSelectionState) {
+  if (!owner() || !state.jobId) return;
+  const key = `${owner()}:${state.jobId}`;
+  jobChoices.delete(key);
+  jobChoices.set(
+    key,
+    structuredClone({
+      serverJobId: state.serverJobId,
+      selectedByPerson: state.selectedByPerson,
+      excludedPeople: state.excludedPeople,
+      characterId: state.characterId,
+      characterByPerson: state.characterByPerson,
+    }),
+  );
+  // History opens by the server ID while the live route uses a local UUID.
+  if (state.serverJobId && state.serverJobId !== state.jobId)
+    jobChoices.set(`${owner()}:${state.serverJobId}`, jobChoices.get(key)!);
+  while (jobChoices.size > 20) jobChoices.delete(jobChoices.keys().next().value!);
+}
+function priorChoice(job: string) {
+  return owner() ? jobChoices.get(`${owner()}:${job}`) : undefined;
+}
+
 export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   jobId: null,
   serverJobId: null,
@@ -59,6 +103,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   excludedPeople: {},
   setJobId(jobId) {
     if (get().jobId !== jobId) {
+      rememberChoice(get());
       set({
         jobId,
         serverJobId: null,
@@ -68,11 +113,13 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
         characterId: null,
         characterByPerson: {},
         excludedPeople: {},
+        ...priorChoice(jobId),
       });
     }
   },
   startJob(jobId, characterId) {
     if (get().jobId === jobId) return;
+    rememberChoice(get());
     set({
       jobId,
       serverJobId: null,
@@ -81,6 +128,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
       characterId,
       characterByPerson: {},
       excludedPeople: {},
+      ...priorChoice(jobId),
     });
   },
   setCharacterId(characterId) {
@@ -142,7 +190,13 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     set((state) => {
       if (state.jobId !== jobId) return state;
       if (Object.keys(state.selectedByPerson).length > 0) return state;
-      return { selectedByPerson };
+      return {
+        selectedByPerson: Object.fromEntries(
+          Object.entries(selectedByPerson).filter(
+            ([index]) => !(Number(index) in state.excludedPeople),
+          ),
+        ),
+      };
     });
   },
   setRefineOutcome(outcome) {
@@ -160,6 +214,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     });
   },
   clearSelection() {
+    jobChoices.clear();
     set({ selectedByPerson: {}, refineByPerson: {}, excludedPeople: {} });
   },
 }));

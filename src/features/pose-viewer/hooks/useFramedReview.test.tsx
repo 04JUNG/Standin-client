@@ -1,52 +1,42 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-const { state, fetchBlob } = vi.hoisted(() => ({
-  state: {
-    enabled: true,
-    refining: false,
-    scope: "half",
-    format: "fbx",
-    catalogError: false,
-    model: false,
-    base: false,
-    refined: false,
-    webgl: true,
-    serverBase: false,
-  },
-  fetchBlob: vi.fn(),
+import { reviewedExportUrl, framedExportUrl } from "@/features/export/lib/framedExport";
+const m = vi.hoisted(() => ({
+  scope: "full",
+  format: "fbx",
+  refining: false,
+  generated: false,
+  available: true,
+  ready: vi.fn(),
+  image: vi.fn(),
+  reload: vi.fn(),
 }));
-vi.mock("@/shared/api/client", () => ({ apiFetchBlob: fetchBlob }));
-vi.mock("../preview/modelContract", () => ({
-  validateModel: vi.fn((_data, _source, _character, _scope, version = "posed-mesh-v1") => {
-    if ((version === "posed-mesh-v1") !== state.serverBase) throw new Error("model version");
-    return {
-      source_bvh_sha256: "a".repeat(64),
-      character_sha256: "b".repeat(64),
-      revision: "c".repeat(64),
-    };
-  }),
+vi.mock("@/shared/api/client", () => ({ apiFetchResponse: m.ready }));
+vi.mock("@/features/export/lib/preparedArtifact", async (original) => ({
+  ...(await original<typeof import("@/features/export/lib/preparedArtifact")>()),
+  loadPreparedImage: m.image,
 }));
-vi.mock("../preview/modelSupport", () => ({ modelRenderingAvailable: () => state.webgl }));
+vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" }));
+vi.mock("@/features/hand-selection/hooks", () => ({
+  useHands: () => ({ ready: true, entries: [], enabled: false, pending: false }),
+}));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
+    refetch: m.reload,
     bodies: { enabled: false, entries: [], ready: true },
     data: {
-      capabilities: {
-        fbxExport: true,
-        outputScopeCropping: state.enabled,
-        characterSelection: false,
-        modelPreview: state.model,
-      },
+      jobId: "job",
+      capabilities: { fbxExport: m.available, outputScopeCropping: true },
       people: [
         {
           index: 0,
           outputScope: {
-            selection: state.scope,
-            detected: "half",
+            selection: m.scope,
+            resolved: m.scope,
+            detected: m.scope,
             detectionSource: "vlm_person",
-            resolved: state.scope,
             resolutionSource: "user",
           },
         },
@@ -56,28 +46,19 @@ vi.mock("./useSelectionReview", () => ({
       {
         personIndex: 0,
         candidate: {
-          id: "p",
-          previewModel: state.base
-            ? {
-                url: "/base-model",
-                sourceSha: "a".repeat(64),
-                rotation: [
-                  [1, 0, 0],
-                  [0, 1, 0],
-                  [0, 0, 1],
-                ],
-              }
-            : undefined,
+          id: "pick",
+          source: m.generated ? "generation" : "library",
+          sourceBvhSha256: "a".repeat(64),
         },
-        exportUrl: "/v1/pose-candidates/p/export?jobId=j&personIndex=0&candidateId=p",
-        previewUrl: "FULL_BODY",
-        refined: state.refined,
+        exportUrl: "/v1/pose-candidates/p/export?jobId=job&personIndex=0&candidateId=pick",
+        previewUrl: "reference",
+        refined: false,
       },
     ],
-    isRefining: state.refining,
+    isRefining: m.refining,
   }),
 }));
-vi.mock("@/features/export/store/exportStore", () => ({ useExportStore: () => state.format }));
+vi.mock("@/features/export/store/exportStore", () => ({ useExportStore: () => m.format }));
 vi.mock("@/features/models/store/modelStore", () => ({ useModelStore: () => null }));
 vi.mock("../store/poseSelectionStore", () => ({
   usePoseSelectionStore: (select: (s: unknown) => unknown) =>
@@ -86,153 +67,131 @@ vi.mock("../store/poseSelectionStore", () => ({
 vi.mock("@/features/models/hooks/useModelCatalog", () => ({
   useModelCatalog: () => ({
     data: { defaultCharacterId: "master", characters: [] },
-    isPending: false,
-    isError: state.catalogError,
-    isSuccess: !state.catalogError,
-    refetch: vi.fn(),
+    isSuccess: true,
   }),
 }));
-const { useFramedReview } = await import("./useFramedReview");
-function mount() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return renderHook(() => useFramedReview("job"), {
-    wrapper: ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    ),
+import { useFramedReview } from "./useFramedReview";
+function ready(url: string, key = "b".repeat(64)) {
+  const scope = new URL(url, "https://standin.invalid").searchParams.get("outputScope")!;
+  return new Response(null, {
+    headers: {
+      "X-Standin-Artifact-Contract": "verified-fbx-v1",
+      "X-Standin-Review-Key": key,
+      "X-Standin-Artifact-SHA256": "c".repeat(64),
+      "X-Standin-Character-SHA256": "d".repeat(64),
+      "X-Standin-Source-BVH-SHA256": "a".repeat(64),
+      "X-Standin-Output-Scope": scope,
+    },
   });
 }
-describe("framed review", () => {
-  beforeEach(() => {
-    Object.assign(state, {
-      enabled: true,
-      refining: false,
-      scope: "half",
-      format: "fbx",
-      catalogError: false,
-      model: false,
-      base: false,
-      refined: false,
-      webgl: true,
-      serverBase: false,
-    });
-    fetchBlob.mockReset();
-    fetchBlob.mockResolvedValue(new Blob(["png"], { type: "image/png" }));
+function mount() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const hook = renderHook(() => useFramedReview("job"), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    ),
   });
-  it("uses actual scoped output and switches scopes without showing stale full image", async () => {
-    const { result, rerender } = mount();
-    expect(result.current.items[0]?.previewUrl).toBe("");
-    await waitFor(() => expect(result.current.previewLoading).toBe(false));
-    expect(fetchBlob.mock.calls[0]?.[0]).toContain("outputScope=half");
-    expect(result.current.items[0]?.previewUrl).toMatch(/^data:image\/png/);
-    state.scope = "head";
-    rerender();
-    expect(result.current.items[0]?.previewUrl).toBe("");
-    await waitFor(() => expect(fetchBlob).toHaveBeenCalledTimes(2));
-    expect(fetchBlob.mock.calls[1]?.[0]).toContain("outputScope=head");
+  return { ...hook, qc };
+}
+beforeEach(() => {
+  Object.assign(m, {
+    scope: "full",
+    format: "fbx",
+    refining: false,
+    generated: false,
+    available: true,
   });
-  it("waits until refine finishes", async () => {
-    state.refining = true;
-    const { rerender } = mount();
-    expect(fetchBlob).not.toHaveBeenCalled();
-    act(() => {
-      state.refining = false;
-      rerender();
-    });
-    await waitFor(() => expect(fetchBlob).toHaveBeenCalledTimes(1));
+  m.ready.mockReset().mockImplementation(async (url: string) => ready(url));
+  m.image.mockReset().mockResolvedValue("final-image");
+});
+it("permits download before image completion and never downloads automatically", async () => {
+  m.image.mockImplementation(() => new Promise(() => {}));
+  const { result } = mount();
+  expect(result.current.downloadReady).toBe(false);
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  expect(result.current.previewLoading).toBe(true);
+  expect(m.ready.mock.calls[0]![0]).toContain("format=ready");
+  expect(m.ready.mock.calls.every(([url]) => !url.includes("format=fbx"))).toBe(true);
+});
+it("an image-only failure keeps verified download available", async () => {
+  m.image.mockRejectedValue(new Error("PNG failed"));
+  const { result } = mount();
+  await waitFor(() => expect(result.current.previewError).toBe(true));
+  expect(result.current.downloadReady).toBe(true);
+  expect(result.current.preparationError).toBe(false);
+});
+it("FBX validation failure blocks download and schedules no image", async () => {
+  m.ready.mockRejectedValue(new Error("FBX verification failed"));
+  const { result } = mount();
+  await waitFor(() => expect(result.current.preparationError).toBe(true));
+  expect(result.current.downloadReady).toBe(false);
+  expect(m.image).not.toHaveBeenCalled();
+});
+it("A → B → C cancels obsolete requests and ignores out-of-order transports", async () => {
+  const calls: { url: string; signal: AbortSignal; finish: (r: Response) => void }[] = [];
+  m.ready.mockImplementation(
+    (url: string, { signal }: { signal: AbortSignal }) =>
+      new Promise<Response>((finish) => calls.push({ url, signal, finish })),
+  );
+  const { result, rerender } = mount();
+  await waitFor(() => expect(calls.length).toBe(1));
+  m.scope = "half";
+  rerender();
+  expect(result.current.downloadReady).toBe(false);
+  await waitFor(() => expect(calls.length).toBe(2));
+  m.scope = "bust";
+  rerender();
+  await waitFor(() => expect(calls.length).toBe(3));
+  expect(calls[0]!.signal.aborted).toBe(true);
+  expect(calls[1]!.signal.aborted).toBe(true);
+  await act(async () => calls[2]!.finish(ready(calls[2]!.url, "e".repeat(64))));
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  await act(async () => {
+    calls[1]!.finish(ready(calls[1]!.url));
+    calls[0]!.finish(ready(calls[0]!.url));
   });
-  it("unsupported WebGL goes directly to PNG without preparing a model first", async () => {
-    Object.assign(state, { model: true, webgl: false });
-    const { result } = mount();
-    await waitFor(() => expect(result.current.previewLoading).toBe(false));
-    expect(fetchBlob.mock.calls[0]![0]).toContain("format=preview");
-    expect(fetchBlob).toHaveBeenCalledTimes(1);
-  });
-  it("waits for the model's first frame, then allows save without a PNG request", async () => {
-    state.model = true;
-    fetchBlob.mockResolvedValue({
-      type: "model/gltf-binary",
-      arrayBuffer: async () => new ArrayBuffer(32),
-    });
-    const { result } = mount();
-    await waitFor(() => expect(result.current.items[0]?.previewModel).toBeDefined());
-    expect(result.current.previewLoading).toBe(true);
-    act(() => result.current.items[0]!.onModelStatus("ready"));
-    expect(result.current.previewLoading).toBe(false);
-    expect(fetchBlob.mock.calls[0]![0]).toContain("format=model");
-    expect(fetchBlob).toHaveBeenCalledTimes(1);
-  });
-  it("WebGL failure requests the exact scoped PNG and keeps save blocked until ready", async () => {
-    state.model = true;
-    fetchBlob.mockResolvedValueOnce({
-      type: "model/gltf-binary",
-      arrayBuffer: async () => new ArrayBuffer(32),
-    });
-    const { result } = mount();
-    await waitFor(() => expect(result.current.items[0]?.previewModel).toBeDefined());
-    act(() => result.current.items[0]!.onModelStatus("failed"));
-    expect(result.current.previewLoading).toBe(true);
-    await waitFor(() => expect(result.current.items[0]?.previewUrl).toMatch(/^data:image\/png/));
-    expect(fetchBlob.mock.calls[1]![0]).toContain("format=preview");
-    expect(fetchBlob.mock.calls[1]![0]).toContain("outputScope=half");
-  });
-  it("an unchanged full pose can be viewed while its FBX is still preparing", async () => {
-    Object.assign(state, { model: true, base: true, scope: "full", serverBase: true });
-    fetchBlob.mockResolvedValue({
-      type: "model/gltf-binary",
-      arrayBuffer: async () => new ArrayBuffer(32),
-    });
-    const { result } = mount();
-    await waitFor(() => expect(result.current.items[0]?.previewModel?.base).toBeDefined());
-    act(() => result.current.items[0]!.onModelStatus("ready"));
-    expect(result.current.previewLoading).toBe(false);
-    expect(fetchBlob).toHaveBeenCalledTimes(1);
-    expect(fetchBlob.mock.calls[0]![0]).toContain("useLibraryModel=true");
-  });
-  it("server refine wins when the client missed its response", async () => {
-    Object.assign(state, { model: true, base: true, refined: false, scope: "full" });
-    fetchBlob.mockResolvedValue({
-      type: "model/gltf-binary",
-      arrayBuffer: async () => new ArrayBuffer(32),
-    });
-    const { result } = mount();
-    await waitFor(() => expect(result.current.items[0]?.previewModel).toBeDefined());
-    expect(result.current.items[0]?.previewModel?.base).toBeUndefined();
-    expect(fetchBlob).toHaveBeenCalledTimes(1);
-  });
-  it("a refined pose never uses a precomputed base model", async () => {
-    Object.assign(state, { model: true, base: true, refined: true, scope: "full" });
-    fetchBlob.mockResolvedValue({
-      type: "model/gltf-binary",
-      arrayBuffer: async () => new ArrayBuffer(32),
-    });
-    const { result } = mount();
-    await waitFor(() => expect(result.current.items[0]?.previewModel).toBeDefined());
-    expect(result.current.items[0]?.previewModel?.base).toBeUndefined();
-    expect(fetchBlob).toHaveBeenCalledTimes(1);
-  });
-  it("errors never fall back to full-body preview and retry recovers", async () => {
-    fetchBlob.mockRejectedValueOnce(new Error("offline"));
-    const { result } = mount();
-    await waitFor(() => expect(result.current.previewError).toBe(true));
-    expect(result.current.items[0]?.previewUrl).toBe("");
-    await act(async () => {
-      await result.current.retryPreview();
-    });
-    await waitFor(() => expect(result.current.items[0]?.previewUrl).toMatch(/^data:image\/png/));
-  });
-  it("catalog failure shows an error, not infinite loading", () => {
-    state.catalogError = true;
-    const { result } = mount();
-    expect(result.current.previewLoading).toBe(false);
-    expect(result.current.previewError).toBe(true);
-    expect(fetchBlob).not.toHaveBeenCalled();
-  });
-  it.each(["legacy", "bvh"])("%s does not request a cropped output", (mode) => {
-    if (mode === "legacy") state.enabled = false;
-    else state.format = "bvh";
-    const { result } = mount();
-    expect(result.current.items[0]?.previewUrl).toBe("FULL_BODY");
-    expect(fetchBlob).not.toHaveBeenCalled();
-    expect(result.current.previewLoading).toBe(false);
-  });
+  expect(result.current.items[0]?.scopeLabel).toBe("흉상");
+  const url = framedExportUrl(
+    "/v1/pose-candidates/p/export?jobId=job&personIndex=0&candidateId=pick",
+    "bust",
+    "fbx",
+    null,
+  );
+  expect(reviewedExportUrl(url, url + "#false")).toContain("artifactReceipt=" + "e".repeat(64));
+});
+it("returning to the same confirmed selection reuses the prepared artifact cache", async () => {
+  const { result, rerender } = mount();
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  m.scope = "head";
+  rerender();
+  expect(result.current.downloadReady).toBe(false);
+  await waitFor(() => expect(m.ready).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  m.scope = "full";
+  rerender();
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  expect(m.ready).toHaveBeenCalledTimes(2);
+});
+it("waits for refine before preparing the final selection", async () => {
+  m.refining = true;
+  const { result, rerender } = mount();
+  expect(m.ready).not.toHaveBeenCalled();
+  expect(result.current.downloadReady).toBe(false);
+  m.refining = false;
+  rerender();
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+});
+it("preserves BVH reference behavior without final-FBX work", () => {
+  m.format = "bvh";
+  const { result } = mount();
+  expect(result.current.items[0]?.previewUrl).toBe("reference");
+  expect(m.ready).not.toHaveBeenCalled();
+  expect(result.current.downloadReady).toBe(true);
+});
+it("generated poses still require FBX and converter readiness", () => {
+  m.generated = true;
+  m.available = false;
+  const { result } = mount();
+  expect(result.current.downloadReady).toBe(false);
+  expect(result.current.preparationError).toBe(true);
 });

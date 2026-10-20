@@ -1,9 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
+import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
+import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { useLocation } from "react-router-dom";
 import { useCaptureStore } from "@/features/capture/store/captureStore";
 import type { WindowMode, WindowPosition, WindowSize } from "../api/windowMode.contract";
 import { windowModeService } from "../api/windowMode.service";
-import { barStateForPath, windowTargetForPath } from "../lib/barSizes";
+import { barStateForPath, fitBarContent, windowTargetForPath } from "../lib/barSizes";
 import { useWindowModeStore } from "../stores/windowModeStore";
 
 type WindowTarget = { mode: WindowMode; size: WindowSize };
@@ -32,9 +36,26 @@ const MOVE_TOLERANCE = 1;
  */
 export function WindowModeSync() {
   const { pathname } = useLocation();
-  // 바 내용이 표보다 크면 창을 키운다. 측정은 BarShell이 하고, 창에 적용하는 곳은
+  const jobId = usePoseSelectionStore((state) => state.jobId);
+  const queryClient = useQueryClient();
+  // Subscribe without a query observer: sizing cannot replace an analysis queryFn,
+  // trigger an analysis, or refetch a restored result.
+  const resultKey = poseQueryKeys.result(jobId ?? "");
+  const readSource = () => queryClient.getQueryData<AnalysisResult>(resultKey)?.source;
+  const subscribe = useCallback(
+    (notify: () => void) => queryClient.getQueryCache().subscribe(notify),
+    [queryClient],
+  );
+  const source = useSyncExternalStore(subscribe, readSource, readSource);
+  const semanticBar =
+    pathname === "/bar/search" ||
+    (pathname.startsWith("/bar/") &&
+      source === "semantic" &&
+      ["/bar/candidates", "/bar/review", "/bar/save"].includes(pathname));
+  // 바 내용에 맞춰 창을 줄이거나 키운다. 측정은 BarShell이 하고, 창에 적용하는 곳은
   // 여기 하나로 유지한다 — 크기를 쓰는 곳이 둘이 되면 서로 덮어쓴다.
   const contentHeight = useWindowModeStore((s) => s.barContentHeight);
+  const contentWidth = useWindowModeStore((s) => s.barContentWidth);
   const placement = useRef<Placement>({ applied: null, placedAt: null });
   /**
    * 창 조작을 한 줄로 세운다. 겹치면 앞 작업이 클램프로 민 자리를 뒤 작업이 읽어
@@ -42,22 +63,25 @@ export function WindowModeSync() {
    */
   const queue = useRef<Promise<void>>(Promise.resolve());
 
-  useEffect(() => {
-    const base = windowTargetForPath(pathname);
-    const barState = barStateForPath(pathname);
-    const target: WindowTarget =
-      barState && barState !== "candidates" && contentHeight
-        ? {
-            ...base,
-            size: {
-              ...base.size,
-              height: Math.min(760, Math.max(base.size.height, contentHeight)),
-            },
-          }
-        : base;
+  // Clear the HTML canvas as well as body before painting the smaller native window.
+  useLayoutEffect(() => {
+    const { mode } = windowTargetForPath(pathname);
+    document.documentElement.dataset.windowMode = mode;
+    document.body.dataset.windowMode = mode;
+  }, [pathname]);
 
-    // 바에서는 창 배경을 비워 둥근 모서리 밖이 흰 네모로 보이지 않게 한다(index.css).
-    document.body.dataset.windowMode = target.mode;
+  useEffect(() => {
+    const routeTarget = windowTargetForPath(pathname);
+    const base = semanticBar
+      ? { ...routeTarget, size: { ...routeTarget.size, maxWidthFraction: 0.49 } }
+      : routeTarget;
+    const barState = barStateForPath(pathname);
+    const target: WindowTarget = barState
+      ? {
+          ...base,
+          size: fitBarContent(barState, base.size, contentHeight, contentWidth),
+        }
+      : base;
 
     const state = placement.current;
     let superseded = false;
@@ -71,7 +95,7 @@ export function WindowModeSync() {
     return () => {
       superseded = true;
     };
-  }, [pathname, contentHeight]);
+  }, [pathname, contentHeight, contentWidth, semanticBar]);
 
   return null;
 }
@@ -80,7 +104,7 @@ async function applyTarget(state: Placement, pathname: string, target: WindowTar
   const last = state.applied;
 
   // 같은 화면에서 내용 높이만 바뀌고 창 크기는 그대로면 창을 건드릴 일이 없다.
-  // 후보·인물을 넘길 때마다 내용 높이가 바뀐다.
+  // 체형 패널·후보 상태에 따라 내용 높이가 바뀐다.
   if (last && last.pathname === pathname && sameSize(last.size, target.size)) return;
 
   // 바에 있는 동안 사용자가 끌어 옮겼으면 그 자리가 새 기준이다. 바를 떠날 때도
@@ -124,7 +148,7 @@ async function adoptUserMove(state: Placement) {
 }
 
 function sameSize(a: WindowSize, b: WindowSize) {
-  return a.width === b.width && a.height === b.height;
+  return a.width === b.width && a.height === b.height && a.maxWidthFraction === b.maxWidthFraction;
 }
 
 function moved(a: WindowPosition, b: WindowPosition) {

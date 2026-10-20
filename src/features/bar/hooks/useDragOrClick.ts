@@ -1,4 +1,8 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { windowModeService } from "../api/windowMode.service";
 
 /** 이 거리(px)를 넘겨야 끌기로 본다. 미만이면 클릭이다. */
@@ -19,7 +23,7 @@ export function useDragOrClick(onClick: () => void) {
   const dragged = useRef(false);
 
   function onPointerDown(e: ReactPointerEvent) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || e.ctrlKey) return;
     origin.current = { x: e.clientX, y: e.clientY };
     dragged.current = false;
   }
@@ -39,7 +43,8 @@ export function useDragOrClick(onClick: () => void) {
     origin.current = null;
   }
 
-  function handleClick() {
+  function handleClick(e: ReactMouseEvent) {
+    if (e.button !== 0 || e.ctrlKey) return;
     // 끌고 난 직후의 click은 무시한다(제자리 클릭만 동작).
     if (dragged.current) {
       dragged.current = false;
@@ -48,5 +53,11 @@ export function useDragOrClick(onClick: () => void) {
     onClick();
   }
 
-  return { onPointerDown, onPointerMove, onPointerUp, onClick: handleClick };
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: onPointerUp,
+    onClick: handleClick,
+  };
 }

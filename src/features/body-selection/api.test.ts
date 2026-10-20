@@ -1,3 +1,4 @@
+import { selection as savedHands } from "@/features/hand-selection/fixtures";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { webcrypto, createHash } from "node:crypto";
 import { Blob as NodeBlob } from "node:buffer";
@@ -290,3 +291,51 @@ it("accepts shoulder/head manifest and binds optional scope and selected hand re
     );
   await expect(renderBodyCandidate(m, candidate, new AbortController().signal)).rejects.toThrow();
 });
+
+it.each(["head", "shoulder_head", "bust"] as const)(
+  "%s manifest and paired body receipts omit hand identity",
+  async (scope) => {
+    const value = {
+      ...manifest,
+      outputScope: scope,
+      hands: { revision: 2, library_sha256: sha("hands") },
+    };
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify(value)));
+    await expect(getManifest("job", 0, selection)).rejects.toThrow();
+    const exportUrl = "/v1/pose-candidates/pose/export?jobId=job&personIndex=0&candidateId=pose";
+    const headers = {
+      "Content-Type": "image/png",
+      "X-Standin-Output-Scope": scope,
+      "X-Standin-Review-Key": sha("review"),
+      "X-Standin-Artifact-SHA256": sha("fbx"),
+      "X-Standin-Body-Revision": "1",
+      "X-Standin-Character-SHA256": ref.assetSha256,
+    };
+    fetcher.mockResolvedValueOnce(new Response("png", { headers }));
+    const receipt = await loadBodyReview(
+      "job",
+      exportUrl,
+      0,
+      "pose",
+      scope,
+      selection,
+      new AbortController().signal,
+      savedHands,
+    );
+    expect(receipt.hands).toBeUndefined();
+    expect(receipt.downloadUrl).not.toContain("handSelectionRevision");
+    expect(fetcher.mock.calls[1]?.[0]).not.toContain("handSelectionRevision");
+    fetcher.mockResolvedValueOnce(new Response("fbx", { headers }));
+    expect(new TextDecoder().decode(await downloadBodyReview(receipt))).toBe("fbx");
+    fetcher.mockResolvedValueOnce(
+      new Response("fbx", { headers: { ...headers, "X-Standin-Hand-Revision": "2" } }),
+    );
+    await expect(downloadBodyReview(receipt)).rejects.toThrow();
+    fetcher.mockResolvedValueOnce(
+      new Response("png", { headers: { ...headers, "X-Standin-Hand-Revision": "2" } }),
+    );
+    await expect(
+      loadBodyReview("job", exportUrl, 0, "pose", scope, selection, new AbortController().signal),
+    ).rejects.toThrow();
+  },
+);

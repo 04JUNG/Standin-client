@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Modal } from "@/shared/components/Modal";
+import { Loader2, ZoomIn } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { RoughThumb } from "@/features/pose-viewer/components/RoughPanel";
 import type { PersonBox } from "@/features/pose-viewer/api/pose.contract";
@@ -23,8 +24,12 @@ export function NeutralImage({ option }: { option: BodyLook }) {
   const owner = useBodyOwner();
   const query = useQuery({
     queryKey: [
-      "body", owner, "neutral", option.characterId,
-      option.bodyRef?.assetSha256, option.neutralPreview,
+      "body",
+      owner,
+      "neutral",
+      option.characterId,
+      option.bodyRef?.assetSha256,
+      option.neutralPreview,
     ],
     enabled: (!!option.neutralPreview && !!option.bodyRef) || bodyMockEnabled(),
     queryFn: ({ signal }) => loadNeutralPreview(option, signal),
@@ -67,7 +72,8 @@ export function ShapeThumb({
     staleTime: Infinity,
     gcTime: 30 * 60 * 1000,
   });
-  if (runtime.data && shot.data) return <img src={shot.data} className="h-full w-full object-contain" alt="" />;
+  if (runtime.data && shot.data)
+    return <img src={shot.data} className="h-full w-full object-contain" alt="" />;
   if (supportedRuntime(ref) && (runtime.isPending || (runtime.isSuccess && shot.isPending)))
     return <Loader2 className="h-4 w-4 animate-spin text-text-secondary" aria-label="그리는 중" />;
   if (bodyMockEnabled() && look.shape)
@@ -88,15 +94,20 @@ function ShapeCanvas({
   controls,
   label,
   onFail,
+  rotation,
+  onRotate,
 }: {
   runtime: AnyShapeRuntime;
   preset: string;
   controls: Record<string, number> | null;
   label: string;
   onFail(): void;
+  rotation: number;
+  onRotate?: (angle: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<ShapeBodyView | null>(null);
+  const drag = useRef<{ id: number; x: number; angle: number } | null>(null);
   const fail = useRef(onFail);
   fail.current = onFail;
   useEffect(() => {
@@ -131,7 +142,64 @@ function ShapeCanvas({
       fail.current();
     }
   }, [runtime, preset, controls]);
-  return <div ref={host} className="h-full w-full" />;
+  useEffect(() => {
+    view.current?.setRotation(rotation);
+  }, [runtime, rotation]);
+  return (
+    <div
+      ref={host}
+      className={cn("h-full w-full", onRotate && "cursor-grab active:cursor-grabbing")}
+      tabIndex={onRotate ? 0 : undefined}
+      role={onRotate ? "group" : undefined}
+      aria-label={onRotate ? "체형 회전: 좌우 방향키 또는 드래그" : undefined}
+      onKeyDown={
+        onRotate
+          ? (e) => {
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+              e.preventDefault();
+              onRotate(rotation + ((e.key === "ArrowRight" ? 1 : -1) * Math.PI) / 12);
+            }
+          : undefined
+      }
+      style={onRotate ? { touchAction: "pan-y" } : undefined}
+      onPointerDown={
+        onRotate
+          ? (e) => {
+              if (e.button !== 0) return;
+              drag.current = { id: e.pointerId, x: e.clientX, angle: rotation };
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }
+          : undefined
+      }
+      onPointerMove={
+        onRotate
+          ? (e) => {
+              const start = drag.current;
+              if (!start || start.id !== e.pointerId) return;
+              onRotate(
+                start.angle +
+                  ((e.clientX - start.x) / Math.max(1, e.currentTarget.clientWidth)) * Math.PI * 2,
+              );
+            }
+          : undefined
+      }
+      onPointerUp={
+        onRotate
+          ? (e) => {
+              drag.current = null;
+              if (e.currentTarget.hasPointerCapture(e.pointerId))
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+          : undefined
+      }
+      onPointerCancel={() => {
+        drag.current = null;
+      }}
+      onLostPointerCapture={() => {
+        drag.current = null;
+      }}
+    />
+  );
 }
 
 /** 3D 자산을 못 쓸 때 Mock 모드에서만 쓰는 대체 실루엣(실제 렌더 아님). */
@@ -168,6 +236,8 @@ export function LiveBodyView({
   title = "내 체형",
   badge,
   plainName,
+  interactive = false,
+  className,
 }: {
   option?: BodyLook;
   name: string;
@@ -178,103 +248,155 @@ export function LiveBodyView({
   rough?: { url?: string; box?: PersonBox | null };
   personIndex: number;
   variant: "bar" | "app";
-  /** 박스 머리말. 후보 화면은 "내 체형", 설정 화면은 "내 기본값". */
+  /** 박스 머리말. 후보 화면은 "내 체형", 설정 화면은 "체형 커스텀". */
   title?: string;
   /** 머리말 옆 표시. 없으면 edited일 때 "수정 중". 설정 화면은 저장 전일 때만 쓴다. */
   badge?: string | null;
   /** 이름 뒤에 " 수정"을 붙이지 않는다(체형 커스텀처럼 이름 자체가 카드 이름일 때). */
   plainName?: boolean;
+  /** 체형 만들기/카드 편집에서만 회전과 확대를 켠다. */
+  interactive?: boolean;
+  className?: string;
 }) {
   const ref = option?.shape ? option.shapeRuntime : undefined;
   const runtime = useShapeRuntime(ref);
-  const [glFailed, setGlFailed] = useState(false);
+  const [failedRuntime, setFailedRuntime] = useState<AnyShapeRuntime | null>(null);
+  const glFailed = !!runtime.data && failedRuntime === runtime.data;
+  const [expanded, setExpanded] = useState(false);
+  const [rotation, setRotation] = useState(0);
   const live3d = !!option?.shape && !!runtime.data && supportedRuntime(ref) && !glFailed;
   const loading = !!option?.shape && supportedRuntime(ref) && runtime.isPending;
   const mockFallback = !live3d && !loading && !!option?.shape && bodyMockEnabled();
   const suffix = edited && !plainName ? " 수정" : "";
   const label = `${name}${suffix} 미리보기`;
 
+  const preview = () =>
+    !option ? (
+      <span className="text-[11px] text-text-secondary">체형을 고르세요</span>
+    ) : live3d && ref ? (
+      <ShapeCanvas
+        runtime={runtime.data!}
+        preset={ref.preset}
+        controls={controls}
+        label={label}
+        rotation={rotation}
+        onRotate={interactive ? setRotation : undefined}
+        onFail={() => setFailedRuntime(runtime.data!)}
+      />
+    ) : mockFallback ? (
+      <MockSilhouette option={option} controls={controls} />
+    ) : (
+      <NeutralImage option={option} />
+    );
+  const status = loading
+    ? "3D 체형 불러오는 중"
+    : !live3d && interactive
+      ? "회전 미리보기를 사용할 수 없어 기본 이미지를 보여드려요."
+      : interactive
+        ? "좌우로 드래그하여 회전"
+        : null;
+
   return (
-    <section
-      aria-label={rough ? `인물 ${personIndex + 1}의 ${title}` : title}
-      className={cn(
-        "relative flex shrink-0 flex-col gap-1 rounded-xl border-2 border-brand-coral bg-surface-0 p-1.5",
-        variant === "bar" ? "w-[150px]" : "w-[232px]",
-      )}
-    >
-      <div className="flex items-center justify-between gap-1 px-0.5">
-        <span className="text-[11.5px] font-semibold text-text-primary">{title}</span>
-        {(badge === undefined ? (edited ? "수정 중" : null) : badge) && (
-          <span className="rounded-full bg-brand-coral px-1.5 text-[10px] font-semibold text-white">
-            {badge === undefined ? "수정 중" : badge}
-          </span>
-        )}
-      </div>
-      <div
+    <>
+      <section
+        aria-label={rough ? `인물 ${personIndex + 1}의 ${title}` : title}
         className={cn(
-          "relative flex w-full items-center justify-center overflow-hidden rounded-lg bg-surface-2",
-          variant === "bar" ? "h-[150px]" : "h-[248px]",
+          "relative flex shrink-0 flex-col gap-1 rounded-xl border-2 border-brand-coral bg-surface-0 p-1.5",
+          variant === "bar" ? "w-[150px]" : "w-[232px]",
+          className,
         )}
       >
-        {!option ? (
-          <span className="text-[11px] text-text-secondary">체형을 고르세요</span>
-        ) : live3d && ref ? (
-          <ShapeCanvas
-            runtime={runtime.data!}
-            preset={ref.preset}
-            controls={controls}
-            label={label}
-            onFail={() => setGlFailed(true)}
-          />
-        ) : mockFallback ? (
-          <MockSilhouette option={option} controls={controls} />
-        ) : (
-          <NeutralImage option={option} />
-        )}
-        {loading && (
-          <span
-            role="status"
-            className="absolute inset-x-0 top-1 mx-auto flex w-fit items-center gap-1 rounded-full bg-surface-0/90 px-2 py-0.5 text-[10.5px] text-text-secondary shadow-sm"
-          >
-            <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-            3D 체형 불러오는 중
+        <div className="flex items-center justify-between gap-1 px-0.5">
+          <span className="text-[11.5px] font-semibold text-text-primary">{title}</span>
+          {(badge === undefined ? (edited ? "수정 중" : null) : badge) && (
+            <span className="rounded-full bg-brand-coral px-1.5 text-[10px] font-semibold text-white">
+              {badge === undefined ? "수정 중" : badge}
+            </span>
+          )}
+        </div>
+        <div
+          className={cn(
+            "relative flex w-full items-center justify-center overflow-hidden rounded-lg bg-surface-2",
+            variant === "bar" ? "h-[150px]" : "h-[248px]",
+          )}
+        >
+          {preview()}
+          {loading && !interactive && (
+            <span
+              role="status"
+              className="absolute inset-x-0 top-1 mx-auto flex w-fit items-center gap-1 rounded-full bg-surface-0/90 px-2 py-0.5 text-[10.5px] text-text-secondary shadow-sm"
+            >
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+              3D 체형 불러오는 중
+            </span>
+          )}
+          {interactive && option && (
+            <button
+              type="button"
+              aria-label="체형 크게 보기"
+              title="크게 보기"
+              onClick={() => setExpanded(true)}
+              className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-0/90 text-text-primary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
+            >
+              <ZoomIn className="h-5 w-5" aria-hidden />
+            </button>
+          )}
+          {/* 원본을 작게 겹쳐 둔다 — 체형을 러프와 비교하는 용도. */}
+          {rough && (
+            <div className="absolute bottom-1 left-1 flex flex-col items-center rounded-md border border-border bg-surface-0/90 p-0.5 shadow-sm">
+              <RoughThumb
+                url={rough?.url}
+                box={rough?.box}
+                personIndex={personIndex}
+                className={cn(
+                  "border-0",
+                  variant === "bar" ? "h-[44px] w-[34px]" : "h-[72px] w-[54px]",
+                )}
+              />
+              <span className="text-[9.5px] text-text-secondary">원본</span>
+            </div>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-col px-0.5 pb-0.5">
+          <span className="truncate text-[12px] font-semibold text-text-primary">
+            {name}
+            {suffix}
           </span>
-        )}
-        {/* 원본을 작게 겹쳐 둔다 — 체형을 러프와 비교하는 용도. */}
-        {rough && (
-          <div className="absolute bottom-1 left-1 flex flex-col items-center rounded-md border border-border bg-surface-0/90 p-0.5 shadow-sm">
-            <RoughThumb
-              url={rough?.url}
-              box={rough?.box}
-              personIndex={personIndex}
-              className={cn(
-                "border-0",
-                variant === "bar" ? "h-[44px] w-[34px]" : "h-[72px] w-[54px]",
-              )}
-            />
-            <span className="text-[9.5px] text-text-secondary">원본</span>
+          <span
+            role={interactive ? "status" : undefined}
+            className="text-[10px] text-text-secondary"
+          >
+            {interactive && status
+              ? status
+              : !option
+                ? ""
+                : !option.shape
+                  ? "고정 체형"
+                  : live3d || mockFallback
+                    ? "바를 움직이면 바로 바뀌어요"
+                    : loading
+                      ? "처음 불러올 때는 잠시 걸릴 수 있어요"
+                      : edited
+                        ? "조절한 모습을 미리 보여드릴 수 없어요. 지금은 기본 모습만 보여드려요."
+                        : "바를 움직여 조절하세요"}
+          </span>
+        </div>
+      </section>
+      {interactive && (
+        <Modal
+          open={expanded}
+          onClose={() => setExpanded(false)}
+          title={`${name} 크게 보기`}
+          width="lg"
+        >
+          <div className="relative flex h-[min(60vh,560px)] w-full items-center justify-center overflow-hidden rounded-lg bg-surface-2">
+            {expanded && preview()}
           </div>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col px-0.5 pb-0.5">
-        <span className="truncate text-[12px] font-semibold text-text-primary">
-          {name}
-          {suffix}
-        </span>
-        <span className="text-[10px] text-text-secondary">
-          {!option
-            ? ""
-            : !option.shape
-              ? "고정 체형"
-              : live3d || mockFallback
-                ? "바를 움직이면 바로 바뀌어요"
-                : loading
-                  ? "처음 한 번만 받아요"
-                  : edited
-                    ? "수치 미리보기를 쓸 수 없어요 · 지금은 처음 모양만 보여요"
-                    : "바를 움직여 조절하세요"}
-        </span>
-      </div>
-    </section>
+          <p role="status" className="mt-2 text-[12px] text-text-secondary">
+            {status}
+          </p>
+        </Modal>
+      )}
+    </>
   );
 }

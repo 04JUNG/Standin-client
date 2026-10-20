@@ -1,7 +1,9 @@
+import { useJobSelections } from "@/features/history/hooks/useJobSelections";
+import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { canRelease } from "../api/routedSearch";
 import { useBodies } from "@/features/body-selection/hooks";
 import { useEffect, useMemo, useRef } from "react";
-import { useIsMutating, useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { ApiError } from "@/shared/api/errors";
 import { poseService } from "../api/pose.service";
@@ -58,12 +60,17 @@ function failureReason(err: unknown): string {
 export function useAnalysisResult(jobId: string | undefined) {
   // 분석 시작 시각. 실패까지 사용자가 실제로 기다린 시간을 재려면 클라에만 있는 값이다.
   const startedAt = useRef<number | null>(null);
+  const queryClient = useQueryClient();
   const draft = useUploadStore((s) => s.draft);
   const selectedByPerson = usePoseSelectionStore((s) => s.selectedByPerson);
   const selectCandidate = usePoseSelectionStore((s) => s.selectCandidate);
   const setServerJobId = usePoseSelectionStore((s) => s.setServerJobId);
   const excludedPeople = usePoseSelectionStore((s) => s.excludedPeople);
-  const setPersonIncluded = usePoseSelectionStore((s) => s.setPersonIncluded);
+  const setIncluded = usePoseSelectionStore((s) => s.setPersonIncluded);
+  const characterId = usePoseSelectionStore((s) => s.characterId);
+  const characters = usePoseSelectionStore((s) => s.characterByPerson);
+  const characterKey = JSON.stringify([characterId, characters]);
+  const previousCharacter = useRef<{ job: string; key: string } | null>(null);
 
   const sourceFile = draft?.file ?? null;
 
@@ -106,14 +113,45 @@ export function useAnalysisResult(jobId: string | undefined) {
     retryOnMount: false,
   });
 
+  useEffect(() => {
+    const job = query.data?.jobId;
+    if (!job) return;
+    if (previousCharacter.current?.job === job && previousCharacter.current.key !== characterKey)
+      invalidateFinalReview(queryClient, job);
+    previousCharacter.current = { job, key: characterKey };
+  }, [characterKey, query.data?.jobId, queryClient]);
+  function setPersonIncluded(index: number, included: boolean) {
+    if (query.data) invalidateFinalReview(queryClient, query.data.jobId);
+    setIncluded(index, included);
+  }
+
+  const { data: savedSelections } = useJobSelections(restoreOnly ? jobId : undefined);
+  const restoredJob = useRef<string | null>(null);
+  useEffect(() => {
+    if (!jobId || !query.data || !savedSelections || restoredJob.current === jobId) return;
+    restoredJob.current = jobId;
+    const picks = Object.fromEntries(
+      savedSelections
+        .filter((s) =>
+          query
+            .data!.people.find((p) => p.index === s.personIndex)
+            ?.candidates.some((c) => c.id === s.candidateId && canRelease(c)),
+        )
+        .map((s) => [s.personIndex, s.candidateId]),
+    );
+    usePoseSelectionStore.getState().restoreSelections(jobId, picks);
+  }, [jobId, query.data, savedSelections]);
+
   // hard fallback(자동 후보 없음)인 인물은 선택 대상이 아니라 안내로만 보여준다.
   // soft fallback은 다르다 — 저신뢰지만 후보가 있으므로 계속 고르고 저장할 수 있다.
   const people = useMemo(() => query.data?.people ?? [], [query.data?.people]);
-  const selectablePeople = people.filter((p) => p.fallbackMode !== "hard");
-  const failedPeople = people.filter((p) => p.fallbackMode === "hard");
+  const selectablePeople = people.filter((p) => p.candidates.some(canRelease));
+  const failedPeople = people.filter((p) => !p.candidates.some(canRelease));
   // 내보내기를 끈 인물은 진행 조건과 확정 요청에서 빠진다. 한 명은 남아야 한다.
   const includedPeople = selectablePeople.filter((p) => !(p.index in excludedPeople));
-  const pendingPeople = includedPeople.filter((p) => !selectedByPerson[p.index]);
+  const pendingPeople = includedPeople.filter(
+    (p) => !canRelease(p.candidates.find((c) => c.id === selectedByPerson[p.index])),
+  );
   const selectedCount = includedPeople.length - pendingPeople.length;
   const isSavingScope = useIsMutating({ mutationKey: ["output-scope", query.data?.jobId] }) > 0;
   const bodies = useBodies(query.data, excludedPeople);
@@ -128,7 +166,7 @@ export function useAnalysisResult(jobId: string | undefined) {
     pendingPeople.length === 0;
   /** 확정 요청. 켠 인물의 선택만 싣는다(서버는 이 목록으로 확정 집합을 대체한다). */
   const confirmedSelections = includedPeople.flatMap((p) =>
-    selectedByPerson[p.index]
+    canRelease(p.candidates.find((c) => c.id === selectedByPerson[p.index]))
       ? [{ personIndex: p.index, candidateId: selectedByPerson[p.index] }]
       : [],
   );
@@ -177,6 +215,10 @@ export function useAnalysisResult(jobId: string | undefined) {
   }, [query.data, people, setServerJobId, restoreOnly]);
 
   function selectAndTrack(personIndex: number, candidateId: string) {
+    const chosen = people
+      .find((p) => p.index === personIndex)
+      ?.candidates.find((c) => c.id === candidateId);
+    if (!canRelease(chosen)) return;
     const previousCandidateId = selectedByPerson[personIndex] ?? null;
     // 이미 고른 후보를 다시 눌러도 "후보 변경"으로 세면 변경 횟수 지표가 부풀려진다.
     if (previousCandidateId === candidateId) return;
@@ -195,6 +237,7 @@ export function useAnalysisResult(jobId: string | undefined) {
       },
       query.data?.jobId,
     );
+    if (query.data) invalidateFinalReview(queryClient, query.data.jobId);
     selectCandidate(personIndex, candidateId);
   }
 

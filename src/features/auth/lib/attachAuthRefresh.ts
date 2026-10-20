@@ -25,7 +25,7 @@ export function attachAuthRefresh(): void {
       return tokens.accessToken;
     } catch {
       // refresh token까지 만료·폐기됐다 → 세션 종료. 화면 이동은 가드가 처리한다.
-      useAuthStore.getState().endSession("세션이 만료되었습니다. 다시 로그인해 주세요.");
+      useAuthStore.getState().endSession("로그인이 풀렸어요. 다시 로그인해 주세요.");
       return null;
     }
   });

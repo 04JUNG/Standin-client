@@ -23,9 +23,10 @@ beforeEach(() => {
   mocks.getCatalog.mockResolvedValue(catalog);
   mocks.get.mockResolvedValue(selection);
 });
-function setup(data = result) {
+function setup(data = result, people = [0]) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const hook = renderHook(() => useHands(data, [0], true), {
+  const hook = renderHook(({ data }) => useHands(data, people, true), {
+    initialProps: { data },
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={qc}>{children}</QueryClientProvider>
     ),
@@ -74,4 +75,55 @@ it("blocks final review when a saved selection and cached catalog use different 
   const hook = setup();
   await waitFor(() => expect(hook.result.current.error).toBe(true));
   expect(hook.result.current.ready).toBe(false);
+});
+
+function scoped(scopes: string[]): AnalysisResult {
+  return {
+    ...result,
+    people: scopes.map((scope, index) => ({
+      index,
+      outputScope: {
+        selection: "auto",
+        detected: scope,
+        meshScope: scope,
+        resolved: scope,
+        detectionSource: "vlm_person",
+        resolutionSource: "auto",
+      },
+    })),
+  } as AnalysisResult;
+}
+it.each(["head", "shoulder_head", "bust"])(
+  "does not query, apply or wait for hands on %s meshes even with stale cached hands",
+  (scope) => {
+    const hook = setup(scoped([scope]));
+    hook.qc.setQueryData(["hands", "owner", "job", 0], selection);
+    expect(hook.result.current.enabled).toBe(false);
+    expect(hook.result.current.ready).toBe(true);
+    expect(hook.result.current.entries).toEqual([]);
+    act(() => hook.result.current.change(selection, { left: "fist" }));
+    expect(mocks.getCatalog).not.toHaveBeenCalled();
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.put).not.toHaveBeenCalled();
+  },
+);
+it("queries only the hand-bearing person in a head/body scene", async () => {
+  const hook = setup(scoped(["head", "half"]), [0, 1]);
+  await waitFor(() => expect(hook.result.current.ready).toBe(true));
+  expect(hook.result.current.entries.map((e) => e.personIndex)).toEqual([1]);
+  expect(mocks.get).toHaveBeenCalledTimes(1);
+  expect(mocks.get.mock.calls[0]?.slice(0, 2)).toEqual(["job", 1]);
+});
+it("preserves saved hands across full → head → full, revalidating when hands return", async () => {
+  const saved = { ...selection, left: "fist", revision: 4, changed: ["left"] };
+  mocks.get.mockResolvedValue(saved);
+  const hook = setup(scoped(["full"]));
+  await waitFor(() => expect(hook.result.current.entries[0]?.selection?.revision).toBe(4));
+  hook.rerender({ data: scoped(["head"]) });
+  expect(hook.result.current.entries).toEqual([]);
+  expect(hook.result.current.ready).toBe(true);
+  expect(hook.qc.getQueryData(["hands", "owner", "job", 0])).toEqual(saved);
+  hook.rerender({ data: scoped(["full"]) });
+  await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
+  expect(hook.result.current.entries[0]?.selection?.left).toBe("fist");
 });

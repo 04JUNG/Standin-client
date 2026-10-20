@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation, useNavigate } from "react-router-dom";
+import { initialSearchQuery } from "./searchDraft";
+import { useLocation } from "react-router-dom";
 import { Loader2, Search } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { messageOf } from "@/shared/api/errors";
-import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
-import { useModelStore } from "@/features/models/store/modelStore";
-import { useInstallationStore } from "@/features/installation/installationStore";
-import { searchCapabilities, searchPoses } from "./api";
+
+import { useSemanticSearch } from "./useSemanticSearch";
 
 const EXAMPLES = [
   "야구공을 던지는 자세",
@@ -16,85 +13,10 @@ const EXAMPLES = [
   "두 팔을 머리 위로 올린 자세",
 ];
 export function SearchPage() {
-  const navigate = useNavigate();
   const location = useLocation();
-  const initial: unknown = location.state;
-  const [query, setQuery] = useState(() =>
-    initial &&
-    typeof initial === "object" &&
-    "query" in initial &&
-    typeof initial.query === "string"
-      ? initial.query.slice(0, 500)
-      : "",
-  );
-  const [noResult, setNoResult] = useState(false);
-  const generation = useRef(0);
-  const controller = useRef<AbortController>();
-  const owner = useInstallationStore((s) => s.credentials?.installationId);
-  const availability = useQuery({
-    queryKey: ["semantic-capabilities", owner],
-    queryFn: ({ signal }) => searchCapabilities(signal),
-    retry: false,
-    staleTime: 30_000,
-  });
-  const search = useMutation({
-    mutationFn: ({
-      text,
-      signal,
-      topK,
-    }: {
-      text: string;
-      signal: AbortSignal;
-      generation: number;
-      topK: number;
-    }) => searchPoses(text, signal, topK),
-    onSuccess: (result, variables) => {
-      if (variables.generation !== generation.current || variables.signal.aborted) return;
-      if (result.status === "no_result") {
-        setNoResult(true);
-        return;
-      }
-      usePoseSelectionStore
-        .getState()
-        .startJob(result.jobId, useModelStore.getState().preferredCharacterId);
-      navigate(`/app/jobs/${result.jobId}`);
-    },
-    retry: false,
-  });
-  useEffect(
-    () => () => {
-      generation.current++;
-      controller.current?.abort();
-    },
-    [],
-  );
-  function edit(text: string) {
-    generation.current++;
-    controller.current?.abort();
-    search.reset();
-    setNoResult(false);
-    setQuery(text);
-  }
-  const pending = search.isPending && search.variables?.generation === generation.current;
-  function submit() {
-    if (
-      !query.trim() ||
-      query.trim().length > 500 ||
-      availability.data?.available !== true ||
-      pending
-    )
-      return;
-    controller.current?.abort();
-    controller.current = new AbortController();
-    generation.current++;
-    setNoResult(false);
-    search.mutate({
-      text: query,
-      topK: availability.data.maxTopK,
-      signal: controller.current.signal,
-      generation: generation.current,
-    });
-  }
+  const initialQuery = initialSearchQuery(location.state);
+  const { query, edit, submit, pending, noResult, availability, search, setComposing, ready } =
+    useSemanticSearch(initialQuery);
   return (
     <AppShell title="문장으로 포즈 찾기">
       <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
@@ -105,7 +27,7 @@ export function SearchPage() {
           </p>
           {availability.data?.available && (
             <p className="mt-2 text-[13px] text-text-secondary">
-              최대 {availability.data.maxTopK}개의 검색 후보를 5개씩 비교할 수 있어요.
+              검색 결과를 스크롤하며 20개씩 더 볼 수 있어요.
             </p>
           )}
         </div>
@@ -125,6 +47,8 @@ export function SearchPage() {
             maxLength={500}
             rows={4}
             onChange={(e) => edit(e.target.value)}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
             onKeyDown={(e) => {
               if (
                 e.key === "Enter" &&
@@ -143,10 +67,7 @@ export function SearchPage() {
             <span className="text-[12px] text-text-secondary">
               {query.length}/500 · Shift+Enter로 줄바꿈
             </span>
-            <Button
-              type="submit"
-              disabled={!query.trim() || pending || availability.data?.available !== true}
-            >
+            <Button type="submit" disabled={!query.trim() || pending || !ready}>
               {pending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : (
@@ -177,7 +98,7 @@ export function SearchPage() {
           <p role="status" className="text-[13px] text-text-secondary">
             검색 서비스 확인 중…
           </p>
-        ) : availability.isError || !availability.data?.available ? (
+        ) : availability.isError || !ready ? (
           <div
             role="alert"
             className="rounded-lg border border-border p-4 text-[13px] text-text-secondary"
@@ -203,11 +124,6 @@ export function SearchPage() {
             </p>
           </div>
         )}
-        <p className="text-[12px] leading-relaxed text-text-secondary">
-          검색 후보와 근접 참고 후보를 구분해 3D로 확인할 수 있습니다. 신규 후보는 검수용이며 자동
-          적용·보정·내보내기를 지원하지 않습니다. 검색어는 결과가 있는 작업과 함께 작업 기록에
-          보관됩니다.
-        </p>
       </div>
     </AppShell>
   );

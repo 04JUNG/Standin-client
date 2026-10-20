@@ -1,3 +1,12 @@
+import { invalidateFinalReview } from "../lib/invalidateFinalReview";
+import {
+  downloadBinding,
+  downloadRevision,
+  rememberDownload,
+  revisionFileName,
+} from "../lib/downloadRevisions";
+import { poseRecovery } from "@/shared/api/poseRecovery";
+import { verifyDigest } from "@/features/body-selection/api";
 import { canRelease } from "@/features/pose-viewer/api/routedSearch";
 import { handKeys, downloadHandReview, type HandReview } from "@/features/hand-selection/api";
 import type { HandSelection } from "@/features/hand-selection/contract";
@@ -5,9 +14,18 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import { bodyKeys } from "@/features/body-selection/api";
 import { downloadBodyReview, type BodyReview } from "@/features/body-selection/review";
 import type { BodySelection } from "@/features/body-selection/contract";
-import { framedExportUrl, reviewedModelFormat, reviewedExportUrl } from "../lib/framedExport";
-import { readOutputScope, type BodyScope } from "@/features/pose-viewer/api/outputScope";
-import { useCallback, useEffect, useRef } from "react";
+import {
+  framedExportUrl,
+  reviewedModelFormat,
+  reviewedExportUrl,
+  reviewedArtifactSha,
+} from "../lib/framedExport";
+import {
+  previewScope,
+  scopeIncludesHands,
+  type BodyScope,
+} from "@/features/pose-viewer/api/outputScope";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
@@ -19,6 +37,13 @@ import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 import { exportService } from "../api/export.service";
+import {
+  downloadScene,
+  prepareScene,
+  loadScenePreview,
+  sceneReference,
+  type SceneReview,
+} from "../api/scene";
 import { ExportError } from "../api/export.contract";
 import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
 import { mockBvhContent } from "../lib/mockBvhContent";
@@ -54,14 +79,16 @@ async function resolvePoseBytes(
   scope?: BodyScope,
   modelPreview = false,
   refined = false,
+  onDownloadPath?: (path: string) => void,
 ): Promise<Uint8Array> {
   // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
   // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
   // exportUrl을 optional로 낮추는 대신 여기서 갈라낸다: "미리보기와 저장이 같은 URL"은
   // 낮추면 안 되는 production 계약이다(refine.contract.ts).
-  if (!exportUrl || (env.useMockPoseApi && !env.isProduction)) {
+  if (env.useMockPoseApi && !env.isProduction) {
     return mockBvhContent(candidateId);
   }
+  if (!exportUrl) throw new ApiError(409, "INVALID_EXPORT", "");
   try {
     const url =
       scope && format === "fbx"
@@ -83,13 +110,24 @@ async function resolvePoseBytes(
             framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`,
           )
         : url;
-    return await apiFetchBytes(pinnedUrl, { auth: false });
+    onDownloadPath?.(pinnedUrl);
+    const bytes = await apiFetchBytes(pinnedUrl, { auth: false });
+    const digest =
+      scope && format === "fbx"
+        ? reviewedArtifactSha(framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`)
+        : undefined;
+    if (digest)
+      await verifyDigest(
+        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+        digest,
+      );
+    return bytes;
   } catch (error) {
     // 격리된 포즈, converter 거부, lineage 불일치는 모두 **재시도로 풀리지 않는다.** 일반
     // 실패로 뭉치면 사용자는 영원히 실패하는 재시도 버튼만 누르게 된다. 코드별 문구는
     // errorMessages가 갖고 있다 — 서버 원문을 화면에 그대로 쓰지 않는다.
-    if (error instanceof ApiError) throw new Error(toAppError(error).message);
-    throw new Error("포즈 파일을 서버에서 받아오지 못했습니다.");
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(502, "EXPORT_FAILED", "");
   }
 }
 
@@ -115,6 +153,7 @@ export function useSaveFlow(jobId: string | undefined) {
   const status = useExportStore((s) => s.status);
   const savedPaths = useExportStore((s) => s.savedPaths);
   const error = useExportStore((s) => s.error);
+  const errorCode = useExportStore((s) => s.errorCode);
   const setFolder = useExportStore((s) => s.setFolder);
   const setFileName = useExportStore((s) => s.setFileName);
   const startSaving = useExportStore((s) => s.startSaving);
@@ -268,6 +307,26 @@ export function useSaveFlow(jobId: string | undefined) {
     preferredCharacterId,
   };
 
+  const [sceneReview, setSceneReview] = useState<SceneReview | null>(null);
+  const sceneDecision = useRef<((accepted: boolean) => void) | null>(null);
+  const sceneMounted = useRef(true);
+  const scenePreviewController = useRef<AbortController>();
+  useEffect(() => {
+    sceneMounted.current = true;
+    return () => {
+      sceneMounted.current = false;
+      sceneDecision.current?.(false);
+      scenePreviewController.current?.abort();
+    };
+  }, []);
+  const decideScene = (accepted: boolean) => {
+    scenePreviewController.current?.abort();
+    const decide = sceneDecision.current;
+    sceneDecision.current = null;
+    setSceneReview(null);
+    decide?.(accepted);
+  };
+
   const runSave = useCallback(
     /**
      * `append`는 앞선 저장 결과를 **남긴 채** 목록에 더한다. 같은 포즈를 다른 포맷으로 한
@@ -295,8 +354,35 @@ export function useSaveFlow(jobId: string | undefined) {
       try {
         const analysisResult = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id));
         if (!analysisResult) {
-          throw new Error("분석 결과를 찾지 못했습니다. 후보 화면에서 다시 시도해 주세요.");
+          throw new ApiError(409, "INVALID_SELECTION", "");
         }
+        const snapshot = () =>
+          JSON.stringify({
+            owner: useInstallationStore.getState().credentials?.installationId,
+            selected: usePoseSelectionStore.getState().selectedByPerson,
+            character: usePoseSelectionStore.getState().characterId,
+            characters: usePoseSelectionStore.getState().characterByPerson,
+            refine: usePoseSelectionStore.getState().refineByPerson,
+            people: qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.people,
+            body: qc
+              .getQueriesData({
+                queryKey: [
+                  "body",
+                  useInstallationStore.getState().credentials?.installationId ?? "",
+                  id,
+                ],
+                predicate: (q) => q.queryKey[4] === "selection",
+              })
+              .map(([key, data]) => [key, data]),
+            hands: qc.getQueriesData({
+              queryKey: [
+                "hands",
+                useInstallationStore.getState().credentials?.installationId ?? "",
+                id,
+              ],
+            }),
+          });
+        const bindingAtStart = snapshot();
         const selectionState = usePoseSelectionStore.getState();
         const refineByPerson = selectionState.refineByPerson;
         /**
@@ -318,13 +404,17 @@ export function useSaveFlow(jobId: string | undefined) {
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
-            const candidate = analysisResult?.people
-              .find((p) => p.index === personIndex)
-              ?.candidates.find((c) => c.id === candidateId);
+            const person = analysisResult.people.find((p) => p.index === personIndex);
+            const scope = previewScope(person);
+            const handApplicable =
+              analysisResult.capabilities.handSelection && scopeIncludesHands(scope);
+            const candidate = person?.candidates.find((c) => c.id === candidateId);
             if (!candidate) {
-              throw new Error("선택한 포즈를 분석 결과에서 찾지 못했습니다.");
+              throw new ApiError(409, "INVALID_SELECTION", "");
             }
-            if (!canRelease(candidate)) throw new Error("검수용 후보는 파일로 저장할 수 없습니다.");
+            if (candidate.source === "generation" && format !== "fbx")
+              throw new ApiError(409, "GENERATED_FBX_REQUIRED", "");
+            if (!canRelease(candidate)) throw new ApiError(409, "MANUAL_SELECTION_REQUIRED", "");
             // 조정 결과가 있으면 BFF가 확정한 URL이 최종이다. 확인 화면이 보여 준 것과
             // 같은 URL이어야 "본 것과 저장된 것이 다르다"가 생기지 않는다.
             // 어느 쪽이든 BFF 경로다 — 추론 서버의 /refined/{handle}는 그 태스크의 로컬
@@ -342,16 +432,13 @@ export function useSaveFlow(jobId: string | undefined) {
               handKeys.selection(handOwner, analysisResult.jobId, personIndex),
             );
             let content: Uint8Array;
+            let downloadPath = "";
             if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
-              if (options.forceDefaultCharacter)
-                throw new Error("체형은 후보 화면에서 변경해 주세요.");
+              if (options.forceDefaultCharacter) throw new ApiError(409, "BODY_PREVIEW_STALE", "");
               const owner = useInstallationStore.getState().credentials?.installationId ?? "";
               const body = qc.getQueryData<BodySelection>(
                 bodyKeys.selection(owner, analysisResult.jobId, personIndex),
               );
-              const scope = readOutputScope(
-                analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
-              ).resolved;
               const receipts = qc.getQueriesData<BodyReview>({
                 queryKey: [...bodyKeys.person(owner, analysisResult.jobId, personIndex), "review"],
               });
@@ -364,19 +451,18 @@ export function useSaveFlow(jobId: string | undefined) {
                     r.scope === scope &&
                     r.selection.selectionRevision === body?.selectionRevision &&
                     r.selection.resolvedBody?.assetSha256 === body?.resolvedBody?.assetSha256 &&
-                    (!analysisResult.capabilities.handSelection ||
-                      (!!handSelection &&
+                    (handApplicable
+                      ? !!handSelection &&
                         r.hands?.revision === handSelection.revision &&
-                        r.hands.librarySha256 === handSelection.library_sha256)),
+                        r.hands.librarySha256 === handSelection.library_sha256
+                      : !r.hands),
                 );
               if (!owner || !receipt || body?.resolutionStatus !== "ready")
-                throw new Error("저장 전 확인 화면에서 현재 체형의 결과를 확인해 주세요.");
+                throw new ApiError(409, "BODY_REVIEW_REQUIRED", "");
               content = await downloadBodyReview(receipt);
+              downloadPath = receipt.downloadUrl;
               bodyNames.add(receipt.selection.resolvedBody!.characterId);
-            } else if (analysisResult.capabilities.handSelection && format === "fbx") {
-              const scope = readOutputScope(
-                analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
-              ).resolved;
+            } else if (handApplicable && format === "fbx") {
               const receipts = qc.getQueriesData<{ handReceipt?: HandReview }>({
                 queryKey: ["framed-preview", handOwner],
               });
@@ -400,34 +486,115 @@ export function useSaveFlow(jobId: string | undefined) {
                       (characterFor(personIndex) ?? catalog?.defaultCharacterId)
                   );
                 });
-              if (!receipt)
-                throw new Error("저장 전 확인 화면에서 현재 손의 결과를 확인해 주세요.");
+              if (!receipt) throw new ApiError(409, "HAND_REVIEW_REQUIRED", "");
               content = await downloadHandReview(receipt);
+              downloadPath = receipt.downloadUrl;
             } else {
               content = await resolvePoseBytes(
                 exportUrl,
                 candidateId,
                 format,
                 characterFor(personIndex),
-                analysisResult.capabilities.outputScopeCropping === true
-                  ? readOutputScope(
-                      analysisResult.people.find((p) => p.index === personIndex)?.outputScope,
-                    ).resolved
-                  : undefined,
+                analysisResult.capabilities.outputScopeCropping === true ? scope : undefined,
                 analysisResult.capabilities.modelPreview === true,
                 currentOutcome?.refined === true,
+                (path) => {
+                  downloadPath = path;
+                },
               ).catch((error) => {
                 // Returning to review must fetch fresh lineage after a rejected save.
                 void queryClient.invalidateQueries({ queryKey: ["framed-preview"] });
                 throw error;
               });
             }
-            return { fileName: personFileName(name, personIndex, picks.length), content };
+            return {
+              fileName: personFileName(name, personIndex, picks.length),
+              content,
+              personIndex,
+              candidateId,
+              downloadPath,
+            };
           }),
         );
-        const results = await exportService.saveCandidates({ folder: targetFolder, files });
+        let saveFiles: { fileName: string; content: Uint8Array }[] = files;
+        if (
+          format === "fbx" &&
+          analysisResult.source !== "semantic" &&
+          analysisResult.capabilities.sceneExport === true &&
+          !analysisResult.people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
+          !env.useMockPoseApi
+        ) {
+          if (files.some((f) => !f.downloadPath))
+            throw new Error("장면에 사용할 최종 파일을 확인하지 못했습니다.");
+          const references = await Promise.all(
+            files.map((f) =>
+              sceneReference(f.personIndex, f.candidateId, f.downloadPath, f.content),
+            ),
+          );
+          let review: SceneReview | undefined;
+          if (analysisResult.capabilities.sceneRefinement === true) {
+            const sceneKey = [
+              "prepared-scene",
+              useInstallationStore.getState().credentials?.installationId ?? "",
+              analysisResult.jobId,
+              downloadBinding(format, files),
+            ];
+            review = qc.getQueryData<SceneReview>(sceneKey);
+            if (!review) {
+              review = await prepareScene(analysisResult.jobId, references);
+              qc.setQueryData(sceneKey, review);
+            }
+            if (!sceneMounted.current)
+              throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
+            const accepted = await new Promise<boolean>((resolve) => {
+              sceneDecision.current = resolve;
+              setSceneReview(review!);
+              if (!review!.previewBase64) {
+                const controller = new AbortController();
+                scenePreviewController.current = controller;
+                void loadScenePreview(analysisResult.jobId, references, review!, controller.signal)
+                  .then((previewBase64) => {
+                    if (!controller.signal.aborted)
+                      setSceneReview((current) =>
+                        current?.reviewKey === review!.reviewKey
+                          ? { ...current, previewBase64 }
+                          : current,
+                      );
+                  })
+                  .catch(() => {
+                    if (!controller.signal.aborted)
+                      setSceneReview((current) =>
+                        current?.reviewKey === review!.reviewKey
+                          ? { ...current, previewFailed: true }
+                          : current,
+                      );
+                  });
+              }
+            });
+            if (!accepted) throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
+          }
+          const content = await downloadScene(analysisResult.jobId, references, review);
+          saveFiles = [{ fileName: name.replace(/\.fbx$/i, "_scene.fbx"), content }];
+        }
+        // A late response must never write an older selection to disk.
+        if (
+          snapshot() !== bindingAtStart ||
+          qc.isMutating({ mutationKey: ["hand-change"] }) ||
+          qc.isMutating({ mutationKey: ["body-change"] })
+        )
+          throw new ApiError(409, "PREVIEW_CHANGED", "");
+        const binding = downloadBinding(format, files);
+        const revision = downloadRevision(id, binding);
+        const results = await exportService.saveCandidates({
+          folder: targetFolder,
+          files: saveFiles.map((file) => ({
+            ...file,
+            fileName: revisionFileName(file.fileName, revision.ordinal),
+          })),
+        });
+        rememberDownload(id, binding);
         const paths = results.map((r) => r.path);
-        if (options.append) addSaved(paths);
+        if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
         else setSaved(paths);
         // 사용자 기준 성공은 BFF의 BVH 응답이 아니라 로컬 파일 저장이다.
         // 서버 export_events만 보면 저장 단계 실패가 성공으로 집계된다.
@@ -447,14 +614,25 @@ export function useSaveFlow(jobId: string | undefined) {
           usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
       } catch (err) {
+        if (err instanceof ApiError) invalidateFinalReview(qc, id);
+        if (
+          err instanceof ApiError &&
+          ["SCENE_REVIEW_REQUIRED", "SCENE_SOURCE_CHANGED"].includes(err.code)
+        )
+          qc.removeQueries({
+            queryKey: [
+              "prepared-scene",
+              useInstallationStore.getState().credentials?.installationId ?? "",
+              id,
+            ],
+          });
         setError(
           err instanceof ApiError
             ? toAppError(err).message
             : err instanceof ExportError
               ? err.message
-              : err instanceof Error
-                ? err.message
-                : "알 수 없는 오류로 저장하지 못했습니다.",
+              : "파일을 저장하지 못했어요. 저장 폴더를 확인한 뒤 다시 시도해 주세요.",
+          err instanceof ApiError ? err.code : undefined,
         );
         trackEvent(
           "export_failed",
@@ -544,7 +722,11 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    sceneReview,
+    confirmScene: () => decideScene(true),
+    cancelScene: () => decideScene(false),
     bodyMode,
+    recovery: poseRecovery(errorCode ? new ApiError(409, errorCode, "") : undefined),
     returnToReview: () => {
       clearError();
     },

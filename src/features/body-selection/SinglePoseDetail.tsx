@@ -1,3 +1,4 @@
+import { useCompactPoseLayout } from "@/features/bar/components/compactPoseContext";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/shared/components/Modal";
@@ -24,6 +25,7 @@ export function SinglePoseDetail({
   scope?: string | null;
   sourceIdentity?: unknown;
 }) {
+  const compact = useCompactPoseLayout();
   const [open, setOpen] = useState(false);
   const owner = useBodyOwner(),
     qc = useQueryClient();
@@ -60,15 +62,16 @@ export function SinglePoseDetail({
     <>
       <button
         type="button"
-        className="mt-2 text-xs underline"
+        className={compact ? "mt-0.5 text-[11px] leading-4 underline" : "mt-2 text-xs underline"}
+        aria-label="고른 체형으로 이 포즈 보기"
         disabled={!selection || selection.resolutionStatus !== "ready"}
         onClick={() => setOpen(true)}
       >
-        선택 체형으로 이 포즈만 보기
+        {compact ? "고른 체형으로 보기" : "고른 체형으로 이 포즈 보기"}
       </button>
       <Modal
         open={open}
-        title="선택 체형 포즈 미리보기"
+        title="고른 체형의 포즈 미리보기"
         width="lg"
         onClose={() => {
           setOpen(false);
@@ -78,7 +81,7 @@ export function SinglePoseDetail({
         {q.data && !q.isFetching ? (
           <img
             src={q.data}
-            alt="선택한 체형을 적용한 단일 포즈 미리보기"
+            alt="고른 체형으로 본 포즈"
             className="max-h-[55vh] w-full object-contain"
           />
         ) : (
@@ -94,7 +97,7 @@ export function SinglePoseDetail({
           </button>
         )}
         <p className="text-xs text-text-secondary">
-          참고 이미지입니다. 최종 손·출력 범위는 저장 전 확인 화면에서 확인하세요.
+          체형을 비교하는 참고 이미지예요. 손 모양과 저장할 부분은 다음 화면에서 확인해 주세요.
         </p>
       </Modal>
     </>

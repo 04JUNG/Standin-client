@@ -3,7 +3,7 @@ import { trackEvent } from "@/features/analytics/analyticsClient";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import { updateService } from "../api/update.service";
 import type { CachedUpdate, UpdateAvailability } from "../api/update.contract";
-import { updateFailureReason } from "../lib/updateFailure";
+import { updateFailureReason, updateFailureMessage } from "../lib/updateFailure";
 
 type CheckPhase = "idle" | "checking" | "done" | "error";
 type InstallPhase = "idle" | "downloading" | "ready" | "installing" | "restarting";
@@ -51,11 +51,6 @@ const initial = {
 
 let infoPromise: Promise<void> | null = null;
 let bootstrapPromise: Promise<void> | null = null;
-function errorMessage(error: unknown): string {
-  return error instanceof Error && error.message.trim()
-    ? error.message
-    : "업데이트하지 못했습니다. 잠시 후 다시 시도해 주세요.";
-}
 
 /** Confirm success only after the newly installed binary actually starts. */
 export function reportInstalledUpdate(version: string, analyticsEnabled: boolean) {
@@ -118,7 +113,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
             }
           }
         } catch (error) {
-          set({ error: errorMessage(error) });
+          set({ error: updateFailureMessage(error, "install") });
         }
         set({ startupComplete: true });
         // Failed install is shown in Settings; don't immediately repeat its network request.
@@ -162,7 +157,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       set({
         phase: failurePhase === "check" ? "error" : "done",
         installPhase: get().cached ? "ready" : "idle",
-        error: errorMessage(error),
+        error: updateFailureMessage(error, failurePhase),
         nextCheckAt: Date.now() + RETRY_INTERVAL,
       });
       if (failurePhase === "check") trackEvent("update_check", { trigger, result: "error" });
@@ -191,7 +186,7 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       set({
         installPhase: "ready",
         cached: { ...cached, attempted: true },
-        error: errorMessage(error),
+        error: updateFailureMessage(error, "install"),
         nextCheckAt: Date.now() + RETRY_INTERVAL,
       });
       trackEvent("update_failed", { phase: "install", reason: updateFailureReason(error) });

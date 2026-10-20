@@ -1,3 +1,4 @@
+import { SceneReviewPanel } from "@/features/export/components/SceneReviewPanel";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
@@ -44,7 +45,7 @@ export function BarSavePage() {
   const [feedbackError, setFeedbackError] = useState(false);
 
   const {
-    bodyMode,
+    recovery,
     returnToReview,
     folder,
     format,
@@ -53,6 +54,9 @@ export function BarSavePage() {
     error,
     selections,
     isSaved,
+    sceneReview,
+    confirmScene,
+    cancelScene,
     characterName,
     requestedCharacterName,
     characterDowngradeReason,
@@ -91,7 +95,7 @@ export function BarSavePage() {
   useShortcuts({
     "save.revealFolder": isSaved ? () => revealSaved() : undefined,
     "save.chooseFolder": status !== "saving" ? () => void saveToAnotherFolder() : undefined,
-    "save.save": status === "error" ? () => void retry() : undefined,
+    "save.save": status === "error" && recovery.action === "retry" ? () => void retry() : undefined,
     "save.newScene": isSaved ? () => handleNewScene() : undefined,
   });
 
@@ -101,28 +105,33 @@ export function BarSavePage() {
   return (
     <BarShell title={isSaved ? "저장 완료" : "저장"}>
       <div className="flex h-full flex-col gap-2 p-2.5">
-        {status === "saving" && (
+        {status === "saving" && !sceneReview && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
             <p className="text-[12px]">포즈 {selections.length}개를 저장하고 있습니다…</p>
           </div>
         )}
 
+        {sceneReview && (
+          <div className="min-h-0 overflow-auto">
+            <SceneReviewPanel review={sceneReview} confirm={confirmScene} cancel={cancelScene} />
+          </div>
+        )}
         {status === "error" && (
           <>
             <p role="alert" className="flex items-start gap-1 text-[11px] text-brand-coral">
               <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
               {error}
             </p>
-            {bodyMode && (
+            {recovery.action !== "retry" && (
               <Button
                 variant="secondary"
                 onClick={() => {
                   returnToReview();
-                  navigate("/bar/review");
+                  navigate(recovery.action === "choose" ? "/bar/candidates" : "/bar/review");
                 }}
               >
-                체형·포즈 다시 확인
+                {recovery.label}
               </Button>
             )}
             <p className="truncate text-[10px] text-text-secondary" title={folder ?? undefined}>
@@ -130,7 +139,12 @@ export function BarSavePage() {
             </p>
             <div className="mt-auto flex shrink-0 flex-col gap-1.5">
               <div className="flex gap-1.5">
-                <Button size="sm" className="min-w-0 flex-1" onClick={() => void retry()}>
+                <Button
+                  size="sm"
+                  disabled={recovery.action !== "retry"}
+                  className="min-w-0 flex-1"
+                  onClick={() => void retry()}
+                >
                   <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   다시 저장
                   <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} compact />
@@ -202,8 +216,8 @@ export function BarSavePage() {
                   </option>
                   <option value="good">좋아요</option>
                   <option value="person_missing">인물 누락</option>
-                  <option value="skeleton_wrong">스켈레톤 오류</option>
-                  <option value="candidates_irrelevant">후보 불일치</option>
+                  <option value="skeleton_wrong">팔다리 인식 문제</option>
+                  <option value="candidates_irrelevant">러프와 다른 포즈</option>
                   <option value="export_problem">저장 문제</option>
                   <option value="other">기타</option>
                 </select>
@@ -215,6 +229,9 @@ export function BarSavePage() {
               md + 22px 칩으로는 "다른 폴더"가 두 줄로 깨졌다.
             */}
             <div className="flex shrink-0 flex-col gap-1.5">
+              <Button variant="secondary" size="sm" onClick={() => navigate("/bar/review")}>
+                포즈·손 변경
+              </Button>
               <Button variant="secondary" size="sm" onClick={revealSaved}>
                 <FolderOpen className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 폴더 열기

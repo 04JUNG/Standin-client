@@ -92,7 +92,9 @@ describe("updateStore", () => {
     await useUpdateStore.getState().check("manual");
 
     expect(useUpdateStore.getState().phase).toBe("error");
-    expect(useUpdateStore.getState().error).toBe("업데이트 서버에 연결하지 못했습니다.");
+    expect(useUpdateStore.getState().error).toBe(
+      "새 버전 정보를 불러오지 못했어요. 잠시 후 다시 확인해 주세요.",
+    );
   });
 
   it("닫은 배너는 다음 확인에서 되살아난다", async () => {
@@ -206,6 +208,32 @@ describe("updateStore", () => {
     await useUpdateStore.getState().check("manual");
     expect(check).toHaveBeenCalledTimes(2);
   });
+
+  it.each(["download", "install"] as const)(
+    "%s 실패 시 내부 경로 대신 사용자 안내를 표시한다",
+    async (phase) => {
+      const failure = new Error("failed to write C:\\Users\\someone\\update.bin");
+      if (phase === "download") {
+        check.mockResolvedValue({ kind: "available", version: "0.1.2" });
+        download.mockRejectedValue(failure);
+        await useUpdateStore.getState().check("manual");
+      } else {
+        install.mockRejectedValue(failure);
+        useUpdateStore.setState({
+          installPhase: "ready",
+          cached: { version: "0.1.2", attempted: false },
+        });
+        await useUpdateStore.getState().install(() => null);
+      }
+      expect(useUpdateStore.getState().error).toBe(
+        phase === "download"
+          ? "업데이트 파일을 내려받지 못했어요. 잠시 후 다시 시도해 주세요."
+          : "업데이트를 설치하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      );
+      expect(JSON.stringify(queued())).not.toContain("someone");
+      expect(relaunch).not.toHaveBeenCalled();
+    },
+  );
 
   it("피드가 없는 빌드는 지표도 남기지 않는다", async () => {
     // 브라우저 개발 모드가 집계를 오염시키면 안 된다.

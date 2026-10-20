@@ -29,7 +29,7 @@ describe("character-relative hand selection", () => {
     expect(left).toHaveTextContent("기본 · 러프에서 안 보임");
     expect(screen.getByRole("button", { name: /오른손 · 편 손/ })).toHaveTextContent("확인 필요");
     fireEvent.click(left);
-    const dialog = screen.getByRole("dialog", { name: "인물 1의 왼손 · 인물 기준" });
+    const dialog = screen.getByRole("dialog", { name: "인물 1의 왼손 · 그림 속 인물 기준" });
     const fists = within(dialog).getAllByRole("button", { name: "주먹" });
     fireEvent.click(fists[0]!);
     expect(change).toHaveBeenCalledWith(selection, { left: "fist" });
