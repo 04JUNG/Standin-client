@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { __resetApiClient, setInstallationCredentials } from "@/shared/api/client";
-import { readOutputScope, saveOutputScope } from "./outputScope";
+import { readOutputScope, saveOutputScope, previewScope, scopeIncludesHands } from "./outputScope";
 
 vi.mock("@/shared/lib/env", () => ({
   env: { apiBaseUrl: "http://localhost:8080", useMockPoseApi: false, isProduction: false },
@@ -43,4 +43,37 @@ it("rejects mismatched people and malformed server replies instead of pretending
   vi.stubGlobal("fetch", fetchMock);
   await expect(saveOutputScope("job_123", 2, "head", readOutputScope(undefined))).rejects.toThrow();
   await expect(saveOutputScope("job_123", 2, "head", readOutputScope(undefined))).rejects.toThrow();
+});
+
+it.each([
+  ["auto", "head", "head", false],
+  ["auto", "half", "half", true],
+  ["auto", "shoulder_head", "shoulder_head", false],
+  ["bust", "half", "bust", false],
+  ["head", "full", "head", false],
+  ["half", "head", "half", true],
+  ["full", "head", "full", true],
+] as const)(
+  "resolves %s over mesh %s as %s before deciding hand applicability",
+  (selection, meshScope, expected, hands) => {
+    const scope = previewScope({
+      outputScope: { ...readOutputScope(undefined), selection, meshScope },
+    });
+    expect(scope).toBe(expected);
+    expect(scopeIncludesHands(scope)).toBe(hands);
+  },
+);
+it("keeps auto bust arms but excludes shoulders without conflating missing joints", () => {
+  expect(previewScope({ outputScope: { ...readOutputScope(undefined), detected: "bust" } })).toBe(
+    "half",
+  );
+  expect(previewScope({ posePresentation: { output_scope: "bust" } })).toBe("half");
+  expect(previewScope({ posePresentation: { output_scope: "head" } })).toBe("head");
+  expect(
+    previewScope({
+      outputScope: readOutputScope(undefined),
+      posePresentation: { output_scope: "head" },
+    }),
+  ).toBe("head");
+  expect(scopeIncludesHands(previewScope())).toBe(true);
 });

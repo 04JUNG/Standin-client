@@ -20,7 +20,7 @@ import { useModelStore } from "@/features/models/store/modelStore";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
 import { resolveCharacter } from "@/features/models/lib/resolveCharacter";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
-import { readOutputScope, SCOPE_LABELS } from "../api/outputScope";
+import { previewScope, scopeIncludesHands, SCOPE_LABELS } from "../api/outputScope";
 import { blobToDataUrl } from "../api/thumbnails";
 import { useSelectionReview } from "./useSelectionReview";
 
@@ -46,9 +46,7 @@ export function useFramedReview(jobId: string | undefined) {
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
   const requests = review.items.map((item) => {
-    const scope = readOutputScope(
-      review.data?.people.find((p) => p.index === item.personIndex)?.outputScope,
-    ).resolved;
+    const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
     const character = resolveCharacter({
       pinned: byPerson[item.personIndex] ?? pinned,
       preferred,
@@ -57,7 +55,8 @@ export function useFramedReview(jobId: string | undefined) {
       serverSupportsCharacterSelection: review.data?.capabilities.characterSelection === true,
     });
     const body = review.bodies.entries.find((e) => e.personIndex === item.personIndex)?.selection;
-    const handSelection = hands.entries.find((e) => e.personIndex === item.personIndex)?.selection;
+    const handEntry = hands.entries.find((e) => e.personIndex === item.personIndex);
+    const handSelection = handEntry?.selection;
     let url = "";
     let modelKey = "";
     let model = false;
@@ -77,7 +76,7 @@ export function useFramedReview(jobId: string | undefined) {
             framedExportUrl(item.exportUrl, scope, "model", character.characterId) +
             `#${item.refined}`;
           model =
-            !hands.enabled &&
+            !handSelection &&
             review.data?.capabilities.modelPreview === true &&
             modelRenderingAvailable() &&
             modelStatus[modelKey] !== "failed";
@@ -100,6 +99,7 @@ export function useFramedReview(jobId: string | undefined) {
       url += `&handSelectionRevision=${handSelection.revision}`;
     return {
       handSelection,
+      handEnabled: !!handEntry,
       scope,
       url,
       body,
@@ -127,7 +127,7 @@ export function useFramedReview(jobId: string | undefined) {
         : ["framed-preview", owner, request.url, review.items[index]?.refined],
       enabled:
         enabled &&
-        hands.ready &&
+        (!request.handEnabled || hands.ready) &&
         !review.isRefining &&
         (bodyMode ? request.body?.resolutionStatus === "ready" : catalog.isSuccess) &&
         !!request.url,
@@ -297,6 +297,7 @@ export function useFramedReview(jobId: string | undefined) {
     hands,
     items: review.items.map((item, index) => ({
       ...item,
+      includesHands: scopeIncludesHands(requests[index]!.scope),
       previewUrl: enabled ? (queries[index]?.data?.image ?? "") : item.previewUrl,
       previewModel: enabled ? displays[index]?.model : undefined,
       previewReference: !enabled && item.previewReference,
@@ -312,9 +313,9 @@ export function useFramedReview(jobId: string | undefined) {
     /** 수치를 조절한 체형이 있으면 서버가 원본 모델로 굽는다(1~2분). 기다리는 이유를 알린다. */
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: enabled
-      ? "고른 체형과 손 모양으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요."
+      ? `고른 체형${hands.enabled ? "과 손 모양" : ""}으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요.`
       : format === "bvh"
-        ? "BVH에는 전체 동작만 저장돼요. 고른 체형·손 모양과 잘라낼 범위는 FBX에만 적용돼요."
+        ? `BVH에는 전체 동작만 저장돼요. 고른 체형${requests.some((r) => scopeIncludesHands(r.scope)) ? "·손 모양" : ""}과 잘라낼 범위는 FBX에만 적용돼요.`
         : "",
     retryPreview: async () => {
       if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));

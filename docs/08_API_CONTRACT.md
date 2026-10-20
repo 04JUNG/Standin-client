@@ -898,3 +898,17 @@ shoulder_head를 새 사용자 범위로 추가하거나 bust와 새로 합치�
 #100의 범위별 framed GLB 검증과 회전 중복 방지, PNG fallback, Mock 처리를 유지한다. shoulder_head를 어깨~머리 선택으로 추가하고 vlm_description/observed_legs 및 선택적 meshScope를 수용한다. 자동 bust 판정은 팔 보존용 half 메시를 표시하며 수동 bust는 흉상 크롭이다. 카드와 바, presentation body·손 PNG가 같은 최종 범위를 사용한다.
 
 손 변경 시 body 이미지 요청을 취소/무효화하고 변경 중 이전 그룹을 숨긴다. manifest.hands가 있으면 hand revision/library hash를 검증한다. X-Standin-Output-Scope가 있는 새 BFF 응답은 이를 검증하며, 구 BFF는 기존 renderKey·digest 바인딩으로 호환한다. 청소년 제거와 multipart 지원은 독립 PR #98에서 유지한다.
+
+### 손 단계와 최종 출력 메시 범위
+
+손 조회·변경·참고 손 미리보기·최종 손 영수증은 인물별 최종 메시 범위가 `full` 또는
+`half`인 경우에만 사용한다. `head`, `shoulder_head`, 수동 `bust`는 손 표면이 없으므로
+손 UI와 GET/PUT·썸네일·미리보기 요청을 생략하고 손 준비 완료를 기다리지 않는다.
+사용자의 `selection`이 우선이며 자동은 `meshScope`를 사용한다. 자동 `bust`는 기존
+계약대로 `half`가 되어 팔·손을 유지하므로 수동 `bust`와 구분한다.
+
+손이 없는 최종 범위의 body manifest는 `hands: null`이고, PNG/FBX에는
+`handSelectionRevision` 쿼리와 `X-Standin-Hand-*` 영수증이 없다. 체형·원본·출력 범위·최종
+검수 영수증은 계속 검증한다. 손 선택은 삭제하지 않고, `full`/`half`로 돌아올 때 서버의
+현재 선택과 라이브러리를 다시 확인한다. 혼합 장면에서는 손이 있는 인물만 손 단계에
+참여하며 후보의 수동 확정·refine·내보내기 권한은 기존 정책을 따른다.

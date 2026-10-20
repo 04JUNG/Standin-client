@@ -65,7 +65,8 @@ export function BarReviewPage() {
                   )}
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">
-                      포즈만 확인하는 모습이에요. BVH에는 체형·손 모양 없이 전체 동작이 저장돼요.
+                      포즈만 확인하는 모습이에요. BVH에는 체형{item.includesHands ? "·손 모양" : ""}{" "}
+                      없이 전체 동작이 저장돼요.
                     </p>
                   )}
                   {item.scopeLabel && (

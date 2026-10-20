@@ -6,7 +6,7 @@ import { apiFetchResponse } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { Button } from "@/shared/components/Button";
 import { useInstallationStore } from "@/features/installation/installationStore";
-import { readOutputScope } from "@/features/pose-viewer/api/outputScope";
+import { previewScope, scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
 import { useHands } from "./hooks";
 import { HandChips } from "./HandChips";
 
@@ -24,9 +24,8 @@ export function ReferenceHands({
   const [requested, setRequested] = useState("");
   const person = result.people.find((p) => p.index === personIndex);
   const p = person?.posePresentation;
-  const scope = person?.outputScope
-    ? readOutputScope(person.outputScope).resolved
-    : p?.output_scope;
+  const scope = previewScope(person);
+  const applicable = scopeIncludesHands(scope);
   const groups = p ? [p.library_candidates, p.review_candidates, p.generated_candidates] : [];
   const candidates = groups.flat();
   const candidate = candidates.find((c) => c.candidate_id === candidateId);
@@ -41,7 +40,8 @@ export function ReferenceHands({
   ]);
   const preview = useQuery({
     queryKey: ["hands", owner, "pose-preview", binding],
-    enabled: !!candidate && !!hand && state.ready && requested === binding,
+    enabled:
+      applicable && state.enabled && !!candidate && !!hand && state.ready && requested === binding,
     queryFn: async ({ signal }) => {
       const response = await apiFetchResponse(
         `${candidate!.asset.preview_bvh_url}/hands?revision=${hand!.revision}`,
@@ -68,7 +68,7 @@ export function ReferenceHands({
     staleTime: 300_000,
     gcTime: 60_000,
   });
-  if (!state.enabled) return null;
+  if (!applicable || !state.enabled) return null;
   return (
     <section className="rounded-xl border border-border bg-surface-0 p-3">
       <h3 className="text-sm font-semibold">손 모양 골라 보기</h3>
