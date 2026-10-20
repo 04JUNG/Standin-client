@@ -45,6 +45,11 @@ vi.mock("@/features/body-selection/api", async (original) => ({
   })),
   getPreferences: vi.fn(async () => ({ cards: [] })),
 }));
+vi.mock("../components/DefaultPoseImage", () => ({
+  DefaultPoseImage: ({ candidate }: { candidate: { rank: number } }) => (
+    <img src="data:image/png;base64,AA==" alt={`후보 이미지 ${candidate.rank}`} />
+  ),
+}));
 vi.mock("@/features/models/hooks/useModelCatalog", () => ({
   useModelCatalog: () => ({ data: { characters: [] } }),
 }));
@@ -54,7 +59,9 @@ vi.mock("@/features/analytics/analyticsClient", () => ({
   confirmSelections: vi.fn(),
 }));
 vi.mock("@/features/models/components/ModelSelect", () => ({ ModelSelect: () => null }));
-vi.mock("@/features/hand-selection/ReferenceHands", () => ({ ReferenceHands: () => null }));
+vi.mock("@/features/hand-selection/ReferenceHands", () => ({
+  ReferenceHands: () => <div data-testid="candidate-hand-library">후보 손 라이브러리</div>,
+}));
 vi.mock("@/shared/components/AppShell", () => ({
   AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -171,6 +178,7 @@ it.each([
       </QueryClientProvider>,
     );
     await screen.findByAltText("포즈 1");
+    expect(screen.queryByTestId("candidate-hand-library")).toBeNull();
     if (bodyMode) {
       expect(getManifest).not.toHaveBeenCalled();
       expect(screen.getByAltText("포즈 1")).toHaveAttribute("src", "data:image/png;base64,AA==");
@@ -282,10 +290,13 @@ it.each([
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    const pick = await screen.findByRole("button", { name: /1번 .* 직접 선택/ });
+    const pick = await screen.findByRole("button", { name: /1번 .* 이미지로 선택/ });
+    expect(screen.queryByTestId("candidate-hand-library")).toBeNull();
     expect(screen.queryByText(/이 장면에는 사용할 수 있는/)).toBeNull();
     expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
-    fireEvent.click(pick);
+    fireEvent.click(await screen.findByAltText("후보 이미지 1"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("button", { name: /이미지 확대/ })).toBeNull();
     expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBe(id);
     expect(pick).toHaveAttribute("aria-pressed", "true");
     expect(getManifest).not.toHaveBeenCalled();

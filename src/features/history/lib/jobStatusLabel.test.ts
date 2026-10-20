@@ -3,10 +3,10 @@ import { isOpenable, jobStatusDisplay, unopenableReason } from "./jobStatusLabel
 
 describe("jobStatusDisplay", () => {
   it.each([
-    ["ANALYSIS_RATE_LIMITED", "요청 한도"],
-    ["ANALYSIS_DAILY_QUOTA_EXHAUSTED", "일일 사용 한도"],
-    ["ANALYSIS_UPSTREAM_TIMEOUT", "응답 시간"],
-    ["ANALYSIS_UPSTREAM_ERROR", "일시적인 오류"],
+    ["ANALYSIS_RATE_LIMITED", "잠시 사용할 수 있는 분석 횟수"],
+    ["ANALYSIS_DAILY_QUOTA_EXHAUSTED", "오늘 사용할 수 있는 분석 횟수"],
+    ["ANALYSIS_UPSTREAM_TIMEOUT", "시간이 너무 오래"],
+    ["ANALYSIS_UPSTREAM_ERROR", "분석 중 잠시 문제"],
   ])("기록에서도 %s를 혼잡으로 덮지 않는다", (errorCode, message) => {
     const result = jobStatusDisplay({ status: "failed", errorCode });
     expect(result.detail).toContain(message);

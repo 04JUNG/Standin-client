@@ -7,7 +7,7 @@ afterEach(cleanup);
 it("explains observed upper-body matching without promising crop or refinement", () => {
   render(<PersonFallbackNotice person={{ fallbackMode: "soft", coverageClass: "upper_only" }} />);
   expect(screen.getByRole("status").textContent).toContain("보이는 어깨와 팔");
-  expect(screen.getByRole("status").textContent).toContain("자동 보정은 지원하지 않습니다");
+  expect(screen.getByRole("status").textContent).toContain("자동 조정은 하지 않아요");
 });
 
 it("distinguishes unsupported head matching from a failed body extraction", () => {
@@ -21,7 +21,7 @@ it("distinguishes unsupported head matching from a failed body extraction", () =
       }}
     />,
   );
-  expect(screen.getByRole("status").textContent).toContain("두상 방향");
+  expect(screen.getByRole("status").textContent).toContain("얼굴만 보이는 장면");
 });
 
 it("preserves the generic fallback for legacy responses", () => {
@@ -50,9 +50,9 @@ for (const status of ["ok", "no_result", "error", "partial_error", "blocked", "u
         }}
       />,
     );
-    expect(screen.getByRole("status").textContent).toContain("기하·의미 통합 검색");
-    expect(screen.getByRole("status").textContent).toContain("파일 저장은 지원하지 않습니다");
-    expect(screen.getByRole("status").textContent).toContain("근접 참고 2개");
+    expect(screen.getByRole("status").textContent).toContain("자세와 동작으로 찾은 포즈");
+    expect(screen.getByRole("status").textContent).toContain("파일로 저장할 수는 없어요");
+    expect(screen.getByRole("status").textContent).toContain("러프와 일부 다른 포즈 2개");
     expect(screen.getByRole("status").textContent).toContain("미리보기 후보 3개");
   });
 }
@@ -76,5 +76,5 @@ it("basic model never masquerades as a matched library pose", () => {
       }}
     />,
   );
-  expect(screen.getByRole("status").textContent).toContain("포즈 검색 결과가 아닙니다");
+  expect(screen.getByRole("status").textContent).toContain("찾은 포즈 대신 기본 자세");
 });

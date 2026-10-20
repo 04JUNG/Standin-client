@@ -50,7 +50,7 @@ describe("clearQueryCacheOnSessionEnd", () => {
   it("토큰 만료로 세션이 끊겨도 캐시를 비운다", () => {
     seedCache();
 
-    useAuthStore.getState().endSession("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    useAuthStore.getState().endSession("로그인이 풀렸어요. 다시 로그인해 주세요.");
 
     expect(queryClient.getQueryData(["analysis", "jobs"])).toBeUndefined();
   });

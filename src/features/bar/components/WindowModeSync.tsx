@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
@@ -62,6 +62,13 @@ export function WindowModeSync() {
    */
   const queue = useRef<Promise<void>>(Promise.resolve());
 
+  // Clear the HTML canvas as well as body before painting the smaller native window.
+  useLayoutEffect(() => {
+    const { mode } = windowTargetForPath(pathname);
+    document.documentElement.dataset.windowMode = mode;
+    document.body.dataset.windowMode = mode;
+  }, [pathname]);
+
   useEffect(() => {
     const routeTarget = windowTargetForPath(pathname);
     const base = semanticBar
@@ -78,9 +85,6 @@ export function WindowModeSync() {
             },
           }
         : base;
-
-    // 바에서는 창 배경을 비워 둥근 모서리 밖이 흰 네모로 보이지 않게 한다(index.css).
-    document.body.dataset.windowMode = target.mode;
 
     const state = placement.current;
     let superseded = false;

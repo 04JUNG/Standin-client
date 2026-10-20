@@ -43,4 +43,4 @@ export interface WindowModeService {
   control(action: WindowControlAction): Promise<void>;
 }
 
-export type WindowControlAction = "minimize" | "toggleMaximize" | "close";
+export type WindowControlAction = "minimize" | "toggleMaximize" | "close" | "showBarMenu";

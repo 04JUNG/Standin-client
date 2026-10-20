@@ -52,8 +52,8 @@ it("body and scope updates do no automatic work; reopening one candidate never r
   );
   const r = render(view());
   expect(getManifest).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByText("선택 체형으로 이 포즈만 보기"));
-  expect(await screen.findByAltText("선택한 체형을 적용한 단일 포즈 미리보기")).toHaveAttribute(
+  fireEvent.click(screen.getByText("고른 체형으로 이 포즈 보기"));
+  expect(await screen.findByAltText("고른 체형으로 본 포즈")).toHaveAttribute(
     "src",
     "data:image/png;base64," + btoa("half1"),
   );
@@ -61,15 +61,15 @@ it("body and scope updates do no automatic work; reopening one candidate never r
   scope = "head";
   r.rerender(view());
   expect(renderBodyCandidate).toHaveBeenCalledOnce();
-  fireEvent.click(screen.getByText("선택 체형으로 이 포즈만 보기"));
-  expect(await screen.findByAltText("선택한 체형을 적용한 단일 포즈 미리보기")).toHaveAttribute(
+  fireEvent.click(screen.getByText("고른 체형으로 이 포즈 보기"));
+  expect(await screen.findByAltText("고른 체형으로 본 포즈")).toHaveAttribute(
     "src",
     "data:image/png;base64," + btoa("head1"),
   );
   fireEvent.click(screen.getByRole("button", { name: "닫기" }));
   camera = 2;
   r.rerender(view());
-  fireEvent.click(screen.getByText("선택 체형으로 이 포즈만 보기"));
+  fireEvent.click(screen.getByText("고른 체형으로 이 포즈 보기"));
   await waitFor(() => expect(renderBodyCandidate).toHaveBeenCalledTimes(3));
   expect(screen.getByAltText("기본 포즈")).toHaveAttribute("src", "/default-poster.png");
   r.unmount();
@@ -92,15 +92,15 @@ it("a late old scope cannot replace an open detail after scope changes", async (
     </QueryClientProvider>
   );
   const r = render(view());
-  fireEvent.click(screen.getByText("선택 체형으로 이 포즈만 보기"));
+  fireEvent.click(screen.getByText("고른 체형으로 이 포즈 보기"));
   await waitFor(() => expect(finish).toHaveLength(1));
   scope = "head";
   r.rerender(view());
   await act(async () => finish[0]("data:image/png;base64,b2xk"));
-  expect(screen.queryByAltText("선택한 체형을 적용한 단일 포즈 미리보기")).toBeNull();
+  expect(screen.queryByAltText("고른 체형으로 본 포즈")).toBeNull();
   await waitFor(() => expect(finish).toHaveLength(2));
   await act(async () => finish[1]("data:image/png;base64,bmV3"));
-  expect(await screen.findByAltText("선택한 체형을 적용한 단일 포즈 미리보기")).toHaveAttribute(
+  expect(await screen.findByAltText("고른 체형으로 본 포즈")).toHaveAttribute(
     "src",
     "data:image/png;base64,bmV3",
   );

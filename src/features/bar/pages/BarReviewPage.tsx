@@ -47,7 +47,7 @@ export function BarReviewPage() {
                       src={item.previewUrl}
                       alt={
                         item.previewReference
-                          ? `인물 ${item.personIndex + 1}의 원본 BVH 포즈 참고`
+                          ? `인물 ${item.personIndex + 1}의 동작 미리보기`
                           : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
                       }
                       title={`인물 ${item.personIndex + 1} · ${item.candidate.title}`}
@@ -60,12 +60,12 @@ export function BarReviewPage() {
                   )}
                   {item.candidate.manualExportAllowed && (
                     <p className="text-[11px] text-text-secondary">
-                      직접 선택한 포즈 · 러프에 맞춘 자동 보정 없음
+                      고른 포즈예요 · 러프에 맞춘 자동 조정은 하지 않아요
                     </p>
                   )}
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">
-                      포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장
+                      포즈만 확인하는 모습이에요. BVH에는 체형·손 모양 없이 전체 동작이 저장돼요.
                     </p>
                   )}
                   {item.scopeLabel && (
@@ -91,12 +91,12 @@ export function BarReviewPage() {
         )}
         {previewLoading && (
           <p role="status" className="text-[11px] text-text-secondary">
-            범위 미리보기 생성 중…
+            저장할 모습을 준비하고 있어요…
           </p>
         )}
         {previewError && (
           <p role="alert" className="text-[11px] text-brand-coral">
-            미리보기 실패 ·{" "}
+            미리보기를 불러오지 못했어요 ·{" "}
             <button onClick={retryPreview} className="underline">
               다시 시도
             </button>

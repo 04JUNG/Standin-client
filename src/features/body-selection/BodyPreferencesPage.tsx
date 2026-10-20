@@ -144,7 +144,7 @@ export function BodyPreferencesPage() {
             </div>
             {!supported && cards.length > 0 && (
               <p role="status" className="mt-1 text-[12px] text-text-secondary">
-                연결된 서버가 아직 체형 카드를 지원하지 않아 이름 변경·삭제를 할 수 없어요.
+                이 버전에서는 저장한 체형의 이름을 바꾸거나 카드를 지울 수 없어요.
               </p>
             )}
             <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -425,7 +425,7 @@ function PresetTile({ look, onCustomize }: { look: BodyLook; onCustomize?: () =>
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-[14px] font-semibold text-text-primary">
-          {look.displayName ?? look.characterId}
+          {look.displayName ?? "기본 체형"}
         </span>
         <span className="text-[12px] text-text-secondary">
           {kind} · {onCustomize ? "눌러서 커스텀" : "고정 체형"}

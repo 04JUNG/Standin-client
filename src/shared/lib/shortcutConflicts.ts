@@ -90,7 +90,7 @@ export function findConflict(
   if (target.scope === "global" && !hasNonShiftModifier(normalized)) {
     return {
       kind: "needsModifier",
-      message: "전역 단축키는 Ctrl·Alt·⌘ 중 하나를 포함해야 합니다.",
+      message: "캡처 단축키에 Ctrl·Alt·⌘ 중 하나를 함께 눌러 주세요.",
     };
   }
 

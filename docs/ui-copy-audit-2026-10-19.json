@@ -1,0 +1,4206 @@
+{
+  "baseCommit": "a301de9b7f5008b75807358dd0213841a877da52",
+  "branch": "codex/user-friendly-ui-copy-20261019",
+  "audit": {
+    "filesScanned": 296,
+    "koreanLiteralChunks": 1380,
+    "productionFilesChanged": 54,
+    "changeGroups": 195
+  },
+  "notes": [
+    "한국어 리터럴·JSX·템플릿 조각을 비교한 완전 목록. 한 문장이 여러 JSX 조각이면 전후를 한 그룹으로 기록하며, 변수 값은 런타임에 유지된다.",
+    "문구 이동은 이전 위치에서 삭제, 새 위치에서 추가로 기록된다. 같은 문구가 여러 화면에 있으면 각 위치를 기록한다.",
+    "변경 전 목록에는 Rust 내부 테스트 단언·개발 진단 등 실제 UI가 아닌 문자열도 포함돼 있다. 이 수치를 수정한 문장 수로 세지 않는다."
+  ],
+  "changes": [
+    {
+      "id": "COPY-001",
+      "file": "src/features/auth/api/auth.mock.ts",
+      "before": [
+        {
+          "line": 78,
+          "kind": "StringLiteral",
+          "text": "세션이 만료되었습니다. 다시 로그인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 78,
+          "kind": "StringLiteral",
+          "text": "로그인이 풀렸어요. 다시 로그인해 주세요."
+        }
+      ],
+      "reason": "로그인·기기 설정 상태를 쉬운 말로 안내. 체험 화면은 실제 분석과 구분."
+    },
+    {
+      "id": "COPY-002",
+      "file": "src/features/auth/api/auth.mock.ts",
+      "before": [
+        {
+          "line": 96,
+          "kind": "StringLiteral",
+          "text": "세션이 만료되었습니다. 다시 로그인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 96,
+          "kind": "StringLiteral",
+          "text": "로그인이 풀렸어요. 다시 로그인해 주세요."
+        }
+      ],
+      "reason": "로그인·기기 설정 상태를 쉬운 말로 안내. 체험 화면은 실제 분석과 구분."
+    },
+    {
+      "id": "COPY-003",
+      "file": "src/features/auth/components/LogoutButton.tsx",
+      "before": [
+        {
+          "line": 19,
+          "kind": "StringLiteral",
+          "text": "로그아웃하면 이 기기에서 세션이 삭제됩니다. 다시 로그인해야 합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 19,
+          "kind": "StringLiteral",
+          "text": "로그아웃하면 다시 로그인해야 사용할 수 있어요."
+        }
+      ],
+      "reason": "로그인·기기 설정 상태를 쉬운 말로 안내. 체험 화면은 실제 분석과 구분."
+    },
+    {
+      "id": "COPY-004",
+      "file": "src/features/auth/lib/attachAuthRefresh.ts",
+      "before": [
+        {
+          "line": 28,
+          "kind": "StringLiteral",
+          "text": "세션이 만료되었습니다. 다시 로그인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 28,
+          "kind": "StringLiteral",
+          "text": "로그인이 풀렸어요. 다시 로그인해 주세요."
+        }
+      ],
+      "reason": "로그인·기기 설정 상태를 쉬운 말로 안내. 체험 화면은 실제 분석과 구분."
+    },
+    {
+      "id": "COPY-005",
+      "file": "src/features/auth/pages/LoginPage.tsx",
+      "before": [
+        {
+          "line": 193,
+          "kind": "JsxText",
+          "text": "개발 Mock 계정:"
+        }
+      ],
+      "after": [
+        {
+          "line": 193,
+          "kind": "JsxText",
+          "text": "체험용 계정:"
+        }
+      ],
+      "reason": "로그인·기기 설정 상태를 쉬운 말로 안내. 체험 화면은 실제 분석과 구분."
+    },
+    {
+      "id": "COPY-006",
+      "file": "src/features/bar/components/CompactPoseLayout.tsx",
+      "before": [
+        {
+          "line": 12,
+          "kind": "JsxText",
+          "text": "정면 참고 · 선택 체형·손·검색 시점 미적용"
+        }
+      ],
+      "after": [
+        {
+          "line": 13,
+          "kind": "JsxText",
+          "text": "기본 체형의 정면 모습이에요. 저장할 모습과 다를 수 있어요."
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-007",
+      "file": "src/features/bar/components/CompactPoseLayout.tsx",
+      "before": [
+        {
+          "line": 51,
+          "kind": "JsxText",
+          "text": "같은 포즈 이미지를 크게 표시합니다. 체형·손·출력 결과는 저장 전 확인하세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 53,
+          "kind": "JsxText",
+          "text": "포즈를 크게 볼 수 있어요. 고른 체형과 손 모양은 저장 전에 확인해 주세요."
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-008",
+      "file": "src/features/bar/pages/BarCandidatesPage.tsx",
+      "before": [
+        {
+          "line": 150,
+          "kind": "JsxText",
+          "text": "문장을 바꿔 검색하기"
+        }
+      ],
+      "after": [],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-009",
+      "file": "src/features/bar/pages/BarCandidatesPage.tsx",
+      "before": [
+        {
+          "line": 357,
+          "kind": "StringLiteral",
+          "text": "검수용 3D 미리보기"
+        }
+      ],
+      "after": [
+        {
+          "line": 356,
+          "kind": "StringLiteral",
+          "text": "참고용 미리보기"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-010",
+      "file": "src/features/bar/pages/BarReviewPage.tsx",
+      "before": [
+        {
+          "line": 50,
+          "kind": "LastTemplateToken",
+          "text": "의 원본 BVH 포즈 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 50,
+          "kind": "LastTemplateToken",
+          "text": "의 동작 미리보기"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-011",
+      "file": "src/features/bar/pages/BarReviewPage.tsx",
+      "before": [
+        {
+          "line": 63,
+          "kind": "JsxText",
+          "text": "직접 선택한 포즈 · 러프에 맞춘 자동 보정 없음"
+        }
+      ],
+      "after": [
+        {
+          "line": 63,
+          "kind": "JsxText",
+          "text": "고른 포즈예요 · 러프에 맞춘 자동 조정은 하지 않아요"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-012",
+      "file": "src/features/bar/pages/BarReviewPage.tsx",
+      "before": [
+        {
+          "line": 68,
+          "kind": "JsxText",
+          "text": "포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장"
+        }
+      ],
+      "after": [
+        {
+          "line": 68,
+          "kind": "JsxText",
+          "text": "포즈만 확인하는 모습이에요. BVH에는 체형·손 모양 없이 전체 동작이 저장돼요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-013",
+      "file": "src/features/bar/pages/BarReviewPage.tsx",
+      "before": [
+        {
+          "line": 94,
+          "kind": "JsxText",
+          "text": "범위 미리보기 생성 중…"
+        }
+      ],
+      "after": [
+        {
+          "line": 94,
+          "kind": "JsxText",
+          "text": "저장할 모습을 준비하고 있어요…"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-014",
+      "file": "src/features/bar/pages/BarReviewPage.tsx",
+      "before": [
+        {
+          "line": 99,
+          "kind": "JsxText",
+          "text": "미리보기 실패 ·"
+        }
+      ],
+      "after": [
+        {
+          "line": 99,
+          "kind": "JsxText",
+          "text": "미리보기를 불러오지 못했어요 ·"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-015",
+      "file": "src/features/bar/pages/BarSavePage.tsx",
+      "before": [
+        {
+          "line": 205,
+          "kind": "JsxText",
+          "text": "스켈레톤 오류"
+        }
+      ],
+      "after": [
+        {
+          "line": 205,
+          "kind": "JsxText",
+          "text": "팔다리 인식 문제"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-016",
+      "file": "src/features/bar/pages/BarSavePage.tsx",
+      "before": [
+        {
+          "line": 206,
+          "kind": "JsxText",
+          "text": "후보 불일치"
+        }
+      ],
+      "after": [
+        {
+          "line": 206,
+          "kind": "JsxText",
+          "text": "러프와 다른 포즈"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-017",
+      "file": "src/features/body-selection/BodyCandidates.tsx",
+      "before": [
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "직접 선택"
+        }
+      ],
+      "after": [
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "고른 체형"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-018",
+      "file": "src/features/body-selection/BodyCustomPage.tsx",
+      "before": [
+        {
+          "line": 167,
+          "kind": "JsxText",
+          "text": "지금 서버에서 수치를 조절할 수 있는 체형이 없어요."
+        }
+      ],
+      "after": [
+        {
+          "line": 167,
+          "kind": "JsxText",
+          "text": "지금은 수치를 조절할 수 있는 체형이 없어요."
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-019",
+      "file": "src/features/body-selection/BodyCustomPage.tsx",
+      "before": [
+        {
+          "line": 172,
+          "kind": "JsxText",
+          "text": "연결된 서버가 아직 체형 카드를 지원하지 않아요. 조절은 해 볼 수 있지만 저장은 할 수 없어요."
+        }
+      ],
+      "after": [
+        {
+          "line": 172,
+          "kind": "JsxText",
+          "text": "이 버전에서는 만든 체형을 카드로 저장할 수 없어요. 수치를 바꿔 보며 비교할 수는 있어요."
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-020",
+      "file": "src/features/body-selection/BodyCustomPage.tsx",
+      "before": [],
+      "after": [
+        {
+          "line": 287,
+          "kind": "StringLiteral",
+          "text": "기본 체형"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-021",
+      "file": "src/features/body-selection/BodyPreferencesPage.tsx",
+      "before": [
+        {
+          "line": 147,
+          "kind": "JsxText",
+          "text": "연결된 서버가 아직 체형 카드를 지원하지 않아 이름 변경·삭제를 할 수 없어요."
+        }
+      ],
+      "after": [
+        {
+          "line": 147,
+          "kind": "JsxText",
+          "text": "이 버전에서는 저장한 체형의 이름을 바꾸거나 카드를 지울 수 없어요."
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-022",
+      "file": "src/features/body-selection/BodyPreferencesPage.tsx",
+      "before": [],
+      "after": [
+        {
+          "line": 428,
+          "kind": "StringLiteral",
+          "text": "기본 체형"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-023",
+      "file": "src/features/body-selection/LiveBodyView.tsx",
+      "before": [
+        {
+          "line": 272,
+          "kind": "StringLiteral",
+          "text": "처음 한 번만 받아요"
+        }
+      ],
+      "after": [
+        {
+          "line": 277,
+          "kind": "StringLiteral",
+          "text": "처음 불러올 때는 잠시 걸릴 수 있어요"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-024",
+      "file": "src/features/body-selection/LiveBodyView.tsx",
+      "before": [
+        {
+          "line": 274,
+          "kind": "StringLiteral",
+          "text": "수치 미리보기를 쓸 수 없어요 · 지금은 처음 모양만 보여요"
+        }
+      ],
+      "after": [
+        {
+          "line": 279,
+          "kind": "StringLiteral",
+          "text": "조절한 모습을 미리 보여드릴 수 없어요. 지금은 기본 모습만 보여드려요."
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-025",
+      "file": "src/features/body-selection/SinglePoseDetail.tsx",
+      "before": [
+        {
+          "line": 66,
+          "kind": "StringLiteral",
+          "text": "선택 체형으로 이 포즈만 보기"
+        }
+      ],
+      "after": [
+        {
+          "line": 66,
+          "kind": "StringLiteral",
+          "text": "고른 체형으로 이 포즈 보기"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-026",
+      "file": "src/features/body-selection/SinglePoseDetail.tsx",
+      "before": [
+        {
+          "line": 70,
+          "kind": "StringLiteral",
+          "text": "선택 체형 상세"
+        }
+      ],
+      "after": [
+        {
+          "line": 70,
+          "kind": "StringLiteral",
+          "text": "고른 체형으로 보기"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-027",
+      "file": "src/features/body-selection/SinglePoseDetail.tsx",
+      "before": [
+        {
+          "line": 70,
+          "kind": "StringLiteral",
+          "text": "선택 체형으로 이 포즈만 보기"
+        }
+      ],
+      "after": [
+        {
+          "line": 70,
+          "kind": "StringLiteral",
+          "text": "고른 체형으로 이 포즈 보기"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-028",
+      "file": "src/features/body-selection/SinglePoseDetail.tsx",
+      "before": [
+        {
+          "line": 74,
+          "kind": "StringLiteral",
+          "text": "선택 체형 포즈 미리보기"
+        }
+      ],
+      "after": [
+        {
+          "line": 74,
+          "kind": "StringLiteral",
+          "text": "고른 체형의 포즈 미리보기"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-029",
+      "file": "src/features/body-selection/SinglePoseDetail.tsx",
+      "before": [
+        {
+          "line": 84,
+          "kind": "StringLiteral",
+          "text": "선택한 체형을 적용한 단일 포즈 미리보기"
+        }
+      ],
+      "after": [
+        {
+          "line": 84,
+          "kind": "StringLiteral",
+          "text": "고른 체형으로 본 포즈"
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-030",
+      "file": "src/features/body-selection/SinglePoseDetail.tsx",
+      "before": [
+        {
+          "line": 100,
+          "kind": "JsxText",
+          "text": "참고 이미지입니다. 최종 손·출력 범위는 저장 전 확인 화면에서 확인하세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 100,
+          "kind": "JsxText",
+          "text": "체형을 비교하는 참고 이미지예요. 손 모양과 저장할 부분은 다음 화면에서 확인해 주세요."
+        }
+      ],
+      "reason": "체형 선택·조절·미리보기 제한을 쉬운 말로 안내. 이름이 없으면 내부 식별자 대신 기본 안내 표시."
+    },
+    {
+      "id": "COPY-031",
+      "file": "src/features/capture/api/globalShortcut.tauri.ts",
+      "before": [
+        {
+          "line": 19,
+          "kind": "StringLiteral",
+          "text": "전역 단축키를 등록하지 못했습니다."
+        },
+        {
+          "line": 22,
+          "kind": "StringLiteral",
+          "text": "전역 단축키를 등록하지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 9,
+          "kind": "StringLiteral",
+          "text": "이 키 조합은 캡처 단축키로 쓸 수 없어요. 다른 키를 골라 주세요."
+        },
+        {
+          "line": 10,
+          "kind": "StringLiteral",
+          "text": "캡처 단축키를 설정하지 못했어요. 다른 키를 골라 다시 시도해 주세요."
+        },
+        {
+          "line": 11,
+          "kind": "StringLiteral",
+          "text": "이전 캡처 단축키를 해제하지 못했어요. 앱을 다시 열고 시도해 주세요."
+        },
+        {
+          "line": 12,
+          "kind": "StringLiteral",
+          "text": "이 환경에서는 캡처 단축키를 쓸 수 없어요. 설치한 앱에서 사용해 주세요."
+        },
+        {
+          "line": 24,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-032",
+      "file": "src/features/capture/lib/captureShortcut.ts",
+      "before": [
+        {
+          "line": 30,
+          "kind": "StringLiteral",
+          "text": "이 키 조합은 전역 단축키로 등록할 수 없습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 32,
+          "kind": "StringLiteral",
+          "text": "이 키 조합은 캡처 단축키로 쓸 수 없어요. 다른 키를 골라 주세요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-033",
+      "file": "src/features/capture/lib/captureShortcut.ts",
+      "before": [
+        {
+          "line": 46,
+          "kind": "StringLiteral",
+          "text": "전역 단축키를 등록하지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 49,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-034",
+      "file": "src/features/capture/lib/captureShortcut.ts",
+      "before": [
+        {
+          "line": 67,
+          "kind": "StringLiteral",
+          "text": "브라우저 개발 모드에서는 전역 단축키를 사용할 수 없습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 72,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램에서 쓸 캡처 단축키는 설치한 앱에서 설정할 수 있어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-035",
+      "file": "src/features/capture/pages/CaptureOverlayPage.tsx",
+      "before": [
+        {
+          "line": 137,
+          "kind": "StringLiteral",
+          "text": "화면 캡처 프레임"
+        }
+      ],
+      "after": [
+        {
+          "line": 137,
+          "kind": "StringLiteral",
+          "text": "캡처할 화면"
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-036",
+      "file": "src/features/capture/pages/ScreenPermissionPage.tsx",
+      "before": [
+        {
+          "line": 44,
+          "kind": "JsxText",
+          "text": "프롬프트가 보이지 않거나 이미 닫았다면, 아래에서 시스템 설정을 열어 목록의 Standin을 켜 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 44,
+          "kind": "JsxText",
+          "text": "권한을 묻는 창이 보이지 않거나 이미 닫았다면, 아래에서 시스템 설정을 열어 목록의 Standin을 켜 주세요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-037",
+      "file": "src/features/export/api/export.tauri.ts",
+      "before": [
+        {
+          "line": 31,
+          "kind": "StringLiteral",
+          "text": "저장에 실패했습니다."
+        },
+        {
+          "line": 34,
+          "kind": "StringLiteral",
+          "text": "저장에 실패했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 26,
+          "kind": "StringLiteral",
+          "text": "폴더 선택을 취소했어요."
+        },
+        {
+          "line": 27,
+          "kind": "StringLiteral",
+          "text": "저장할 폴더를 열 수 없어요. 다른 폴더를 골라 주세요."
+        },
+        {
+          "line": 28,
+          "kind": "StringLiteral",
+          "text": "파일을 저장하지 못했어요. 폴더의 쓰기 권한과 남은 저장 공간을 확인해 주세요."
+        },
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "파일을 저장하지 못했어요. 앱을 다시 열고 시도해 주세요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-038",
+      "file": "src/features/export/components/SavedFileList.tsx",
+      "before": [
+        {
+          "line": 129,
+          "kind": "StringLiteral",
+          "text": "앱은 파일을 넘기는 것까지만 알 수 있습니다. 클립스튜디오가 실제로 받았는지는 확인이 필요합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 129,
+          "kind": "StringLiteral",
+          "text": "클립스튜디오에 포즈가 잘 들어갔는지 확인해 주세요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-039",
+      "file": "src/features/export/hooks/useSaveFlow.ts",
+      "before": [
+        {
+          "line": 343,
+          "kind": "StringLiteral",
+          "text": "검수용 후보는 파일로 저장할 수 없습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 345,
+          "kind": "StringLiteral",
+          "text": "이 포즈는 참고용으로만 볼 수 있어요. 저장할 수 있는 다른 포즈를 골라 주세요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-040",
+      "file": "src/features/export/hooks/useSaveFlow.ts",
+      "before": [
+        {
+          "line": 473,
+          "kind": "StringLiteral",
+          "text": "알 수 없는 오류로 저장하지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 474,
+          "kind": "StringLiteral",
+          "text": "파일을 저장하지 못했어요. 저장 폴더를 확인한 뒤 다시 시도해 주세요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-041",
+      "file": "src/features/export/lib/characterNotice.ts",
+      "before": [
+        {
+          "line": 22,
+          "kind": "StringLiteral",
+          "text": "인물마다 고른 모델로 저장했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 22,
+          "kind": "StringLiteral",
+          "text": "인물마다 고른 체형으로 저장했어요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-042",
+      "file": "src/features/export/lib/characterNotice.ts",
+      "before": [
+        {
+          "line": 25,
+          "kind": "LastTemplateToken",
+          "text": "모델로 저장했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 25,
+          "kind": "LastTemplateToken",
+          "text": "체형으로 저장했어요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-043",
+      "file": "src/features/export/lib/characterNotice.ts",
+      "before": [
+        {
+          "line": 33,
+          "kind": "StringLiteral",
+          "text": "BVH는 동작만 담아 모델 선택이 적용되지 않습니다."
+        },
+        {
+          "line": 38,
+          "kind": "TemplateHead",
+          "text": "지금 연결된 서버는 모델 선택을 아직 제공하지 않아 기본 모델로 저장했습니다. ("
+        },
+        {
+          "line": 38,
+          "kind": "LastTemplateToken",
+          "text": "모델 선택됨)"
+        },
+        {
+          "line": 43,
+          "kind": "LastTemplateToken",
+          "text": "모델은 아직 준비 중이라 기본 모델로 저장했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 33,
+          "kind": "StringLiteral",
+          "text": "BVH에는 동작만 저장돼요. 고른 체형은 FBX 파일에 적용돼요."
+        },
+        {
+          "line": 38,
+          "kind": "TemplateHead",
+          "text": "고른 체형을 지금은 사용할 수 없어 기본 체형으로 저장했어요. (고른 체형:"
+        },
+        {
+          "line": 43,
+          "kind": "LastTemplateToken",
+          "text": "체형은 아직 준비 중이라 기본 체형으로 저장했어요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-044",
+      "file": "src/features/export/pages/SavePage.tsx",
+      "before": [
+        {
+          "line": 215,
+          "kind": "JsxText",
+          "text": "지금 연결된 서버는 FBX 저장을 아직 제공하지 않아 BVH로 저장했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 215,
+          "kind": "JsxText",
+          "text": "지금은 FBX로 저장할 수 없어 BVH로 저장했어요. BVH에는 체형·손 모양 없이 동작만 들어가요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-045",
+      "file": "src/features/export/pages/SavePage.tsx",
+      "before": [
+        {
+          "line": 244,
+          "kind": "StringLiteral",
+          "text": "스켈레톤 오류"
+        }
+      ],
+      "after": [
+        {
+          "line": 245,
+          "kind": "StringLiteral",
+          "text": "팔다리 인식 문제"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-046",
+      "file": "src/features/export/pages/SavePage.tsx",
+      "before": [
+        {
+          "line": 245,
+          "kind": "StringLiteral",
+          "text": "후보 불일치"
+        }
+      ],
+      "after": [
+        {
+          "line": 246,
+          "kind": "StringLiteral",
+          "text": "러프와 다른 포즈"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-047",
+      "file": "src/features/hand-selection/HandChips.tsx",
+      "before": [
+        {
+          "line": 51,
+          "kind": "StringLiteral",
+          "text": "직접 선택"
+        }
+      ],
+      "after": [
+        {
+          "line": 51,
+          "kind": "StringLiteral",
+          "text": "고른 손 모양"
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-048",
+      "file": "src/features/hand-selection/HandChips.tsx",
+      "before": [
+        {
+          "line": 92,
+          "kind": "JsxText",
+          "text": "의 손 · 인물 기준"
+        }
+      ],
+      "after": [
+        {
+          "line": 92,
+          "kind": "JsxText",
+          "text": "의 손 · 그림 속 인물의 왼쪽과 오른쪽이에요"
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-049",
+      "file": "src/features/hand-selection/HandChips.tsx",
+      "before": [
+        {
+          "line": 105,
+          "kind": "JsxText",
+          "text": "손 자동 인식을 완료하지 못해 기본 손을 선택했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 105,
+          "kind": "JsxText",
+          "text": "러프에서 손 모양을 읽지 못해 힘을 뺀 손으로 보여드려요. 원하는 모양으로 바꿀 수 있어요."
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-050",
+      "file": "src/features/hand-selection/HandChips.tsx",
+      "before": [
+        {
+          "line": 138,
+          "kind": "StringLiteral",
+          "text": "손 모양은 최종 미리보기와 FBX에 반영됩니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 140,
+          "kind": "StringLiteral",
+          "text": "고른 손 모양은 저장 전 미리보기와 FBX 파일에 적용돼요."
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-051",
+      "file": "src/features/hand-selection/HandChips.tsx",
+      "before": [
+        {
+          "line": 151,
+          "kind": "LastTemplateToken",
+          "text": "· 인물 기준"
+        }
+      ],
+      "after": [
+        {
+          "line": 153,
+          "kind": "LastTemplateToken",
+          "text": "· 그림 속 인물 기준"
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-052",
+      "file": "src/features/hand-selection/ReferenceHands.tsx",
+      "before": [
+        {
+          "line": 74,
+          "kind": "JsxText",
+          "text": "손 모양 참고 선택"
+        }
+      ],
+      "after": [
+        {
+          "line": 74,
+          "kind": "JsxText",
+          "text": "손 모양 골라 보기"
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-053",
+      "file": "src/features/hand-selection/ReferenceHands.tsx",
+      "before": [
+        {
+          "line": 76,
+          "kind": "JsxText",
+          "text": "원본 BVH 관절 미리보기는 유지됩니다. 선택한 손은 아래 기본 체형·정면 참고 렌더에서 확인할 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 76,
+          "kind": "JsxText",
+          "text": "아래 미리보기에서 기본 체형에 손 모양을 입혀 볼 수 있어요."
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-054",
+      "file": "src/features/hand-selection/ReferenceHands.tsx",
+      "before": [
+        {
+          "line": 79,
+          "kind": "StringLiteral",
+          "text": "포즈를 직접 선택하면 저장 전 확인 화면에서 현재 손과 체형을 적용한 FBX를 확인할 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 78,
+          "kind": "StringLiteral",
+          "text": "포즈를 고르면 저장 전에 선택한 체형과 손 모양을 함께 확인할 수 있어요."
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-055",
+      "file": "src/features/hand-selection/ReferenceHands.tsx",
+      "before": [
+        {
+          "line": 80,
+          "kind": "StringLiteral",
+          "text": "파일이 확인되지 않은 후보는 미리보기만 제공합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 79,
+          "kind": "StringLiteral",
+          "text": "저장할 파일이 없는 포즈는 미리보기만 볼 수 있어요."
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-056",
+      "file": "src/features/hand-selection/ReferenceHands.tsx",
+      "before": [
+        {
+          "line": 97,
+          "kind": "StringLiteral",
+          "text": "생성 검수 후보"
+        }
+      ],
+      "after": [
+        {
+          "line": 96,
+          "kind": "StringLiteral",
+          "text": "새로 만든 참고 포즈"
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-057",
+      "file": "src/features/hand-selection/ReferenceHands.tsx",
+      "before": [
+        {
+          "line": 120,
+          "kind": "StringLiteral",
+          "text": "선택한 손이 적용된 기본 체형의 정면 참고 미리보기"
+        }
+      ],
+      "after": [
+        {
+          "line": 119,
+          "kind": "StringLiteral",
+          "text": "고른 손 모양을 기본 체형에 적용한 정면 모습"
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-058",
+      "file": "src/features/hand-selection/ReferenceHands.tsx",
+      "before": [
+        {
+          "line": 125,
+          "kind": "JsxText",
+          "text": "조회 전용 이미지입니다. 출력 범위 밖의 손은 보이지 않을 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 124,
+          "kind": "JsxText",
+          "text": "손 모양을 확인하는 참고 이미지예요. 화면 밖에 있는 손은 보이지 않을 수 있어요."
+        }
+      ],
+      "reason": "관절·렌더·관측 용어 대신 손 모양과 실제 저장 반영 여부를 안내."
+    },
+    {
+      "id": "COPY-059",
+      "file": "src/features/home/pages/HomePage.tsx",
+      "before": [
+        {
+          "line": 129,
+          "kind": "JsxText",
+          "text": "찾고 싶은 동작을 적고 라이브러리에서 골라보세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 129,
+          "kind": "JsxText",
+          "text": "찾고 싶은 동작을 적고 비슷한 포즈를 골라보세요."
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-060",
+      "file": "src/features/installation/installationStore.ts",
+      "before": [
+        {
+          "line": 90,
+          "kind": "StringLiteral",
+          "text": "설치 인증정보를 불러오지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 92,
+          "kind": "StringLiteral",
+          "text": "이 기기의 이용 정보를 불러오지 못했어요. 앱을 다시 시작해 주세요."
+        }
+      ],
+      "reason": "로그인·기기 설정 상태를 쉬운 말로 안내. 체험 화면은 실제 분석과 구분."
+    },
+    {
+      "id": "COPY-061",
+      "file": "src/features/installation/installationStore.ts",
+      "before": [
+        {
+          "line": 151,
+          "kind": "StringLiteral",
+          "text": "설치 등록에 실패했습니다. 다시 시도해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 154,
+          "kind": "StringLiteral",
+          "text": "이 기기의 사용 준비를 마치지 못했어요. 다시 시도해 주세요."
+        }
+      ],
+      "reason": "로그인·기기 설정 상태를 쉬운 말로 안내. 체험 화면은 실제 분석과 구분."
+    },
+    {
+      "id": "COPY-062",
+      "file": "src/features/models/pages/ModelsPage.tsx",
+      "before": [
+        {
+          "line": 13,
+          "kind": "StringLiteral",
+          "text": "에셋 스토어"
+        }
+      ],
+      "after": [
+        {
+          "line": 13,
+          "kind": "StringLiteral",
+          "text": "체형 스토어"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-063",
+      "file": "src/features/models/pages/ModelsPage.tsx",
+      "before": [
+        {
+          "line": 49,
+          "kind": "JsxText",
+          "text": "지금 연결된 서버는 모델 선택을 아직 제공하지 않습니다. 당분간 기본 남성 모델로 저장됩니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 49,
+          "kind": "JsxText",
+          "text": "지금은 다른 체형을 고를 수 없어 기본 남성 체형으로 저장돼요."
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-064",
+      "file": "src/features/pose-viewer/components/DefaultPoseImage.tsx",
+      "before": [
+        {
+          "line": 27,
+          "kind": "StringLiteral",
+          "text": "기본 체형 · 근사 포즈"
+        }
+      ],
+      "after": [
+        {
+          "line": 27,
+          "kind": "StringLiteral",
+          "text": "기본 체형 · 대략적인 포즈"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-065",
+      "file": "src/features/pose-viewer/components/DefaultPoseImage.tsx",
+      "before": [
+        {
+          "line": 30,
+          "kind": "StringLiteral",
+          "text": "관절 기반"
+        }
+      ],
+      "after": [
+        {
+          "line": 30,
+          "kind": "StringLiteral",
+          "text": "뼈대로 본 포즈"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-066",
+      "file": "src/features/pose-viewer/components/DefaultPoseImage.tsx",
+      "before": [
+        {
+          "line": 38,
+          "kind": "StringLiteral",
+          "text": "관절 기반 포즈 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 38,
+          "kind": "StringLiteral",
+          "text": "포즈 뼈대 참고"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-067",
+      "file": "src/features/pose-viewer/components/DefaultPoseImage.tsx",
+      "before": [
+        {
+          "line": 43,
+          "kind": "StringLiteral",
+          "text": "관절 기반 포즈 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 43,
+          "kind": "StringLiteral",
+          "text": "포즈 뼈대 참고"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-068",
+      "file": "src/features/pose-viewer/components/DefaultPoseImage.tsx",
+      "before": [
+        {
+          "line": 61,
+          "kind": "JsxText",
+          "text": "선택 체형·손·검색 시점 미적용"
+        }
+      ],
+      "after": [
+        {
+          "line": 62,
+          "kind": "JsxText",
+          "text": "체형·손·보는 각도는 최종 결과와 다를 수 있어요"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-069",
+      "file": "src/features/pose-viewer/components/OutputScopeSelect.tsx",
+      "before": [
+        {
+          "line": 60,
+          "kind": "JsxText",
+          "text": "출력 범위 설정"
+        }
+      ],
+      "after": [
+        {
+          "line": 60,
+          "kind": "JsxText",
+          "text": "저장할 부분"
+        }
+      ],
+      "reason": "출력 범위를 파일에 저장할 신체 부분으로 설명."
+    },
+    {
+      "id": "COPY-070",
+      "file": "src/features/pose-viewer/components/OutputScopeSelect.tsx",
+      "before": [
+        {
+          "line": 64,
+          "kind": "LastTemplateToken",
+          "text": "의 출력 범위"
+        }
+      ],
+      "after": [
+        {
+          "line": 64,
+          "kind": "LastTemplateToken",
+          "text": "에서 저장할 부분"
+        }
+      ],
+      "reason": "출력 범위를 파일에 저장할 신체 부분으로 설명."
+    },
+    {
+      "id": "COPY-071",
+      "file": "src/features/pose-viewer/components/OutputScopeSelect.tsx",
+      "before": [
+        {
+          "line": 71,
+          "kind": "StringLiteral",
+          "text": "판별 불가 · 전신"
+        }
+      ],
+      "after": [
+        {
+          "line": 71,
+          "kind": "StringLiteral",
+          "text": "전체 모습"
+        }
+      ],
+      "reason": "출력 범위를 파일에 저장할 신체 부분으로 설명."
+    },
+    {
+      "id": "COPY-072",
+      "file": "src/features/pose-viewer/components/OutputScopeSelect.tsx",
+      "before": [
+        {
+          "line": 82,
+          "kind": "StringLiteral",
+          "text": "· 직접 선택"
+        }
+      ],
+      "after": [
+        {
+          "line": 82,
+          "kind": "StringLiteral",
+          "text": "· 내가 고른 범위"
+        }
+      ],
+      "reason": "출력 범위를 파일에 저장할 신체 부분으로 설명."
+    },
+    {
+      "id": "COPY-073",
+      "file": "src/features/pose-viewer/components/OutputScopeSelect.tsx",
+      "before": [
+        {
+          "line": 86,
+          "kind": "StringLiteral",
+          "text": "후보 미리보기와 FBX에 적용됩니다. BVH는 전신 뼈대를 유지합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 86,
+          "kind": "StringLiteral",
+          "text": "미리보기와 FBX에 선택한 부분이 보여요. BVH에는 전체 동작이 저장돼요."
+        }
+      ],
+      "reason": "출력 범위를 파일에 저장할 신체 부분으로 설명."
+    },
+    {
+      "id": "COPY-074",
+      "file": "src/features/pose-viewer/components/OutputScopeSelect.tsx",
+      "before": [
+        {
+          "line": 87,
+          "kind": "StringLiteral",
+          "text": "범위 설정만 저장됩니다. 현재 미리보기와 파일은 전신입니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 87,
+          "kind": "StringLiteral",
+          "text": "선택은 기억해 둘게요. 지금은 미리보기와 파일에 전체 모습이 나와요."
+        }
+      ],
+      "reason": "출력 범위를 파일에 저장할 신체 부분으로 설명."
+    },
+    {
+      "id": "COPY-075",
+      "file": "src/features/pose-viewer/components/PersonFallbackNotice.tsx",
+      "before": [
+        {
+          "line": 17,
+          "kind": "StringLiteral",
+          "text": "스켈레톤 인식이 불확실해 참고용 후보입니다. 보정이 필요할 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 17,
+          "kind": "StringLiteral",
+          "text": "그림 속 자세를 정확히 읽기 어려웠어요. 러프와 비교해 포즈를 골라 주세요."
+        }
+      ],
+      "reason": "인식 실패·결과 없음·참고용을 구분하면서 사용자가 취할 행동을 안내."
+    },
+    {
+      "id": "COPY-076",
+      "file": "src/features/pose-viewer/components/PersonFallbackNotice.tsx",
+      "before": [
+        {
+          "line": 64,
+          "kind": "StringLiteral",
+          "text": "기하·의미 통합 검색"
+        },
+        {
+          "line": 65,
+          "kind": "StringLiteral",
+          "text": "기하 검색"
+        },
+        {
+          "line": 66,
+          "kind": "StringLiteral",
+          "text": "의미 검색"
+        },
+        {
+          "line": 67,
+          "kind": "StringLiteral",
+          "text": "기본 인체 구도"
+        },
+        {
+          "line": 69,
+          "kind": "StringLiteral",
+          "text": "검색 경로 판정"
+        },
+        {
+          "line": 73,
+          "kind": "StringLiteral",
+          "text": "검색 완료"
+        },
+        {
+          "line": 74,
+          "kind": "StringLiteral",
+          "text": "일치 후보 없음"
+        },
+        {
+          "line": 75,
+          "kind": "StringLiteral",
+          "text": "검색 오류"
+        },
+        {
+          "line": 76,
+          "kind": "StringLiteral",
+          "text": "일부 검색 오류"
+        },
+        {
+          "line": 77,
+          "kind": "StringLiteral",
+          "text": "검색 제한"
+        },
+        {
+          "line": 78,
+          "kind": "StringLiteral",
+          "text": "판정 보류"
+        },
+        {
+          "line": 79,
+          "kind": "StringLiteral",
+          "text": "검색 생략"
+        },
+        {
+          "line": 81,
+          "kind": "StringLiteral",
+          "text": "판정 보류"
+        },
+        {
+          "line": 95,
+          "kind": "StringLiteral",
+          "text": "기본 인체 구도 참고이며 포즈 검색 결과가 아닙니다."
+        },
+        {
+          "line": 96,
+          "kind": "StringLiteral",
+          "text": "검수용 후보입니다. 자동 보정과 파일 저장은 지원하지 않습니다. 이미지는 정면 참고이며 검색 시점과 다를 수 있습니다."
+        },
+        {
+          "line": 99,
+          "kind": "JsxText",
+          "text": "세부 조건이 다른 근접 참고"
+        },
+        {
+          "line": 99,
+          "kind": "JsxText",
+          "text": "개 · 정식 후보에서 제외"
+        },
+        {
+          "line": 102,
+          "kind": "JsxText",
+          "text": "구도 참고"
+        },
+        {
+          "line": 102,
+          "kind": "JsxText",
+          "text": "개 · 포즈 후보와 별도"
+        },
+        {
+          "line": 106,
+          "kind": "JsxText",
+          "text": "별도 생성 검수:"
+        }
+      ],
+      "after": [
+        {
+          "line": 64,
+          "kind": "StringLiteral",
+          "text": "자세와 동작으로 찾은 포즈"
+        },
+        {
+          "line": 65,
+          "kind": "StringLiteral",
+          "text": "자세로 찾은 포즈"
+        },
+        {
+          "line": 66,
+          "kind": "StringLiteral",
+          "text": "동작 설명으로 찾은 포즈"
+        },
+        {
+          "line": 67,
+          "kind": "StringLiteral",
+          "text": "기본 자세"
+        },
+        {
+          "line": 69,
+          "kind": "StringLiteral",
+          "text": "포즈 검색"
+        },
+        {
+          "line": 73,
+          "kind": "StringLiteral",
+          "text": "포즈를 찾았어요"
+        },
+        {
+          "line": 74,
+          "kind": "StringLiteral",
+          "text": "비슷한 포즈가 없어요"
+        },
+        {
+          "line": 75,
+          "kind": "StringLiteral",
+          "text": "검색을 마치지 못했어요"
+        },
+        {
+          "line": 76,
+          "kind": "StringLiteral",
+          "text": "일부 포즈를 찾지 못했어요"
+        },
+        {
+          "line": 77,
+          "kind": "StringLiteral",
+          "text": "지금은 포즈를 찾을 수 없어요"
+        },
+        {
+          "line": 78,
+          "kind": "StringLiteral",
+          "text": "이 장면의 자세를 확인하기 어려워요"
+        },
+        {
+          "line": 79,
+          "kind": "StringLiteral",
+          "text": "검색을 진행하지 않았어요"
+        },
+        {
+          "line": 81,
+          "kind": "StringLiteral",
+          "text": "이 장면의 자세를 확인하기 어려워요"
+        },
+        {
+          "line": 90,
+          "kind": "StringLiteral",
+          "text": "기본 자세를 참고해 보세요"
+        },
+        {
+          "line": 93,
+          "kind": "StringLiteral",
+          "text": "찾은 포즈 대신 기본 자세를 참고용으로 보여드려요."
+        },
+        {
+          "line": 94,
+          "kind": "StringLiteral",
+          "text": "이 포즈는 참고용으로만 볼 수 있어요. 러프에 맞춰 자동으로 바꾸거나 파일로 저장할 수는 없어요. 러프와 보는 각도가 다를 수 있어요."
+        },
+        {
+          "line": 96,
+          "kind": "JsxText",
+          "text": "러프와 일부 다른 포즈"
+        },
+        {
+          "line": 96,
+          "kind": "JsxText",
+          "text": "개 · 참고용"
+        },
+        {
+          "line": 98,
+          "kind": "JsxText",
+          "text": "구도를 참고할 포즈"
+        },
+        {
+          "line": 98,
+          "kind": "JsxText",
+          "text": "개 · 참고용"
+        },
+        {
+          "line": 102,
+          "kind": "JsxText",
+          "text": "새로 만든 포즈:"
+        }
+      ],
+      "reason": "인식 실패·결과 없음·참고용을 구분하면서 사용자가 취할 행동을 안내."
+    },
+    {
+      "id": "COPY-077",
+      "file": "src/features/pose-viewer/components/PersonFallbackNotice.tsx",
+      "before": [
+        {
+          "line": 110,
+          "kind": "StringLiteral",
+          "text": "검증 미통과"
+        }
+      ],
+      "after": [
+        {
+          "line": 106,
+          "kind": "StringLiteral",
+          "text": "사용할 수 있는 포즈를 만들지 못했어요"
+        }
+      ],
+      "reason": "인식 실패·결과 없음·참고용을 구분하면서 사용자가 취할 행동을 안내."
+    },
+    {
+      "id": "COPY-078",
+      "file": "src/features/pose-viewer/components/PersonFallbackNotice.tsx",
+      "before": [
+        {
+          "line": 111,
+          "kind": "StringLiteral",
+          "text": "생성 결과 없음"
+        }
+      ],
+      "after": [
+        {
+          "line": 107,
+          "kind": "StringLiteral",
+          "text": "새로 만든 포즈가 없어요"
+        }
+      ],
+      "reason": "인식 실패·결과 없음·참고용을 구분하면서 사용자가 취할 행동을 안내."
+    },
+    {
+      "id": "COPY-079",
+      "file": "src/features/pose-viewer/components/PersonFallbackNotice.tsx",
+      "before": [
+        {
+          "line": 122,
+          "kind": "StringLiteral",
+          "text": "두상 방향에 맞는 포즈 검색은 아직 지원하지 않습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 118,
+          "kind": "StringLiteral",
+          "text": "얼굴만 보이는 장면에서는 아직 포즈를 찾을 수 없어요. 어깨와 팔이 보이는 장면으로 다시 시도해 주세요."
+        }
+      ],
+      "reason": "인식 실패·결과 없음·참고용을 구분하면서 사용자가 취할 행동을 안내."
+    },
+    {
+      "id": "COPY-080",
+      "file": "src/features/pose-viewer/components/PersonFallbackNotice.tsx",
+      "before": [
+        {
+          "line": 124,
+          "kind": "StringLiteral",
+          "text": "이 구도의 포즈 검색은 아직 지원하지 않습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 120,
+          "kind": "StringLiteral",
+          "text": "이 장면에서는 아직 포즈를 찾기 어려워요. 다른 러프로 다시 시도해 주세요."
+        }
+      ],
+      "reason": "인식 실패·결과 없음·참고용을 구분하면서 사용자가 취할 행동을 안내."
+    },
+    {
+      "id": "COPY-081",
+      "file": "src/features/pose-viewer/components/PersonFallbackNotice.tsx",
+      "before": [
+        {
+          "line": 126,
+          "kind": "StringLiteral",
+          "text": "보이는 어깨와 팔을 기준으로 찾은 참고용 후보입니다. 자동 보정은 지원하지 않습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 122,
+          "kind": "StringLiteral",
+          "text": "보이는 어깨와 팔을 보고 찾은 포즈예요. 러프에 맞춘 자동 조정은 하지 않아요."
+        }
+      ],
+      "reason": "인식 실패·결과 없음·참고용을 구분하면서 사용자가 취할 행동을 안내."
+    },
+    {
+      "id": "COPY-082",
+      "file": "src/features/pose-viewer/components/PoseCandidateCard.tsx",
+      "before": [
+        {
+          "line": 10,
+          "kind": "StringLiteral",
+          "text": "높은 일치"
+        }
+      ],
+      "after": [
+        {
+          "line": 10,
+          "kind": "StringLiteral",
+          "text": "많이 비슷함"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-083",
+      "file": "src/features/pose-viewer/components/PoseCandidateCard.tsx",
+      "before": [
+        {
+          "line": 12,
+          "kind": "StringLiteral",
+          "text": "보정 필요"
+        }
+      ],
+      "after": [
+        {
+          "line": 12,
+          "kind": "StringLiteral",
+          "text": "조정이 필요할 수 있어요"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-084",
+      "file": "src/features/pose-viewer/components/PoseCandidateCard.tsx",
+      "before": [
+        {
+          "line": 60,
+          "kind": "StringLiteral",
+          "text": "기본 체형 · 근사 포즈"
+        }
+      ],
+      "after": [
+        {
+          "line": 60,
+          "kind": "StringLiteral",
+          "text": "기본 체형 · 대략적인 포즈"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-085",
+      "file": "src/features/pose-viewer/components/PoseCandidateCard.tsx",
+      "before": [
+        {
+          "line": 63,
+          "kind": "StringLiteral",
+          "text": "관절 기반"
+        }
+      ],
+      "after": [
+        {
+          "line": 63,
+          "kind": "StringLiteral",
+          "text": "뼈대로 본 포즈"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-086",
+      "file": "src/features/pose-viewer/components/PoseCandidateCard.tsx",
+      "before": [
+        {
+          "line": 122,
+          "kind": "JsxText",
+          "text": "선택 체형·손·검색 시점 미적용"
+        }
+      ],
+      "after": [
+        {
+          "line": 122,
+          "kind": "JsxText",
+          "text": "체형·손·보는 각도는 최종 결과와 다를 수 있어요"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-087",
+      "file": "src/features/pose-viewer/components/PoseCandidateCard.tsx",
+      "before": [
+        {
+          "line": 143,
+          "kind": "StringLiteral",
+          "text": "직접 선택 · 확인 후 저장"
+        }
+      ],
+      "after": [
+        {
+          "line": 143,
+          "kind": "StringLiteral",
+          "text": "선택하고 확인 후 저장"
+        }
+      ],
+      "reason": "이미지의 체형·정면·대략적 포즈·최종 결과와의 차이를 이해하기 쉽게 안내."
+    },
+    {
+      "id": "COPY-088",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 24,
+          "kind": "StringLiteral",
+          "text": "검색 후보 준비"
+        }
+      ],
+      "after": [
+        {
+          "line": 24,
+          "kind": "StringLiteral",
+          "text": "비슷한 포즈를 찾았어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-089",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 25,
+          "kind": "StringLiteral",
+          "text": "검수용 결과"
+        }
+      ],
+      "after": [
+        {
+          "line": 25,
+          "kind": "StringLiteral",
+          "text": "참고할 포즈예요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-090",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 26,
+          "kind": "StringLiteral",
+          "text": "기본 인체 계획"
+        }
+      ],
+      "after": [
+        {
+          "line": 26,
+          "kind": "StringLiteral",
+          "text": "기본 자세를 참고해 보세요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-091",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 27,
+          "kind": "StringLiteral",
+          "text": "정상 검색 완료 · 후보 없음"
+        }
+      ],
+      "after": [
+        {
+          "line": 27,
+          "kind": "StringLiteral",
+          "text": "비슷한 포즈를 찾지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-092",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 28,
+          "kind": "StringLiteral",
+          "text": "생성 검수 실패"
+        }
+      ],
+      "after": [
+        {
+          "line": 28,
+          "kind": "StringLiteral",
+          "text": "새 포즈를 준비하지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-093",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "일부 검색/미리보기 오류"
+        }
+      ],
+      "after": [
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "일부 포즈를 확인하지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-094",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 30,
+          "kind": "StringLiteral",
+          "text": "검색/미리보기 오류"
+        }
+      ],
+      "after": [
+        {
+          "line": 30,
+          "kind": "StringLiteral",
+          "text": "포즈를 불러오지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-095",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 31,
+          "kind": "StringLiteral",
+          "text": "검색 제한"
+        }
+      ],
+      "after": [
+        {
+          "line": 31,
+          "kind": "StringLiteral",
+          "text": "지금은 포즈를 찾을 수 없어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-096",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 32,
+          "kind": "StringLiteral",
+          "text": "판정 보류"
+        }
+      ],
+      "after": [
+        {
+          "line": 32,
+          "kind": "StringLiteral",
+          "text": "이 장면의 자세를 확인하기 어려워요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-097",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 33,
+          "kind": "StringLiteral",
+          "text": "검색 미실행"
+        }
+      ],
+      "after": [
+        {
+          "line": 33,
+          "kind": "StringLiteral",
+          "text": "포즈 검색을 진행하지 않았어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-098",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 36,
+          "kind": "StringLiteral",
+          "text": "검색 완료"
+        }
+      ],
+      "after": [
+        {
+          "line": 36,
+          "kind": "StringLiteral",
+          "text": "포즈를 찾았어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-099",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 37,
+          "kind": "StringLiteral",
+          "text": "일치 후보 없음"
+        }
+      ],
+      "after": [
+        {
+          "line": 37,
+          "kind": "StringLiteral",
+          "text": "비슷한 포즈가 없어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-100",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 38,
+          "kind": "StringLiteral",
+          "text": "일부 검색 오류"
+        }
+      ],
+      "after": [
+        {
+          "line": 38,
+          "kind": "StringLiteral",
+          "text": "일부 포즈를 찾지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-101",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 39,
+          "kind": "StringLiteral",
+          "text": "검색 오류"
+        }
+      ],
+      "after": [
+        {
+          "line": 39,
+          "kind": "StringLiteral",
+          "text": "검색을 마치지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-102",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 40,
+          "kind": "StringLiteral",
+          "text": "검색 제한"
+        }
+      ],
+      "after": [
+        {
+          "line": 40,
+          "kind": "StringLiteral",
+          "text": "지금은 포즈를 찾을 수 없어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-103",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 41,
+          "kind": "StringLiteral",
+          "text": "판정 보류"
+        }
+      ],
+      "after": [
+        {
+          "line": 41,
+          "kind": "StringLiteral",
+          "text": "이 장면의 자세를 확인하기 어려워요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-104",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 42,
+          "kind": "StringLiteral",
+          "text": "검색 미실행"
+        }
+      ],
+      "after": [
+        {
+          "line": 42,
+          "kind": "StringLiteral",
+          "text": "포즈 검색을 진행하지 않았어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-105",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 47,
+          "kind": "StringLiteral",
+          "text": "반대손 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 47,
+          "kind": "StringLiteral",
+          "text": "좌우 반전 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-106",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 48,
+          "kind": "StringLiteral",
+          "text": "생성 검수"
+        }
+      ],
+      "after": [
+        {
+          "line": 48,
+          "kind": "StringLiteral",
+          "text": "새로 만든 참고 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-107",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 49,
+          "kind": "StringLiteral",
+          "text": "근접 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 49,
+          "kind": "StringLiteral",
+          "text": "비슷한 다른 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-108",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 50,
+          "kind": "StringLiteral",
+          "text": "기하·구도 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 50,
+          "kind": "StringLiteral",
+          "text": "자세를 참고할 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-109",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 52,
+          "kind": "StringLiteral",
+          "text": "미실행"
+        }
+      ],
+      "after": [
+        {
+          "line": 52,
+          "kind": "StringLiteral",
+          "text": "진행하지 않았어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-110",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 53,
+          "kind": "StringLiteral",
+          "text": "검수 후보 준비"
+        }
+      ],
+      "after": [
+        {
+          "line": 53,
+          "kind": "StringLiteral",
+          "text": "새 포즈를 준비했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-111",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 54,
+          "kind": "StringLiteral",
+          "text": "오류"
+        }
+      ],
+      "after": [
+        {
+          "line": 54,
+          "kind": "StringLiteral",
+          "text": "새 포즈를 준비하지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-112",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 55,
+          "kind": "StringLiteral",
+          "text": "검증 탈락"
+        }
+      ],
+      "after": [
+        {
+          "line": 55,
+          "kind": "StringLiteral",
+          "text": "사용할 수 있는 포즈를 만들지 못했어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-113",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 56,
+          "kind": "StringLiteral",
+          "text": "시간 초과"
+        }
+      ],
+      "after": [
+        {
+          "line": 56,
+          "kind": "StringLiteral",
+          "text": "포즈를 만드는 데 시간이 너무 오래 걸렸어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-114",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 57,
+          "kind": "StringLiteral",
+          "text": "미지원"
+        }
+      ],
+      "after": [
+        {
+          "line": 57,
+          "kind": "StringLiteral",
+          "text": "이 장면에서는 새 포즈를 만들 수 없어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-115",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 58,
+          "kind": "StringLiteral",
+          "text": "정상 완료 · 후보 없음"
+        }
+      ],
+      "after": [
+        {
+          "line": 58,
+          "kind": "StringLiteral",
+          "text": "새로 만든 포즈가 없어요"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-116",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 105,
+          "kind": "JsxText",
+          "text": "의 반대손 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 105,
+          "kind": "JsxText",
+          "text": "의 좌우 반전 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-117",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 110,
+          "kind": "JsxText",
+          "text": "인물의"
+        }
+      ],
+      "after": [
+        {
+          "line": 110,
+          "kind": "JsxText",
+          "text": "러프에는"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-118",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 110,
+          "kind": "JsxText",
+          "text": "관측 ·"
+        }
+      ],
+      "after": [
+        {
+          "line": 110,
+          "kind": "JsxText",
+          "text": "이 보여요. 이 포즈는"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-119",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 111,
+          "kind": "JsxText",
+          "text": "자세 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 112,
+          "kind": "JsxText",
+          "text": "을 써요."
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-120",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 116,
+          "kind": "JsxText",
+          "text": "관측 조건과 다른 대안입니다. 보이지 않는 부위는 확인된 자세가 아닙니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 117,
+          "kind": "JsxText",
+          "text": "러프와 반대쪽 손을 쓰는 포즈예요. 가려진 부분은 러프와 다를 수 있어요."
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-121",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 127,
+          "kind": "LastTemplateToken",
+          "text": "직접 선택"
+        },
+        {
+          "line": 129,
+          "kind": "StringLiteral",
+          "text": "선택됨 · 저장 전 확인"
+        },
+        {
+          "line": 129,
+          "kind": "StringLiteral",
+          "text": "이 포즈 직접 선택"
+        },
+        {
+          "line": 133,
+          "kind": "JsxText",
+          "text": "미리보기 전용 · 저장할 파일이 확인되지 않았습니다."
+        },
+        {
+          "line": 138,
+          "kind": "JsxText",
+          "text": "자동 일치를 보장하지 않습니다. 저장 전 체형·손·출력 범위를 확인하세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 128,
+          "kind": "LastTemplateToken",
+          "text": "선택"
+        },
+        {
+          "line": 130,
+          "kind": "StringLiteral",
+          "text": "선택한 포즈"
+        },
+        {
+          "line": 130,
+          "kind": "StringLiteral",
+          "text": "이 포즈 선택"
+        },
+        {
+          "line": 134,
+          "kind": "JsxText",
+          "text": "이 포즈는 미리보기만 볼 수 있어요. 파일로 저장할 수는 없어요."
+        },
+        {
+          "line": 169,
+          "kind": "StringLiteral",
+          "text": "포즈 상태를 확인하지 못했어요"
+        },
+        {
+          "line": 174,
+          "kind": "StringLiteral",
+          "text": "검색을 모두 마치지는 못했어요. 아래 포즈를 러프와 비교해 골라 주세요."
+        },
+        {
+          "line": 175,
+          "kind": "StringLiteral",
+          "text": "검색을 마치지 못했어요. 잠시 후 다시 시도해 주세요."
+        },
+        {
+          "line": 177,
+          "kind": "StringLiteral",
+          "text": "다른 러프나 동작 설명으로 다시 찾아보세요."
+        },
+        {
+          "line": 178,
+          "kind": "StringLiteral",
+          "text": "러프에서 안 보이는 부분은 다를 수 있어요. 포즈를 직접 비교해 주세요."
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-122",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 192,
+          "kind": "StringLiteral",
+          "text": "지원하지 않는 표시 상태"
+        },
+        {
+          "line": 193,
+          "kind": "StringLiteral",
+          "text": "검색 상태 확인 필요"
+        },
+        {
+          "line": 195,
+          "kind": "JsxText",
+          "text": "검색 조건과 근거를 확인해 주세요."
+        },
+        {
+          "line": 196,
+          "kind": "JsxText",
+          "text": "생성:"
+        },
+        {
+          "line": 196,
+          "kind": "StringLiteral",
+          "text": "판정 보류"
+        },
+        {
+          "line": 197,
+          "kind": "JsxText",
+          "text": "기본 인체 출력 계획 · 아직 3D 파일이 제공되지 않았습니다."
+        },
+        {
+          "line": 199,
+          "kind": "JsxText",
+          "text": "보이지 않는 신체 부위에는 기본값이 포함되어 있습니다."
+        },
+        {
+          "line": 203,
+          "kind": "StringLiteral",
+          "text": "포즈를 직접 선택한 뒤 저장할 결과를 확인할 수 있습니다. 자동 검색의 일치 여부와 파일 저장은 별개입니다."
+        },
+        {
+          "line": 204,
+          "kind": "StringLiteral",
+          "text": "표시된 포즈는 참고 이미지입니다. 저장 가능한 파일을 확인하지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 205,
+          "kind": "JsxText",
+          "text": "새 포즈:"
+        },
+        {
+          "line": 205,
+          "kind": "StringLiteral",
+          "text": "이 장면의 자세를 확인하기 어려워요"
+        },
+        {
+          "line": 208,
+          "kind": "JsxText",
+          "text": "기본 자세를 안내하고 있어요. 아직 미리보거나 저장할 포즈 파일은 없어요."
+        },
+        {
+          "line": 211,
+          "kind": "JsxText",
+          "text": "러프에서 안 보이는 부분은 기본 자세로 보여드려요."
+        },
+        {
+          "line": 213,
+          "kind": "JsxText",
+          "text": "러프와 다른 부분이 있을 수 있어요. 저장하기 전에 결과를 확인해 주세요."
+        },
+        {
+          "line": 216,
+          "kind": "StringLiteral",
+          "text": "마음에 드는 포즈를 골라 주세요. 고른 체형과 손 모양을 확인한 뒤 저장할 수 있어요."
+        },
+        {
+          "line": 217,
+          "kind": "StringLiteral",
+          "text": "지금은 참고 이미지만 볼 수 있어요. 저장할 포즈 파일을 준비하지 못했어요."
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-123",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 208,
+          "kind": "JsxText",
+          "text": "개에 원본과 반대손 참고 한 쌍이 포함됩니다. 반대손은 관측한 손과 다른 참고 대안이며, 직접 선택해 확인할 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 221,
+          "kind": "JsxText",
+          "text": "개 중 원래 포즈와 좌우를 바꾼 포즈를 함께 볼 수 있어요. 러프와 비교해 더 마음에 드는 쪽을 골라 주세요."
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-124",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 215,
+          "kind": "JsxText",
+          "text": "검증된 반대손 참고 후보를 준비하지 못했습니다. 검색 후보는 그대로 확인할 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 226,
+          "kind": "JsxText",
+          "text": "좌우를 바꾼 포즈는 준비하지 못했어요. 아래의 다른 포즈를 골라 주세요."
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-125",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 218,
+          "kind": "JsxText",
+          "text": "일부 3D 미리보기를 확인하지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 229,
+          "kind": "JsxText",
+          "text": "일부 포즈 이미지를 불러오지 못했어요. 다른 포즈는 계속 볼 수 있어요."
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-126",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 223,
+          "kind": "StringLiteral",
+          "text": "반대손 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 235,
+          "kind": "StringLiteral",
+          "text": "좌우 반전 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-127",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 224,
+          "kind": "StringLiteral",
+          "text": "근접·기하·구도 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 236,
+          "kind": "StringLiteral",
+          "text": "비슷한 다른 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-128",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 225,
+          "kind": "StringLiteral",
+          "text": "생성 검수 후보"
+        }
+      ],
+      "after": [
+        {
+          "line": 237,
+          "kind": "StringLiteral",
+          "text": "새로 만든 참고 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-129",
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": [
+        {
+          "line": 238,
+          "kind": "StringLiteral",
+          "text": "반대손 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 250,
+          "kind": "StringLiteral",
+          "text": "좌우 반전 포즈"
+        }
+      ],
+      "reason": "검색·생성·선택·미러 상태를 쉬운 말로 설명하고, 저장 가능 여부는 그대로 유지."
+    },
+    {
+      "id": "COPY-130",
+      "file": "src/features/pose-viewer/hooks/useFramedReview.ts",
+      "before": [
+        {
+          "line": 315,
+          "kind": "StringLiteral",
+          "text": "선택한 범위와 체형으로 저장될 FBX입니다. 뼈대는 전신 구조를 유지합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 315,
+          "kind": "StringLiteral",
+          "text": "고른 체형과 손 모양으로 저장할 모습이에요. FBX에는 움직임을 위한 전신 뼈대가 함께 들어가요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-131",
+      "file": "src/features/pose-viewer/hooks/useFramedReview.ts",
+      "before": [
+        {
+          "line": 317,
+          "kind": "StringLiteral",
+          "text": "BVH는 전신 뼈대의 동작 파일입니다. 출력 범위는 FBX에 적용됩니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 317,
+          "kind": "StringLiteral",
+          "text": "BVH에는 전체 동작만 저장돼요. 고른 체형·손 모양과 잘라낼 범위는 FBX에만 적용돼요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-132",
+      "file": "src/features/pose-viewer/pages/PoseViewerPage.tsx",
+      "before": [
+        {
+          "line": 143,
+          "kind": "JsxText",
+          "text": "분석할 원본 이미지를 찾지 못했습니다. 다시 업로드해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 144,
+          "kind": "JsxText",
+          "text": "분석할 그림을 찾지 못했어요. 파일을 다시 올려 주세요."
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-133",
+      "file": "src/features/pose-viewer/pages/PoseViewerPage.tsx",
+      "before": [
+        {
+          "line": 205,
+          "kind": "JsxText",
+          "text": "검색 문장"
+        },
+        {
+          "line": 211,
+          "kind": "JsxText",
+          "text": "문장 바꿔 검색하기"
+        }
+      ],
+      "after": [],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-134",
+      "file": "src/features/pose-viewer/pages/PoseViewerPage.tsx",
+      "before": [
+        {
+          "line": 386,
+          "kind": "JsxText",
+          "text": "이 장면에는 사용할 수 있는 포즈 파일을 확인하지 못했습니다. 인물별 안내를 확인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 378,
+          "kind": "JsxText",
+          "text": "이 장면에서 저장할 수 있는 포즈를 찾지 못했어요. 다른 러프로 다시 시도해 주세요."
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-135",
+      "file": "src/features/pose-viewer/pages/PoseViewerPage.tsx",
+      "before": [
+        {
+          "line": 509,
+          "kind": "StringLiteral",
+          "text": "검수용 3D 미리보기"
+        }
+      ],
+      "after": [
+        {
+          "line": 501,
+          "kind": "StringLiteral",
+          "text": "참고용 미리보기"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-136",
+      "file": "src/features/pose-viewer/pages/PoseViewerPage.tsx",
+      "before": [
+        {
+          "line": 652,
+          "kind": "JsxText",
+          "text": "검수용 3D"
+        }
+      ],
+      "after": [
+        {
+          "line": 644,
+          "kind": "JsxText",
+          "text": "참고용 포즈"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-137",
+      "file": "src/features/pose-viewer/pages/PoseViewerPage.tsx",
+      "before": [
+        {
+          "line": 675,
+          "kind": "StringLiteral",
+          "text": "표시용 결과 펼치기"
+        }
+      ],
+      "after": [
+        {
+          "line": 667,
+          "kind": "StringLiteral",
+          "text": "참고 포즈 펼치기"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-138",
+      "file": "src/features/pose-viewer/pages/ReviewPage.tsx",
+      "before": [
+        {
+          "line": 64,
+          "kind": "LastTemplateToken",
+          "text": "의 원본 BVH 포즈 참고"
+        }
+      ],
+      "after": [
+        {
+          "line": 64,
+          "kind": "LastTemplateToken",
+          "text": "의 동작 미리보기"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-139",
+      "file": "src/features/pose-viewer/pages/ReviewPage.tsx",
+      "before": [
+        {
+          "line": 84,
+          "kind": "JsxText",
+          "text": "직접 선택한 포즈 · 러프에 맞춘 자동 보정 없음"
+        }
+      ],
+      "after": [
+        {
+          "line": 84,
+          "kind": "JsxText",
+          "text": "고른 포즈예요 · 러프에 맞춘 자동 조정은 하지 않아요"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-140",
+      "file": "src/features/pose-viewer/pages/ReviewPage.tsx",
+      "before": [
+        {
+          "line": 89,
+          "kind": "JsxText",
+          "text": "포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장"
+        }
+      ],
+      "after": [
+        {
+          "line": 89,
+          "kind": "JsxText",
+          "text": "포즈만 확인하는 모습이에요. BVH에는 체형·손 모양 없이 전체 동작이 저장돼요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-141",
+      "file": "src/features/pose-viewer/pages/ReviewPage.tsx",
+      "before": [
+        {
+          "line": 114,
+          "kind": "StringLiteral",
+          "text": "조절한 체형을 실제 포즈에 반영하는 중… 1~2분 걸릴 수 있어요."
+        }
+      ],
+      "after": [
+        {
+          "line": 114,
+          "kind": "StringLiteral",
+          "text": "고른 체형과 손 모양으로 저장할 모습을 만들고 있어요. 1~2분 걸릴 수 있어요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-142",
+      "file": "src/features/pose-viewer/pages/ReviewPage.tsx",
+      "before": [
+        {
+          "line": 115,
+          "kind": "StringLiteral",
+          "text": "선택한 범위의 미리보기를 만드는 중…"
+        }
+      ],
+      "after": [
+        {
+          "line": 115,
+          "kind": "StringLiteral",
+          "text": "저장할 모습을 준비하고 있어요…"
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-143",
+      "file": "src/features/pose-viewer/pages/ReviewPage.tsx",
+      "before": [
+        {
+          "line": 120,
+          "kind": "JsxText",
+          "text": "미리보기를 만들지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 120,
+          "kind": "JsxText",
+          "text": "저장할 모습을 불러오지 못했어요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-144",
+      "file": "src/features/semantic-search/SearchPage.tsx",
+      "before": [
+        {
+          "line": 207,
+          "kind": "JsxText",
+          "text": "검색 후보와 근접 참고 후보를 구분해 3D로 확인할 수 있습니다. 신규 후보는 검수용이며 자동 적용·보정·내보내기를 지원하지 않습니다. 검색어는 결과가 있는 작업과 함께 작업 기록에 보관됩니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 135,
+          "kind": "JsxText",
+          "text": "마음에 드는 포즈를 골라 비교해 보세요. 저장할 수 있는 포즈는 최종 모습을 확인한 뒤 파일로 저장할 수 있어요. 일부 포즈는 참고용으로만 볼 수 있어요. 결과가 있는 검색은 작업 기록에 남아요."
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-145",
+      "file": "src/features/semantic-search/SemanticModelPresentation.tsx",
+      "before": [
+        {
+          "line": 35,
+          "kind": "JsxText",
+          "text": "체형 모델을 표시하지 못했습니다. 미리보기를 다시 불러와 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 34,
+          "kind": "JsxText",
+          "text": "체형을 보여드리지 못했어요. 미리보기를 다시 불러와 주세요."
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-146",
+      "file": "src/features/semantic-search/SemanticModelPresentation.tsx",
+      "before": [
+        {
+          "line": 133,
+          "kind": "JsxText",
+          "text": "정면 참고 · 검수용 · 보정·저장 불가"
+        }
+      ],
+      "after": [
+        {
+          "line": 131,
+          "kind": "JsxText",
+          "text": "체형을 비교하는 정면 미리보기예요"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-147",
+      "file": "src/features/semantic-search/SemanticModelPresentation.tsx",
+      "before": [
+        {
+          "line": 149,
+          "kind": "StringLiteral",
+          "text": "선택한 체형과 출력 범위를 적용한 단일 포즈"
+        }
+      ],
+      "after": [
+        {
+          "line": 147,
+          "kind": "StringLiteral",
+          "text": "고른 체형으로 본 포즈"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-148",
+      "file": "src/features/semantic-search/SemanticModelPresentation.tsx",
+      "before": [
+        {
+          "line": 178,
+          "kind": "JsxText",
+          "text": "·기본 손의 참고 모델입니다. 자동 적용·refine·내보내기는 지원하지 않습니다. 손 선택 결과는 아래 손 적용 참고 렌더에서 확인하세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 176,
+          "kind": "JsxText",
+          "text": "에 기본 손 모양을 적용한 참고 모습이에요. 이 이미지는 저장할 최종 모습과 다를 수 있어요. 고른 손 모양은 아래 ‘손 적용 미리보기’에서 확인해 주세요."
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-149",
+      "file": "src/features/settings/components/ExportFormatSection.tsx",
+      "before": [
+        {
+          "line": 18,
+          "kind": "StringLiteral",
+          "text": "리깅된 3D 소재로 저장합니다. 클립스튜디오 3D 소재로 바로 등록할 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 18,
+          "kind": "StringLiteral",
+          "text": "고른 체형과 손 모양을 담은 3D 파일이에요. 클립스튜디오에서 열 수 있어요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-150",
+      "file": "src/features/settings/components/ExportFormatSection.tsx",
+      "before": [
+        {
+          "line": 23,
+          "kind": "StringLiteral",
+          "text": "모션 데이터만 저장합니다. 클립스튜디오 3.1.0 이상에서만 열 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 23,
+          "kind": "StringLiteral",
+          "text": "체형과 손 모양 없이 전체 동작만 저장해요. 클립스튜디오 3.1.0 이상에서 열 수 있어요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-151",
+      "file": "src/features/settings/components/ExportFormatSection.tsx",
+      "before": [
+        {
+          "line": 74,
+          "kind": "JsxText",
+          "text": "FBX를 아직 제공하지 않는 서버에 연결되면 BVH로 저장되고, 저장 화면에서 알려 드립니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 74,
+          "kind": "JsxText",
+          "text": "FBX로 저장할 수 없는 경우에는 BVH로 저장하고 알려드려요."
+        }
+      ],
+      "reason": "저장할 모습·파일 종류·체형 및 손 반영 여부·문제 해결 방법을 안내. 저장 동작과 권한 유지."
+    },
+    {
+      "id": "COPY-152",
+      "file": "src/features/settings/components/ShortcutSettingsSection.tsx",
+      "before": [
+        {
+          "line": 40,
+          "kind": "JsxText",
+          "text": "전역 단축키는 다른 프로그램을 쓰는 중에도 동작합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 40,
+          "kind": "JsxText",
+          "text": "다른 프로그램을 쓰는 중에도 캡처 바를 여는 단축키를 쓸 수 있어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-153",
+      "file": "src/features/settings/components/ShortcutSettingsSection.tsx",
+      "before": [
+        {
+          "line": 161,
+          "kind": "JsxText",
+          "text": "데스크톱 앱에서만 사용할 수 있습니다. (브라우저 개발 모드)"
+        }
+      ],
+      "after": [
+        {
+          "line": 159,
+          "kind": "JsxText",
+          "text": "설치한 앱에서 사용할 수 있어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-154",
+      "file": "src/features/settings/components/ShortcutSettingsSection.tsx",
+      "before": [
+        {
+          "line": 171,
+          "kind": "StringLiteral",
+          "text": "전역 단축키를 등록하지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 167,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-155",
+      "file": "src/features/settings/pages/SettingsPage.tsx",
+      "before": [
+        {
+          "line": 51,
+          "kind": "JsxText",
+          "text": "설치 ID"
+        }
+      ],
+      "after": [
+        {
+          "line": 51,
+          "kind": "JsxText",
+          "text": "문의용 기기 번호"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-156",
+      "file": "src/features/tour/lib/tourSteps.ts",
+      "before": [
+        {
+          "line": 32,
+          "kind": "StringLiteral",
+          "text": "홈에서 장면을 넣고, 모델에서 저장할 체형을 고르고, 설정에서 저장 폴더와 단축키를 바꿉니다. 이 튜토리얼도 설정에서 다시 볼 수 있어요."
+        }
+      ],
+      "after": [
+        {
+          "line": 32,
+          "kind": "StringLiteral",
+          "text": "홈에서 러프를 넣고, 체형 커스텀에서 자주 쓰는 체형을 만들 수 있어요. 설정에서는 저장 폴더와 단축키를 바꾸고 이 사용법을 다시 볼 수 있어요."
+        }
+      ],
+      "reason": "현재 저장 흐름에 맞게 둘러보기 안내를 수정."
+    },
+    {
+      "id": "COPY-157",
+      "file": "src/features/tour/lib/tourSteps.ts",
+      "before": [
+        {
+          "line": 91,
+          "kind": "StringLiteral",
+          "text": "앱이 자동으로 정하지 않습니다. 인물마다 후보를 직접 골라 주세요. 고른 뒤에도 보정이 필요할 수 있습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 91,
+          "kind": "StringLiteral",
+          "text": "인물마다 마음에 드는 포즈를 하나씩 골라 주세요. 러프와 다른 부분이 있을 수 있으니 비교해 보세요."
+        }
+      ],
+      "reason": "현재 저장 흐름에 맞게 둘러보기 안내를 수정."
+    },
+    {
+      "id": "COPY-158",
+      "file": "src/features/tour/lib/tourSteps.ts",
+      "before": [
+        {
+          "line": 125,
+          "kind": "StringLiteral",
+          "text": "저장 버튼은 없습니다"
+        }
+      ],
+      "after": [
+        {
+          "line": 125,
+          "kind": "StringLiteral",
+          "text": "파일이 저장됐어요"
+        }
+      ],
+      "reason": "현재 저장 흐름에 맞게 둘러보기 안내를 수정."
+    },
+    {
+      "id": "COPY-159",
+      "file": "src/features/tour/lib/tourSteps.ts",
+      "before": [
+        {
+          "line": 126,
+          "kind": "StringLiteral",
+          "text": "이 화면에 들어온 순간 설정한 폴더에 이미 저장됐습니다. 이 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다. 끌어놓은 뒤에는 반영됐는지 확인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 126,
+          "kind": "StringLiteral",
+          "text": "설정한 폴더에 포즈 파일을 저장했어요. 클립스튜디오 캔버스로 파일을 끌어놓은 뒤 포즈가 잘 들어갔는지 확인해 주세요."
+        }
+      ],
+      "reason": "현재 저장 흐름에 맞게 둘러보기 안내를 수정."
+    },
+    {
+      "id": "COPY-160",
+      "file": "src/features/updates/components/AppUpdateSection.tsx",
+      "before": [
+        {
+          "line": 32,
+          "kind": "StringLiteral",
+          "text": "업데이트를 설치하지 못했습니다. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "after": [],
+      "reason": "업데이트의 내부 오류 대신 원인과 다음 행동을 안내. 원문 경로·호스트 숨김."
+    },
+    {
+      "id": "COPY-161",
+      "file": "src/features/updates/components/AppUpdateSection.tsx",
+      "before": [
+        {
+          "line": 94,
+          "kind": "JsxText",
+          "text": "이 빌드는 자동 업데이트를 사용하지 않습니다. 새 버전은 직접 내려받아 설치해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 93,
+          "kind": "JsxText",
+          "text": "이 버전은 자동으로 업데이트되지 않아요. 새 설치 파일을 내려받아 설치해 주세요."
+        }
+      ],
+      "reason": "업데이트의 내부 오류 대신 원인과 다음 행동을 안내. 원문 경로·호스트 숨김."
+    },
+    {
+      "id": "COPY-162",
+      "file": "src/features/updates/lib/updateFailure.ts",
+      "before": [],
+      "after": [
+        {
+          "line": 39,
+          "kind": "StringLiteral",
+          "text": "업데이트 파일을 확인하지 못했어요. 새 설치 파일을 내려받아 설치해 주세요."
+        },
+        {
+          "line": 41,
+          "kind": "StringLiteral",
+          "text": "업데이트에 연결하지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요."
+        },
+        {
+          "line": 44,
+          "kind": "StringLiteral",
+          "text": "새 버전 정보를 불러오지 못했어요. 잠시 후 다시 확인해 주세요."
+        },
+        {
+          "line": 45,
+          "kind": "StringLiteral",
+          "text": "업데이트를 설치하지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "reason": "업데이트의 내부 오류 대신 원인과 다음 행동을 안내. 원문 경로·호스트 숨김."
+    },
+    {
+      "id": "COPY-163",
+      "file": "src/features/updates/store/updateStore.ts",
+      "before": [
+        {
+          "line": 45,
+          "kind": "StringLiteral",
+          "text": "업데이트를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "after": [],
+      "reason": "업데이트의 내부 오류 대신 원인과 다음 행동을 안내. 원문 경로·호스트 숨김."
+    },
+    {
+      "id": "COPY-164",
+      "file": "src/shared/api/analysisJobFailure.ts",
+      "before": [
+        {
+          "line": 23,
+          "kind": "StringLiteral",
+          "text": "AI 분석 요청 한도에 일시적으로 도달했습니다. 잠시 기다린 뒤 다시 시도해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 23,
+          "kind": "StringLiteral",
+          "text": "잠시 사용할 수 있는 분석 횟수를 모두 썼어요. 조금 뒤에 다시 시도해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-165",
+      "file": "src/shared/api/analysisJobFailure.ts",
+      "before": [
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "AI 제공 서비스의 일일 사용 한도가 소진되어 지금은 분석할 수 없습니다. 한도 복구 또는 운영자 확인이 필요합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 28,
+          "kind": "StringLiteral",
+          "text": "오늘 사용할 수 있는 분석 횟수를 모두 썼어요. 지금은 새 분석을 할 수 없어요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-166",
+      "file": "src/shared/api/analysisJobFailure.ts",
+      "before": [
+        {
+          "line": 34,
+          "kind": "StringLiteral",
+          "text": "AI 분석 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 33,
+          "kind": "StringLiteral",
+          "text": "분석에 시간이 너무 오래 걸렸어요. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-167",
+      "file": "src/shared/api/analysisJobFailure.ts",
+      "before": [
+        {
+          "line": 39,
+          "kind": "StringLiteral",
+          "text": "AI 제공 서비스에 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 38,
+          "kind": "StringLiteral",
+          "text": "분석 중 잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-168",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 12,
+          "kind": "StringLiteral",
+          "text": "손 적용 서비스를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 12,
+          "kind": "StringLiteral",
+          "text": "손 모양을 적용하지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-169",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 17,
+          "kind": "StringLiteral",
+          "text": "저장 전 확인 화면에서 직접 선택한 포즈의 최종 결과를 확인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 17,
+          "kind": "StringLiteral",
+          "text": "저장 전 확인 화면에서 고른 포즈의 최종 결과를 확인해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-170",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "세션이 만료되었습니다. 다시 로그인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 29,
+          "kind": "StringLiteral",
+          "text": "로그인이 풀렸어요. 다시 로그인해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-171",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 30,
+          "kind": "StringLiteral",
+          "text": "세션이 만료되었습니다. 다시 로그인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 30,
+          "kind": "StringLiteral",
+          "text": "로그인이 풀렸어요. 다시 로그인해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-172",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 52,
+          "kind": "StringLiteral",
+          "text": "체형 또는 포즈가 변경되었습니다. 확인 화면에서 결과를 다시 확인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 52,
+          "kind": "StringLiteral",
+          "text": "체형이나 포즈가 바뀌었어요. 저장 전 화면에서 다시 확인해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-173",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 58,
+          "kind": "StringLiteral",
+          "text": "이 작업은 체형 미리보기를 지원하지 않습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 58,
+          "kind": "StringLiteral",
+          "text": "이 작업에서는 체형을 바꾼 모습을 미리 볼 수 없어요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-174",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 64,
+          "kind": "StringLiteral",
+          "text": "출력 범위가 바뀌었습니다. 후보 화면에서 다시 확인해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 64,
+          "kind": "StringLiteral",
+          "text": "저장할 부분이 바뀌었어요. 후보 화면에서 다시 확인해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-175",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 68,
+          "kind": "StringLiteral",
+          "text": "지금은 FBX 변환 서버를 사용할 수 없습니다. 잠시 후 다시 시도하거나 BVH로 저장해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 68,
+          "kind": "StringLiteral",
+          "text": "지금은 FBX 파일을 만들 수 없어요. 잠시 후 다시 시도하거나 BVH로 저장해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-176",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 72,
+          "kind": "StringLiteral",
+          "text": "변환 결과를 검증하지 못했습니다. 문제가 계속되면 문의해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 73,
+          "kind": "StringLiteral",
+          "text": "선택한 포즈와 저장 파일이 같은지 확인하지 못했어요. 다른 포즈를 골라 보거나, 문제가 계속되면 문의해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-177",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 75,
+          "kind": "StringLiteral",
+          "text": "지원하지 않는 모델입니다. 모델 화면에서 다시 골라 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 76,
+          "kind": "StringLiteral",
+          "text": "이 체형은 사용할 수 없어요. 체형 화면에서 다른 체형을 골라 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-178",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 77,
+          "kind": "StringLiteral",
+          "text": "선택한 모델을 지금은 사용할 수 없습니다. 다른 모델을 고르거나 기본 모델로 저장해 주세요."
+        }
+      ],
+      "after": [
+        {
+          "line": 78,
+          "kind": "StringLiteral",
+          "text": "고른 체형을 지금은 사용할 수 없어요. 다른 체형을 고르거나 기본 체형으로 저장해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-179",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 81,
+          "kind": "StringLiteral",
+          "text": "아직 결과가 준비되지 않은 작업입니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 82,
+          "kind": "StringLiteral",
+          "text": "아직 분석 중이에요. 결과가 나올 때까지 잠시 기다려 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-180",
+      "file": "src/shared/api/errorMessages.ts",
+      "before": [
+        {
+          "line": 84,
+          "kind": "StringLiteral",
+          "text": "요청한 정보를 찾을 수 없습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 85,
+          "kind": "StringLiteral",
+          "text": "찾는 정보가 없어요. 이전 화면으로 돌아가 다시 선택해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-181",
+      "file": "src/shared/api/errors.ts",
+      "before": [
+        {
+          "line": 56,
+          "kind": "StringLiteral",
+          "text": "서버에 연결할 수 없습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 57,
+          "kind": "StringLiteral",
+          "text": "연결이 끊겼어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요."
+        }
+      ],
+      "reason": "오류 코드·서버 구현 용어를 사용자 영향과 다음 행동으로 풀어 설명."
+    },
+    {
+      "id": "COPY-182",
+      "file": "src/shared/components/AppShell.tsx",
+      "before": [
+        {
+          "line": 109,
+          "kind": "JsxText",
+          "text": "MOCK 모드"
+        }
+      ],
+      "after": [
+        {
+          "line": 109,
+          "kind": "JsxText",
+          "text": "체험 모드 · 실제 분석 아님"
+        }
+      ],
+      "reason": "화면에서 사용자가 이해하고 행동할 수 있는 표현으로 변경."
+    },
+    {
+      "id": "COPY-183",
+      "file": "src/shared/components/GlobalShortcutAlert.tsx",
+      "before": [
+        {
+          "line": 21,
+          "kind": "StringLiteral",
+          "text": "지금은 Standin 창이 활성일 때만 이 키가 동작합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 21,
+          "kind": "StringLiteral",
+          "text": "지금은 Standin 창을 선택한 상태에서만 이 키를 쓸 수 있어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-184",
+      "file": "src/shared/components/GlobalShortcutAlert.tsx",
+      "before": [
+        {
+          "line": 31,
+          "kind": "StringLiteral",
+          "text": "전역 단축키를 등록하지 못했습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 31,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램에서 쓸 캡처 단축키를 설정하지 못했어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-185",
+      "file": "src/shared/components/GlobalShortcutAlert.tsx",
+      "before": [
+        {
+          "line": 52,
+          "kind": "JsxText",
+          "text": "전역 단축키가 등록되지 않았습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 53,
+          "kind": "JsxText",
+          "text": "다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-186",
+      "file": "src/shared/components/GlobalShortcutAlert.tsx",
+      "before": [
+        {
+          "line": 85,
+          "kind": "TemplateHead",
+          "text": "전역 단축키가 등록되지 않았습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 87,
+          "kind": "TemplateHead",
+          "text": "다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-187",
+      "file": "src/shared/components/GlobalShortcutAlert.tsx",
+      "before": [
+        {
+          "line": 86,
+          "kind": "TemplateHead",
+          "text": "전역 단축키가 등록되지 않았습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 88,
+          "kind": "TemplateHead",
+          "text": "다른 프로그램에서 쓸 캡처 단축키가 설정되지 않았어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-188",
+      "file": "src/shared/components/ShortcutCheatSheet.tsx",
+      "before": [
+        {
+          "line": 80,
+          "kind": "StringLiteral",
+          "text": "브라우저 개발 모드에서는 사용할 수 없습니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 80,
+          "kind": "StringLiteral",
+          "text": "설치한 앱에서 사용할 수 있어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-189",
+      "file": "src/shared/components/ShortcutCheatSheet.tsx",
+      "before": [
+        {
+          "line": 81,
+          "kind": "StringLiteral",
+          "text": "전역 등록 전이라 앱이 활성일 때만 동작합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 81,
+          "kind": "StringLiteral",
+          "text": "지금은 Standin 창을 선택한 상태에서만 쓸 수 있어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-190",
+      "file": "src/shared/lib/shortcutConflicts.ts",
+      "before": [
+        {
+          "line": 93,
+          "kind": "StringLiteral",
+          "text": "전역 단축키는 Ctrl·Alt·⌘ 중 하나를 포함해야 합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 93,
+          "kind": "StringLiteral",
+          "text": "캡처 단축키에 Ctrl·Alt·⌘ 중 하나를 함께 눌러 주세요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-191",
+      "file": "src/shared/lib/shortcutRegistry.ts",
+      "before": [
+        {
+          "line": 19,
+          "kind": "StringLiteral",
+          "text": "앱이 백그라운드여도 바가 화면 위에 뜹니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 19,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램을 쓰는 중에도 캡처 바를 열어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-192",
+      "file": "src/shared/lib/shortcutRegistry.ts",
+      "before": [
+        {
+          "line": 33,
+          "kind": "StringLiteral",
+          "text": "전역 등록에 실패했거나 브라우저 개발 모드일 때만 동작합니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 33,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램에서 캡처 단축키를 쓸 수 없을 때, Standin 안에서 대신 사용할 수 있어요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-193",
+      "file": "src/shared/lib/shortcutRegistry.ts",
+      "before": [
+        {
+          "line": 117,
+          "kind": "StringLiteral",
+          "text": "저장에 실패했을 때만 동작합니다. 저장은 후보를 고르면 자동으로 시작됩니다."
+        }
+      ],
+      "after": [
+        {
+          "line": 117,
+          "kind": "StringLiteral",
+          "text": "저장에 실패했을 때 다시 시도해요. 저장 전 확인 화면에서 ‘이 포즈로 저장’을 누르면 파일이 저장돼요."
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-194",
+      "file": "src/shared/lib/shortcutRegistry.ts",
+      "before": [
+        {
+          "line": 166,
+          "kind": "StringLiteral",
+          "text": "전역"
+        }
+      ],
+      "after": [
+        {
+          "line": 166,
+          "kind": "StringLiteral",
+          "text": "다른 프로그램에서도"
+        }
+      ],
+      "reason": "전역·개발 환경 용어를 풀고, 캡처 단축키의 사용 조건과 다음 행동을 안내."
+    },
+    {
+      "id": "COPY-195",
+      "file": "src/features/semantic-search/SemanticSearchBar.tsx",
+      "before": [],
+      "after": [
+        {
+          "line": 22,
+          "kind": "StringLiteral",
+          "text": "포즈 검색"
+        },
+        {
+          "line": 24,
+          "kind": "JsxText",
+          "text": "어떤 포즈를 찾으세요?"
+        },
+        {
+          "line": 28,
+          "kind": "StringLiteral",
+          "text": "포즈 다시 찾기"
+        },
+        {
+          "line": 44,
+          "kind": "StringLiteral",
+          "text": "예: 두 팔을 머리 위로 올린 자세"
+        },
+        {
+          "line": 63,
+          "kind": "StringLiteral",
+          "text": "찾는 중…"
+        },
+        {
+          "line": 63,
+          "kind": "StringLiteral",
+          "text": "다시 검색"
+        },
+        {
+          "line": 67,
+          "kind": "JsxText",
+          "text": "검색어를 바꾸고 Enter를 누르거나 다시 검색을 눌러 주세요."
+        },
+        {
+          "line": 71,
+          "kind": "JsxText",
+          "text": "새 포즈를 찾고 있어요. 아래는 이전 검색 결과예요."
+        },
+        {
+          "line": 75,
+          "kind": "JsxText",
+          "text": "새 검색어에 맞는 포즈가 없어요. 아래는 이전 검색 결과예요. 다른 동작으로 다시 찾아보세요."
+        },
+        {
+          "line": 78,
+          "kind": "JsxText",
+          "text": "아래는 이전 검색 결과예요."
+        },
+        {
+          "line": 82,
+          "kind": "JsxText",
+          "text": "검색을 준비하고 있어요…"
+        },
+        {
+          "line": 87,
+          "kind": "JsxText",
+          "text": "지금은 문장 검색을 사용할 수 없어요. 잠시 후 다시 시도해 주세요."
+        },
+        {
+          "line": 89,
+          "kind": "JsxText",
+          "text": "다시 확인"
+        },
+        {
+          "line": 95,
+          "kind": "StringLiteral",
+          "text": "검색하지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+      ],
+      "reason": "결과 화면에서 문장을 바로 고쳐 검색하고, 이전 결과·로딩·실패를 구분하도록 추가."
+    }
+  ],
+  "followUpChanges": [
+    {
+      "file": "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+      "before": "검색 상태·주의사항·선택 안내를 후보 위 회색 상자에 표시",
+      "after": "회색 안내 상자 전체 제거. 전체 화면 및 플로팅 바 공통 적용",
+      "reason": "사용자 요청: 도움이 되지 않는 반복 안내 및 해당 영역 제거"
+    },
+    {
+      "files": [
+        "src/features/bar/components/CompactPoseLayout.tsx",
+        "src/features/bar/components/compactPoseLayout.css",
+        "src/features/pose-viewer/components/PosePresentationPanel.tsx",
+        "src/features/body-selection/BodyCandidates.tsx"
+      ],
+      "before": "플로팅 바 사진 확대 모달 및 후보별 체형 상세 모달 버튼 제공. 참고 후보 사진에 선택 동작 없음",
+      "after": "확대 모달과 상세 모달 진입 버튼 제거. 사진 클릭을 기존 선택 콜백·선택 상태·비활성 조건에 연결",
+      "reason": "사용자 요청: 모든 Top-5 사진 클릭 시 확대 대신 포즈 선택"
+    },
+    {
+      "files": [
+        "src/features/pose-viewer/pages/PoseViewerPage.tsx",
+        "src/features/bar/pages/BarCandidatesPage.tsx",
+        "src/features/hand-selection/HandLibraryPage.tsx"
+      ],
+      "before": "Top-5와 저장 전 확인 양쪽에서 손 선택·참고 미리보기 제공",
+      "after": "Top-5 손 라이브러리 진입 5곳 제거. 포즈 선택 후 저장 전 확인 화면에서 손 선택. 별도 손 라이브러리 목록 안내 수정",
+      "reason": "사용자 요청: 포즈를 먼저 선택하고 이후 단계에서만 손 선택"
+    },
+    {
+      "files": [
+        "src-tauri/Cargo.toml",
+        "src-tauri/tauri.conf.json",
+        "src-tauri/src/commands/window_mode.rs",
+        "src-tauri/src/lib.rs",
+        "src/app/styles/index.css",
+        "src/features/bar/pages/BarCollapsedPage.tsx",
+        "src/features/bar/hooks/useDragOrClick.ts",
+        "src/features/bar/components/WindowModeSync.tsx",
+        "src/features/bar/api/windowMode.contract.ts"
+      ],
+      "before": "macOS 전용 투명 창 기능 누락. 접힌 원에 우클릭 닫기 메뉴 없음",
+      "after": "macOS 투명 창 기능 활성화 및 HTML/body/root 투명 배경. 네이티브 우클릭 메뉴의 닫기 추가. Control-클릭·메뉴 키 지원",
+      "reason": "사용자 요청: 접힌 바의 흰 사각형 제거 및 우클릭 닫기",
+      "verification": "838 tests passed, 1 existing skip; typecheck/lint/web build/macOS cargo check passed; installed native visual/menu E2E not run"
+    },
+    {
+      "file": "src/features/semantic-search/useSemanticSearch.ts 및 공통 결과 화면",
+      "before": "인라인검색은서버Top-K10/20요청,Enter또는버튼실행",
+      "after": "develop#110의null전체결과·300ms자동/Enter·취소/늦은응답차단·입력포커스·20개연속표시·저장PNG지연로딩을보존하면서사진선택/저장전손선택UI와통합",
+      "reason": "동일검색창·결과화면의충돌해소에서이미병합된전체검색기능을잃지않도록통합"
+    }
+  ]
+}

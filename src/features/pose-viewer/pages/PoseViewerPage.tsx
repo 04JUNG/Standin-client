@@ -1,6 +1,5 @@
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { PosePresentationPanel } from "../components/PosePresentationPanel";
-import { ReferenceHands } from "@/features/hand-selection/ReferenceHands";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
   BodyCandidateCards,
@@ -141,7 +140,7 @@ export function PoseViewerPage() {
     return (
       <AppShell title="포즈 후보">
         <div className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary">
-          <p>분석할 원본 이미지를 찾지 못했습니다. 다시 업로드해 주세요.</p>
+          <p>분석할 그림을 찾지 못했어요. 파일을 다시 올려 주세요.</p>
           <Button variant="secondary" onClick={() => navigate("/app/home")}>
             홈으로 돌아가기
           </Button>
@@ -224,7 +223,6 @@ export function PoseViewerPage() {
               ) : (
                 <PersonFallbackNotice person={person} />
               )}
-              <ReferenceHands result={data} personIndex={person.index} />
             </div>
           ))}
           <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border bg-surface-0 p-3">
@@ -342,8 +340,6 @@ export function PoseViewerPage() {
           />
         )}
 
-        {active?.posePresentation && <ReferenceHands result={data} personIndex={active.index} />}
-
         {people.length > 1 && (
           <div className="rounded-xl border border-border bg-surface-0 px-4 py-1.5">
             {expanded ? (
@@ -376,8 +372,8 @@ export function PoseViewerPage() {
 
         {failedPeople.length > 0 && selectablePeople.length === 0 && (
           <p className="flex items-center gap-2 text-[13px] text-brand-coral">
-            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />이 장면에는 사용할 수 있는
-            포즈 파일을 확인하지 못했습니다. 인물별 안내를 확인해 주세요.
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />이 장면에서 저장할 수 있는
+            포즈를 찾지 못했어요. 다른 러프로 다시 시도해 주세요.
           </p>
         )}
 
@@ -499,7 +495,7 @@ function ActivePersonCard({
         <div className="flex items-center gap-2">
           <span className="text-[12px] text-text-secondary">
             {person.posePresentation && person.candidates.length === 0
-              ? "검수용 3D 미리보기"
+              ? "참고용 미리보기"
               : hard
                 ? "후보 없음"
                 : !included
@@ -642,7 +638,7 @@ function OtherPersonRow({
       )}
     >
       {person.posePresentation && person.candidates.length === 0 ? (
-        <span className="text-xs">검수용 3D</span>
+        <span className="text-xs">참고용 포즈</span>
       ) : hard ? (
         <span className="text-[11.5px] text-text-secondary">후보 없음</span>
       ) : (
@@ -665,7 +661,7 @@ function OtherPersonRow({
       </div>
       <span className="truncate text-[12px] text-text-secondary">
         {person.posePresentation && person.candidates.length === 0
-          ? "표시용 결과 펼치기"
+          ? "참고 포즈 펼치기"
           : hard
             ? "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
             : !included

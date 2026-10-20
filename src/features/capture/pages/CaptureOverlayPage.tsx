@@ -134,7 +134,7 @@ export function CaptureOverlayPage() {
     >
       <img
         src={frame.dataUrl}
-        alt="화면 캡처 프레임"
+        alt="캡처할 화면"
         draggable={false}
         className="pointer-events-none h-full w-full object-fill"
       />
