@@ -2,6 +2,7 @@ import { ApiError } from "./errors";
 import { messageForCode } from "./errorMessages";
 
 const CHOOSE = new Set([
+  "GENERATED_CHECKS_FAILED",
   "GENERATED_SOURCE_UNAVAILABLE",
   "PREVIEW_UNAVAILABLE",
   "PREVIEW_SOURCE_CHANGED",

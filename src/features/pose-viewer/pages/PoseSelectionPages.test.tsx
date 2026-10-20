@@ -201,6 +201,8 @@ it.each([
   ["bar", "near_match", false],
   ["app", "generated_review", false],
   ["bar", "generated_review", false],
+  ["app", "generated_mixed", false],
+  ["bar", "generated_mixed", false],
   ["app", "mirror_reference", false],
   ["bar", "mirror_reference", false],
   ["app", "library_match", true],
@@ -276,19 +278,30 @@ it.each([
         },
       ],
     } as AnalysisResult;
-    if (kind === "generated_review") {
+    const mixed = kind === "generated_mixed";
+    const libraryPerson = structuredClone(data.people[0]);
+    if (kind === "generated_review" || mixed) {
       const p = data.people[0],
         c = p.candidates[0];
+      c.presentationKind = "generated_review";
       c.source = "generation";
       c.poseId = null;
       presentation.generated_candidates = presentation.review_candidates;
       presentation.review_candidates = [];
       const row = presentation.generated_candidates[0];
+      row.kind = "generated_review";
       row.source = "generation";
       row.pose_id = null;
       row.asset.transport = "inline_bvh";
       presentation.generation_status = "preview_ready";
       presentation.search_status = "no_result";
+    }
+    if (mixed) {
+      libraryPerson.index = 1;
+      libraryPerson.candidates[0].presentationKind = "near_match";
+      libraryPerson.posePresentation!.person_index = 1;
+      libraryPerson.posePresentation!.review_candidates[0].kind = "near_match";
+      data.people.push(libraryPerson);
     }
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     client.setQueryData(poseQueryKeys.result("click-test"), data);
@@ -310,7 +323,7 @@ it.each([
     expect(screen.queryByTestId("candidate-hand-library")).toBeNull();
     expect(screen.queryByText(/이 장면에는 사용할 수 있는/)).toBeNull();
     expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
-    if (kind === "generated_review") {
+    if (kind === "generated_review" || mixed) {
       fireEvent.click(screen.getByRole("button", { name: /새로 만든 포즈 확대/ }));
       expect(screen.getByRole("dialog")).toBeTruthy();
       expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBeUndefined();
@@ -322,10 +335,16 @@ it.each([
     expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBe(id);
     expect(pick).toHaveAttribute("aria-pressed", "true");
     expect(getManifest).not.toHaveBeenCalled();
+    if (mixed) {
+      fireEvent.click(screen.getByRole("button", { name: /다음 인물로/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /1번 .* 이미지로 선택/ }));
+      expect(usePoseSelectionStore.getState().selectedByPerson).toMatchObject({ 0: id, 1: id });
+    }
     fireEvent.click(screen.getByRole("button", { name: /이 포즈 사용/ }));
     await waitFor(() =>
       expect(confirmSelections).toHaveBeenCalledWith("job_manual", [
         { personIndex: 0, candidateId: id },
+        ...(mixed ? [{ personIndex: 1, candidateId: id }] : []),
       ]),
     );
     await screen.findByText("최종 파일 확인");

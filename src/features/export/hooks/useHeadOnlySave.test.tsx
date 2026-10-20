@@ -73,7 +73,7 @@ beforeEach(() => {
     credentials: { installationId: "owner", deviceToken: "fixture", consentVersion: "2026-08-02" },
   });
 });
-function mount(scopes: string[], bodyMode = false, staleBodyHands = false) {
+function mount(scopes: string[], bodyMode = false, staleBodyHands = false, generatedMixed = false) {
   const qc = new QueryClient();
   qc.setQueryData(poseQueryKeys.result("job"), {
     jobId: "job",
@@ -93,7 +93,22 @@ function mount(scopes: string[], bodyMode = false, staleBodyHands = false) {
         detectionSource: "vlm_person",
         resolutionSource: "user",
       },
-      candidates: [{ id: `pick${index}`, bvhUrl: url(index) }],
+      candidates: [
+        {
+          id: `pick${index}`,
+          bvhUrl: url(index),
+          ...(generatedMixed
+            ? {
+                source: index === 0 ? "generation" : "library",
+                poseId: index === 0 ? null : "pose",
+                manualExportAllowed: true,
+                lookupAllowed: true,
+                bvhAvailable: true,
+                sourceBvhSha256: "a".repeat(64),
+              }
+            : {}),
+        },
+      ],
     })),
   } as AnalysisResult);
   usePoseSelectionStore.setState({
@@ -177,4 +192,16 @@ it.each([
   expect(result.current.error).not.toContain("private");
   expect(result.current.error).not.toContain("폴더");
   expect(mock.save).not.toHaveBeenCalled();
+});
+
+it("saves generated/library mixed people as the exact individual reviewed bytes", async () => {
+  mock.body.mockImplementation(async (receipt) => new Uint8Array([receipt.personIndex + 7]));
+  const hook = mount(["head", "head"], true, false, true);
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.body).toHaveBeenCalledTimes(2);
+  const files = mock.save.mock.calls[0]?.[0].files;
+  expect(files).toHaveLength(2);
+  expect(files[0].content).toEqual(new Uint8Array([7]));
+  expect(files[1].content).toEqual(new Uint8Array([8]));
+  expect(files[0].fileName).not.toBe(files[1].fileName);
 });

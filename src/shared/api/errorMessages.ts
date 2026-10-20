@@ -8,6 +8,8 @@
  * 코드 목록은 BFF(`Standin-app-server`)의 실제 errorEnvelope 호출부 기준이다.
  */
 const MESSAGES: Record<string, string> = {
+  GENERATED_CHECKS_FAILED:
+    "만든 포즈가 확인 과정을 통과하지 못했어요. 다른 후보를 선택하거나 그림을 바꿔 다시 분석해 주세요.",
   GENERATED_FBX_REQUIRED: "새로 만든 포즈는 저장 전 화면에서 최종 모습을 다시 확인해 주세요.",
   GENERATED_SOURCE_UNAVAILABLE:
     "새로 만든 포즈의 원본을 확인하지 못했어요. 다른 후보를 선택하거나 다시 분석해 주세요.",

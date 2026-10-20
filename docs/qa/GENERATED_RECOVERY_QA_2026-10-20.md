@@ -28,3 +28,18 @@
 저장 hook에서 원본/설정/변환 오류마다 올바른 복구와 native 저장 미호출을 검사한다.
 
 실제 Blender/생성/실메시 검증은 서버 워크트리의 검증 보고서에 별도 기록한다.
+
+## 최종 통합 검증
+
+선행 Client 완료 커밋 2eb6664를 ddafd42로 가져와 09 오류 복구와 통합했다.
+기준 origin/develop fe78785, 워크트리 `/private/tmp/standin-generated-recovery-qa/client`.
+추가 서버 오류 GENERATED_CHECKS_FAILED(기존 검사 탈락)도 후보 재선택으로 연결한다.
+
+- `npm run build`, `npm run lint` 성공. 기존 Vite 500KB chunk 경고 있음.
+- `NODE_OPTIONS=--no-experimental-webstorage npm test`: 967개 중 966 통과, 1 skipped.
+- 메인/바 각각 생성-only, 생성+library 혼합 선택/인물 집계/확정 이동/확대 비선택을 검사했다.
+- 생성+library 혼합 컷의 body review fixture 바이트가 각 인물 파일명으로 별도 전달됨을 검사했다.
+- 체형/손/범위·후보/포함 변경 확인 무효화, 제외/재포함/작업/기록/소유자 선택 보존,
+  원본 불일치/설정 변경/변환 실패의 저장 미호출과 복구 동작을 검사했다.
+- 실제 생성/FBX 재열기·육안 검증은 서버의 `docs/GENERATED_RECOVERY_QA_2026-10-20.md` 참조.
+  손·체형 수치/현재 모델 실메시, 설치 앱 native 저장·CSP는 미완료이며 자동 테스트로 대체하지 않는다.
