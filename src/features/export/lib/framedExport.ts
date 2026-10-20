@@ -8,6 +8,7 @@ export type ReviewedIdentity = {
   revision?: string;
   reviewKey?: string;
   artifactSha256?: string;
+  prepared?: boolean;
 };
 const reviewedFormats = new Map<string, { model: boolean; identity?: ReviewedIdentity }>();
 export function rememberFramedFormat(key: string, model: boolean, identity?: ReviewedIdentity) {
@@ -30,6 +31,8 @@ export function reviewedExportUrl(url: string, key: string) {
   parsed.searchParams.set("expectedCharacterSha256", identity.characterSha);
   if (identity.revision) parsed.searchParams.set("expectedModelRevision", identity.revision);
   if (identity.reviewKey) parsed.searchParams.set("reviewKey", identity.reviewKey);
+  if (identity.prepared && identity.reviewKey)
+    parsed.searchParams.set("artifactReceipt", identity.reviewKey);
   return `${parsed.pathname}${parsed.search}`;
 }
 
@@ -37,7 +40,7 @@ export function reviewedExportUrl(url: string, key: string) {
 export function framedExportUrl(
   url: string,
   scope: BodyScope,
-  format: "preview" | "fbx" | "model",
+  format: "preview" | "fbx" | "model" | "ready",
   characterId: string | null,
   modelPreview = false,
 ): string {
