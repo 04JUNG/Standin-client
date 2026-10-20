@@ -1,3 +1,4 @@
+import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -49,7 +50,9 @@ export function BarReviewPage() {
             </>
           ) : (
             <ul
-              className={`flex w-full min-w-0 items-center gap-1.5 overflow-x-auto ${items.length === 1 ? "justify-center" : "justify-start"}`}
+              tabIndex={0}
+              aria-label="저장할 인물 포즈"
+              className={`horizontal-scroll flex w-full min-w-0 items-center gap-1.5 overflow-x-auto overflow-y-hidden pb-2 ${items.length === 1 ? "justify-center" : "justify-start"}`}
             >
               {items.map((item) => (
                 <li

@@ -1,3 +1,4 @@
+import "@/shared/styles/horizontal-scroll.css";
 import "./BodyCustomPage.css";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -262,7 +263,8 @@ export function BodyCustomPage() {
                     role="radiogroup"
                     ref={strip}
                     aria-label="시작 체형"
-                    className="flex min-w-0 snap-x gap-2 overflow-x-auto pb-1"
+                    tabIndex={0}
+                    className="horizontal-scroll flex min-w-0 snap-x gap-2 overflow-x-auto overflow-y-hidden pb-2"
                   >
                     {editable
                       .filter((l) => bodyKind(l) === kind)

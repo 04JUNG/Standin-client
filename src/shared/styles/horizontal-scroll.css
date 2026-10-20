@@ -1,19 +1,19 @@
-/* Only the app/bar body picker opts out of the global hidden-scrollbar rule. */
-.body-preset-scroll {
+/* Explicit opt-in for horizontal lists; other scrollbars remain hidden. */
+.horizontal-scroll {
   scrollbar-width: auto;
 }
 
-.body-preset-scroll::-webkit-scrollbar {
+.horizontal-scroll::-webkit-scrollbar {
   display: block;
   height: 12px;
 }
 
-.body-preset-scroll::-webkit-scrollbar-track {
+.horizontal-scroll::-webkit-scrollbar-track {
   border-radius: 999px;
   background: var(--surface-2);
 }
 
-.body-preset-scroll::-webkit-scrollbar-thumb {
+.horizontal-scroll::-webkit-scrollbar-thumb {
   min-width: 32px;
   border: 2px solid var(--surface-2);
   border-radius: 999px;
@@ -21,10 +21,10 @@
   background-clip: padding-box;
 }
 
-.body-preset-scroll::-webkit-scrollbar-thumb:hover {
+.horizontal-scroll::-webkit-scrollbar-thumb:hover {
   background-color: var(--brand-ink);
 }
 
-.body-preset-scroll::-webkit-scrollbar-thumb:active {
+.horizontal-scroll::-webkit-scrollbar-thumb:active {
   background-color: var(--brand-ink);
 }
