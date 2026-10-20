@@ -27,4 +27,6 @@ The actual BarCandidatesPage, BarShell and WindowModeSync were rendered in a loc
 
 ## Scope and remaining platform check
 
-No API contract, logo asset, app-mode layout or native Rust code changes. Real API analysis, Windows runtime and native macOS resizing were not exercised for this change. Before release, check pending → results → body panel → pose on Windows and macOS, especially near a monitor edge; browser measurements cannot establish native window behavior.
+No API contract, logo asset, app-mode layout or native Rust code changes. A separate native macOS Standin Scroll QA app was opened with three Mock people; scrolling, per-person body controls and alternating backgrounds were exercised. The approved alternating section colors are white and #c4c5c7, with the sticky person header matching its section. This styling is scoped to BarPersonCandidates, which only BarCandidatesPage uses; the full app page keeps its existing appearance.
+
+Real API analysis, Windows runtime and native multi-monitor edge placement were not exercised. Before release, check pending → results → body panel → pose on Windows and macOS, especially near a monitor edge.
