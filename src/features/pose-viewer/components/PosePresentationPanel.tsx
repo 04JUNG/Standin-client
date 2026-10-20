@@ -1,9 +1,8 @@
-import { Modal } from "@/shared/components/Modal";
 import { generatedPoseNotice } from "../api/generatedPoseNotice";
 import { canRelease } from "../api/routedSearch";
 import type { PoseCandidate } from "../api/pose.contract";
 import { cn } from "@/shared/lib/cn";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
 import { bodyKeys, getSelection } from "@/features/body-selection/api";
@@ -43,7 +42,6 @@ function Preview({
   savedOnly?: boolean;
   pick?: PoseCandidate;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const generated = candidate.source === "generation";
   const selectable = canRelease(pick);
   const selected = selection?.selected === candidate.candidate_id;
@@ -77,30 +75,9 @@ function Preview({
         </span>
       </button>
       {generated && (
-        <>
-          <button
-            type="button"
-            className="mt-1 w-full text-xs underline"
-            onClick={() => setExpanded(true)}
-            aria-label={`${candidate.rank}번 새로 만든 포즈 확대`}
-          >
-            크게 보기
-          </button>
-          <Modal
-            open={expanded}
-            onClose={() => setExpanded(false)}
-            title="새로 만든 포즈"
-            width="lg"
-          >
-            <DefaultPoseImage candidate={candidate} scope={scope} savedOnly={savedOnly} />
-            <p className="text-xs text-text-secondary">
-              원본 그림과 다를 수 있으니 저장 전에 확인해 주세요.
-            </p>
-          </Modal>
-          <p className="text-[11px] text-text-secondary">
-            원본 그림과 다를 수 있으니 저장 전에 확인해 주세요.
-          </p>
-        </>
+        <p className="text-[11px] text-text-secondary">
+          원본 그림과 다를 수 있으니 저장 전에 확인해 주세요.
+        </p>
       )}
       {selectable && selection ? (
         <button

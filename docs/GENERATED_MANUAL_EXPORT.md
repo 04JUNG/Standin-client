@@ -7,8 +7,8 @@
 원래 candidateId를 유지한다. 검색 성공·자동 적용·자동 refine·완전한 메시 검증을 뜻하지 않는다.
 알 수 없는 출처나 누락된 수동 권한은 선택 가능으로 바꾸지 않는다.
 
-생성 후보만 있는 인물도 메인/바 공통 `canRelease` 집계에 포함된다. `이 포즈 선택`은
-선택만 바꾸고, `크게 보기`는 확대만 한다. 확정은 기존 selections API를 사용한다.
+생성 후보만 있는 인물도 메인/바 공통 `canRelease` 집계에 포함된다. 사진 또는 `이 포즈 선택`으로
+선택한다. 최신 사용자 지시에 따라 01(크게 보기/확대)은 지원하지 않는다. 확정은 기존 selections API를 사용한다.
 
 다운로드 URL의 `:id`는 생성 후보의 실제 candidateId이며 라이브러리 pose ID가 아니다.
 `framedExportUrl`이 기존 확인·저장 경로로 연결한다. 선택 체형·수치·손·범위의 최종 PNG/GLB를
@@ -32,7 +32,7 @@ HTTP 오류 코드는 BFF [GENERATED_MANUAL_EXPORT.md] 계약을 따른다.
 
 검증: `npm run typecheck`, `npm run build`,
 `NODE_OPTIONS=--no-experimental-webstorage npm test`.
-핵심 테스트는 `PoseSelectionPages.test.tsx`의 생성 전용 app/bar·확정·확대 분리,
+핵심 테스트는 `PoseSelectionPages.test.tsx`의 생성 전용 app/bar·사진 선택·확정·확대 버튼 없음,
 `pose.http.test.ts`의 nullable 원본 식별/가짜 라이브러리 거부,
 `poseSelectionStore.test.ts`의 제외/작업 전환/기록/소유자 복원,
 `invalidateFinalReview.test.ts`의 확인 무효화다.

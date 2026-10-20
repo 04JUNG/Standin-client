@@ -323,13 +323,8 @@ it.each([
     expect(screen.queryByTestId("candidate-hand-library")).toBeNull();
     expect(screen.queryByText(/이 장면에는 사용할 수 있는/)).toBeNull();
     expect(screen.getByRole("button", { name: /이 포즈 사용/ })).toBeDisabled();
-    if (kind === "generated_review" || mixed) {
-      fireEvent.click(screen.getByRole("button", { name: /새로 만든 포즈 확대/ }));
-      expect(screen.getByRole("dialog")).toBeTruthy();
-      expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBeUndefined();
-      fireEvent.click(screen.getByRole("button", { name: "닫기" }));
-      fireEvent.click(screen.getByRole("button", { name: "1번 새로 만든 참고 포즈 선택" }));
-    } else fireEvent.click(await screen.findByAltText("후보 이미지 1"));
+    fireEvent.click(await screen.findByAltText("후보 이미지 1"));
+    expect(screen.queryByRole("button", { name: /크게 보기|확대/ })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByRole("button", { name: /이미지 확대/ })).toBeNull();
     expect(usePoseSelectionStore.getState().selectedByPerson[0]).toBe(id);
