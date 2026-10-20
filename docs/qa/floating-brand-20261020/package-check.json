@@ -1,9 +1,6 @@
 {
-  "macOSDebugBundleBuilt": true,
-  "installedOrLaunched": false,
-  "CFBundleIconFile": "icon.icns",
-  "packagedIconMatches": true,
-  "sha256": "4ca9f946c684479efd331d5210a5f7e0089bbef2f06a9ac3a9276aa4f15eb2d5",
-  "windowsICOGeneratedAndDecoded": true,
-  "windowsInstallerBuilt": false
+  "CFBundleIdentifier": "app.standin.dock-qa-20261020",
+  "appPath": "/private/tmp/standin-floating-brand-ui-20261020/src-tauri/target/debug/bundle/macos/Standin Dock QA.app",
+  "icnsSha256": "ced5926fbfbe1c90e25f1d010727643e7e023c03c76ef5fa0c3a874cf8da81e6",
+  "packagedMacIconMatches": true
 }

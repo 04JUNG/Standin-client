@@ -1,84 +1,67 @@
-# 플로팅 바 뒤로가기·브랜드 자산 검증 (2026-10-20)
+# 플로팅 바·브랜드 자산 최종 검증 (2026-10-20)
 
-## 변경과 상태 경계
+## 최종 사용자 요구 반영
 
-헤더에 아이콘 전용 `뒤로가기`를 접기 바로 왼쪽에 추가했다. 브라우저 이력을 읽지 않으며 로그인·전체 앱·이전 작업으로 이동하지 않는다.
+- 헤더: `[점 6개] 제목 · 드래그 영역 [−][확대][×]`. 헤더에는 뒤로/앞으로 버튼을 두지 않는다.
+- `−`는 원형 로고로 접고, 확대는 현재 단계를 앱 창에서 이어 열며, `×`는 기존 native close command로 창을 닫는다.
+- 메인 본문은 develop의 BarActionsPage와 바이트 단위로 같다. 추가했던 `현재 작업 이어보기`와 resume route-state 처리는 제거했다. 메인에만 불필요한 scrollbar gutter를 예약하지 않아 좌우 여백도 같게 했다. 후보 화면의 gutter는 유지한다.
+- 캡처·이미지 후보 화면의 기존 `처음으로`·확인/저장 단계의 기존 동작은 유지한다. 새 뒤로가기를 중복으로 넣지 않는다.
+- 자연어 입력 화면 하단 왼쪽의 `← 뒤로가기`는 `/bar/actions`로, 자연어 결과 화면 하단 왼쪽은 현재 검색어를 route state로 넘겨 `/bar/search`로 돌아간다. `history(-1)`는 사용하지 않는다.
+- 뒤로가기는 job·초안·인물별 후보/체형·손/체형 Query 캐시·저장 결과를 초기화하거나 분석/저장을 새로 시작하지 않는다. 검색어는 기존 in-memory draft와 명시적 query seed로 유지한다.
+- 후보에서 보던 인물 커서는 installation + job 키로 보존한다. 다른 작업에는 이전 인물 위치를 섞지 않는다.
 
-| 현재 단계 | 뒤로가기 |
+메인 복원·헤더 (macOS native fixture):
+
+![복원한 메인과 점·접기·확대·닫기](qa/floating-brand-20261020/main-restored-native.png)
+
+자연어 하단 뒤로가기 (서버를 연결하지 않은 fixture이므로 검색 불가 안내가 있다):
+
+![자연어 본문 하단 뒤로가기](qa/floating-brand-20261020/search-bottom-back-native.png)
+
+## macOS 드래그 확인
+
+기존 bare `data-tauri-drag-region`은 점 SVG·제목 span을 직접 누르는 경로를 놓칠 수 있다. 실제 native fixture에서 `deep` 속성 변경만으로는 이동이 확인되지 않았다. 최종 구현은 점·제목·빈 영역 핸들의 primary mousedown을 명시적으로 `startDragging()`에 전달하고, 해당 SDK를 adapter와 함께 로드해 첫 드래그 도중의 동적 import 지연을 없앤다. 우클릭/Control-click과 핸들 밖 창 제어 버튼은 드래그에서 제외한다. 새 패키지/권한·native 위치 추적 코드는 추가하지 않았다.
+
+macOS 26.6.2 arm64 실행본의 실제 좌표가 최초 `(500,400)`에서 `(631,406)`, 이후 `(622,410)`으로 바뀐 것을 관측했다. fixture 계측은 실제 native API 호출 횟수와 클릭 대상 SVG/SPAN을 기록했다. [AX 좌표 증거](qa/floating-brand-20261020/native-drag-after.ax.txt). 자동화의 빠른 drag gesture만으로는 이동이 안정적으로 재현되지 않았으므로 이 관측을 Windows 검증이나 모든 macOS 드래그 조건의 보장으로 확대하지 않는다.
+
+## 로고 원본과 플랫폼별 생성
+
+- 제공된 원본 `favicon.svg`를 `src-tauri/icons/favicon.svg`와 `public/favicon.svg`에 바이트 그대로 유지한다. `.gitattributes`로 원본 CRLF도 보존한다.
+- 제공된 `favicon_circle.svg`는 그대로 `public/favicon_circle.svg`에서 접힌 바의 이미지로 사용한다. 바깥 배경·border·shadow가 없고 원형 clip과 안쪽 focus outline을 적용한다.
+- `npm run icons:generate`는 원본에서 desktop PNG 15개·Windows ICO를 만들고, macOS ICNS는 아래의 파생 배경으로 생성한다. 모바일 자산은 저장하지 않는다.
+- macOS에만 원본 배경 rect의 `rx`를 제거한 `favicon-macos.svg`를 재현 가능하게 생성한다. S 경로·색·위치·비율은 그대로이고 정사각형 배경만 끝까지 불투명하다. 원본 배경 형식이 바뀌면 스크립트가 실패해 검토 없이 다른 로고로 생성하지 않는다.
+- `icons:check`는 두 source 경로에서 임시 재생성해 모든 desktop 자산과 public 원본·macOS 파생 원본의 일치를 검사한다. ICNS chunk 순서는 비결정적이라 typed payload를 정렬해 비교한다.
+
+### macOS Dock의 회색 이중 배경
+
+사용자가 확인한 대상은 미머지 코드의 `Standin Click QA`다. 기존 설치 Staging 앱에 새 로고가 적용됐다는 뜻이 아니다. 원본 및 기존 ICNS에는 회색 padding이 없었지만, macOS Icon Services가 기존 QA 번들을 합성한 결과에서는 회색 판 안에 작은 남색 로고가 들어간 현상을 재현했다.
+
+[Apple HIG](https://developer.apple.com/design/human-interface-guidelines/app-icons)는 iOS/iPadOS/macOS의 square layout과 시스템 마스킹, 불투명 full-bleed 배경을 안내한다. macOS용 파생 원본을 사용하는 비교 번들에서는 시스템 합성 결과가 남색 바탕 한 겹으로 바뀌었다.
+
+| 변경 전 OS 합성 | 변경 후 OS 합성 |
 | --- | --- |
-| 입력 선택 `/bar/actions` | 비활성 |
-| 문장 입력 `/bar/search` | 입력 선택 |
-| 작업 생성 `/bar/progress` | 비활성 (재진입 시 새 작업 생성 방지) |
-| 후보 `/bar/candidates` | 입력 선택 + 같은 job에만 `현재 작업 이어보기` |
-| 저장 전 확인 `/bar/review` | 현재 작업 후보 |
-| 저장 `/bar/save` | 저장 전 확인 (해당 작업이 저장 중이면 비활성) |
-| 작업 없는 확인/저장·알 수 없는 경로 | 비활성 |
+| ![회색 바탕 안의 기존 QA 로고](qa/floating-brand-20261020/system-icon-before.png) | ![남색 바탕이 채워진 macOS 로고](qa/floating-brand-20261020/system-icon-after.png) |
 
-뒤로가기는 스토어 reset/clear, 후보 선택 변경, 쿼리 invalidate를 호출하지 않는다. 초안·인물별 후보/체형·손/체형 Query 캐시·조정본·저장 경로는 기존 상태를 유지한다. 후보에서 보던 인물 커서는 installation + job 키로 보존하고 다른 작업에는 0부터 시작한다. 입력 선택의 이어보기는 후보에서 돌아올 때 전달한 job과 현재 job이 같을 때만 나타난다. 새 입력/새 검색 시작은 기존의 명시적인 새 작업 동작이다.
+위 이미지는 Swift의 `NSWorkspace.icon(forFile:)`와 CGImage API로 macOS Icon Services의 렌더링을 읽은 것이며, 임의로 그린 그림이나 Dock screenshot이 아니다. 비교본 경로는 전용 워크트리 `src-tauri/target/debug/bundle/macos/Standin Dock QA.app`, 식별자는 `app.standin.dock-qa-20261020`이다. 이 별도 번들의 Info.plist가 참조하는 ICNS와 생성 자산의 SHA도 일치한다. 설치 앱 교체·Dock 설정 변경·icon cache 초기화는 하지 않았다. 별도 QA 앱을 다시 띄운 뒤 사용자가 `Standin Dock QA는 제대로 떠`라고 확인했다. 이 응답을 실제 Dock 표시 대조 결과로 기록한다. macOS 15 이하 표시는 미검증이다.
 
-## 로고와 투명 범위
-
-- 제공된 `favicon.svg`를 바이트 그대로 `src-tauri/icons/favicon.svg`에 보관한다. 브라우저의 `public/favicon.svg`도 동일하다. `.gitattributes` 예외로 원본 CRLF까지 보존한다.
-- 제공된 `favicon_circle.svg`는 바이트 그대로 `public/favicon_circle.svg`에서 접힌 바의 `<img>`로 사용한다.
-- `npm run icons:generate`: 둥근 사각형 SVG로 desktop PNG 15개·ICO·ICNS를 갱신한다. 모바일 자산은 추가하지 않는다.
-- `npm run icons:check`: 임시 디렉터리에서 재생성 후 17개 파일과 브라우저 원본의 일치를 검사한다. ICNS는 비결정적인 chunk 순서를 정규화하고 typed payload를 비교한다.
-- 접힌 버튼의 코랄 배경·ring을 제거했다. 이미지의 native drag를 끄고 원형 clip으로 버튼의 웹 hit 영역을 제한한다. 투명한 padding에는 pointer-events가 없다. 포커스는 원 안쪽 outline으로 표시한다.
-- 기존 `WindowModeSync`의 bar 모드 전용 html/body/root 투명 처리와 Tauri `transparent: true`, `shadow: false`, macOSPrivateApi 및 macos-private-api를 확인했다. 확대된 BarShell은 기존 불투명 surface/border/shadow를 유지하며 전역 CSS나 네이티브 창·모니터 코드는 변경하지 않았다.
-
-## 확인한 증거
+## 검증 결과
 
 | 검사 | 결과 |
 | --- | --- |
-| 전체 Vitest (bundled Node 24) | 986 통과, 1 기존 skip (최종 변경 기준 재실행) |
-| 최신 bar 테스트 | 58 통과: 뒤로가기/상태 보존·이어보기·커서 remount·클릭/드래그·우클릭/Control-click·메뉴 키보드·창/캡처 왕복 |
-| typecheck / lint / build | 통과. 기존 BodyCandidates fast-refresh 경고 1개, 기존 bundle 크기 경고 |
-| `icons:check` | desktop 자산 17개 일치 |
-| Pillow 자산 검사 | PNG 15개 및 ICO/ICNS 모든 frame의 크기 확인, 모서리 alpha 0·중심 alpha 255 |
-| 원본 비교 | 사용자 SVG 사본과 public SVG 바이트/SHA-256 일치 |
-| macOS debug `.app` 생성 | 성공. Info.plist의 CFBundleIconFile이 icon.icns를 참조하고 번들 내부 ICNS가 생성 자산과 바이트 일치 |
-| Rust 창 모드 테스트 | 5개 통과 (모니터 크기, Retina·fractional DPI, 잘못된 제한값 포함) |
-| headless Chrome 로컬 fixture | 에러 0, 64×64/2x 접힌 로고의 html/body/root 투명, 버튼 border 0·shadow none·circle clip; Enter 펼치기, 첫 단계 비활성, review→candidates→actions→현재 작업 이어보기 확인 |
+| 전체 Vitest, bundled Node 24 | 984 통과, 기존 skip 1 |
+| bar + mode route 테스트 | 64 통과: 헤더 순서·close·접기·본문 뒤로가기·상태/검색어 보존·드래그 대상/버튼 분리·기존 클릭/메뉴·창/캡처 왕복 |
+| typecheck / lint / production build | 통과. 기존 BodyCandidates fast-refresh 경고 1개, bundle 크기 경고와 드래그 API 선로딩에 따른 event 모듈 정적/동적 import 안내 |
+| `icons:check` | desktop 자산 17개와 파생 원본 일치 |
+| PNG/ICO/ICNS 검사 | PNG 15개와 ICO 모든 size는 기존 투명 모서리 유지, ICNS 모든 frame은 alpha 255의 불투명 square, S 중심 색/위치 유지 |
+| macOS debug app bundle | 생성 성공, CFBundleIconFile가 참조하는 ICNS와 생성 자산 일치 |
+| 원본 SHA | public 원본 SVG 두 개가 제공된 사본과 바이트 일치 |
+| native UI | 복원 메인, 하단 뒤로가기, 메인 복귀와 실제 창 좌표 변경 관측 |
+| Rust | native 코드를 바꾸지 않았다. 종전 창 모드 테스트 5개와 PR의 macOS/Windows CI 통과 이력이 있다. 최신 remote CI는 PR에서 확인 |
 
-PNG/ICO/ICNS 크기와 alpha, SVG hash, 브라우저 computed style, 번들 검사는 [증거 디렉터리](qa/floating-brand-20261020)에 JSON으로 저장했다. 스크린샷은 실제 컴포넌트를 MemoryRouter/QueryClient에 마운트한 fixture이며 설치 앱의 화면이 아니다. 서버 분석/저장은 호출하지 않았다.
+## 남은 문제와 검증 한계
 
-접힘과 키보드 포커스 (Chrome fixture):
-
-![접힌 원형 로고](qa/floating-brand-20261020/collapsed-logo-browser.png)
-![원 안쪽 키보드 포커스](qa/floating-brand-20261020/collapsed-logo-focus-browser.png)
-
-펼친 바의 macOS native fixture 헤더 (뒤로가기 비활성):
-
-![네이티브 헤더 한 줄 정상 렌더링](qa/floating-brand-20261020/native-header.png)
-
-기존 `bar-header-browser.png`는 헤더가 반복되는 잘못된 이미지여서 정상 UI 검증 근거에서 제외했다. 원인은 아직 확정하지 않았다. 이후 macOS Tauri/WKWebView native fixture를 다시 실행해 직접 펼친 화면에서는 헤더 한 줄과 버튼 3개가 정상 렌더링됐고 반복 현상은 재현되지 않았다. 이는 실제 컴포넌트와 Rust 백엔드를 쓰는 격리된 검증 실행본의 결과이며, 기존 설치 앱을 교체하거나 전체 사용자 흐름을 검증한 결과는 아니다.
-
-## 후속 macOS 네이티브 클릭 검사 — 실패 재현
-
-사용자 요청으로 macOS 26.6.2 (25G83), arm64에서 별도 `Standin Click QA.app`을 실행했다. PR 커밋 `31abc63`의 실제 BarCollapsedPage·BarShell·WindowModeSync와 수정하지 않은 Rust 창 백엔드를 사용한 native debug fixture다. 식별자·키체인 서비스는 `app.standin.click-qa-20261020`으로 분리했고 인증/동의 초기화·서버 호출·기존 설치 앱 교체는 하지 않았다.
-
-아래 Chrome에는 클릭 카운터가 있는 로컬 페이지를 놓고 CUA의 native 좌표 클릭을 사용했다. 브라우저 DOM 클릭을 이 검사에 사용하지 않았으며, DOM은 카운터를 읽는 데만 사용했다. 창은 64×64 logical px, 스크린샷은 Retina 128×128 px다.
-
-| 실제 포인터 클릭 대상 | 아래 앱 카운터 | 바 결과 |
-| --- | --- | --- |
-| 원형 로고 중심 (스크린샷 64,64) | 0 → 0 | 정상 펼침 |
-| 접은 뒤 바깥 padding (2,2) | 0 → 0 | 접힘 유지, HTML content에 포커스 |
-| 바와 떨어진 Chrome 영역 — 양성 대조 | 0 → 1 | 아래 앱이 정상 수신 |
-| 원 밖 좌상단 (12,12) | 1 → 1 | 아래 앱 수신 없음 |
-| 원 밖 우상단 (116,12) | 1 → 1 | 아래 앱 수신 없음 |
-| 원 밖 좌하단 (12,116) | 1 → 1 | 아래 앱 수신 없음 |
-| 원 밖 우하단 (116,116) | 1 → 1 | 아래 앱 수신 없음 |
-
-**결과: 현재 macOS native fixture에서 원 밖 사각 창 영역이 아래 앱의 클릭을 가로챈다.** 웹 버튼의 circle clip/pointer-events 설정만으로 OS 창의 hit 영역은 줄어들지 않은 상태다. 이 검사는 문제 확인이며 아직 코드 수정은 적용하지 않았다. 검증 앱은 검사 후 종료했다. Windows native UI는 여전히 미검증이다.
-
-좌표별 결과는 [native-click-check.json](qa/floating-brand-20261020/native-click-check.json), 실제 창과 아래 앱은 [native bar](qa/floating-brand-20261020/native-bar.png), [below counter](qa/floating-brand-20261020/below-counter.png)에 남겼다. 앱 단위 캡처는 다른 앱의 창을 합성하지 않으므로 두 이미지는 서로 별도 캡처다. 캡처의 흰 배경만으로 compositor alpha를 판정하지 않았다.
-
-## 검증하지 않은 범위와 후속 확인
-
-- 설치 앱은 교체/실행하지 않았다. macOS native fixture의 클릭 가로채기는 위에서 실패 재현했다. 설치 앱 compositor 투명도와 Windows 클릭 통과, native 이동·우클릭 메뉴, 다중 모니터/배율에서의 실제 조작은 미검증이다. Windows installer도 빌드하지 않았다.
-- Chrome에서 투명 모서리는 button이 아닌 root DIV로 hit-test된다. 버튼의 웹 hit 영역 확인을 OS 차원의 click-through 증거로 취급하지 않는다. macOS native fixture에서 모서리 클릭 가로채기가 재현됐으므로 native hit-test 처리가 필요하며 PR은 draft로 유지한다.
-- 수동 확인: 각 OS에서 다른 앱 위에 접힌 바를 놓고 투명 모서리/중심을 각각 클릭한다. 모서리에서는 아래 앱이, 중심에서는 펼치기가 동작해야 한다. 드래그 후 펼침 억제, 우클릭/Control-click/Shift+F10 닫기 메뉴, Tab 포커스·Enter/Space, 항상 위·모니터 이동·배율 변경·앱/바/캡처 왕복을 확인한다. 확대된 창은 불투명해야 한다.
-- 전체 Rust 테스트의 기존 `secure_store::tests::roundtrip`은 기본 `app.standin.desktop` 서비스의 레거시 `refresh_token` 삭제를 시도한 뒤 키체인 쓰기에서 실패했다. 실행 전에 테스트 서비스를 격리하지 못했다. 이전 refresh token 존재 여부를 알 수 없어 영향을 단정할 수 없다. 설치 인증정보/동의 계정은 이 테스트의 대상이 아니다. 추가 실행은 창 모드 테스트로 한정했다. 이후 전체 native 테스트는 반드시 `STANDIN_KEYRING_SERVICE`를 별도 QA 서비스로 설정해야 한다. 이 PR은 인증/키체인 코드를 수정하지 않는다.
-
-## 통합 경계
-
-기준 develop `d35e159`. #121 `c9101b5`, #122 `1d72810`은 별도 OPEN PR로 유지한다. AppTitleBar/WindowControls와 다른 세션의 BodyCustomPage/LiveBodyView/shapeRuntime은 수정하지 않았다. 최신 develop 및 두 PR을 함께 합친 `git merge-tree` 검사는 충돌 없이 통과했다. 합성 tree의 AppTitleBar/WindowControls가 #122 버전과 정확히 같은 것도 확인했다.
+- **원 밖 사각 창 영역의 클릭 가로채기는 아직 미해결이다.** 이전 native fixture에서 로고 중심은 정상 펼침, 창 바깥 양성 대조는 아래 Chrome 카운터 0→1, 원 밖 네 모서리는 모두 1→1로 수신되지 않았다. [원래 재현 JSON](qa/floating-brand-20261020/native-click-check.json). 이번 헤더/본문/Dock 작업이 이 문제를 해결했다고 주장하지 않는다.
+- 기존 설치 앱은 교체하지 않았다. Windows native UI, 실제 캡처·서버 분석·저장, 다중 모니터/DPI 전체 수동 흐름은 미검증이다. fixture는 설치 인증/동의 초기화를 수행하지 않았다.
+- 이전 `bar-header-browser.png`는 헤더 반복이 있는 잘못된 증거여서 제거했다. 이후 native 화면에서는 헤더 한 줄로 정상 표시됐다. 캡처 원인은 확정하지 않았다.
+- 최초 전체 Rust 테스트의 기존 secure_store roundtrip이 기본 서비스의 레거시 refresh_token 삭제를 시도한 뒤 키체인 쓰기에서 실패한 이력이 있다. 이전 token 존재 여부를 알 수 없어 영향을 단정할 수 없다. 설치 인증정보/동의 계정은 그 테스트 대상이 아니다. 이후 QA bundle은 별도 식별자/키체인 서비스를 사용하고 전체 native 테스트를 재실행하지 않았다.
+- #121·#122가 합쳐진 최신 develop `d173185`를 기존 PR merge commit `6b9a3c5`로 fast-forward해 보존했다. AppTitleBar/WindowControls와 다른 세션의 BodyCustomPage/LiveBodyView/shapeRuntime은 수정하지 않았다. 머지·배포는 하지 않는다.
