@@ -18,7 +18,7 @@ export function QualityConsentFields({
     >
       <legend className="px-1 font-bold">품질 검토 참여 (선택)</legend>
       <p className="leading-6 text-text-secondary">
-        박보라(Standin 팀)가 분석 정확도·사용성 평가와 오류 확인을 위해 동의 후 제출한 이미지·캡처,
+        Standin 팀이 분석 정확도·사용성 평가와 오류 확인을 위해 동의 후 제출한 이미지·캡처,
         설치·작업 ID, 관절·포즈 후보, 선택·보정 결과, 피드백·상세 사용 기록과 앱·OS 정보를
         검토합니다. 원본은 업로드 후 최대 90일, 연결된 평가정보는 수집 후 최대 365일 또는 철회 시점
         중 이른 때까지 보관합니다.
