@@ -24,25 +24,22 @@ function canonicalIcon(bytes, name) {
   return Buffer.concat(chunks.sort((a, b) => a.compare(b)));
 }
 
-// Windows/browser use the supplied rounded SVG unchanged. macOS masks the square
-// itself; a pre-rounded transparent image receives an extra legacy background on 26.
+// Preserve the supplied PNG. macOS gets a fully opaque navy square behind it so
+// the system does not add a gray legacy plate around the transparent artwork.
 const directory = mkdtempSync(path.join(tmpdir(), "standin-icons-"));
 try {
-  const source = readFileSync("src-tauri/icons/favicon.svg");
-  const rounded = '<rect width="64" height="64" rx="20" fill="#152238" />';
-  if (!source.toString("utf8").includes(rounded))
-    throw new Error("Review the macOS background derivation for the updated logo source");
+  const source = readFileSync("src-tauri/icons/standinLogo.png");
   const macSource = Buffer.from(
-    source.toString("utf8").replace(rounded, '<rect width="64" height="64" fill="#152238" />'),
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="2048" height="2048" viewBox="0 0 2048 2048"><rect width="2048" height="2048" fill="#152238"/><image width="2048" height="2048" xlink:href="data:image/png;base64,${source.toString("base64")}"/></svg>`,
   );
-  const input = path.join(directory, "favicon-macos.svg");
+  const input = path.join(directory, "standinLogo-macos.svg");
   writeFileSync(input, macSource);
   const base = path.join(directory, "desktop"),
     mac = path.join(directory, "macos");
   mkdirSync(base);
   mkdirSync(mac);
   for (const [file, output] of [
-    ["src-tauri/icons/favicon.svg", base],
+    ["src-tauri/icons/standinLogo.png", base],
     [input, mac],
   ]) {
     execFileSync(
@@ -52,13 +49,13 @@ try {
     );
   }
   const check = process.argv.includes("--check");
-  for (const [target, data] of [
-    ["public/favicon.svg", source],
-    ["src-tauri/icons/favicon-macos.svg", macSource],
-  ]) {
-    if (check) {
-      if (!data.equals(readFileSync(target))) throw new Error(`Stale icon source: ${target}`);
-    } else writeFileSync(target, data);
+  const publicSource = "public/standinLogo.png";
+  if (check) {
+    if (!source.equals(readFileSync(publicSource)))
+      throw new Error(`Stale icon source: ${publicSource}`);
+  } else {
+    mkdirSync("public", { recursive: true });
+    writeFileSync(publicSource, source);
   }
   const assets = readdirSync(base).filter((name) => /\.(png|ico|icns)$/.test(name));
   for (const name of assets) {
