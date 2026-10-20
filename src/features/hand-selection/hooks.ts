@@ -1,5 +1,11 @@
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useIsMutating,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useBodyOwner } from "@/features/body-selection/hooks";
 import { ApiError } from "@/shared/api/client";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
@@ -98,10 +104,8 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       await queries[i]?.refetch();
     },
   }));
-  const pending =
-    active &&
-    mutation.isPending &&
-    applicablePeople.includes(mutation.variables.selection.personIndex);
+  const pendingCount = useIsMutating({ mutationKey: ["hand-change", owner, job] });
+  const pending = active && pendingCount > 0;
   const ready =
     !active ||
     (!!catalog.data && entries.every((e) => e.selection && !e.loading && !e.error) && !pending);

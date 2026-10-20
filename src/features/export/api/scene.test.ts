@@ -74,3 +74,22 @@ it("new scene preview is verified and the confirmed download must match that art
   );
   await expect(prepareScene("job", refs)).rejects.toThrow();
 });
+
+it("verified scene receipt is usable without a final image", async () => {
+  const refs = [await sceneReference(0, "pick", "/v1/pose-candidates/a/framed", fbx)];
+  vi.mocked(apiFetchResponse).mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        version: "scene-refinement-v4",
+        artifactContract: "verified-scene-fbx-v1",
+        reviewKey: "b".repeat(48),
+        artifactSha256: refs[0]!.sha256,
+        previewBase64: "",
+        previewSha256: "",
+        personCount: 1,
+        summary: [],
+      }),
+    ),
+  );
+  expect((await prepareScene("job", refs)).artifactContract).toBe("verified-scene-fbx-v1");
+});

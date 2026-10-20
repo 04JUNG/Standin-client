@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -223,4 +223,21 @@ it("saves the reviewed male fallback when body detection failed", async () => {
   await waitFor(() => expect(hook.result.current.status).toBe("saved"));
   expect(mock.body.mock.calls[0]?.[0].selection.resolvedBody.characterId).toBe("male-base-v0-7-2");
   expect(mock.save).toHaveBeenCalledTimes(1);
+});
+
+it("a late download after another person's selection changes writes no stale file", async () => {
+  const finishes: ((bytes: Uint8Array) => void)[] = [];
+  mock.bytes.mockImplementation(
+    () =>
+      new Promise<Uint8Array>((resolve) => {
+        finishes.push(resolve);
+      }),
+  );
+  const hook = mount(["head", "head"]);
+  await waitFor(() => expect(mock.bytes).toHaveBeenCalledTimes(2));
+  act(() => usePoseSelectionStore.setState({ selectedByPerson: { 0: "pick0", 1: "new-pick" } }));
+  // Both downloads are obsolete as a group; releasing the last one cannot save.
+  await act(async () => finishes.forEach((finish) => finish(new Uint8Array([1]))));
+  await waitFor(() => expect(hook.result.current.status).toBe("error"));
+  expect(mock.save).not.toHaveBeenCalled();
 });

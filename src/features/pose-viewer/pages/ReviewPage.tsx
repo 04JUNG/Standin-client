@@ -25,6 +25,12 @@ export function ReviewPage() {
     hands,
     isRefining,
     previewLoading,
+    preparationLoading,
+    preparationError,
+    preparationNotice,
+    downloadReady,
+    downloadLabel,
+    requestDownload,
     previewError,
     previewFailure,
     requiresFbx,
@@ -100,15 +106,17 @@ export function ReviewPage() {
         {!previewLoading && !previewError && !requiresFbx && previewNotice && (
           <p className="text-[12px] text-text-secondary">{previewNotice}</p>
         )}
-        {previewLoading && !isRefining && (
+        {preparationLoading && !isRefining && (
           <p role="status" className="text-[12px] text-text-secondary">
-            저장할 모습을 준비하고 있어요…
+            {preparationNotice}
           </p>
         )}
         {requiresFbx && <GeneratedFbxNotice />}
-        {previewError && (
+        {(preparationError || previewError) && (
           <div role="alert" className="text-[12px] text-brand-coral">
-            {previewFailure.message}{" "}
+            {preparationError
+              ? previewFailure.message
+              : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
             <button
               onClick={() =>
                 previewFailure.action === "choose"
@@ -128,10 +136,13 @@ export function ReviewPage() {
           <Button
             {...tourAnchor("review.confirm")}
             size="lg"
-            disabled={isRefining || previewLoading || previewError || requiresFbx}
-            onClick={() => navigate(`/app/jobs/${jobId}/save`)}
+            disabled={!downloadReady}
+            onClick={() => {
+              if (requestDownload()) navigate(`/app/jobs/${jobId}/save`);
+            }}
           >
-            <Save className="h-4 w-4" aria-hidden />이 포즈로 저장 ({items.length})
+            <Save className="h-4 w-4" aria-hidden />
+            {downloadLabel} ({items.length})
           </Button>
         </div>
       </div>
