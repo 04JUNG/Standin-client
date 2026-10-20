@@ -947,3 +947,16 @@ shoulder_head를 새 사용자 범위로 추가하거나 bust와 새로 합치�
 연결한다. 원래 presentation 그룹과 검색/생성 상태, 자동 금지 정책을 유지한다.
 기존 조회 전용 항목의 자동 권한을 변경하는 계약이 아니다.
 [원본 식별·무효화·복원·검증 범위](GENERATED_MANUAL_EXPORT.md).
+
+## 동적 라이브러리 refine 연결 (2026-10-21)
+
+일반 이미지 분석에서도 `posePresentation`이 있다는 이유만으로 refine을 일괄 금지하지 않는다.
+인물의 refineAllowed=true와 선택 후보의 명시적 refineAllowed=true가 모두 있어야 한다.
+선택 후보는 source=library, presentationKind=library_match, manualExportAllowed/lookupAllowed=true,
+notExactMatch=false 및 원본 해시와 같은 candidate-camera-v2를 가져야 한다.
+
+조건을 만족하면 검색 confidence=low/fallbackMode=soft여도 기존 저장 전 확인 흐름에서
+refine을 호출한다. 자동 release 권한은 올리지 않고, 보정 결과가 기존 최종 미리보기와 저장으로
+이어진다. 참고·생성·문장 직접 입력 검색과 구 BFF 응답은 계속 보정하지 않는다. 기능 스위치는
+서버 capabilities.refine을 따르며, 시간 초과/실패/안전 게이트 거절 시 원본 후보를 유지한다.
+서버와 BFF 배포 후 이 클라이언트 버전을 설치하고 새 분석으로 확인해야 한다.

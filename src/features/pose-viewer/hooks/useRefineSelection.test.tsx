@@ -12,7 +12,10 @@ const { usePoseSelectionStore } = await import("../store/poseSelectionStore");
 
 function person(overrides: Partial<PersonResult> & { index: number }): PersonResult {
   return {
-    candidates: [],
+    candidates: [
+      { id: `cand-${overrides.index}` },
+      { id: "old-candidate" },
+    ] as PersonResult["candidates"],
     confidence: "high",
     skeletonState: "valid",
     skeletonSource: "full_image",
@@ -252,4 +255,42 @@ it("review-only candidates never call refine even when person permission is stal
   );
   await waitFor(() => expect(result.current.status).toBe("done"));
   expect(refineSelection).not.toHaveBeenCalled();
+});
+
+it("explicit qualified library selection refines despite soft search confidence and manual release", async () => {
+  refineSelection.mockClear();
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    refineByPerson: {},
+    selectedByPerson: { 0: "qualified" },
+  });
+  const data = analysis([
+    person({
+      index: 0,
+      confidence: "low",
+      fallbackMode: "soft",
+      candidates: [
+        {
+          id: "qualified",
+          source: "library",
+          refineAllowed: true,
+          manualExportAllowed: true,
+          lookupAllowed: true,
+          releaseAllowed: false,
+          presentationKind: "library_match",
+          notExactMatch: false,
+          sourceBvhSha256: "a".repeat(64),
+        } as PersonResult["candidates"][number],
+      ],
+    }),
+  ]);
+  const { result, unmount } = renderHook(() => useRefineSelection(data));
+  await waitFor(() => expect(result.current.status).toBe("done"));
+  expect(refineSelection).toHaveBeenCalledTimes(1);
+  expect(refineSelection.mock.calls[0][0]).toMatchObject({
+    candidateId: "qualified",
+    personIndex: 0,
+  });
+  unmount();
+  usePoseSelectionStore.getState().clearSelection();
 });

@@ -52,6 +52,22 @@ export function canRelease(candidate: PoseCandidate | undefined): boolean {
   );
 }
 
+/** Refine does not grant automatic release or bypass the final manual review. */
+export function canRefineCandidate(candidate: CandidatePolicy | undefined): boolean {
+  return (
+    !!candidate &&
+    (candidate.source === undefined
+      ? candidate.releaseAllowed !== false && candidate.refineAllowed !== false
+      : candidate.source === "library" &&
+        candidate.refineAllowed === true &&
+        candidate.manualExportAllowed === true &&
+        candidate.lookupAllowed === true &&
+        candidate.presentationKind === "library_match" &&
+        candidate.notExactMatch === false &&
+        /^[a-f0-9]{64}$/.test(candidate.sourceBvhSha256 ?? ""))
+  );
+}
+
 /** Only server policy fields; unknown source values must never enable legacy export. */
 export function readCandidatePolicy(raw: CandidatePolicy): CandidatePolicy {
   if (
@@ -80,7 +96,11 @@ export function readCandidatePolicy(raw: CandidatePolicy): CandidatePolicy {
       source: raw.source,
       manualExportAllowed: true,
       releaseAllowed: false,
-      refineAllowed: false,
+      refineAllowed:
+        raw.source === "library" &&
+        raw.refineAllowed === true &&
+        raw.presentationKind === "library_match" &&
+        raw.notExactMatch === false,
       reviewRequired: true,
       actualMeshValidated: false,
     };
