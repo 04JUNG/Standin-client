@@ -126,7 +126,7 @@ export function SavedFileList({ paths, onCopy, dense = false }: Props) {
                 {dropped && (
                   <span
                     className={cn("text-text-secondary", dense ? "text-[10px]" : "text-[12px]")}
-                    title="앱은 파일을 넘기는 것까지만 알 수 있습니다. 클립스튜디오가 실제로 받았는지는 확인이 필요합니다."
+                    title="클립스튜디오에 포즈가 잘 들어갔는지 확인해 주세요."
                   >
                     반영됐는지 확인해 주세요
                   </span>

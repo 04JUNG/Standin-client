@@ -1,6 +1,5 @@
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { PosePresentationPanel } from "@/features/pose-viewer/components/PosePresentationPanel";
-import { ReferenceHands } from "@/features/hand-selection/ReferenceHands";
 import { useExportStore } from "@/features/export/store/exportStore";
 import {
   BodyCandidateCard,
@@ -170,7 +169,6 @@ export function BarCandidatesPage() {
               ) : (
                 <PersonFallbackNotice person={p} compact />
               )}
-              <ReferenceHands result={data} personIndex={p.index} />
             </div>
           ))}
         </div>
@@ -355,7 +353,7 @@ export function BarCandidatesPage() {
                 ) : (
                   <span className="text-[11px] font-semibold text-text-secondary">
                     {person.posePresentation && person.candidates.length === 0
-                      ? "검수용 3D 미리보기"
+                      ? "참고용 미리보기"
                       : selectedByPerson[person.index]
                         ? "선택됨"
                         : "후보를 선택하세요"}
@@ -429,9 +427,6 @@ export function BarCandidatesPage() {
                     }}
                     compact
                   />
-                  {person.posePresentation && (
-                    <ReferenceHands result={data} personIndex={person.index} />
-                  )}
                 </div>
                 {/* 후보 칸: [원본 | 후보]. 원본과 포즈를 나란히 놓고 비교한다. */}
                 {/* 3×2: 원본이 첫 칸, 후보 5개가 나머지 칸. 모든 칸이 같은 크기·비율이라
@@ -462,9 +457,6 @@ export function BarCandidatesPage() {
                           person={person}
                           compact
                         />
-                        {person.posePresentation && (
-                          <ReferenceHands result={data} personIndex={person.index} />
-                        )}
                       </div>
                     ) : (
                       <div className="relative min-h-0">

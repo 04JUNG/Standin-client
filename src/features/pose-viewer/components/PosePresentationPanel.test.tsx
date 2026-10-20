@@ -31,17 +31,19 @@ const p: PosePresentation = {
   refine_allowed: false,
   export_allowed: false,
 };
-it("keeps group counts and search/generation failure distinct", () => {
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <PosePresentationPanel presentation={p} />
-    </QueryClientProvider>,
-  );
-  expect(screen.getByText("검색 후보 0개")).toBeTruthy();
-  expect(screen.getByText("생성 검수 후보 0개")).toBeTruthy();
-  expect(screen.getByRole("status").textContent).toContain("검증 탈락");
-  expect(screen.getByRole("status").textContent).toContain("기본값");
-});
+it.each([false, true])(
+  "keeps candidate groups without the summary notice (compact=%s)",
+  (compact) => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <PosePresentationPanel presentation={p} compact={compact} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("검색 후보 0개")).toBeTruthy();
+    expect(screen.getByText("새로 만든 참고 포즈 0개")).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
+  },
+);
 
 it("reference images do not open an enlargement or rotation dialog", () => {
   const candidate: PreviewCandidate = {
@@ -176,13 +178,12 @@ it("shows the returned opposite-hand reference within five cards without grantin
   const originalLink = screen.getByRole("link", { name: "검색 후보 1" });
   expect(originalLink).toHaveAttribute("href", "#pose-candidate-original_0");
   expect(document.getElementById("pose-candidate-original_0")).toBeInTheDocument();
-  expect(originalLink.parentElement?.textContent).toBe("검색 후보 1의 반대손 참고");
-  expect(screen.getByRole("status").textContent).not.toMatch(/opposite_hand|ready|ok/);
-  expect(screen.getByText(/인물의 왼손 관측 · 오른손 자세 참고/)).toBeInTheDocument();
-  expect(screen.getByRole("status").textContent).toContain("전체 5개");
+  expect(originalLink.parentElement?.textContent).toBe("검색 후보 1의 좌우 반전 포즈");
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByText(/러프에는 왼손이 보여요. 이 포즈는 오른손을 써요./)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /저장|보정|적용/ })).toBeNull();
 });
-it("missing mirror has its own notice and keeps the returned candidate count", () => {
+it("missing mirror keeps the returned candidate count without a summary notice", () => {
   render(
     <PosePresentationPanel
       presentation={{
@@ -191,7 +192,7 @@ it("missing mirror has its own notice and keeps the returned candidate count", (
       }}
     />,
   );
-  expect(screen.getByText(/검증된 반대손 참고 후보를 준비하지 못했습니다/)).toBeInTheDocument();
+  expect(screen.queryByText(/좌우를 바꾼 포즈는 준비하지 못했어요/)).toBeNull();
   expect(screen.getByText("검색 후보 0개")).toBeInTheDocument();
 });
 
@@ -201,8 +202,93 @@ it("not-requested mirror adds no unavailable notice or empty mirror section", ()
       presentation={{ ...p, mirror_comparison: { status: "not_requested", reason: null } }}
     />,
   );
-  expect(screen.queryByText(/검증된 반대손|반대손 참고 0개/)).toBeNull();
+  expect(screen.queryByText(/좌우를 바꾼 포즈|좌우 반전 포즈 0개/)).toBeNull();
 });
+
+it("omits the summary notice for failed and empty searches", () => {
+  const { rerender } = render(
+    <PosePresentationPanel
+      presentation={{
+        ...p,
+        status: "partial_error",
+        search_status: "partial_error",
+        search_reason: "hand_skin_screen_unavailable_no_generation",
+      }}
+    />,
+  );
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.queryByText(/hand_skin/)).toBeNull();
+  rerender(
+    <PosePresentationPanel
+      presentation={{
+        ...p,
+        status: "no_result",
+        search_status: "no_result",
+        search_reason: "no_original_within_geometry_cutoff",
+        generation_status: null,
+      }}
+    />,
+  );
+  expect(screen.queryByRole("status")).toBeNull();
+});
+
+it.each([false, true])(
+  "all five reference photos use the selection button callback (compact=%s)",
+  (compact) => {
+    const onSelect = vi.fn();
+    const rows = Array.from({ length: 5 }, (_, i) => ({
+      candidate_id: `photo-${i}`,
+      rank: i + 1,
+      kind: "library_match",
+      asset: { preview_bvh_url: `/v1/photo-${i}` },
+    })) as PreviewCandidate[];
+    const candidates = rows.map((row) => ({
+      id: row.candidate_id,
+      source: "library",
+      lookupAllowed: true,
+      releaseAllowed: true,
+      sourceBvhSha256: "a".repeat(64),
+    })) as import("../api/pose.contract").PoseCandidate[];
+    const view = (disabled: boolean) => (
+      <PosePresentationPanel
+        presentation={{ ...p, library_candidates: rows }}
+        compact={compact}
+        selection={{ candidates, onSelect, disabled }}
+      />
+    );
+    const { rerender } = render(view(false));
+    const images = screen.getAllByAltText("기본 포즈 참고 이미지");
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(images[i]);
+      expect(onSelect).toHaveBeenLastCalledWith(`photo-${i}`);
+      fireEvent.click(screen.getByRole("button", { name: `${i + 1}번 검색 후보 선택` }));
+      expect(onSelect).toHaveBeenLastCalledWith(`photo-${i}`);
+    }
+    expect(onSelect).toHaveBeenCalledTimes(10);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    rerender(view(true));
+    for (const image of screen.getAllByAltText("기본 포즈 참고 이미지")) {
+      expect(image.closest("button")).toBeDisabled();
+      fireEvent.click(image);
+    }
+    expect(onSelect).toHaveBeenCalledTimes(10);
+    rerender(
+      <PosePresentationPanel
+        presentation={{ ...p, library_candidates: rows }}
+        compact={compact}
+        selection={{
+          candidates: candidates.map((c) => ({ ...c, releaseAllowed: false })),
+          onSelect,
+        }}
+      />,
+    );
+    for (const image of screen.getAllByAltText("기본 포즈 참고 이미지")) {
+      expect(image.closest("button")).toBeDisabled();
+      fireEvent.click(image);
+    }
+    expect(onSelect).toHaveBeenCalledTimes(10);
+  },
+);
 
 it.each([false, true])(
   "semantic appends all returned candidates and keeps near references separate (compact=%s)",
@@ -256,13 +342,16 @@ it.each([false, true])(
       </QueryClientProvider>,
     );
     expect(screen.getByText("검색 후보 65개")).toBeInTheDocument();
-    expect(screen.getByText("근접·기하·구도 참고 27개")).toBeInTheDocument();
+    expect(screen.getByText("비슷한 다른 포즈 27개")).toBeInTheDocument();
     expect(screen.getAllByAltText("기본 포즈 참고 이미지")).toHaveLength(40);
     for (let i = 0; i < 3; i++)
       fireEvent.click(screen.getByRole("button", { name: "검색 후보 20개 더 보기" }));
-    fireEvent.click(screen.getByRole("button", { name: "근접·기하·구도 참고 20개 더 보기" }));
+    fireEvent.click(screen.getByRole("button", { name: "비슷한 다른 포즈 20개 더 보기" }));
     expect(screen.getAllByAltText("기본 포즈 참고 이미지")).toHaveLength(92);
-    fireEvent.click(screen.getByRole("button", { name: "65번 검색 후보 직접 선택" }));
+    fireEvent.click(screen.getByRole("button", { name: "65번 검색 후보 선택" }));
     expect(onSelect).toHaveBeenCalledWith("regular64");
+    fireEvent.click(screen.getAllByAltText("기본 포즈 참고 이미지")[64]);
+    expect(onSelect).toHaveBeenLastCalledWith("regular64");
+    expect(screen.queryByRole("dialog")).toBeNull();
   },
 );

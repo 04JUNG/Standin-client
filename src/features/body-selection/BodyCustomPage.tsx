@@ -164,13 +164,12 @@ export function BodyCustomPage() {
         )}
         {prefs.data && editable.length === 0 && (
           <p role="status" className="text-[14px] text-text-secondary">
-            지금 서버에서 수치를 조절할 수 있는 체형이 없어요.
+            지금은 수치를 조절할 수 있는 체형이 없어요.
           </p>
         )}
         {prefs.data && !supported && (
           <p role="status" className="text-[13px] text-text-secondary">
-            연결된 서버가 아직 체형 카드를 지원하지 않아요. 조절은 해 볼 수 있지만 저장은 할 수
-            없어요.
+            이 버전에서는 만든 체형을 카드로 저장할 수 없어요. 수치를 바꿔 보며 비교할 수는 있어요.
           </p>
         )}
 
@@ -285,7 +284,7 @@ export function BodyCustomPage() {
                               <NeutralImage option={l} />
                             </span>
                             <span className="truncate px-1 text-[11.5px] font-semibold">
-                              {l.displayName ?? l.characterId}
+                              {l.displayName ?? "기본 체형"}
                             </span>
                           </button>
                         );

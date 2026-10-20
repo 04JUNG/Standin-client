@@ -15,12 +15,12 @@ const OPTIONS: Array<{ value: ExportFormat; label: string; hint: string }> = [
   {
     value: "fbx",
     label: "FBX",
-    hint: "리깅된 3D 소재로 저장합니다. 클립스튜디오 3D 소재로 바로 등록할 수 있습니다.",
+    hint: "고른 체형과 손 모양을 담은 3D 파일이에요. 클립스튜디오에서 열 수 있어요.",
   },
   {
     value: "bvh",
     label: "BVH",
-    hint: "모션 데이터만 저장합니다. 클립스튜디오 3.1.0 이상에서만 열 수 있습니다.",
+    hint: "체형과 손 모양 없이 전체 동작만 저장해요. 클립스튜디오 3.1.0 이상에서 열 수 있어요.",
   },
 ];
 
@@ -71,7 +71,7 @@ export function ExportFormatSection() {
 
         <p className="flex items-start gap-1.5 pt-1 text-[12px] text-text-secondary">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          FBX를 아직 제공하지 않는 서버에 연결되면 BVH로 저장되고, 저장 화면에서 알려 드립니다.
+          FBX로 저장할 수 없는 경우에는 BVH로 저장하고 알려드려요.
         </p>
       </div>
     </section>

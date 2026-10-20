@@ -80,7 +80,7 @@ it("requires explicit candidate and preview click, and invalidates the image aft
   });
   expect(state.load).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "손 적용 미리보기" }));
-  await screen.findByAltText("선택한 손이 적용된 기본 체형의 정면 참고 미리보기");
+  await screen.findByAltText("고른 손 모양을 기본 체형에 적용한 정면 모습");
   expect(state.load.mock.calls[0][0]).toContain("/hands?revision=1");
   state.hand = { ...state.hand, revision: 2 };
   rerender(view());

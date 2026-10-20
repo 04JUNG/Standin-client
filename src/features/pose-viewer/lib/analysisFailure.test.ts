@@ -30,7 +30,10 @@ describe("analysisFailure", () => {
   // 다시 시도해 주세요"라고 안내했다. 그 시간에는 어떤 이미지도 실패한다.
   it("상류 혼잡은 같은 입력으로 다시 시도하도록 안내한다", () => {
     const failure = analysisFailure(
-      new AnalysisError("UPSTREAM_UNAVAILABLE", "지금 분석 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요."),
+      new AnalysisError(
+        "UPSTREAM_UNAVAILABLE",
+        "지금 분석 서버가 혼잡합니다. 잠시 후 다시 시도해 주세요.",
+      ),
     );
 
     expect(failure.message).toContain("잠시 후");
@@ -41,9 +44,9 @@ describe("analysisFailure", () => {
   // `messageOf`는 ApiError 전용이라 AnalysisError를 "요청을 처리하지 못했습니다."로
   // 뭉갠다. 그러면 앱이 직접 쓴 원인 설명이 화면에서 전부 사라진다.
   it("앱이 쓴 실패 문구를 일반 문구로 뭉개지 않는다", () => {
-    expect(analysisFailure(new AnalysisError("NO_PEOPLE", "이미지에서 인물을 찾지 못했습니다.")).message).toBe(
-      "이미지에서 인물을 찾지 못했습니다.",
-    );
+    expect(
+      analysisFailure(new AnalysisError("NO_PEOPLE", "이미지에서 인물을 찾지 못했습니다.")).message,
+    ).toBe("이미지에서 인물을 찾지 못했습니다.");
   });
 
   it("입력이 문제인 실패에는 다시 시도를 권하지 않는다", () => {
@@ -52,7 +55,7 @@ describe("analysisFailure", () => {
     expect(analysisFailure(new AnalysisError("JOB_FAILED", "분석 실패")).retryable).toBe(false);
   });
 
-  it("시간 초과와 중단은 다시 시도할 수 있다", () => {
+  it("포즈를 만드는 데 시간이 너무 오래 걸렸어요와 중단은 다시 시도할 수 있다", () => {
     expect(analysisFailure(new AnalysisError("TIMEOUT", "오래 걸립니다")).retryable).toBe(true);
     expect(analysisFailure(new AnalysisError("ABANDONED", "중단됨")).retryable).toBe(true);
   });
@@ -65,7 +68,12 @@ describe("analysisFailure", () => {
   });
 
   it("네트워크 실패도 다시 시도할 수 있다", () => {
-    expect(analysisFailure({ kind: "network", message: "서버에 연결할 수 없습니다.", retryable: true }))
-      .toMatchObject({ retryable: true });
+    expect(
+      analysisFailure({
+        kind: "network",
+        message: "연결이 끊겼어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.",
+        retryable: true,
+      }),
+    ).toMatchObject({ retryable: true });
   });
 });

@@ -343,7 +343,10 @@ export function useSaveFlow(jobId: string | undefined) {
             if (!candidate) {
               throw new Error("선택한 포즈를 분석 결과에서 찾지 못했습니다.");
             }
-            if (!canRelease(candidate)) throw new Error("검수용 후보는 파일로 저장할 수 없습니다.");
+            if (!canRelease(candidate))
+              throw new Error(
+                "이 포즈는 참고용으로만 볼 수 있어요. 저장할 수 있는 다른 포즈를 골라 주세요.",
+              );
             // 조정 결과가 있으면 BFF가 확정한 URL이 최종이다. 확인 화면이 보여 준 것과
             // 같은 URL이어야 "본 것과 저장된 것이 다르다"가 생기지 않는다.
             // 어느 쪽이든 BFF 경로다 — 추론 서버의 /refined/{handle}는 그 태스크의 로컬
@@ -503,9 +506,7 @@ export function useSaveFlow(jobId: string | undefined) {
             ? toAppError(err).message
             : err instanceof ExportError
               ? err.message
-              : err instanceof Error
-                ? err.message
-                : "알 수 없는 오류로 저장하지 못했습니다.",
+              : "파일을 저장하지 못했어요. 저장 폴더를 확인한 뒤 다시 시도해 주세요.",
         );
         trackEvent(
           "export_failed",

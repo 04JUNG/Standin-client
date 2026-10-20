@@ -57,18 +57,18 @@ export function OutputScopeSelect({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface-1 px-3 py-2 text-[12px]">
       <label htmlFor={id} className="font-semibold text-text-primary">
-        출력 범위 설정
+        저장할 부분
       </label>
       <select
         id={id}
-        aria-label={`인물 ${person.index + 1}의 출력 범위`}
+        aria-label={`인물 ${person.index + 1}에서 저장할 부분`}
         value={scope.selection}
         disabled={mutation.isPending}
         onChange={(event) => mutation.mutate(scopeSelectionSchema.parse(event.target.value))}
         className="min-h-11 rounded-md border border-border bg-surface-0 px-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-sky disabled:opacity-50"
       >
         <option value="auto">
-          자동 ({scope.detected ? SCOPE_LABELS[scope.detected] : "판별 불가 · 전신"})
+          자동 ({scope.detected ? SCOPE_LABELS[scope.detected] : "전체 모습"})
         </option>
         {Object.entries(SCOPE_LABELS).map(([value, label]) => (
           <option key={value} value={value}>
@@ -79,12 +79,12 @@ export function OutputScopeSelect({
       <span role="status" className="text-text-secondary">
         {mutation.isPending
           ? "저장 중…"
-          : `${SCOPE_LABELS[scope.resolved]}${scope.resolutionSource === "user" ? " · 직접 선택" : ""}`}
+          : `${SCOPE_LABELS[scope.resolved]}${scope.resolutionSource === "user" ? " · 내가 고른 범위" : ""}`}
       </span>
       <span className="basis-full text-text-secondary">
         {cropping
-          ? "후보 미리보기와 FBX에 적용됩니다. BVH는 전신 뼈대를 유지합니다."
-          : "범위 설정만 저장됩니다. 현재 미리보기와 파일은 전신입니다."}
+          ? "미리보기와 FBX에 선택한 부분이 보여요. BVH에는 전체 동작이 저장돼요."
+          : "선택은 기억해 둘게요. 지금은 미리보기와 파일에 전체 모습이 나와요."}
       </span>
       {mutation.isError && (
         <p role="alert" className="basis-full text-brand-coral">

@@ -23,8 +23,12 @@ export function NeutralImage({ option }: { option: BodyLook }) {
   const owner = useBodyOwner();
   const query = useQuery({
     queryKey: [
-      "body", owner, "neutral", option.characterId,
-      option.bodyRef?.assetSha256, option.neutralPreview,
+      "body",
+      owner,
+      "neutral",
+      option.characterId,
+      option.bodyRef?.assetSha256,
+      option.neutralPreview,
     ],
     enabled: (!!option.neutralPreview && !!option.bodyRef) || bodyMockEnabled(),
     queryFn: ({ signal }) => loadNeutralPreview(option, signal),
@@ -67,7 +71,8 @@ export function ShapeThumb({
     staleTime: Infinity,
     gcTime: 30 * 60 * 1000,
   });
-  if (runtime.data && shot.data) return <img src={shot.data} className="h-full w-full object-contain" alt="" />;
+  if (runtime.data && shot.data)
+    return <img src={shot.data} className="h-full w-full object-contain" alt="" />;
   if (supportedRuntime(ref) && (runtime.isPending || (runtime.isSuccess && shot.isPending)))
     return <Loader2 className="h-4 w-4 animate-spin text-text-secondary" aria-label="그리는 중" />;
   if (bodyMockEnabled() && look.shape)
@@ -269,9 +274,9 @@ export function LiveBodyView({
               : live3d || mockFallback
                 ? "바를 움직이면 바로 바뀌어요"
                 : loading
-                  ? "처음 한 번만 받아요"
+                  ? "처음 불러올 때는 잠시 걸릴 수 있어요"
                   : edited
-                    ? "수치 미리보기를 쓸 수 없어요 · 지금은 처음 모양만 보여요"
+                    ? "조절한 모습을 미리 보여드릴 수 없어요. 지금은 기본 모습만 보여드려요."
                     : "바를 움직여 조절하세요"}
         </span>
       </div>

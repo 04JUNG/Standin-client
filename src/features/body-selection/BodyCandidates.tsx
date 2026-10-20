@@ -1,4 +1,3 @@
-import { SinglePoseDetail } from "./SinglePoseDetail";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +25,7 @@ function sourceLabel(selection?: BodySelection, card?: BodyCard) {
   if (selection?.shape) return "직접 조절";
   switch (selection?.resolvedSource) {
     case "manual":
-      return "직접 선택";
+      return "고른 체형";
     case "fixed_default":
       return "내 기본 체형";
     case "auto_recommendation":
@@ -44,7 +43,6 @@ function useBodyName(job: string, person: Pick<PersonResult, "index">, selection
       ? "지원 종료 체형"
       : (options.data?.characters.find((c) => c.characterId === id)?.displayName ??
         catalog.data?.characters.find((c) => c.characterId === id)?.displayName ??
-        id ??
         (selection?.resolutionStatus === "needs_selection" ? "체형 미선택" : "체형 확인 중"));
 }
 
@@ -148,11 +146,9 @@ export function BodyLabel({
 
 /* ------------------------------------------------------------------ Top-5 카드 */
 
-/** 기본 체형 참고 카드. 선택 체형은 명시한 단일 후보 상세에서만 렌더한다. */
+/** 기본 체형 참고 카드. 사진을 누르면 포즈를 고르고 최종 모습은 다음 화면에서 확인한다. */
 export function BodyCandidateCards({
-  job,
   person,
-  entry,
   selected,
   onSelect,
   layout,
@@ -179,26 +175,15 @@ export function BodyCandidateCards({
             layout={layout}
             disabled={disabled}
           />
-          {job && (
-            <SinglePoseDetail
-              job={job}
-              selection={entry?.selection}
-              candidateId={candidate.id}
-              scope={candidate.posterScope ?? person.outputScope?.resolved ?? "full"}
-              sourceIdentity={candidate}
-            />
-          )}
         </div>
       ))}
     </>
   );
 }
 
-/** 플로팅 바의 기본 참고 카드와 별도 단일 후보 상세 요청. */
+/** 플로팅 바의 기본 참고 카드. 사진 클릭은 포즈 선택으로 이어진다. */
 export function BodyCandidateCard({
-  job,
   candidate,
-  entry,
   selected,
   onSelect,
   disabled,
@@ -219,15 +204,6 @@ export function BodyCandidateCard({
         layout="fill"
         disabled={disabled}
       />
-      {job && (
-        <SinglePoseDetail
-          job={job}
-          selection={entry?.selection}
-          candidateId={candidate.id}
-          scope={candidate.posterScope ?? "full"}
-          sourceIdentity={candidate}
-        />
-      )}
     </div>
   );
 }

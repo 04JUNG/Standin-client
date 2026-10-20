@@ -212,7 +212,8 @@ export function SavePage() {
               {formatDowngraded && (
                 <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                  지금 연결된 서버는 FBX 저장을 아직 제공하지 않아 BVH로 저장했습니다.
+                  지금은 FBX로 저장할 수 없어 BVH로 저장했어요. BVH에는 체형·손 모양 없이 동작만
+                  들어가요.
                 </p>
               )}
               {modelNotice && (
@@ -241,8 +242,8 @@ export function SavePage() {
                       {[
                         ["good", "좋아요"],
                         ["person_missing", "인물 누락"],
-                        ["skeleton_wrong", "스켈레톤 오류"],
-                        ["candidates_irrelevant", "후보 불일치"],
+                        ["skeleton_wrong", "팔다리 인식 문제"],
+                        ["candidates_irrelevant", "러프와 다른 포즈"],
                         ["export_problem", "저장 문제"],
                         ["other", "기타"],
                       ].map(([reason, label]) => (

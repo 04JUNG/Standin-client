@@ -102,9 +102,7 @@ describe("login", () => {
   });
 
   it("이메일 미인증이면 재발송 안내를 띄울 수 있게 대상 이메일을 남긴다", async () => {
-    service.login.mockRejectedValue(
-      new ApiError(403, "EMAIL_NOT_VERIFIED", "email not verified"),
-    );
+    service.login.mockRejectedValue(new ApiError(403, "EMAIL_NOT_VERIFIED", "email not verified"));
 
     await expect(
       useAuthStore.getState().login({ email: "a@b.com", password: "pw" }),
@@ -192,11 +190,11 @@ describe("endSession", () => {
   it("토큰 만료로 끊겼을 때 사유를 남기고 미인증으로 만든다", () => {
     useAuthStore.setState({ status: "authenticated", user });
 
-    useAuthStore.getState().endSession("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    useAuthStore.getState().endSession("로그인이 풀렸어요. 다시 로그인해 주세요.");
 
     const state = useAuthStore.getState();
     expect(state.status).toBe("unauthenticated");
     expect(state.user).toBeNull();
-    expect(state.loginError).toBe("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    expect(state.loginError).toBe("로그인이 풀렸어요. 다시 로그인해 주세요.");
   });
 });

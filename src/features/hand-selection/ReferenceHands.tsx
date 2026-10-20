@@ -71,13 +71,12 @@ export function ReferenceHands({
   if (!state.enabled) return null;
   return (
     <section className="rounded-xl border border-border bg-surface-0 p-3">
-      <h3 className="text-sm font-semibold">손 모양 참고 선택</h3>
+      <h3 className="text-sm font-semibold">손 모양 골라 보기</h3>
       <p className="text-xs text-text-secondary">
-        원본 BVH 관절 미리보기는 유지됩니다. 선택한 손은 아래 기본 체형·정면 참고 렌더에서 확인할 수
-        있습니다.{" "}
+        아래 미리보기에서 기본 체형에 손 모양을 입혀 볼 수 있어요.{" "}
         {person?.candidates?.some(canRelease)
-          ? "포즈를 직접 선택하면 저장 전 확인 화면에서 현재 손과 체형을 적용한 FBX를 확인할 수 있습니다."
-          : "파일이 확인되지 않은 후보는 미리보기만 제공합니다."}
+          ? "포즈를 고르면 저장 전에 선택한 체형과 손 모양을 함께 확인할 수 있어요."
+          : "저장할 파일이 없는 포즈는 미리보기만 볼 수 있어요."}
       </p>
       <HandChips state={state} personIndex={personIndex} />
       {!!candidates.length && (
@@ -94,7 +93,7 @@ export function ReferenceHands({
               {groups.flatMap((list, g) =>
                 list.map((c) => (
                   <option key={c.candidate_id} value={c.candidate_id}>
-                    {["검색 후보", "참고 후보", "생성 검수 후보"][g]} {c.rank}
+                    {["검색 후보", "참고 후보", "새로 만든 참고 포즈"][g]} {c.rank}
                   </option>
                 )),
               )}
@@ -117,12 +116,12 @@ export function ReferenceHands({
           {state.ready && requested === binding && preview.data && (
             <img
               src={preview.data}
-              alt="선택한 손이 적용된 기본 체형의 정면 참고 미리보기"
+              alt="고른 손 모양을 기본 체형에 적용한 정면 모습"
               className="mx-auto max-h-[480px] max-w-full"
             />
           )}
           <p className="text-xs text-text-secondary">
-            조회 전용 이미지입니다. 출력 범위 밖의 손은 보이지 않을 수 있습니다.
+            손 모양을 확인하는 참고 이미지예요. 화면 밖에 있는 손은 보이지 않을 수 있어요.
           </p>
         </div>
       )}

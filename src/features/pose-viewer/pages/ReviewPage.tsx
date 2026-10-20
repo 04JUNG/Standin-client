@@ -61,7 +61,7 @@ export function ReviewPage() {
                       src={item.previewUrl}
                       alt={
                         item.previewReference
-                          ? `인물 ${item.personIndex + 1}의 원본 BVH 포즈 참고`
+                          ? `인물 ${item.personIndex + 1}의 동작 미리보기`
                           : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
                       }
                       className="aspect-square w-full bg-surface-2 object-contain"
@@ -81,12 +81,12 @@ export function ReviewPage() {
                     </span>
                     {item.candidate.manualExportAllowed && (
                       <p className="text-[11px] text-text-secondary">
-                        직접 선택한 포즈 · 러프에 맞춘 자동 보정 없음
+                        고른 포즈예요 · 러프에 맞춘 자동 조정은 하지 않아요
                       </p>
                     )}
                     {item.previewReference && (
                       <p className="px-2 text-[10px] text-text-secondary">
-                        포즈 참고 · 체형·손 미적용 · BVH는 전체 관절로 저장
+                        포즈만 확인하는 모습이에요. BVH에는 체형·손 모양 없이 전체 동작이 저장돼요.
                       </p>
                     )}
                     {/* 조정 여부는 그림만 봐서는 알 수 없다. 러프에 맞춰 손댄 결과라는 것을
@@ -111,13 +111,13 @@ export function ReviewPage() {
         {previewLoading && (
           <p role="status" className="text-[12px] text-text-secondary">
             {shapedBake
-              ? "조절한 체형을 실제 포즈에 반영하는 중… 1~2분 걸릴 수 있어요."
-              : "선택한 범위의 미리보기를 만드는 중…"}
+              ? "고른 체형과 손 모양으로 저장할 모습을 만들고 있어요. 1~2분 걸릴 수 있어요."
+              : "저장할 모습을 준비하고 있어요…"}
           </p>
         )}
         {previewError && (
           <div role="alert" className="text-[12px] text-brand-coral">
-            미리보기를 만들지 못했습니다.{" "}
+            저장할 모습을 불러오지 못했어요.{" "}
             <button onClick={retryPreview} className="underline">
               다시 시도
             </button>

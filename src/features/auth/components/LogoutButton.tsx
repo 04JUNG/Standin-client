@@ -16,7 +16,7 @@ export function LogoutButton({ variant = "secondary" }: { variant?: "secondary" 
       <ConfirmDialog
         open={confirmOpen}
         title="로그아웃"
-        description="로그아웃하면 이 기기에서 세션이 삭제됩니다. 다시 로그인해야 합니다."
+        description="로그아웃하면 다시 로그인해야 사용할 수 있어요."
         confirmLabel="로그아웃"
         destructive
         loading={pending}

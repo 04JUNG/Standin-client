@@ -48,7 +48,7 @@ export function HandChips({
   const byId = new Map(presets.map((p) => [p.id, p]));
   const status = (s: Side) =>
     selection.changed.includes(s)
-      ? "직접 선택"
+      ? "고른 손 모양"
       : selection.observation[s].source === "vlm"
         ? selection.observation[s].confidence === "low"
           ? "확인 필요"
@@ -89,7 +89,7 @@ export function HandChips({
       className={`flex flex-col gap-2 border-t border-border ${compact ? "p-2" : "p-3"}`}
     >
       <div className="flex items-center justify-between gap-2 text-[12px] text-text-secondary">
-        <span>인물 {personIndex + 1}의 손 · 인물 기준</span>
+        <span>인물 {personIndex + 1}의 손 · 그림 속 인물의 왼쪽과 오른쪽이에요</span>
         <button
           type="button"
           disabled={state.pending || !selection.changed.length}
@@ -102,7 +102,7 @@ export function HandChips({
       </div>
       {selection.observation.status === "unavailable" && (
         <p className="text-[12px] text-text-secondary">
-          손 자동 인식을 완료하지 못해 기본 손을 선택했습니다.
+          러프에서 손 모양을 읽지 못해 힘을 뺀 손으로 보여드려요. 원하는 모양으로 바꿀 수 있어요.
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -135,7 +135,9 @@ export function HandChips({
         ))}
       </div>
       <p role="status" className="text-[12px] text-text-secondary">
-        {state.pending ? "손 선택 저장 중…" : "손 모양은 최종 미리보기와 FBX에 반영됩니다."}
+        {state.pending
+          ? "손 선택 저장 중…"
+          : "고른 손 모양은 저장 전 미리보기와 FBX 파일에 적용돼요."}
       </p>
       {state.changeError && (
         <p role="alert" className="text-[12px] text-brand-coral">
@@ -148,7 +150,7 @@ export function HandChips({
       <Modal
         open={side !== null}
         onClose={() => setSide(null)}
-        title={`인물 ${personIndex + 1}의 ${side ? labels[side] : "손"} · 인물 기준`}
+        title={`인물 ${personIndex + 1}의 ${side ? labels[side] : "손"} · 그림 속 인물 기준`}
         width="lg"
       >
         <div className="flex flex-col gap-3">

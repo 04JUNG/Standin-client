@@ -87,7 +87,10 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
       await useQualityConsentStore.getState().refresh();
       set({ status: "registered", credentials, error: null });
     } catch {
-      set({ status: "error", error: "설치 인증정보를 불러오지 못했습니다." });
+      set({
+        status: "error",
+        error: "이 기기의 이용 정보를 불러오지 못했어요. 앱을 다시 시작해 주세요.",
+      });
     }
   },
   async register(quality = { personalData: false, contentLicense: false }) {
@@ -148,7 +151,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
       // 가능 시점을 그대로 보여준다(BFF docs/API.md 「사용량 제한」).
       set({
         status: "consent_required",
-        error: messageOf(err, "설치 등록에 실패했습니다. 다시 시도해 주세요."),
+        error: messageOf(err, "이 기기의 사용 준비를 마치지 못했어요. 다시 시도해 주세요."),
       });
     }
   },

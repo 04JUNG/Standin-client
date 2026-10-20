@@ -106,7 +106,7 @@ export function AppShell({ title, headerRight, children }: AppShellProps) {
         {env.useMockApi && (
           <div className="px-4 py-3">
             <span className="rounded bg-brand-coral/20 px-2 py-1 text-[11px] font-semibold text-brand-coral">
-              MOCK 모드
+              체험 모드 · 실제 분석 아님
             </span>
           </div>
         )}

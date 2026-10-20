@@ -7,9 +7,9 @@ import type { MatchLevel, PoseCandidate } from "../api/pose.contract";
 
 /** 후보 카드(docs/03 §7, docs/01 §6 권장 문구). */
 const MATCH_LABEL: Record<MatchLevel, string> = {
-  high: "높은 일치",
+  high: "많이 비슷함",
   medium: "유사",
-  low: "보정 필요",
+  low: "조정이 필요할 수 있어요",
 };
 
 const MATCH_BADGE_CLASS: Record<MatchLevel, string> = {
@@ -57,10 +57,10 @@ export function PoseCandidateCard({
   void bodyPreview;
   const provenance =
     preview.data?.method === "reference-skinning-v1"
-      ? "기본 체형 · 근사 포즈"
+      ? "기본 체형 · 대략적인 포즈"
       : preview.data?.kind === "default-body"
         ? "기본 체형"
-        : "관절 기반";
+        : "뼈대로 본 포즈";
   const caption = `${provenance} · 정면 ${SCOPE_LABELS[candidate.posterScope ?? "full"]} 참고`;
   return (
     <button
@@ -119,7 +119,7 @@ export function PoseCandidateCard({
         {caption}
       </span>
       <span data-pose-reference-note className="px-2 text-[10px] text-text-secondary">
-        선택 체형·손·검색 시점 미적용
+        체형·손·보는 각도는 최종 결과와 다를 수 있어요
       </span>
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
         <div className="flex items-center justify-between">
@@ -140,7 +140,7 @@ export function PoseCandidateCard({
           >
             {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
             {candidate.manualExportAllowed
-              ? "직접 선택 · 확인 후 저장"
+              ? "선택하고 확인 후 저장"
               : reviewOnly(candidate)
                 ? "미리보기 전용"
                 : candidate.semantic

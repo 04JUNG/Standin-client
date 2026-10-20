@@ -73,7 +73,7 @@ it("body changes keep the same default image and issue zero new render requests"
   expect(screen.getByRole("img")).toHaveAttribute("src", url);
   expect(screen.getByRole("button")).toBeEnabled();
   expect(apiFetchResponse).toHaveBeenCalledOnce();
-  expect(screen.getByText(/선택 체형·손·검색 시점 미적용/)).toBeTruthy();
+  expect(screen.getByText(/체형·손·보는 각도는 최종 결과와 다를 수 있어요/)).toBeTruthy();
 });
 it("a malformed source-bound poster fails closed and never starts an expensive fallback", async () => {
   vi.mocked(apiFetchResponse).mockImplementation(() =>

@@ -24,6 +24,25 @@ static BAR_MAX_WIDTH_FRACTION: Mutex<Option<f64>> = Mutex::new(None);
 /// 창을 최소화했을 때 프론트에 "바로 접어라"를 알리는 이벤트(ADR-008).
 pub const COLLAPSE_TO_BAR_EVENT: &str = "window://collapse-to-bar";
 
+const BAR_CLOSE_MENU_ID: &str = "standin-bar-close";
+
+struct BarContextMenu(tauri::menu::Menu<tauri::Wry>);
+
+/// Keep one native menu alive for the app lifetime; it can extend outside the 64px bar.
+pub fn init_bar_context_menu(app: &tauri::App) -> tauri::Result<()> {
+    let close = tauri::menu::MenuItem::with_id(app, BAR_CLOSE_MENU_ID, "닫기", true, None::<&str>)?;
+    let menu = tauri::menu::Menu::with_items(app, &[&close])?;
+    app.manage(BarContextMenu(menu));
+    if let Some(window) = app.get_webview_window("main") {
+        window.on_menu_event(|window, event| {
+            if event.id().as_ref() == BAR_CLOSE_MENU_ID {
+                let _ = window.close();
+            }
+        });
+    }
+    Ok(())
+}
+
 /// 창 제어(최소화·최대화·닫기). 창이 항상 무장식이라 앱 모드가 직접 제목 표시줄을 그린다.
 ///
 /// JS 플러그인 API로 하면 core:window:allow-minimize·allow-close 등을 열어야 하지만
@@ -42,6 +61,14 @@ pub fn window_control(app: AppHandle, action: String) -> Result<(), WindowError>
             } else {
                 let _ = window.maximize();
             }
+        }
+        "showBarMenu" => {
+            let menu = app.try_state::<BarContextMenu>().ok_or_else(|| {
+                WindowError::new("MENU_UNAVAILABLE", "닫기 메뉴를 열 수 없습니다.")
+            })?;
+            window
+                .popup_menu(&menu.0)
+                .map_err(|e| WindowError::new("MENU_FAILED", e.to_string()))?;
         }
         "close" => {
             let _ = window.close();

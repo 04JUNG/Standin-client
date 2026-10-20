@@ -102,6 +102,18 @@ afterEach(() => {
 });
 
 describe("WindowModeSync", () => {
+  it("sets and restores both HTML and body backgrounds before a collapsed bar is painted", async () => {
+    renderAt("/app/home");
+    expect(document.documentElement.dataset.windowMode).toBe("app");
+    expect(document.body.dataset.windowMode).toBe("app");
+    await go("/bar");
+    expect(document.documentElement.dataset.windowMode).toBe("bar");
+    expect(document.body.dataset.windowMode).toBe("bar");
+    await go("/app/home");
+    expect(document.documentElement.dataset.windowMode).toBe("app");
+    expect(document.body.dataset.windowMode).toBe("app");
+  });
+
   it("오버레이는 캡처한 모니터를 그대로 받는다", async () => {
     useCaptureStore.getState().setFrame({
       dataUrl: "data:image/png;base64,x",
