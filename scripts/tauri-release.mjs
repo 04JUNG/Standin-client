@@ -1,7 +1,18 @@
 // tauri-action calls this before collecting/uploading artifacts. The updater
 // signature must cover the final archive, including its notarization ticket.
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { Buffer } from "node:buffer";
 import path from "node:path";
 import os from "node:os";
 import process from "node:process";
@@ -30,6 +41,99 @@ async function stapler(action, app) {
       console.log(`Apple ticket service unavailable; retrying ${action} (${attempt}/2).`);
       await delay(attempt * 3000);
     }
+  }
+}
+
+function signDmg(dmg, work) {
+  const { APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY } = process.env;
+  if (!APPLE_CERTIFICATE || APPLE_CERTIFICATE_PASSWORD === undefined || !APPLE_SIGNING_IDENTITY)
+    throw new Error("Apple signing credentials are required to repair the DMG");
+  const certificate = path.join(work, "signing.p12");
+  const keychain = path.join(work, "signing.keychain-db");
+  const password = randomUUID();
+  if (process.env.GITHUB_ACTIONS) console.log(`::add-mask::${password}`);
+  writeFileSync(certificate, Buffer.from(APPLE_CERTIFICATE, "base64"), { mode: 0o600 });
+  // Tauri removes its temporary signing keychain before returning to this wrapper.
+  // Use another private keychain without changing the user's default/search list.
+  run("security", ["create-keychain", "-p", password, keychain]);
+  try {
+    run("security", ["unlock-keychain", "-p", password, keychain]);
+    run("security", [
+      "import",
+      certificate,
+      "-k",
+      keychain,
+      "-P",
+      APPLE_CERTIFICATE_PASSWORD,
+      "-T",
+      "/usr/bin/codesign",
+    ]);
+    run("security", [
+      "set-key-partition-list",
+      "-S",
+      "apple-tool:,apple:,codesign:",
+      "-s",
+      "-k",
+      password,
+      keychain,
+    ]);
+    run("codesign", [
+      "--force",
+      "--sign",
+      APPLE_SIGNING_IDENTITY,
+      "--keychain",
+      keychain,
+      "--timestamp",
+      dmg,
+    ]);
+    run("codesign", ["--verify", "--verbose=2", dmg]);
+  } finally {
+    run("security", ["delete-keychain", keychain]);
+  }
+}
+
+async function verifyDmg(dmg, app) {
+  const work = mkdtempSync(path.join(os.tmpdir(), "standin-verify-dmg-"));
+  const mount = path.join(work, "mounted");
+  mkdirSync(mount);
+  let mounted = false;
+  const mountedApp = path.join(mount, path.basename(app));
+  const inspect = async (image) => {
+    run("hdiutil", ["attach", image, "-readonly", "-nobrowse", "-mountpoint", mount]);
+    mounted = true;
+    try {
+      run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", mountedApp]);
+      await stapler("validate", mountedApp);
+    } finally {
+      run("hdiutil", ["detach", mount]);
+      mounted = false;
+    }
+  };
+  try {
+    run("codesign", ["--verify", "--verbose=2", dmg]);
+    console.log("Repacking the DMG with the verified, stapled app.");
+    // Preserve Tauri's volume layout/background. Only replace the contained app
+    // with the same signed build whose ticket was already validated above.
+    const writable = path.join(work, "writable.dmg");
+    const complete = path.join(work, "complete.dmg");
+    run("hdiutil", ["convert", dmg, "-format", "UDRW", "-o", writable]);
+    run("hdiutil", ["attach", writable, "-nobrowse", "-mountpoint", mount]);
+    mounted = true;
+    try {
+      run("ditto", [app, mountedApp]);
+      run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", mountedApp]);
+      await stapler("validate", mountedApp);
+    } finally {
+      run("hdiutil", ["detach", mount]);
+      mounted = false;
+    }
+    run("hdiutil", ["convert", writable, "-format", "UDZO", "-o", complete]);
+    signDmg(complete, work);
+    await inspect(complete);
+    copyFileSync(complete, dmg);
+  } finally {
+    // macOS only, private directory created by this call.
+    if (!mounted) rmSync(work, { recursive: true, force: true });
   }
 }
 run(process.execPath, [cli, ...args]);
@@ -61,6 +165,14 @@ if (
   await stapler("staple", app);
   await stapler("validate", app);
   run("spctl", ["--assess", "--type", "execute", "--verbose=4", app]);
+  const dmgDirectory = path.resolve(directory, "../dmg");
+  const version = JSON.parse(readFileSync("package.json", "utf8")).version;
+  if (existsSync(dmgDirectory)) {
+    for (const name of readdirSync(dmgDirectory)) {
+      if (name.endsWith(".dmg") && name.includes(`_${version}_`))
+        await verifyDmg(path.join(dmgDirectory, name), app);
+    }
+  }
   run("tar", ["-czf", archive, "-C", directory, apps[0]], {
     ...process.env,
     COPYFILE_DISABLE: "1",
