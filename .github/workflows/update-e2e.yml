@@ -41,6 +41,7 @@ jobs:
       STANDIN_KEYRING_SERVICE: app.standin.desktop.update-e2e
       E2E_TARGET: ${{ matrix.target }}
       E2E_PLATFORM: ${{ matrix.platformKey }}
+      STANDIN_VERIFY_MACOS_UPDATER: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,6 +58,7 @@ jobs:
         with:
           workspaces: src-tauri
           key: updater-e2e-${{ matrix.target }}
+          cache-on-failure: true
       - name: Install dependencies
         run: npm ci
       - name: Create isolated updater key and TLS certificate
@@ -220,6 +222,7 @@ jobs:
           args: >-
             --target ${{ matrix.target }} --features update-e2e --config ${{ env.STANDIN_E2E_ROOT
             }}/tauri.e2e.json --bundles ${{ matrix.bundles }} ${{ steps.winsign.outputs.extraArgs }}
+          tauriScript: node scripts/tauri-release.mjs
           uploadWorkflowArtifacts: false
           uploadUpdaterJson: false
       - name: Preserve signed version A
@@ -251,6 +254,7 @@ jobs:
           args: >-
             --target ${{ matrix.target }} --features update-e2e --config ${{ env.STANDIN_E2E_ROOT
             }}/tauri.e2e.json --bundles ${{ matrix.bundles }} ${{ steps.winsign.outputs.extraArgs }}
+          tauriScript: node scripts/tauri-release.mjs
           uploadWorkflowArtifacts: false
           uploadUpdaterJson: false
       - name: Preserve signed version B

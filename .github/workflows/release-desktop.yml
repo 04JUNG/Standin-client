@@ -323,6 +323,7 @@ jobs:
           # Updater package signing (minisign). Unrelated to OS code signing (ADR-011).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          STANDIN_VERIFY_MACOS_UPDATER: ${{ steps.updater.outputs.enabled }}
           # macOS code signing (ADR-011). Empty on Windows runners by design.
           APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
           APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
@@ -356,6 +357,7 @@ jobs:
           tagName: v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && '-staging' || '' }}
           releaseName: Standin Desktop v${{ steps.release.outputs.version }}${{ inputs.environment == 'staging' && ' (staging)' || '' }}
           releaseBody: ${{ steps.notes.outputs.body }}
+          tauriScript: node scripts/tauri-release.mjs
           # staging 빌드는 공개 릴리스로 나가지 않는다.
           # All platforms and updater metadata must pass before publication.
           releaseDraft: true

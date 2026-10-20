@@ -25,7 +25,12 @@ FEED_MODE = "valid"
 
 
 def run(args, **kwargs):
-    return subprocess.run(args, check=True, text=True, capture_output=True, **kwargs)
+    result = subprocess.run(args, text=True, capture_output=True, **kwargs)
+    if result.returncode:
+        raise RuntimeError(
+            f"{args[0]} failed ({result.returncode}):\n{result.stdout}\n{result.stderr}"
+        )
+    return result
 
 
 def one(folder, pattern):
@@ -102,7 +107,10 @@ def verify_signature(target):
             "signer=[string]$s.SignerCertificate.Subject; "
             "timestamped=[bool]$s.TimeStamperCertificate} | ConvertTo-Json -Compress"
         )
-        output = run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script], env=env)
+        # Python launched by pwsh inherits its PSModulePath. Windows PowerShell 5
+        # can then load incompatible PowerShell 7 modules; stay with the host shell.
+        shell = shutil.which("pwsh") or "powershell.exe"
+        output = run([shell, "-NoProfile", "-NonInteractive", "-Command", script], env=env)
     else:
         run(["codesign", "--verify", "--deep", "--strict", "--verbose=2", str(target)])
         run(["xcrun", "stapler", "validate", str(target)])
@@ -121,6 +129,7 @@ def install_a():
         run([str(installer), "/S", f"/D={destination}"], timeout=120)
         binary = one(destination, "standin-desktop.exe")
         verify_signature(binary)
+        verify_signature(one(destination, "*uninstall*.exe"))
         return binary, None
     dmg = one(ROOT / "packages" / "a", "*.dmg")
     mount = ROOT / "mounted-a"
@@ -205,6 +214,8 @@ try:
     scenario("upgrade", binary)
     assert hashlib.sha256(binary.read_bytes()).hexdigest() != original_hash
     verify_signature(app_bundle or binary)
+    if WINDOWS:
+        verify_signature(one(binary.parent, "*uninstall*.exe"))
     scenario("no-repeat", binary)
     assert not (cache / "pending.json").exists(), "Installed-version cache was not cleaned"
 finally:
