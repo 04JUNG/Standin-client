@@ -20,6 +20,7 @@ EVENTS = ROOT / "events.jsonl"
 EVIDENCE = ROOT / "evidence"
 EVIDENCE.mkdir(exist_ok=True)
 RESULTS = []
+ALL_PASSED = False
 SERVER = None
 FEED_MODE = "valid"
 
@@ -223,6 +224,7 @@ try:
         verify_signature(one(binary.parent, "*uninstall*.exe"))
     scenario("no-repeat", binary)
     assert not (cache / "pending.json").exists(), "Installed-version cache was not cleaned"
+    ALL_PASSED = True
 finally:
     stop_server()
     if EVENTS.exists():
@@ -230,5 +232,5 @@ finally:
     (EVIDENCE / "results.json").write_text(json.dumps({
         "os": platform.platform(), "architecture": platform.machine(),
         "target": TARGET, "versions": VERSIONS, "scenarios": RESULTS,
-        "allPassed": len(RESULTS) == 7,
+        "allPassed": ALL_PASSED and len(RESULTS) == 7,
     }, indent=2), encoding="utf8")
