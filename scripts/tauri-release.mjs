@@ -29,17 +29,25 @@ function run(command, argv, env = process.env) {
     throw error;
   }
 }
+function capture(command, argv) {
+  const result = spawnSync(command, argv, { encoding: "utf8" });
+  if (result.error) throw result.error;
+  if (result.status !== 0)
+    throw new Error(`${path.basename(command)} exited with ${result.status}`);
+  return result.stdout;
+}
 async function stapler(action, app) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  const backoff = [3000, 10000, 20000, 40000];
+  for (let attempt = 0; attempt <= backoff.length; attempt += 1) {
     try {
       run("xcrun", ["stapler", action, app]);
       return;
     } catch (error) {
       // Error 68 is Apple's ticket-service communication failure. A missing or
       // invalid ticket (65) still fails immediately; never skip validation.
-      if (error.exitCode !== 68 || attempt === 3) throw error;
-      console.log(`Apple ticket service unavailable; retrying ${action} (${attempt}/2).`);
-      await delay(attempt * 3000);
+      if (error.exitCode !== 68 || attempt === backoff.length) throw error;
+      console.log(`Apple ticket service unavailable; retrying ${action} (${attempt + 1}/4).`);
+      await delay(backoff[attempt]);
     }
   }
 }
@@ -54,15 +62,24 @@ function signDmg(dmg, work) {
   if (process.env.GITHUB_ACTIONS) console.log(`::add-mask::${password}`);
   writeFileSync(certificate, Buffer.from(APPLE_CERTIFICATE, "base64"), { mode: 0o600 });
   // Tauri removes its temporary signing keychain before returning to this wrapper.
-  // Use another private keychain without changing the user's default/search list.
+  // Use another private keychain and restore the search list when signing finishes.
+  const originalKeychains = capture("security", ["list-keychains", "-d", "user"])
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^"|"$/g, ""))
+    .filter(Boolean);
   run("security", ["create-keychain", "-p", password, keychain]);
   try {
     run("security", ["unlock-keychain", "-p", password, keychain]);
+    run("security", ["set-keychain-settings", "-t", "3600", "-u", keychain]);
     run("security", [
       "import",
       certificate,
       "-k",
       keychain,
+      "-f",
+      "pkcs12",
+      "-t",
+      "agg",
       "-P",
       APPLE_CERTIFICATE_PASSWORD,
       "-T",
@@ -77,10 +94,17 @@ function signDmg(dmg, work) {
       password,
       keychain,
     ]);
+    run("security", ["list-keychains", "-d", "user", "-s", ...originalKeychains, keychain]);
+    const identities = [
+      ...capture("security", ["find-identity", "-v", "-p", "codesigning", keychain]).matchAll(
+        /^\s*\d+\)\s+([A-Fa-f0-9]{40})\s+"/gm,
+      ),
+    ];
+    if (identities.length !== 1) throw new Error("Expected one valid Apple signing identity");
     run("codesign", [
       "--force",
       "--sign",
-      APPLE_SIGNING_IDENTITY,
+      identities[0][1],
       "--keychain",
       keychain,
       "--timestamp",
@@ -88,7 +112,11 @@ function signDmg(dmg, work) {
     ]);
     run("codesign", ["--verify", "--verbose=2", dmg]);
   } finally {
-    run("security", ["delete-keychain", keychain]);
+    try {
+      run("security", ["list-keychains", "-d", "user", "-s", ...originalKeychains]);
+    } finally {
+      run("security", ["delete-keychain", keychain]);
+    }
   }
 }
 

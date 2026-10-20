@@ -26,12 +26,13 @@ FEED_MODE = "valid"
 
 
 def run(args, retry_codes=(), **kwargs):
-    for attempt in range(3):
+    backoff = [3, 10, 20, 40]
+    for attempt in range(len(backoff) + 1):
         result = subprocess.run(args, text=True, capture_output=True, **kwargs)
-        if result.returncode not in retry_codes or attempt == 2:
+        if result.returncode not in retry_codes or attempt == len(backoff):
             break
         print(f"Transient {args[0]} error {result.returncode}; retrying", flush=True)
-        time.sleep(3 * (attempt + 1))
+        time.sleep(backoff[attempt])
     if result.returncode:
         raise RuntimeError(
             f"{args[0]} failed ({result.returncode}):\n{result.stdout}\n{result.stderr}"
