@@ -29,6 +29,76 @@ describe("poseHttp", () => {
     __resetAnalysisJobs();
   });
 
+  function semanticPayload(thumbnailUrl?: string) {
+    return {
+      jobId: "job_saved",
+      source: "semantic",
+      semantic: { query: "공을 던지는 자세", index: {} },
+      notes: [],
+      candidatesByPerson: [
+        {
+          personIndex: 0,
+          box: null,
+          tags: {},
+          refineAllowed: false,
+          candidates: Array.from({ length: 38 }, (_, i) => ({
+            id: `candidate-${i}`,
+            poseId: `throw-${i}`,
+            rank: i + 1,
+            view: "front",
+            tags: [],
+            matchLevel: "low",
+            bvhAvailable: true,
+            source: "semantic",
+            manualExportAllowed: true,
+            releaseAllowed: false,
+            semantic: { familyId: `throw-${i}`, alternate: false, description: "던지는 자세" },
+            thumbnailUrl:
+              i === 0 && thumbnailUrl !== undefined
+                ? thumbnailUrl
+                : `/v1/pose-candidates/throw-${i}/thumbnail?view=front&revision=${"a".repeat(40)}`,
+          })),
+        },
+      ],
+    };
+  }
+
+  it("loads all 38 semantic results with deployed revisioned thumbnails without rendering", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(semanticPayload()));
+    const result = await poseHttp.loadResult({ jobId: "job_saved" });
+    expect(result.people[0].candidates).toHaveLength(38);
+    expect(result.people[0].candidates[37].quickThumbnailUrl).toContain("&revision=");
+    expect(result.people[0].candidates[37].posterUrl).toContain("/throw-37/poster?");
+    expect(result.people[0].candidates[37].releaseAllowed).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    "/v1/pose-candidates/throw-0/thumbnail?view=front",
+    `/v1/pose-candidates/throw-0/thumbnail?revision=${"b".repeat(64)}&view=front`,
+  ])("accepts the legacy path and reordered revision parameters: %s", async (thumbnailUrl) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(semanticPayload(thumbnailUrl)));
+    await expect(poseHttp.loadResult({ jobId: "job_saved" })).resolves.toMatchObject({
+      source: "semantic",
+    });
+  });
+
+  it.each([
+    "/v1/pose-candidates/other/thumbnail?view=front",
+    "https://other.example/v1/pose-candidates/throw-0/thumbnail?view=front",
+    "/v1/pose-candidates/throw-0/thumbnail?view=back",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&revision=not-a-hash",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&view=front",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&revision=abcdef1&revision=abcdef2",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front&format=glb",
+    "/v1/pose-candidates/throw-0/thumbnail?view=front#fragment",
+  ])("still rejects foreign or malformed semantic thumbnail %s", async (thumbnailUrl) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(semanticPayload(thumbnailUrl)));
+    await expect(poseHttp.loadResult({ jobId: "job_saved" })).rejects.toMatchObject({
+      code: "SEMANTIC_CONTRACT",
+    });
+  });
+
   it.each(["library", "semantic"])(
     "loads owned manual %s assets for save without upgrading search validation",
     async (source) => {
