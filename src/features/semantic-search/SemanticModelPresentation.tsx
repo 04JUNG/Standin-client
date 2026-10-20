@@ -128,7 +128,6 @@ function Candidate({
       >
         미리보기 다시 불러오기
       </button>
-      <p className="text-[11px] text-text-secondary">체형을 비교하는 정면 미리보기예요</p>
       <Modal
         open={open}
         onClose={() => {

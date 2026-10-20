@@ -59,34 +59,10 @@
   display: none;
 }
 
-/* Preserve both provenance lines while avoiding a third wrapped caption line
-   that steals the image area in the existing normal 3+2 cards. */
-.compact-pose-layout [data-pose-candidate] > span {
-  font-size: 10px;
-  line-height: 12px;
-}
-
 .compact-pose-layout [data-pose-candidate] > div:last-child {
   gap: 2px;
   padding-top: 4px;
   padding-bottom: 4px;
-}
-
-.compact-pose-reference-note {
-  display: none;
-  padding: 2px 8px;
-  font-size: 10px;
-  line-height: 12px;
-  color: var(--text-secondary);
-}
-
-.compact-pose-layout:has(
-    [data-presentation-candidate],
-    [data-semantic-model],
-    [data-pose-candidate]
-  )
-  > .compact-pose-reference-note {
-  display: block;
 }
 
 .compact-pose-layout:has(
@@ -98,19 +74,10 @@
   height: calc(100vh - 108px);
 }
 
-.compact-pose-layout [data-pose-reference-note] {
-  display: none;
-}
-
 .compact-pose-layout [data-pose-candidate] > div:last-child {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-}
-
-.compact-pose-layout [data-pose-candidate] > span:first-of-type {
-  padding-left: 2px;
-  padding-right: 2px;
 }
 
 @container (max-width: 680px) {

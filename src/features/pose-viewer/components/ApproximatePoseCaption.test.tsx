@@ -18,19 +18,20 @@ vi.mock("../api/posePoster", () => ({
 beforeEach(() => {
   poster.method = "reference-skinning-v1";
 });
-it("presentation cards label the approximate body and retain a single compact caption row", () => {
+it.each([false, true])("presentation images omit repeated captions (compact=%s)", (compact) => {
   const candidate = {
     source: "library",
     rank: 1,
     asset: { preview_bvh_url: "/v1/poster", bvh_sha256: "a".repeat(64) },
   } as PreviewCandidate;
-  render(<DefaultPoseImage candidate={candidate} scope="half" compact />);
-  const caption = screen.getByText("기본 체형 · 대략적인 포즈 · 정면 반신 참고");
-  expect(caption).toHaveClass("truncate", "whitespace-nowrap");
-  expect(caption).toHaveAttribute("title", "기본 체형 · 대략적인 포즈 · 정면 반신 참고");
-  expect(screen.getByRole("img")).toHaveClass("h-[110px]");
+  render(<DefaultPoseImage candidate={candidate} scope="half" compact={compact} />);
+  expect(screen.queryByText(/대략적인 포즈|정면 반신 참고|체형·손·보는 각도/)).toBeNull();
+  expect(screen.queryByTitle(/대략적인 포즈/)).toBeNull();
+  expect(screen.getByRole("img", { name: "기본 체형 포즈 참고" })).toHaveClass(
+    compact ? "h-[110px]" : "aspect-square",
+  );
 });
-it("normal selection cards keep approximation visible without wrapping the image area", () => {
+it("normal selection cards keep the pose name and image without repeated captions", () => {
   const candidate = {
     id: "pose",
     poseId: "pose",
@@ -51,11 +52,12 @@ it("normal selection cards keep approximation visible without wrapping the image
       layout="fill"
     />,
   );
-  const caption = screen.getByText("기본 체형 · 대략적인 포즈 · 정면 반신 참고");
-  expect(caption).toHaveClass("truncate", "whitespace-nowrap");
-  expect(caption).toHaveAttribute("title", "기본 체형 · 대략적인 포즈 · 정면 반신 참고");
+  expect(screen.queryByText(/대략적인 포즈|정면 반신 참고|체형·손·보는 각도/)).toBeNull();
+  expect(screen.queryByTitle(/대략적인 포즈/)).toBeNull();
+  expect(screen.getByRole("img", { name: "포즈" })).toBeInTheDocument();
+  expect(screen.getByRole("button")).toBeEnabled();
 });
-it("a frozen body poster does not claim to use approximate reference skinning", () => {
+it("a frozen body poster also omits provenance text while retaining its accessible image name", () => {
   poster.method = undefined;
   const candidate = {
     source: "library",
@@ -63,6 +65,7 @@ it("a frozen body poster does not claim to use approximate reference skinning", 
     asset: { preview_bvh_url: "/v1/poster", bvh_sha256: "a".repeat(64) },
   } as PreviewCandidate;
   render(<DefaultPoseImage candidate={candidate} />);
-  expect(screen.getByText("기본 체형 · 정면 전신 참고")).toBeInTheDocument();
+  expect(screen.queryByText(/기본 체형 · 정면 전신 참고/)).toBeNull();
+  expect(screen.getByRole("img", { name: "기본 체형 포즈 참고" })).toBeInTheDocument();
   expect(screen.queryByText(/근사 포즈/)).toBeNull();
 });
