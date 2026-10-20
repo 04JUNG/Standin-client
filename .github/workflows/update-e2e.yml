@@ -4,6 +4,12 @@ name: Signed updater end-to-end verification
   push:
     branches:
       - codex/automatic-updates-e2e
+    paths-ignore:
+      - "docs/**"
+      - "scripts/update-e2e/README.md"
+      - "scripts/update-e2e/inspect.py"
+      - ".github/workflows/update-e2e-inspect.yml"
+      - ".github/workflows/update-e2e.yml"
   workflow_dispatch: {}
 permissions:
   contents: read
