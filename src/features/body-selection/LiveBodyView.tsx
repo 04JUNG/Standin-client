@@ -183,7 +183,7 @@ export function LiveBodyView({
   rough?: { url?: string; box?: PersonBox | null };
   personIndex: number;
   variant: "bar" | "app";
-  /** 박스 머리말. 후보 화면은 "내 체형", 설정 화면은 "내 기본값". */
+  /** 박스 머리말. 후보 화면은 "내 체형", 설정 화면은 "체형 커스텀". */
   title?: string;
   /** 머리말 옆 표시. 없으면 edited일 때 "수정 중". 설정 화면은 저장 전일 때만 쓴다. */
   badge?: string | null;

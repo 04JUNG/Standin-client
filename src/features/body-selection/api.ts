@@ -71,9 +71,6 @@ export async function getPreferences(signal?: AbortSignal) {
 export async function putPreferences(
   value: {
     mode: BodyPreferences["mode"];
-    defaultCharacterId: string | null;
-    /** Omit to keep the saved value; null clears it. */
-    shapeDefault?: { characterId: string; controls: Record<string, number> } | null;
   },
   revision: number,
 ) {

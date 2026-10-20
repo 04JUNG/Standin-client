@@ -32,10 +32,7 @@ export function BodyPreferencesPage() {
   const mode = useMutation({
     mutationFn: (next: BodyPreferences["mode"]) => {
       if (!prefs.data) throw new Error("preferences missing");
-      return putPreferences(
-        { mode: next, defaultCharacterId: prefs.data.defaultCharacterId },
-        prefs.data.revision,
-      );
+      return putPreferences({ mode: next }, prefs.data.revision);
     },
     onSuccess: (value) => {
       if (useInstallationStore.getState().credentials?.installationId === owner)
@@ -103,7 +100,7 @@ export function BodyPreferencesPage() {
                 title="마지막으로 쓴 체형 (기본)"
                 description={
                   lastLabel
-                    ? `후보 화면에서 마지막으로 고른 체형으로 시작해요 · 지금은 ‘${lastLabel}’. 그 포즈에 쓸 수 없으면 자동 추천을 써요.`
+                    ? `후보 화면에서 마지막으로 고른 체형으로 시작해요 · 지금은 ‘${lastLabel}’. 그 체형을 쓸 수 없으면 남성 기본형으로 시작해요.`
                     : "후보 화면에서 마지막으로 고른 체형·카드로 시작해요. 아직 고른 적이 없으면 남성 기본형으로 시작해요."
                 }
               />
@@ -111,18 +108,8 @@ export function BodyPreferencesPage() {
                 checked={value.mode === "auto"}
                 onChange={() => mode.mutate("auto")}
                 title="자동 추천"
-                description="러프에 맞춰 매번 추천한 체형으로 시작해요."
+                description="러프에 맞춰 추천한 체형으로 시작해요. 추천을 찾지 못하면 남성 기본형으로 시작해요."
               />
-              {value.mode === "fixed_default" && (
-                <ModeOption
-                  checked
-                  onChange={() => undefined}
-                  title={`예전 설정 · 내 기본값으로 시작${
-                    value.defaultCharacterId ? ` (${name(value.defaultCharacterId)})` : ""
-                  }`}
-                  description="이전 버전에서 고른 설정이에요. 위 두 가지 중 하나를 고르면 바뀝니다."
-                />
-              )}
             </fieldset>
             {mode.isError && (
               <p role="alert" className="text-[12px] text-brand-coral">

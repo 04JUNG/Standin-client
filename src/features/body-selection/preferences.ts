@@ -27,22 +27,9 @@ export function legacyPreferences(error: unknown) {
 /** 카드 이름 최대 길이(서버와 같다). */
 export const CARD_NAME_MAX = 24;
 
-/** 카드를 모르는 BFF(이전 버전)는 예전 "내 기본값"을 카드 한 장처럼 보여 준다. */
+/** 과거 설정의 카드 변환은 서버의 저장 경계에서 수행한다. */
 export function cardsOf(prefs?: BodyPreferences | null): BodyCard[] {
-  if (prefs?.cards) return prefs.cards;
-  const mine = prefs?.shapeDefault;
-  return mine
-    ? [
-        {
-          cardId: "my-default",
-          name: "내 기본 체형",
-          characterId: mine.characterId,
-          controls: mine.controls,
-          createdAt: "",
-          updatedAt: "",
-        },
-      ]
-    : [];
+  return prefs?.cards ?? [];
 }
 
 /** 새 카드의 처음 이름: 쓰지 않은 "주인공 A", "주인공 B", … */

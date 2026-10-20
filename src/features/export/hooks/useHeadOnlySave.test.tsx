@@ -73,7 +73,13 @@ beforeEach(() => {
     credentials: { installationId: "owner", deviceToken: "fixture", consentVersion: "2026-08-02" },
   });
 });
-function mount(scopes: string[], bodyMode = false, staleBodyHands = false, generatedMixed = false) {
+function mount(
+  scopes: string[],
+  bodyMode = false,
+  staleBodyHands = false,
+  generatedMixed = false,
+  selectedBody = body,
+) {
   const qc = new QueryClient();
   qc.setQueryData(poseQueryKeys.result("job"), {
     jobId: "job",
@@ -117,13 +123,13 @@ function mount(scopes: string[], bodyMode = false, staleBodyHands = false, gener
   scopes.forEach((scope, i) => {
     qc.setQueryData(handKeys.selection("owner", "job", i), { ...hands, personIndex: i });
     if (bodyMode) {
-      qc.setQueryData(bodyKeys.selection("owner", "job", i), body);
+      qc.setQueryData(bodyKeys.selection("owner", "job", i), selectedBody);
       qc.setQueryData([...bodyKeys.person("owner", "job", i), "review", `pick${i}`], {
         candidateId: `pick${i}`,
         personIndex: i,
         exportUrl: url(i),
         scope,
-        selection: body,
+        selection: selectedBody,
         downloadUrl: "/fixture/paired.fbx",
         ...(staleBodyHands
           ? { hands: { revision: hands.revision, librarySha256: hands.library_sha256 } }
@@ -204,4 +210,17 @@ it("saves generated/library mixed people as the exact individual reviewed bytes"
   expect(files[0].content).toEqual(new Uint8Array([7]));
   expect(files[1].content).toEqual(new Uint8Array([8]));
   expect(files[0].fileName).not.toBe(files[1].fileName);
+});
+
+it("saves the reviewed male fallback when body detection failed", async () => {
+  const fallback = {
+    ...body,
+    resolvedBody: { ...body.resolvedBody!, characterId: "male-base-v0-7-2" },
+    resolvedSource: "catalog_default_fallback",
+    recommendation: { status: "unavailable", body: null, reasonCodes: [] },
+  } as BodySelection;
+  const hook = mount(["head"], true, false, false, fallback);
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.body.mock.calls[0]?.[0].selection.resolvedBody.characterId).toBe("male-base-v0-7-2");
+  expect(mock.save).toHaveBeenCalledTimes(1);
 });
