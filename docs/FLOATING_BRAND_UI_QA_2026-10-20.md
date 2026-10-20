@@ -59,4 +59,4 @@ PNG/ICO/ICNS 크기와 alpha, SVG hash, 브라우저 computed style, 번들 검�
 
 ## 통합 경계
 
-기준 develop `d35e159`. #121 `c9101b5`, #122 `1d72810`은 별도 OPEN PR로 유지한다. AppTitleBar/WindowControls와 다른 세션의 BodyCustomPage/LiveBodyView/shapeRuntime은 수정하지 않았다. PR 제출 전 세 변경을 합친 tree의 충돌 여부를 검사한다.
+기준 develop `d35e159`. #121 `c9101b5`, #122 `1d72810`은 별도 OPEN PR로 유지한다. AppTitleBar/WindowControls와 다른 세션의 BodyCustomPage/LiveBodyView/shapeRuntime은 수정하지 않았다. 최신 develop 및 두 PR을 함께 합친 `git merge-tree` 검사는 충돌 없이 통과했다. 합성 tree의 AppTitleBar/WindowControls가 #122 버전과 정확히 같은 것도 확인했다.
