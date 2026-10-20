@@ -4,6 +4,13 @@
 
 사용자가 `Standin Icon QA`에서 확인하고 승인한 최신 정사각형 PNG를 앱 아이콘으로 사용한다. 원본은 `src-tauri/icons/standinLogo.png`, 웹 favicon은 동일한 `public/standinLogo.png`다. 이 PNG로 desktop 아이콘 17개를 생성했고 macOS ICNS에는 불투명 남색 정사각형 배경을 유지한다. 사용자가 별도로 지정한 원형 SVG는 `public/favicon_circle.svg`에서 접힌 플로팅 바 전용으로 그대로 유지한다.
 
+2026-10-21 Windows 아이콘 수정: Windows 실행 파일·NSIS 설치/제거 아이콘은
+`src-tauri/icons/windows-icon.svg`의 남색 정사각형 바탕과 흰색·코랄색 S 로고를 사용한다.
+`npm run icons:generate -- --windows`로 `icon.ico`만 생성하고,
+`npm run icons:check -- --windows`로 원본과의 일치를 검증한다.
+ICO 변경은 Rust 빌드 입력으로 추적하며, NSIS 설치·업데이트 완료 시
+Windows Shell에 실행 파일과 등록 아이콘의 변경을 알려 이전 바로가기 캐시를 갱신한다.
+
 새 앱 아이콘과 기존 원형 바를 함께 담은 별도 macOS debug QA 번들을 생성하고 실행했으며 사용자가 최종 조합을 승인했다. 추가 테스트·전체 제품 빌드는 요청에 따라 생략했다. 헤더·검색 뒤로가기와 클릭 가로채기 코드는 바꾸지 않았다. **아래 테스트·이미지·해시 및 시스템 아이콘 비교는 이전 SVG 앱 아이콘 버전의 기록이다.**
 
 ## 이전 SVG 앱 아이콘 버전 검증 기록
