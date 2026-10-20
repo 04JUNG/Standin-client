@@ -1,0 +1,385 @@
+{
+  "128x128.png": [
+    {
+      "size": [
+        128,
+        128
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "128x128@2x.png": [
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "32x32.png": [
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "64x64.png": [
+    {
+      "size": [
+        64,
+        64
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square107x107Logo.png": [
+    {
+      "size": [
+        107,
+        107
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square142x142Logo.png": [
+    {
+      "size": [
+        142,
+        142
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square150x150Logo.png": [
+    {
+      "size": [
+        150,
+        150
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square284x284Logo.png": [
+    {
+      "size": [
+        284,
+        284
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square30x30Logo.png": [
+    {
+      "size": [
+        30,
+        30
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square310x310Logo.png": [
+    {
+      "size": [
+        310,
+        310
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square44x44Logo.png": [
+    {
+      "size": [
+        44,
+        44
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square71x71Logo.png": [
+    {
+      "size": [
+        71,
+        71
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "Square89x89Logo.png": [
+    {
+      "size": [
+        89,
+        89
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "StoreLogo.png": [
+    {
+      "size": [
+        50,
+        50
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "icon.icns": [
+    {
+      "size": [
+        1024,
+        1024
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        512,
+        512
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        128,
+        128
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        64,
+        64
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        16,
+        16
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "icon.ico": [
+    {
+      "size": [
+        16,
+        16
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        24,
+        24
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        32,
+        32
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        48,
+        48
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        64,
+        64
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    },
+    {
+      "size": [
+        256,
+        256
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "icon.png": [
+    {
+      "size": [
+        512,
+        512
+      ],
+      "alphaExtrema": [
+        0,
+        255
+      ],
+      "cornerAlpha": 0
+    }
+  ],
+  "favicon.svg": {
+    "sha256": "8d62b5cdbf95580f62989c88acd447c5d303e966e51c1ebd6600ea197c1406dc",
+    "originalBytesPreserved": true
+  },
+  "favicon_circle.svg": {
+    "sha256": "766b5eb97c7d157b711564d4c39cdc35b39fcdeb4df1c6f03902302cb934f659",
+    "originalBytesPreserved": true
+  }
+}

@@ -1,12 +1,14 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { GripVertical, Minus, Maximize2 } from "lucide-react";
+import { ArrowLeft, GripVertical, Minus, Maximize2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { GlobalShortcutIndicator } from "@/shared/components/GlobalShortcutAlert";
 import { useShortcuts } from "@/shared/hooks/useShortcuts";
 import { appRouteForBarPath } from "@/shared/lib/modeRoutes";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+import { useExportStore } from "@/features/export/store/exportStore";
+import { previousBarRoute } from "../lib/previousBarRoute";
 import { CompactPoseLayout } from "./CompactPoseLayout";
 import { useWindowModeStore } from "../stores/windowModeStore";
 
@@ -29,6 +31,8 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
   const { pathname, state: routeState } = useLocation();
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const hasDraft = useUploadStore((s) => s.draft !== null);
+  const saving = useExportStore((s) => s.jobId === jobId && s.status === "saving");
+  const previous = previousBarRoute(pathname, { jobId, saving });
   const shellRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +95,19 @@ export function BarShell({ title, hideCollapse, children, footer }: BarShellProp
         {/* 전역 단축키가 죽어 있으면 바에서도 알린다. 바는 폭이 좁아 아이콘만 둔다. */}
         <GlobalShortcutIndicator />
 
+        <BarIconButton
+          label="뒤로가기"
+          disabled={!previous}
+          onClick={() =>
+            previous &&
+            navigate(previous, {
+              replace: true,
+              state: pathname === "/bar/candidates" ? { resumeJobId: jobId } : undefined,
+            })
+          }
+        >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        </BarIconButton>
         {!hideCollapse && (
           <BarIconButton label="접기 (Esc)" onClick={() => navigate("/bar", { replace: true })}>
             <Minus className="h-3.5 w-3.5" aria-hidden />
@@ -128,7 +145,9 @@ function BarIconButton({
   label,
   onClick,
   children,
+  disabled,
 }: {
+  disabled?: boolean;
   label: string;
   onClick: () => void;
   children: ReactNode;
@@ -137,11 +156,13 @@ function BarIconButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
       className={cn(
         "flex h-6 w-6 shrink-0 items-center justify-center rounded transition-colors",
-        "text-text-secondary hover:bg-surface-2 hover:text-text-primary",
+        "text-text-secondary enabled:hover:bg-surface-2 enabled:hover:text-text-primary",
+        "disabled:cursor-not-allowed disabled:opacity-35",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
       )}
     >

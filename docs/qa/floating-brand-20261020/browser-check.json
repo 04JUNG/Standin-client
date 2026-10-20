@@ -1,0 +1,21 @@
+{
+  "fixture": true,
+  "nativeOS": false,
+  "collapsed": {
+    "html": "rgba(0, 0, 0, 0)",
+    "body": "rgba(0, 0, 0, 0)",
+    "root": "rgba(0, 0, 0, 0)",
+    "corner": "DIV",
+    "center": "BUTTON",
+    "button": {
+      "background": "rgba(0, 0, 0, 0)",
+      "border": "0px",
+      "shadow": "none",
+      "clip": "circle(50%)"
+    }
+  },
+  "keyboardOpen": true,
+  "entryBackDisabled": true,
+  "reviewCandidatesActionsResume": true,
+  "errors": []
+}
