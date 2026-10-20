@@ -11,6 +11,7 @@ import {
   releases,
   releasesBetween,
   markReleaseSeen,
+  readSeenRelease,
   releaseHistory,
   SEEN_RELEASE_KEY,
   useReleaseNotesStore,
@@ -27,7 +28,26 @@ export function ReleaseNotesDialog() {
   const { reason } = useUpdateBlockReason();
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(() => safeStorage.getItem(SEEN_RELEASE_KEY));
+  const [seenReady, setSeenReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [all, setAll] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void readSeenRelease()
+      .then((value) => {
+        if (!cancelled) setSeen(value);
+      })
+      .catch(() => {
+        // Keep the local fallback for display. A failed native write is surfaced on close.
+      })
+      .finally(() => {
+        if (!cancelled) setSeenReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const unseen = version ? releasesBetween(releases, seen, version) : [];
   const eligible =
     configured &&
@@ -38,7 +58,7 @@ export function ReleaseNotesDialog() {
     ["/app/home", "/app/settings"].includes(pathname);
 
   useEffect(() => {
-    if (open) return;
+    if (!seenReady || open) return;
     if (!requested && (!eligible || unseen.length === 0)) return;
     if (tour.active) return;
     // Allow consent, tours and existing dialogs to finish before opening.
@@ -54,15 +74,23 @@ export function ReleaseNotesDialog() {
       window.clearTimeout(timer);
       observer.disconnect();
     };
-  }, [eligible, open, requested, tour.active, unseen.length]);
+  }, [eligible, open, requested, seenReady, tour.active, unseen.length]);
 
   if (!version) return null;
   const entries = all ? releaseHistory(version) : unseen;
-  const close = () => {
-    markReleaseSeen(version);
-    setSeen(safeStorage.getItem(SEEN_RELEASE_KEY));
-    setOpen(false);
-    closeHistory();
+  const close = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      setSeen(await markReleaseSeen(version));
+      setOpen(false);
+      closeHistory();
+    } catch {
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <Modal
@@ -101,13 +129,18 @@ export function ReleaseNotesDialog() {
         {!entries.length && (
           <p className="text-sm text-text-secondary">표시할 변경 내역이 없습니다.</p>
         )}
+        {saveError && (
+          <p role="alert" className="text-sm text-text-secondary">
+            확인 기록을 저장하지 못했습니다. 다시 시도해 주세요.
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           {!all && (
             <Button variant="ghost" size="md" onClick={() => setAll(true)}>
               전체 변경 내역 보기
             </Button>
           )}
-          <Button variant="primary" size="md" onClick={close}>
+          <Button variant="primary" size="md" onClick={close} disabled={saving}>
             확인
           </Button>
         </div>

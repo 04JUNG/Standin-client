@@ -1,5 +1,6 @@
 import catalog from "../../../../releases/notes.json";
 import { create } from "zustand";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import {
   compareVersions,
@@ -21,14 +22,26 @@ export const useReleaseNotesStore = create<{
   closeHistory: () => set({ historyRequested: false }),
 }));
 
-export function markReleaseSeen(version: string) {
+export async function readSeenRelease(): Promise<string | null> {
+  const native = isTauri() ? await invoke<string | null>("release_notes_seen") : null;
+  return native ?? safeStorage.getItem(SEEN_RELEASE_KEY);
+}
+
+export async function markReleaseSeen(version: string): Promise<string> {
+  if (isTauri()) {
+    // IPC completes only after the native file has been synced and atomically renamed.
+    const saved = await invoke<string>("release_notes_acknowledge");
+    safeStorage.setItem(SEEN_RELEASE_KEY, saved);
+    return saved;
+  }
   const previous = safeStorage.getItem(SEEN_RELEASE_KEY);
   try {
-    if (previous && compareVersions(previous, version) > 0) return;
+    if (previous && compareVersions(previous, version) > 0) return previous;
   } catch {
     /* Replace corrupt metadata. */
   }
   safeStorage.setItem(SEEN_RELEASE_KEY, version);
+  return version;
 }
 
 export function releaseHistory(current: string) {

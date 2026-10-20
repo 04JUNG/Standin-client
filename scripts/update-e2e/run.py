@@ -187,6 +187,17 @@ def scenario(name, binary):
                 process.wait(timeout=30)
                 return passed
             time.sleep(0.25)
+    if not WINDOWS and process.poll() is None:
+        # Preserve native thread stacks if the app stalls before its first IPC event.
+        # A timeout still fails the test; this does not retry or bypass installation.
+        try:
+            subprocess.run(
+                ["sample", str(process.pid), "2", "1", "-file",
+                 str(EVIDENCE / f"{name}-native-sample.txt")],
+                text=True, capture_output=True, timeout=15,
+            )
+        except subprocess.TimeoutExpired:
+            print("Native process sampling timed out", flush=True)
     raise AssertionError(f"Timeout in {name}; process exit={process.poll()}, events={events()[before:]}")
 
 

@@ -103,7 +103,7 @@ fn read_cache(dir: &Path, current: &Version) -> Result<Option<CachedUpdate>, Str
     }
 }
 
-fn atomic_write(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
+pub(super) fn atomic_write(dir: &Path, name: &str, bytes: &[u8]) -> Result<(), String> {
     use std::io::Write;
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let temporary = dir.join(format!("{name}.tmp"));

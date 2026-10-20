@@ -162,6 +162,9 @@ try {
       closeDialog();
       await waitFor(() => !dialog());
       assert(localStorage.getItem(SEEN_RELEASE_KEY) === control.b, "Seen version not persisted");
+      // WebKit may not flush localStorage before immediate exit. The native
+      // acknowledgement must survive even if this WebView cache is lost.
+      localStorage.removeItem(SEEN_RELEASE_KEY);
       break;
     case "no-repeat":
       assert(state().version === control.b, "Expected B after relaunch");

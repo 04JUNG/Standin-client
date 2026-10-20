@@ -2,12 +2,14 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useTourStore } from "@/shared/stores/tourStore";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import { useUpdateStore } from "../store/updateStore";
 import { SEEN_RELEASE_KEY, useReleaseNotesStore } from "../lib/releaseNotes";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), isTauri: vi.fn() }));
 vi.mock("@/features/installation/installationStore", () => ({
   useInstallationStore: (select: (state: { status: string }) => unknown) =>
     select({ status: "registered" }),
@@ -25,6 +27,8 @@ function show(path = "/app/home") {
 }
 
 beforeEach(() => {
+  vi.mocked(isTauri).mockReturnValue(false);
+  vi.mocked(invoke).mockReset();
   safeStorage.removeItem(SEEN_RELEASE_KEY);
   useUpdateStore.setState({ version: "0.1.1-beta.9", configured: true });
   useReleaseNotesStore.getState().closeHistory();
@@ -68,5 +72,22 @@ describe("ReleaseNotesDialog", () => {
     expect(screen.queryByText("이번 버전 소개")).not.toBeInTheDocument();
     other.remove();
     await waitFor(() => expect(screen.getByRole("dialog")).toHaveAccessibleName("이번 버전 소개"));
+  });
+  it("디스크 저장을 마친 뒤 닫고 실패하면 팝업에서 재시도할 수 있다", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(invoke).mockResolvedValueOnce(null);
+    show();
+    await screen.findByRole("dialog");
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("disk full"));
+    await userEvent.click(screen.getByRole("button", { name: "확인" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("확인 기록을 저장하지 못했습니다");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    let finish!: (version: string) => void;
+    vi.mocked(invoke).mockReturnValueOnce(new Promise<string>((resolve) => (finish = resolve)));
+    await userEvent.click(screen.getByRole("button", { name: "확인" }));
+    expect(screen.getByRole("button", { name: "확인" })).toBeDisabled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await act(async () => finish("0.1.1-beta.9"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

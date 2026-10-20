@@ -39,6 +39,7 @@ pub fn run() {
 
     builder
         .manage(commands::updates::UpdateRuntime::default())
+        .manage(commands::release_notes::ReleaseNotesState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
@@ -69,35 +70,37 @@ pub fn run() {
                 return update_e2e::handle(invoke);
             }
             let handler: fn(tauri::ipc::Invoke) -> bool = tauri::generate_handler![
-            commands::capture::grab_screen,
-            commands::export::default_save_dir,
-            commands::export::choose_save_folder,
-            commands::export::folder_exists,
-            commands::export::drag_icon_path,
-            commands::export::save_pose_file,
-            commands::export::reveal_in_folder,
-            commands::screen_permission::open_screen_recording_settings,
-            commands::screen_permission::screen_recording_status,
-            commands::screen_permission::request_screen_recording,
-            commands::secure_store::get_secure_token,
-            commands::secure_store::set_secure_token,
-            commands::secure_store::clear_secure_token,
-            commands::secure_store::get_installation_credentials,
-            commands::secure_store::set_installation_credentials,
-            commands::secure_store::clear_installation_credentials,
-            commands::secure_store::get_installation_environment,
-            commands::shortcuts::register_capture_shortcut,
-            commands::shortcuts::unregister_capture_shortcut,
-            commands::shortcuts::focus_main_window,
-            commands::updates::updates_configured,
-            commands::updates::updates_cached,
-            commands::updates::updates_check,
-            commands::updates::updates_download,
-            commands::updates::updates_install,
-            commands::window_mode::set_window_mode,
-            commands::window_mode::get_window_position,
-            commands::window_mode::set_window_position,
-            commands::window_mode::window_control,
+                commands::capture::grab_screen,
+                commands::export::default_save_dir,
+                commands::export::choose_save_folder,
+                commands::export::folder_exists,
+                commands::export::drag_icon_path,
+                commands::export::save_pose_file,
+                commands::export::reveal_in_folder,
+                commands::screen_permission::open_screen_recording_settings,
+                commands::screen_permission::screen_recording_status,
+                commands::screen_permission::request_screen_recording,
+                commands::secure_store::get_secure_token,
+                commands::secure_store::set_secure_token,
+                commands::secure_store::clear_secure_token,
+                commands::secure_store::get_installation_credentials,
+                commands::secure_store::set_installation_credentials,
+                commands::secure_store::clear_installation_credentials,
+                commands::secure_store::get_installation_environment,
+                commands::shortcuts::register_capture_shortcut,
+                commands::shortcuts::unregister_capture_shortcut,
+                commands::shortcuts::focus_main_window,
+                commands::updates::updates_configured,
+                commands::updates::updates_cached,
+                commands::updates::updates_check,
+                commands::updates::updates_download,
+                commands::updates::updates_install,
+                commands::release_notes::release_notes_seen,
+                commands::release_notes::release_notes_acknowledge,
+                commands::window_mode::set_window_mode,
+                commands::window_mode::get_window_position,
+                commands::window_mode::set_window_position,
+                commands::window_mode::window_control,
             ];
             handler(invoke)
         })

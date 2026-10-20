@@ -1,11 +1,12 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   compareVersions,
   validateCatalog,
   releasesBetween,
   formatNotes,
 } from "../../../../releases/catalog.mjs";
-import { markReleaseSeen, SEEN_RELEASE_KEY } from "./releaseNotes";
+import { markReleaseSeen, readSeenRelease, SEEN_RELEASE_KEY } from "./releaseNotes";
 import { safeStorage } from "@/shared/lib/safeStorage";
 
 const entry = (version: string) => ({
@@ -16,7 +17,12 @@ const entry = (version: string) => ({
   improvements: ["캡처 개선"],
   fixes: [],
 });
-beforeEach(() => safeStorage.removeItem(SEEN_RELEASE_KEY));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), isTauri: vi.fn() }));
+beforeEach(() => {
+  safeStorage.removeItem(SEEN_RELEASE_KEY);
+  vi.mocked(isTauri).mockReturnValue(false);
+  vi.mocked(invoke).mockReset();
+});
 
 describe("release notes", () => {
   it("beta.9에서 beta.10으로 비교하고 정식 버전은 beta 뒤에 둔다", () => {
@@ -41,12 +47,31 @@ describe("release notes", () => {
     expect(() => validateCatalog([{ ...entry("1.0.0"), date: "2026-02-30" }])).toThrow();
     expect(() => validateCatalog([entry("1.0.0-beta.01")])).toThrow();
   });
-  it("확인 기록은 재실행에 유지되고 다운그레이드로 되돌리지 않는다", () => {
-    markReleaseSeen("1.0.2");
-    markReleaseSeen("1.0.1");
+  it("확인 기록은 재실행에 유지되고 다운그레이드로 되돌리지 않는다", async () => {
+    await markReleaseSeen("1.0.2");
+    await markReleaseSeen("1.0.1");
     expect(safeStorage.getItem(SEEN_RELEASE_KEY)).toBe("1.0.2");
   });
   it("배포 설명과 앱에 같은 변경 항목을 사용한다", () => {
     expect(formatNotes(entry("1.0.0"))).toContain("### 개선\n- 캡처 개선");
+  });
+  it("네이티브 저장 완료를 기다리고 WebView 기록을 잃어도 확인 버전을 읽는다", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    let finish!: (version: string) => void;
+    vi.mocked(invoke).mockReturnValueOnce(new Promise<string>((resolve) => (finish = resolve)));
+    const saving = markReleaseSeen("1.0.2");
+    expect(safeStorage.getItem(SEEN_RELEASE_KEY)).toBeNull();
+    expect(invoke).toHaveBeenCalledWith("release_notes_acknowledge");
+    finish("1.0.2");
+    await expect(saving).resolves.toBe("1.0.2");
+    safeStorage.removeItem(SEEN_RELEASE_KEY);
+    vi.mocked(invoke).mockResolvedValueOnce("1.0.2");
+    await expect(readSeenRelease()).resolves.toBe("1.0.2");
+  });
+  it("네이티브 저장 실패를 확인 완료로 기록하지 않는다", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(invoke).mockRejectedValueOnce(new Error("disk full"));
+    await expect(markReleaseSeen("1.0.2")).rejects.toThrow("disk full");
+    expect(safeStorage.getItem(SEEN_RELEASE_KEY)).toBeNull();
   });
 });
