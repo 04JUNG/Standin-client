@@ -29,6 +29,66 @@ describe("poseHttp", () => {
     __resetAnalysisJobs();
   });
 
+  it.each([true, false])(
+    "preserves explicit dynamic library refine only with its bound camera (%s)",
+    async (validCamera) => {
+      const hash = "a".repeat(64);
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_saved",
+          notes: [],
+          capabilities: { refine: true },
+          candidatesByPerson: [
+            {
+              personIndex: 0,
+              tags: {},
+              confidence: "low",
+              fallbackMode: "soft",
+              refineAllowed: true,
+              refinableLimbs: ["left_arm"],
+              posePresentation: { version: "dynamic-pose-presentation-v1" },
+              candidates: [
+                {
+                  id: "qualified",
+                  poseId: "registered",
+                  rank: 1,
+                  view: "front",
+                  tags: [],
+                  matchLevel: "low",
+                  source: "library",
+                  manualExportAllowed: true,
+                  lookupAllowed: true,
+                  releaseAllowed: false,
+                  refineAllowed: true,
+                  presentationKind: "library_match",
+                  notExactMatch: false,
+                  sourceBvhSha256: hash,
+                  bvhAvailable: true,
+                  camera: validCamera
+                    ? {
+                        version: "candidate-camera-v2",
+                        source_bvh_sha256: hash,
+                        rotation: [
+                          [1, 0, 0],
+                          [0, 1, 0],
+                          [0, 0, 1],
+                        ],
+                      }
+                    : undefined,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      const result = await poseHttp.loadResult({ jobId: "job_saved" });
+      expect(result.people[0].refineAllowed).toBe(validCamera);
+      expect(result.people[0].candidates[0].refineAllowed).toBe(validCamera);
+      expect(result.people[0].candidates[0].releaseAllowed).toBe(false);
+      expect(result.people[0].candidates[0].bvhAvailable).toBe(true);
+    },
+  );
+
   it.each([null, "pretend-library-id"])(
     "reads generated identity without inventing a library ID (%s)",
     async (poseId) => {
