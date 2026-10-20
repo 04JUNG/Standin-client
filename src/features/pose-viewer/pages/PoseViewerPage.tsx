@@ -1,3 +1,7 @@
+import {
+  hasPresentationCandidates,
+  presentationNotice,
+} from "@/features/pose-viewer/api/presentationState";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { PosePresentationPanel } from "../components/PosePresentationPanel";
 import { useExportStore } from "@/features/export/store/exportStore";
@@ -281,9 +285,7 @@ export function PoseViewerPage() {
             <span className="text-[13px] font-semibold text-text-primary">
               원본 · 인물 {people.length}명을 찾았어요
             </span>
-            <p className="text-[12.5px] text-text-secondary">
-              인물을 선택해 포즈를 골라 주세요.
-            </p>
+            <p className="text-[12.5px] text-text-secondary">인물을 선택해 포즈를 골라 주세요.</p>
             <p className="text-[12.5px] text-text-secondary">
               내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈 고름{" "}
               <b className="text-text-primary">{selectedCount}</b>
@@ -475,9 +477,9 @@ function ActivePersonCard({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[12px] text-text-secondary">
-            {person.posePresentation && person.candidates.length === 0
+            {hasPresentationCandidates(person.posePresentation) && person.candidates.length === 0
               ? "참고용 미리보기"
-              : hard
+              : person.candidates.length === 0
                 ? "후보 없음"
                 : !included
                   ? "내보내기 제외"
@@ -618,9 +620,9 @@ function OtherPersonRow({
         !first && "border-t border-surface-2 hover:border-transparent",
       )}
     >
-      {person.posePresentation && person.candidates.length === 0 ? (
+      {hasPresentationCandidates(person.posePresentation) && person.candidates.length === 0 ? (
         <span className="text-xs">참고용 포즈</span>
-      ) : hard ? (
+      ) : person.candidates.length === 0 ? (
         <span className="text-[11.5px] text-text-secondary">후보 없음</span>
       ) : (
         <ExportSwitch personIndex={person.index} included={included} onChange={onIncluded} />
@@ -641,10 +643,11 @@ function OtherPersonRow({
         {bodiesEnabled && !hard && <BodyLabel job={jobId} person={person} entry={entry} />}
       </div>
       <span className="truncate text-[12px] text-text-secondary">
-        {person.posePresentation && person.candidates.length === 0
+        {hasPresentationCandidates(person.posePresentation) && person.candidates.length === 0
           ? "참고 포즈 펼치기"
-          : hard
-            ? "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
+          : person.candidates.length === 0
+            ? (person.posePresentation && presentationNotice(person.posePresentation)) ||
+              "이 인물에 맞는 포즈 후보를 찾지 못했습니다"
             : !included
               ? "내보내기 제외"
               : selectedTitle
