@@ -40,6 +40,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Validate release notes
+        run: npm run release:check
+
       - name: Test
         run: npm test
 

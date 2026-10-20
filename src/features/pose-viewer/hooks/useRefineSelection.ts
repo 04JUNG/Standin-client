@@ -6,6 +6,7 @@ import type { AnalysisResult } from "../api/pose.contract";
 import type { RefineOutcome } from "../api/refine.contract";
 import { refineService } from "../api/refine.service";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
+import { beginWork } from "@/shared/stores/workActivityStore";
 
 /** 동시 호출 상한. 다인 컷에서 추론 서버에 한꺼번에 몰리지 않게 한다. */
 const MAX_PARALLEL = 3;
@@ -64,6 +65,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
     }
 
     setStatus("running");
+    const finishWork = beginWork();
     const queue = [...targets];
     const worker = async () => {
       for (let next = queue.shift(); next; next = queue.shift()) {
@@ -89,8 +91,12 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
         }
       }
     };
-    await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker));
-    setStatus("done");
+    try {
+      await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker));
+      setStatus("done");
+    } finally {
+      finishWork();
+    }
   }, [setRefineOutcome]);
 
   const started = useRef(false);

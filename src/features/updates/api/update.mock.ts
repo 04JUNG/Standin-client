@@ -21,6 +21,14 @@ export const updateMock: UpdateService = {
     return { kind: "disabled" };
   },
 
+  async cached() {
+    return null;
+  },
+
+  async download() {
+    throw new Error("자동 업데이트는 데스크톱 앱에서만 사용할 수 있습니다.");
+  },
+
   async install() {
     throw new Error("자동 업데이트는 데스크톱 앱에서만 사용할 수 있습니다.");
   },

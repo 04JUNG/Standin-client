@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "release:check": "node scripts/release-notes.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "tauri": "tauri"

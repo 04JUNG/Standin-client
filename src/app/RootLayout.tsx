@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { WindowModeSync } from "@/features/bar/components/WindowModeSync";
 import { windowTargetForPath } from "@/features/bar/lib/barSizes";
 import { UpdateBanner } from "@/features/updates/components/UpdateBanner";
+import { ReleaseNotesDialog } from "@/features/updates/components/ReleaseNotesDialog";
 import { TourLayer } from "@/features/tour/components/TourLayer";
 import { AppTitleBar } from "./AppTitleBar";
 
@@ -36,6 +37,7 @@ export function RootLayout() {
             <Outlet />
           </div>
           <TourLayer />
+          <ReleaseNotesDialog />
         </div>
       ) : (
         <Outlet />

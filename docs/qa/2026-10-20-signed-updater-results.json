@@ -1,0 +1,147 @@
+{
+  "run": 39430129079,
+  "commit": "0b1756d3bbd97b353c2a56a8d1e91efa7e59afcc",
+  "platforms": [
+    {
+      "os": "Windows-2025Server-10.0.26100-SP0",
+      "architecture": "AMD64",
+      "target": "windows-x86_64",
+      "versions": {
+        "a": "0.1.1-beta.9",
+        "b": "0.1.1-beta.10"
+      },
+      "scenarios": [
+        {
+          "scenario": "reject-signature",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "download",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "offline",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "tamper",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "recover",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "upgrade",
+          "version": "0.1.1-beta.10",
+          "passed": true
+        },
+        {
+          "scenario": "no-repeat",
+          "version": "0.1.1-beta.10",
+          "passed": true
+        }
+      ],
+      "allPassed": true
+    },
+    {
+      "os": "macOS-15.7.9-arm64-arm-64bit",
+      "architecture": "arm64",
+      "target": "darwin-aarch64",
+      "versions": {
+        "a": "0.1.1-beta.9",
+        "b": "0.1.1-beta.10"
+      },
+      "scenarios": [
+        {
+          "scenario": "reject-signature",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "download",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "offline",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "tamper",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "recover",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "upgrade",
+          "version": "0.1.1-beta.10",
+          "passed": true
+        },
+        {
+          "scenario": "no-repeat",
+          "version": "0.1.1-beta.10",
+          "passed": true
+        }
+      ],
+      "allPassed": true
+    },
+    {
+      "os": "macOS-15.7.9-x86_64-i386-64bit",
+      "architecture": "x86_64",
+      "target": "darwin-x86_64",
+      "versions": {
+        "a": "0.1.1-beta.9",
+        "b": "0.1.1-beta.10"
+      },
+      "scenarios": [
+        {
+          "scenario": "reject-signature",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "download",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "offline",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "tamper",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "recover",
+          "version": "0.1.1-beta.9",
+          "passed": true
+        },
+        {
+          "scenario": "upgrade",
+          "version": "0.1.1-beta.10",
+          "passed": true
+        },
+        {
+          "scenario": "no-repeat",
+          "version": "0.1.1-beta.10",
+          "passed": true
+        }
+      ],
+      "allPassed": true
+    }
+  ]
+}

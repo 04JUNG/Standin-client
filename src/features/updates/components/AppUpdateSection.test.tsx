@@ -20,12 +20,15 @@ const isConfigured = vi.fn();
 const check = vi.fn();
 const install = vi.fn();
 const relaunch = vi.fn();
+const download = vi.fn();
 
 vi.mock("../api/update.service", () => ({
   updateService: {
     currentVersion: () => currentVersion(),
     isConfigured: () => isConfigured(),
     check: () => check(),
+    cached: vi.fn(async () => null),
+    download: () => download(),
     install: (onProgress?: (progress: { ratio: number | null }) => void) => install(onProgress),
     relaunch: () => relaunch(),
   },
@@ -70,6 +73,7 @@ beforeEach(() => {
   useUpdateStore.getState().reset();
   currentVersion.mockResolvedValue("0.1.1-beta.2");
   isConfigured.mockResolvedValue(true);
+  download.mockResolvedValue({ version: "0.1.2", attempted: false });
 });
 
 describe("AppUpdateSection", () => {
@@ -95,7 +99,7 @@ describe("AppUpdateSection", () => {
     await userEvent.click(await screen.findByRole("button", { name: "업데이트 확인" }));
 
     expect(await screen.findByText("최신 버전입니다.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /지금 설치/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /지금 업데이트/ })).not.toBeInTheDocument();
   });
 
   it("새 버전이 있으면 버전과 설치 버튼을 보여준다", async () => {
@@ -106,7 +110,7 @@ describe("AppUpdateSection", () => {
 
     expect(await screen.findByText(/새 버전 0\.1\.2/)).toBeInTheDocument();
     expect(screen.getByText("캡처 오류 수정")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /지금 설치/ })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: /지금 업데이트/ })).toBeEnabled();
   });
 
   it("분석이 진행 중이면 설치를 막고 이유를 밝힌다", async () => {
@@ -115,8 +119,8 @@ describe("AppUpdateSection", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "업데이트 확인" }));
 
-    expect(await screen.findByText(/분석이 진행 중입니다/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /지금 설치/ })).toBeDisabled();
+    expect(await screen.findByText(/분석이나 보정이 진행 중입니다/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /지금 업데이트/ })).toBeDisabled();
   });
 
   it("작업 기록 조회는 설치를 막지 않는다", async () => {
@@ -127,22 +131,17 @@ describe("AppUpdateSection", () => {
     await userEvent.click(await screen.findByRole("button", { name: "업데이트 확인" }));
 
     expect(await screen.findByText(/새 버전 0\.1\.2/)).toBeInTheDocument();
-    expect(screen.queryByText(/분석이 진행 중입니다/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /지금 설치/ })).toBeEnabled();
+    expect(screen.queryByText(/분석이나 보정이 진행 중입니다/)).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /지금 업데이트/ })).toBeEnabled();
   });
 
-  it("설치가 끝나면 재시작을 사용자가 고르게 한다", async () => {
+  it("지금 업데이트를 누르면 설치 후 재시작한다", async () => {
     check.mockResolvedValue({ kind: "available", version: "0.1.2" });
     install.mockResolvedValue(undefined);
     renderSection();
-
     await userEvent.click(await screen.findByRole("button", { name: "업데이트 확인" }));
-    await userEvent.click(await screen.findByRole("button", { name: /지금 설치/ }));
-
-    const restart = await screen.findByRole("button", { name: "지금 다시 시작" });
     expect(relaunch).not.toHaveBeenCalled();
-
-    await userEvent.click(restart);
+    await userEvent.click(await screen.findByRole("button", { name: "지금 업데이트" }));
     await waitFor(() => expect(relaunch).toHaveBeenCalledTimes(1));
   });
 

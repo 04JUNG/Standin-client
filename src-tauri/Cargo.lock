@@ -4294,7 +4294,10 @@ version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "keyring",
+ "minisign-verify",
  "objc2-core-graphics",
+ "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "tauri",

@@ -1,5 +1,9 @@
 # ADR-011: 데스크톱 앱 서명과 자동 업데이트 배포 방식
 
+> 자동 확인·다운로드·설치 시점과 변경 내역 UI는
+> [ADR-014](ADR-014-automatic-update-and-release-notes.md)가 대체한다.
+> 여기의 배포 채널·서명 키 결정은 유지한다.
+
 - 상태: 제안됨
 - 날짜: 2026-08-26
 - 관련 문서: docs/11_QA_SECURITY_RELEASE.md §7, docs/05_REPOSITORY_AND_COLLABORATION.md, CLAUDE.md §10, .github/workflows/release-desktop.yml
