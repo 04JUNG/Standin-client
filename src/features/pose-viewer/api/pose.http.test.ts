@@ -270,6 +270,7 @@ describe("poseHttp", () => {
         semanticBodySelection: false,
         refine: false,
         fbxExport: false,
+        sceneExport: false,
         characterSelection: false,
         outputScopeSelection: false,
         outputScopeCropping: false,

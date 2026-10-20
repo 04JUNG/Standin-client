@@ -90,6 +90,7 @@ export type AnalysisResult = {
      * 함께 켜지지 않는다. false면 저장 포맷 선택에서 FBX를 고를 수 없다.
      */
     fbxExport: boolean;
+    sceneExport?: boolean;
     /**
      * 서버가 export의 `characterId`를 존중하는가. 모델 카탈로그(`/v1/models`)와 export
      * 처리는 **따로 배포될 수 있으므로** 플래그도 따로 둔다 — 카탈로그가 여성을
