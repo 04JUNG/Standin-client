@@ -31,19 +31,16 @@ const p: PosePresentation = {
   refine_allowed: false,
   export_allowed: false,
 };
-it.each([false, true])(
-  "keeps candidate groups without the summary notice (compact=%s)",
-  (compact) => {
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <PosePresentationPanel presentation={p} compact={compact} />
-      </QueryClientProvider>,
-    );
-    expect(screen.getByText("검색 후보 0개")).toBeTruthy();
-    expect(screen.getByText("새로 만든 참고 포즈 0개")).toBeTruthy();
-    expect(screen.queryByRole("status")).toBeNull();
-  },
-);
+it.each([false, true])("shows empty state and generation rejection (compact=%s)", (compact) => {
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <PosePresentationPanel presentation={p} compact={compact} />
+    </QueryClientProvider>,
+  );
+  expect(screen.queryByText("검색 후보 0개")).toBeNull();
+  expect(screen.getByText("후보 없음")).toBeTruthy();
+  expect(screen.getByRole("status")).toBeTruthy();
+});
 
 it("reference images do not open an enlargement or rotation dialog", () => {
   const candidate: PreviewCandidate = {
@@ -203,7 +200,7 @@ it("missing mirror keeps the returned candidate count without a summary notice",
     />,
   );
   expect(screen.queryByText(/좌우를 바꾼 포즈는 준비하지 못했어요/)).toBeNull();
-  expect(screen.getByText("검색 후보 0개")).toBeInTheDocument();
+  expect(screen.getByText("후보 없음")).toBeInTheDocument();
 });
 
 it("not-requested mirror adds no unavailable notice or empty mirror section", () => {
@@ -215,7 +212,7 @@ it("not-requested mirror adds no unavailable notice or empty mirror section", ()
   expect(screen.queryByText(/좌우를 바꾼 포즈|좌우 반전 포즈 0개/)).toBeNull();
 });
 
-it("omits the summary notice for failed and empty searches", () => {
+it("distinguishes failed and empty searches without raw diagnostics", () => {
   const { rerender } = render(
     <PosePresentationPanel
       presentation={{
@@ -226,7 +223,7 @@ it("omits the summary notice for failed and empty searches", () => {
       }}
     />,
   );
-  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByRole("status")).toBeTruthy();
   expect(screen.queryByText(/hand_skin/)).toBeNull();
   rerender(
     <PosePresentationPanel
@@ -239,7 +236,7 @@ it("omits the summary notice for failed and empty searches", () => {
       }}
     />,
   );
-  expect(screen.queryByRole("status")).toBeNull();
+  expect(screen.getByRole("status")).toBeTruthy();
 });
 
 it.each([false, true])(
@@ -363,5 +360,16 @@ it.each([false, true])(
     fireEvent.click(screen.getAllByAltText("기본 포즈 참고 이미지")[64]);
     expect(onSelect).toHaveBeenLastCalledWith("regular64");
     expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
+
+it.each(["failed", "error", "timeout", "rejected"])(
+  "keeps %s generation failure visible beside empty search",
+  (generation_status) => {
+    render(<PosePresentationPanel presentation={{ ...p, generation_status }} />);
+    expect(screen.getByText("후보 없음")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("찾지 못했어요");
+    expect(screen.getByText(/만들지 못했습니다|시간이 오래|확인 과정을 통과/)).toBeTruthy();
+    expect(screen.queryByText(/후보 0개/)).toBeNull();
   },
 );

@@ -1,3 +1,4 @@
+import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { PosePresentationPanel } from "@/features/pose-viewer/components/PosePresentationPanel";
 import { useExportStore } from "@/features/export/store/exportStore";
@@ -357,11 +358,14 @@ export function BarCandidatesPage() {
                   </div>
                 ) : (
                   <span className="text-[11px] font-semibold text-text-secondary">
-                    {person.posePresentation && person.candidates.length === 0
+                    {hasPresentationCandidates(person.posePresentation) &&
+                    person.candidates.length === 0
                       ? "참고용 미리보기"
-                      : selectedByPerson[person.index]
-                        ? "선택됨"
-                        : "후보를 선택하세요"}
+                      : person.candidates.length === 0
+                        ? "후보 없음"
+                        : selectedByPerson[person.index]
+                          ? "선택됨"
+                          : "후보를 선택하세요"}
                   </span>
                 )}
                 {/* 후보가 없는 인물(hard)은 원래 내보낼 것이 없다. 스위치를 두지 않는다. */}
