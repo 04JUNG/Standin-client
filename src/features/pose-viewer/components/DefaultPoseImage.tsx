@@ -4,7 +4,6 @@ import { useCompactPoseLayout } from "@/features/bar/components/compactPoseConte
 import { bodyScopeSchema } from "../api/outputScope";
 import type { PreviewCandidate } from "../api/posePresentation";
 import { useDefaultPosePoster } from "../api/posePoster";
-import { posterCameraLabel } from "../api/posterCamera";
 export function DefaultPoseImage({
   candidate,
   scope: rawScope,
@@ -62,11 +61,6 @@ export function DefaultPoseImage({
               ? "참고 이미지를 불러오지 못했어요"
               : "포즈 이미지 불러오는 중…"}
         </div>
-      )}
-      {q.data?.camera && (
-        <p className="text-center text-[11px] text-text-secondary">
-          {posterCameraLabel(q.data.camera)}
-        </p>
       )}
     </div>
   );
