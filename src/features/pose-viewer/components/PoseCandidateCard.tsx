@@ -1,5 +1,6 @@
 import { reviewOnly, canRelease } from "../api/routedSearch";
 import { useDefaultPosePoster } from "../api/posePoster";
+import { posterCameraLabel } from "../api/posterCamera";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { MatchLevel, PoseCandidate } from "../api/pose.contract";
@@ -49,8 +50,9 @@ export function PoseCandidateCard({
     scope: candidate.posterScope,
     source: candidate.sourceBvhSha256 ?? candidate.previewModel?.sourceSha,
     fallbackUrl: candidate.quickThumbnailUrl,
+    directional: candidate.source !== "generation",
   });
-  const imageUrl = candidate.thumbnailUrl || preview.data?.url;
+  const imageUrl = preview.data?.url || candidate.thumbnailUrl;
   const pending = !imageUrl && preview.isPending;
   const failed = !imageUrl && preview.isError;
   void bodyPreview;
@@ -105,6 +107,11 @@ export function PoseCandidateCard({
         </div>
       )}
       <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
+        {preview.data?.camera && (
+          <span className="text-[11px] text-text-secondary">
+            {posterCameraLabel(preview.data.camera)}
+          </span>
+        )}
         <div className="flex items-center justify-between">
           <span
             className={cn("font-semibold text-text-primary", fill ? "text-[12px]" : "text-[13px]")}
