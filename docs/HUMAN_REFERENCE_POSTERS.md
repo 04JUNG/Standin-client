@@ -1,5 +1,26 @@
 # Default human reference fallback
 
+## Basic close-up plan (local, 2026-10-21)
+
+`basic-closeup-preview-v1` connects a successful basic-model plan without any
+pose candidates to the same verified anatomically cropped templates. It renders
+the original neutral rest mesh directly; it does not alter the pinned library
+poster renderer or rebake library PNGs. No BVH, inferred neck tilt, selected body,
+generation or Converter invocation is added. The app and floating bar share the
+panel, including explicit loading/error/retry and preview-only neutral captions.
+
+For a local real-mesh check, run the paired BFF `tools/basic-closeup-fixture.mjs`
+with `BASIC_CLOSEUP_TEMPLATE_DIR` pointing to an approved local template snapshot.
+Then run `VITE_API_BASE_URL=http://127.0.0.1:1427 npx vite --config
+tools/basic-closeup/vite.config.ts` and open `/tools/basic-closeup/`. The fixture
+uses the actual BFF mapping/template proxy and actual client loader/panel/WebGL,
+but synthetic job metadata. No user image is resent. Native app save/export and
+remote deployment are outside this preview-only change.
+Reverified on main: 1,061 tests passed / one existing skipped, TypeScript check,
+changed-source lint and production web build passed. Chrome decoded all three
+384×384 images (shoulder/head/compact shoulder); visual review confirmed the
+approved cropped neutral mesh rather than a skeleton or full-body substitute.
+
 A skeleton is not a completed human preview. Static default-human PNGs remain first choice. If a poster is absent or explicitly pose-only, the loader verifies the exact owned BVH and uses a shared approved human mesh template. Inline/generated candidates derive the same source-bound reference route even when they have no library poster. Normal, near/geometric/composition, actual-mirror and generated cards share this path. Direct BVH save-review consumers also upgrade a valid pose-only response.
 
 This is `reference-skinning-v1`: actual approved default human geometry, eight original skin influences, neutral anatomy and source frame-zero rotations/rest alignment. It is approximate pose reference, **not** the frozen final Converter solver, selected body/hands/search camera, or export approval. The UI caption must say **기본 체형 · 근사 포즈 참고** when `PosePoster.method === "reference-skinning-v1"`. Two caption-only patches for the separately owned common components are provided to the integration owner. Existing match/refine/export/actual-mesh flags remain untouched.
