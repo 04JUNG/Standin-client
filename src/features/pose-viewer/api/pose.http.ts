@@ -1,3 +1,4 @@
+import { readSceneSaveContract } from "@/features/export/api/scene";
 import { semanticCandidateSchema, semanticResultSchema } from "@/features/semantic-search/api";
 import { selectionSchema } from "@/features/body-selection/contract";
 import { readOutputScope } from "./outputScope";
@@ -75,6 +76,7 @@ type BffAnalysisResult = {
     fbxExport?: boolean;
     sceneExport?: boolean;
     sceneRefinement?: boolean;
+    sceneSaveContract?: unknown;
     characterSelection?: boolean;
     bodyPreviews?: boolean;
     presentationBodyPreviews?: boolean;
@@ -424,6 +426,7 @@ async function toAnalysisResult(
               raw.capabilities?.sceneExport === true,
           }
         : {}),
+      sceneSaveContract: readSceneSaveContract(raw.capabilities?.sceneSaveContract),
       sceneExport:
         !semantic &&
         !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&

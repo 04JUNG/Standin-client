@@ -43,6 +43,7 @@ import {
   loadScenePreview,
   sceneReference,
   type SceneReview,
+  type SceneSaveMode,
 } from "../api/scene";
 import { ExportError } from "../api/export.contract";
 import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
@@ -80,6 +81,7 @@ async function resolvePoseBytes(
   modelPreview = false,
   refined = false,
   onDownloadPath?: (path: string) => void,
+  signal?: AbortSignal,
 ): Promise<Uint8Array> {
   // 포즈 서버가 Mock이면 바이트도 Mock이다. exportUrl 유무만 보던 시절에는 refine을 거친
   // 인물에서 막혔다 — refine mock이 실서버만 서빙할 수 있는 URL을 주기 때문이다.
@@ -111,7 +113,7 @@ async function resolvePoseBytes(
           )
         : url;
     onDownloadPath?.(pinnedUrl);
-    const bytes = await apiFetchBytes(pinnedUrl, { auth: false });
+    const bytes = await apiFetchBytes(pinnedUrl, { auth: false, ...(signal ? { signal } : {}) });
     const digest =
       scope && format === "fbx"
         ? reviewedArtifactSha(framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`)
@@ -156,6 +158,7 @@ export function useSaveFlow(jobId: string | undefined) {
   const errorCode = useExportStore((s) => s.errorCode);
   const setFolder = useExportStore((s) => s.setFolder);
   const setFileName = useExportStore((s) => s.setFileName);
+  const setPhase = useExportStore((s) => s.setPhase);
   const startSaving = useExportStore((s) => s.startSaving);
   const setSaved = useExportStore((s) => s.setSaved);
   const addSaved = useExportStore((s) => s.addSaved);
@@ -257,6 +260,19 @@ export function useSaveFlow(jobId: string | undefined) {
       (r) => r.characterId !== null && r.characterId !== modelCatalog?.defaultCharacterId,
     );
 
+  const analysis = queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""));
+  const isSceneExport =
+    effectiveFormat === "fbx" &&
+    analysis?.source !== "semantic" &&
+    analysis?.capabilities.sceneExport === true &&
+    !env.useMockPoseApi &&
+    !analysis.people.some((p) => p.candidates.some((c) => c.source === "generation"));
+  const sceneContract = isSceneExport ? analysis?.capabilities.sceneSaveContract : undefined;
+  const [sceneMode, setSceneMode] = useState<SceneSaveMode>("original-selection");
+  const [modeChosen, setModeChosen] = useState(false);
+  const choosingSceneMode = !!sceneContract && !modeChosen && status === "idle";
+  const sceneOutputLabel = isSceneExport ? `선택 인물 ${selectionCount}명 · 통합 FBX 1개` : null;
+
   // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
   // 실행되어야 한다 — 순서가 뒤집히면 방금 채운 이름을 곧바로 지운다.
   useEffect(() => {
@@ -307,19 +323,45 @@ export function useSaveFlow(jobId: string | undefined) {
     preferredCharacterId,
   };
 
+  const [serverOperationMayContinue, setServerOperationMayContinue] = useState(false);
+  const [selectedSceneImages, setSelectedSceneImages] = useState<Record<number, string>>({});
   const [sceneReview, setSceneReview] = useState<SceneReview | null>(null);
   const sceneDecision = useRef<((accepted: boolean) => void) | null>(null);
   const sceneMounted = useRef(true);
   const scenePreviewController = useRef<AbortController>();
+  const activeSave = useRef<AbortController>();
+  const writingFile = useRef(false);
+  const saveSettled = useRef<Promise<void>>(Promise.resolve());
+  const cancelSave = () => {
+    if (writingFile.current) return;
+    activeSave.current?.abort(new ExportError("CANCELLED", "장면 저장을 취소했습니다."));
+    sceneDecision.current?.(false);
+    sceneDecision.current = null;
+    scenePreviewController.current?.abort();
+    setSceneReview(null);
+    if (activeSave.current) setPhase("cancelled");
+  };
   useEffect(() => {
     sceneMounted.current = true;
     return () => {
       sceneMounted.current = false;
-      sceneDecision.current?.(false);
-      scenePreviewController.current?.abort();
+      // StrictMode may immediately re-run setup; only an actual departure cancels.
+      queueMicrotask(() => {
+        if (sceneMounted.current) return;
+        if (!writingFile.current) {
+          activeSave.current?.abort(new ExportError("CANCELLED", "장면 저장을 취소했습니다."));
+          if (activeSave.current) useExportStore.getState().setPhase("cancelled");
+        }
+        sceneDecision.current?.(false);
+        scenePreviewController.current?.abort();
+      });
     };
   }, []);
   const decideScene = (accepted: boolean) => {
+    if (!accepted) {
+      cancelSave();
+      return;
+    }
     scenePreviewController.current?.abort();
     const decide = sceneDecision.current;
     sceneDecision.current = null;
@@ -335,7 +377,11 @@ export function useSaveFlow(jobId: string | undefined) {
     async (
       targetFolder: string,
       format: ExportFormat,
-      options: { append?: boolean; forceDefaultCharacter?: boolean } = {},
+      options: {
+        append?: boolean;
+        forceDefaultCharacter?: boolean;
+        sceneMode?: SceneSaveMode;
+      } = {},
     ) => {
       const {
         jobId: id,
@@ -350,7 +396,20 @@ export function useSaveFlow(jobId: string | undefined) {
       // 않는다. 이름은 설정에서 포맷을 바꾸기 전에 정해졌을 수 있으므로 여기서 맞춘다.
       const name = withFormatExtension(rawName, format);
 
-      startSaving();
+      if (activeSave.current || !sceneMounted.current) return;
+      const controller = new AbortController();
+      activeSave.current = controller;
+      let settle!: () => void;
+      saveSettled.current = new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      let sceneRequest = false;
+      let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+      let unsubscribe = () => {};
+      let unsubscribeQueries = () => {};
+      let unsubscribeOwner = () => {};
+      setServerOperationMayContinue(false);
+      setPhase("preparing");
       try {
         const analysisResult = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id));
         if (!analysisResult) {
@@ -358,6 +417,7 @@ export function useSaveFlow(jobId: string | undefined) {
         }
         const snapshot = () =>
           JSON.stringify({
+            job: usePoseSelectionStore.getState().jobId,
             owner: useInstallationStore.getState().credentials?.installationId,
             selected: usePoseSelectionStore.getState().selectedByPerson,
             character: usePoseSelectionStore.getState().characterId,
@@ -369,7 +429,7 @@ export function useSaveFlow(jobId: string | undefined) {
                 queryKey: [
                   "body",
                   useInstallationStore.getState().credentials?.installationId ?? "",
-                  id,
+                  analysisResult.jobId,
                 ],
                 predicate: (q) => q.queryKey[4] === "selection",
               })
@@ -378,11 +438,23 @@ export function useSaveFlow(jobId: string | undefined) {
               queryKey: [
                 "hands",
                 useInstallationStore.getState().credentials?.installationId ?? "",
-                id,
+                analysisResult.jobId,
               ],
             }),
           });
         const bindingAtStart = snapshot();
+        const checkSelection = () => {
+          if (snapshot() !== bindingAtStart) {
+            controller.abort(new ApiError(409, "PREVIEW_CHANGED", ""));
+            sceneDecision.current?.(false);
+            sceneDecision.current = null;
+            scenePreviewController.current?.abort();
+            if (sceneMounted.current) setSceneReview(null);
+          }
+        };
+        unsubscribe = usePoseSelectionStore.subscribe(checkSelection);
+        unsubscribeOwner = useInstallationStore.subscribe(checkSelection);
+        unsubscribeQueries = qc.getQueryCache().subscribe(checkSelection);
         const selectionState = usePoseSelectionStore.getState();
         const refineByPerson = selectionState.refineByPerson;
         /**
@@ -459,7 +531,7 @@ export function useSaveFlow(jobId: string | undefined) {
                 );
               if (!owner || !receipt || body?.resolutionStatus !== "ready")
                 throw new ApiError(409, "BODY_REVIEW_REQUIRED", "");
-              content = await downloadBodyReview(receipt);
+              content = await downloadBodyReview(receipt, controller.signal);
               downloadPath = receipt.downloadUrl;
               bodyNames.add(receipt.selection.resolvedBody!.characterId);
             } else if (handApplicable && format === "fbx") {
@@ -487,7 +559,7 @@ export function useSaveFlow(jobId: string | undefined) {
                   );
                 });
               if (!receipt) throw new ApiError(409, "HAND_REVIEW_REQUIRED", "");
-              content = await downloadHandReview(receipt);
+              content = await downloadHandReview(receipt, controller.signal);
               downloadPath = receipt.downloadUrl;
             } else {
               content = await resolvePoseBytes(
@@ -501,6 +573,7 @@ export function useSaveFlow(jobId: string | undefined) {
                 (path) => {
                   downloadPath = path;
                 },
+                controller.signal,
               ).catch((error) => {
                 // Returning to review must fetch fresh lineage after a rejected save.
                 void queryClient.invalidateQueries({ queryKey: ["framed-preview"] });
@@ -516,7 +589,9 @@ export function useSaveFlow(jobId: string | undefined) {
             };
           }),
         );
+        controller.signal.throwIfAborted();
         let saveFiles: { fileName: string; content: Uint8Array }[] = files;
+        let sceneBinding: string | undefined;
         if (
           format === "fbx" &&
           analysisResult.source !== "semantic" &&
@@ -524,6 +599,7 @@ export function useSaveFlow(jobId: string | undefined) {
           !analysisResult.people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
           !env.useMockPoseApi
         ) {
+          sceneRequest = true;
           if (files.some((f) => !f.downloadPath))
             throw new Error("장면에 사용할 최종 파일을 확인하지 못했습니다.");
           const references = await Promise.all(
@@ -531,30 +607,54 @@ export function useSaveFlow(jobId: string | undefined) {
               sceneReference(f.personIndex, f.candidateId, f.downloadPath, f.content),
             ),
           );
+          setSelectedSceneImages(
+            Object.fromEntries(
+              files.map((f) => [
+                f.personIndex,
+                qc.getQueryData<{ image: string }>([
+                  "framed-image",
+                  useInstallationStore.getState().credentials?.installationId ?? "",
+                  f.downloadPath,
+                ])?.image ?? "",
+              ]),
+            ),
+          );
+          const contract = analysisResult.capabilities.sceneSaveContract;
+          const mode = options.sceneMode ?? sceneMode;
           let review: SceneReview | undefined;
-          if (analysisResult.capabilities.sceneRefinement === true) {
-            const sceneKey = [
-              "prepared-scene",
-              useInstallationStore.getState().credentials?.installationId ?? "",
-              analysisResult.jobId,
-              downloadBinding(format, files),
-            ];
-            review = qc.getQueryData<SceneReview>(sceneKey);
-            if (!review) {
-              review = await prepareScene(analysisResult.jobId, references);
-              qc.setQueryData(sceneKey, review);
-            }
-            if (!sceneMounted.current)
-              throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
+          if (contract && !contract.saveModes.includes(mode))
+            throw new ApiError(409, "SCENE_CONTRACT_UNSUPPORTED", "");
+          if (mode === "auto-correct-v4") {
+            if (!contract || analysisResult.capabilities.sceneRefinement !== true)
+              throw new ApiError(409, "SCENE_CONTRACT_UNSUPPORTED", "");
+            review = await prepareScene(analysisResult.jobId, references, controller.signal);
+            controller.signal.throwIfAborted();
+            if (!sceneMounted.current) throw new ExportError("CANCELLED", "");
             const accepted = await new Promise<boolean>((resolve) => {
               sceneDecision.current = resolve;
+              setPhase("awaiting-confirm");
               setSceneReview(review!);
+              expiryTimer = setTimeout(
+                () => {
+                  controller.abort(new ApiError(409, "SCENE_REVIEW_EXPIRED", ""));
+                  sceneDecision.current = null;
+                  scenePreviewController.current?.abort();
+                  setSceneReview(null);
+                  resolve(false);
+                },
+                Math.max(0, Date.parse(review!.expiresAt) - Date.now()),
+              );
               if (!review!.previewBase64) {
-                const controller = new AbortController();
-                scenePreviewController.current = controller;
-                void loadScenePreview(analysisResult.jobId, references, review!, controller.signal)
+                const previewController = new AbortController();
+                scenePreviewController.current = previewController;
+                void loadScenePreview(
+                  analysisResult.jobId,
+                  references,
+                  review!,
+                  previewController.signal,
+                )
                   .then((previewBase64) => {
-                    if (!controller.signal.aborted)
+                    if (!previewController.signal.aborted)
                       setSceneReview((current) =>
                         current?.reviewKey === review!.reviewKey
                           ? { ...current, previewBase64 }
@@ -562,7 +662,7 @@ export function useSaveFlow(jobId: string | undefined) {
                       );
                   })
                   .catch(() => {
-                    if (!controller.signal.aborted)
+                    if (!previewController.signal.aborted)
                       setSceneReview((current) =>
                         current?.reviewKey === review!.reviewKey
                           ? { ...current, previewFailed: true }
@@ -571,11 +671,24 @@ export function useSaveFlow(jobId: string | undefined) {
                   });
               }
             });
-            if (!accepted) throw new ExportError("CANCELLED", "장면 저장을 취소했습니다.");
+            clearTimeout(expiryTimer);
+            controller.signal.throwIfAborted();
+            if (!accepted) throw new ExportError("CANCELLED", "");
           }
-          const content = await downloadScene(analysisResult.jobId, references, review);
+          controller.signal.throwIfAborted();
+          startSaving();
+          const content = await downloadScene(analysisResult.jobId, references, review, {
+            signal: controller.signal,
+            negotiated: !!contract,
+          });
+          sceneBinding = JSON.stringify([
+            downloadBinding(format, files),
+            mode,
+            (await sceneReference(0, "scene", "/", content)).sha256,
+          ]);
           saveFiles = [{ fileName: name.replace(/\.fbx$/i, "_scene.fbx"), content }];
         }
+        controller.signal.throwIfAborted();
         // A late response must never write an older selection to disk.
         if (
           snapshot() !== bindingAtStart ||
@@ -583,8 +696,14 @@ export function useSaveFlow(jobId: string | undefined) {
           qc.isMutating({ mutationKey: ["body-change"] })
         )
           throw new ApiError(409, "PREVIEW_CHANGED", "");
-        const binding = downloadBinding(format, files);
+        sceneRequest = false;
+        const binding = sceneBinding ?? downloadBinding(format, files);
         const revision = downloadRevision(id, binding);
+        startSaving();
+        controller.signal.throwIfAborted();
+        if (!sceneMounted.current) throw new ExportError("CANCELLED", "");
+        // Native writes are atomic from the UI's perspective; HTTP cancellation ends here.
+        writingFile.current = true;
         const results = await exportService.saveCandidates({
           folder: targetFolder,
           files: saveFiles.map((file) => ({
@@ -593,6 +712,7 @@ export function useSaveFlow(jobId: string | undefined) {
           })),
         });
         rememberDownload(id, binding);
+        if (useExportStore.getState().jobId !== id) return;
         const paths = results.map((r) => r.path);
         if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
         else setSaved(paths);
@@ -613,8 +733,26 @@ export function useSaveFlow(jobId: string | undefined) {
           },
           usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
-      } catch (err) {
-        if (err instanceof ApiError) invalidateFinalReview(qc, id);
+      } catch (failure) {
+        const cause = controller.signal.aborted ? controller.signal.reason : failure;
+        const err =
+          sceneRequest && !(cause instanceof ApiError) && !(cause instanceof ExportError)
+            ? new ApiError(502, "SCENE_FAILED", "")
+            : cause;
+        if (err instanceof ExportError && err.code === "CANCELLED") {
+          if (sceneMounted.current && useExportStore.getState().jobId === id) setPhase("cancelled");
+          return;
+        }
+        if (
+          (!sceneMounted.current && !writingFile.current) ||
+          useExportStore.getState().jobId !== id
+        )
+          return;
+        if (
+          err instanceof ApiError &&
+          (!err.code.startsWith("SCENE_") || err.code === "SCENE_SOURCE_CHANGED")
+        )
+          invalidateFinalReview(qc, id);
         if (
           err instanceof ApiError &&
           ["SCENE_REVIEW_REQUIRED", "SCENE_SOURCE_CHANGED"].includes(err.code)
@@ -626,6 +764,13 @@ export function useSaveFlow(jobId: string | undefined) {
               id,
             ],
           });
+        const details = err instanceof ApiError ? err.details : undefined;
+        setServerOperationMayContinue(
+          typeof details === "object" &&
+            details !== null &&
+            "serverOperationMayContinue" in details &&
+            details.serverOperationMayContinue === true,
+        );
         setError(
           err instanceof ApiError
             ? toAppError(err).message
@@ -637,15 +782,23 @@ export function useSaveFlow(jobId: string | undefined) {
         trackEvent(
           "export_failed",
           {
-            code: err instanceof ExportError ? err.code : "UNKNOWN",
+            code: err instanceof ExportError || err instanceof ApiError ? err.code : "UNKNOWN",
             format,
             surface: currentSurface(),
           },
           usePoseSelectionStore.getState().serverJobId ?? undefined,
         );
+      } finally {
+        clearTimeout(expiryTimer);
+        unsubscribe();
+        unsubscribeQueries();
+        unsubscribeOwner();
+        writingFile.current = false;
+        if (activeSave.current === controller) activeSave.current = undefined;
+        settle();
       }
     },
-    [startSaving, setSaved, addSaved, setError, queryClient],
+    [startSaving, setPhase, setSaved, addSaved, setError, queryClient, sceneMode],
   );
 
   /**
@@ -658,13 +811,32 @@ export function useSaveFlow(jobId: string | undefined) {
   useEffect(() => {
     if (autoSaveStarted.current) return;
     if (!folder || !fileName || !jobId || selectionCount === 0) return;
-    if (status !== "idle") return;
+    if (status !== "idle" || (sceneContract && !modeChosen)) return;
     autoSaveStarted.current = true;
     void runSave(folder, effectiveFormat);
-  }, [folder, fileName, jobId, selectionCount, status, runSave, effectiveFormat]);
+  }, [
+    folder,
+    fileName,
+    jobId,
+    selectionCount,
+    status,
+    runSave,
+    effectiveFormat,
+    sceneContract,
+    modeChosen,
+  ]);
+
+  async function saveOriginalSelection() {
+    cancelSave();
+    await saveSettled.current;
+    setSceneMode("original-selection");
+    setModeChosen(true);
+    if (folder) await runSave(folder, effectiveFormat, { sceneMode: "original-selection" });
+  }
 
   /** 저장 실패 후 같은 폴더·같은 포맷으로 다시 시도한다. */
   async function retry() {
+    await saveSettled.current;
     if (folder) await runSave(folder, effectiveFormat);
   }
 
@@ -722,14 +894,56 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    cancelSave,
+    sceneMode,
+    serverOperationMayContinue,
+    sceneOutputLabel,
+    choosingSceneMode,
+    canAutoCorrect:
+      sceneContract?.saveModes.includes("auto-correct-v4") === true &&
+      analysis?.capabilities.sceneRefinement === true,
+    canUseOriginal: sceneContract?.saveModes.includes("original-selection") === true,
+    chooseSceneMode: (mode: SceneSaveMode) => {
+      setSceneMode(mode);
+      setModeChosen(true);
+    },
+    saveOriginalSelection,
+    comparison: {
+      originalUrl:
+        analysis?.inputPreviewUrl ?? (draft && draft.id === jobId ? draft.previewUrl : undefined),
+      selected: selections.map(([index, candidateId]) => {
+        const person = analysis?.people.find((p) => p.index === Number(index));
+        const candidate = person?.candidates.find((c) => c.id === candidateId);
+        return {
+          personIndex: Number(index),
+          candidateId,
+          poseId: candidate?.poseId,
+          image: selectedSceneImages[Number(index)],
+          outputScope: previewScope(person),
+        };
+      }),
+    },
     sceneReview,
     confirmScene: () => decideScene(true),
     cancelScene: () => decideScene(false),
     bodyMode,
     recovery: poseRecovery(errorCode ? new ApiError(409, errorCode, "") : undefined),
     returnToReview: () => {
+      if (errorCode === "SCENE_CONTRACT_UNSUPPORTED")
+        void queryClient.invalidateQueries({ queryKey: poseQueryKeys.result(jobId ?? "") });
       clearError();
     },
+    errorCode,
+    retryLabel: [
+      "SCENE_REVIEW_REQUIRED",
+      "SCENE_REVIEW_EXPIRED",
+      "SCENE_TIMEOUT",
+      "SCENE_INTEGRITY",
+    ].includes(errorCode ?? "")
+      ? "장면 다시 준비·확인"
+      : ["SCENE_UNAVAILABLE", "SCENE_BUSY", "SCENE_FAILED"].includes(errorCode ?? "")
+        ? "잠시 후 다시 시도"
+        : "다시 저장",
     folder,
     fileName,
     /** 실제로 저장에 쓰는 포맷. 설정값과 다를 수 있다(서버가 FBX를 못 줄 때). */
