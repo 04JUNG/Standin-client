@@ -11,7 +11,8 @@ import { persist } from "zustand/middleware";
  * reset()은 folder·format은 유지하고 나머지만 idle로 되돌린다 — 다음 장면도 같은 폴더에
  * 같은 포맷으로 저장한다.
  */
-export type ExportStatus = "idle" | "saving" | "saved" | "error";
+export type ExportStatus =
+  "idle" | "preparing" | "awaiting-confirm" | "saving" | "saved" | "cancelled" | "error";
 
 /**
  * 저장 포맷. 기본은 FBX다 — 클립스튜디오가 리깅된 3D 소재로 바로 받는 형식이고,
@@ -33,7 +34,7 @@ type ExportState = {
   format: ExportFormat;
   fileName: string;
   status: ExportStatus;
-  /** 인물마다 파일을 하나씩 저장하므로 배열이다. */
+  /** 개별 파일 또는 통합 FBX와 추가 저장 결과의 실제 경로. */
   savedPaths: string[];
   error: string | null;
   errorCode?: string;
@@ -41,6 +42,7 @@ type ExportState = {
   beginJob(jobId: string): void;
   setFormat(format: ExportFormat): void;
   setFileName(fileName: string): void;
+  setPhase(status: "preparing" | "awaiting-confirm" | "cancelled"): void;
   startSaving(): void;
   setSaved(paths: string[]): void;
   addSaved(paths: string[]): void;
@@ -88,6 +90,7 @@ export const useExportStore = create<ExportState>()(
         ),
       setFormat: (format) => set({ format }),
       setFileName: (fileName) => set({ fileName }),
+      setPhase: (status) => set({ status, error: null, errorCode: undefined }),
       startSaving: () => set({ status: "saving", error: null, errorCode: undefined }),
       setSaved: (paths) =>
         set({ status: "saved", savedPaths: paths, error: null, errorCode: undefined }),

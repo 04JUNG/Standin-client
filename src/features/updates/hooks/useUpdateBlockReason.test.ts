@@ -40,3 +40,11 @@ describe("update work guard", () => {
     expect(updateBlockReason(new QueryClient())).toBeNull();
   });
 });
+
+it.each(["preparing", "awaiting-confirm"] as const)(
+  "protects scene %s from update installation",
+  (status) => {
+    useExportStore.setState({ status });
+    expect(updateBlockReason(new QueryClient())).toContain("준비·확인 중");
+  },
+);
