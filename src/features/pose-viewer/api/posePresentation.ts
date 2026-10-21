@@ -66,7 +66,17 @@ export interface PosePresentation {
     status: "ready" | "unavailable" | "not_requested";
     reason: string | null;
   } | null;
-  basic_model: { status: string; output_scope: string | null } | null;
+  basic_model: {
+    status: string;
+    output_scope: string | null;
+    preview?: {
+      version: "basic-closeup-preview-v1";
+      template_url: string;
+      scope: "head" | "shoulder_head";
+      pose: "neutral";
+      preview_only: true;
+    };
+  } | null;
   issues: string[];
   preview_status: string;
   auto_apply_allowed: false;
