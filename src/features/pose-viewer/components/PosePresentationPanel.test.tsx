@@ -203,8 +203,8 @@ it.each([false, true])(
     expect(container.querySelectorAll("[data-presentation-candidate]")).toHaveLength(5);
     expect(screen.queryByRole("link", { name: "검색 후보 1" })).toBeNull();
     expect(document.getElementById("pose-candidate-original_0")).toBeInTheDocument();
-    expect(screen.getByText("1. 좌우 반전 포즈")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "1번 좌우 반전 포즈 이미지로 선택" })).toBeDisabled();
+    expect(screen.getByText("5. 좌우 반전 포즈")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "5번 좌우 반전 포즈 이미지로 선택" })).toBeDisabled();
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByText(/러프에는|러프와 반대쪽|가려진 부분|의 좌우 반전 포즈/)).toBeNull();
     expect(mirror.mirror_comparison).toMatchObject({

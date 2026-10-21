@@ -29,6 +29,7 @@ export function DefaultPoseImage({
     scope,
     enabled: visible,
     savedOnly,
+    directional: candidate.source === "library",
   });
   return (
     <div ref={ref} className={className}>

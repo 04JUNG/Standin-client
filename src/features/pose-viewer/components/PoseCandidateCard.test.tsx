@@ -49,7 +49,7 @@ it("waits only for its poster, then permits selection without invoking aligned/b
   fireEvent.click(screen.getByRole("button"));
   expect(choose).toHaveBeenCalledOnce();
   expect(vi.mocked(apiFetchResponse).mock.calls.map(([url]) => url)).toEqual([
-    POSTER_URL + "&scope=full",
+    POSTER_URL + "&scope=full&variant=rough-yaw8-v1",
   ]);
 });
 it("body changes keep the same default image and issue zero new render requests", async () => {

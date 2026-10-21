@@ -25,6 +25,8 @@ export function updateBlockReason(client: QueryClient): string | null {
     return "화면 캡처가 진행 중입니다. 캡처를 마친 뒤 업데이트할 수 있습니다.";
   }
   const exported = useExportStore.getState();
+  if (["preparing", "awaiting-confirm"].includes(exported.status))
+    return "저장할 장면을 준비·확인 중입니다. 저장하거나 취소한 뒤 업데이트할 수 있습니다.";
   if (exported.status === "saving") return "파일을 저장 중입니다. 저장 후 업데이트할 수 있습니다.";
   const selection = usePoseSelectionStore.getState();
   if (useUploadStore.getState().draft || Object.keys(selection.selectedByPerson).length > 0) {

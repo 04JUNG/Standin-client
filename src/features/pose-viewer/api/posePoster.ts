@@ -4,6 +4,7 @@ import { apiFetchResponse } from "@/shared/api/client";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { blobToDataUrl } from "./thumbnails";
 import type { PreviewCandidate } from "./posePresentation";
+import { POSTER_VARIANT, readPosterCamera, type PosterCamera } from "./posterCamera";
 
 function validPosterPath(value: string): boolean {
   if (!value.startsWith("/v1/") || value.includes("#")) return false;
@@ -18,7 +19,8 @@ function validPosterPath(value: string): boolean {
 export type PosePoster = {
   url: string;
   kind: "default-body" | "pose-only";
-  method?: "reference-skinning-v1";
+  method?: "reference-skinning-v1" | "frozen-native-scope8-v1";
+  camera?: PosterCamera;
 };
 export async function loadPosePoster(
   url: string,
@@ -26,14 +28,27 @@ export async function loadPosePoster(
   expectedSource?: string,
   scope = "full",
   allowReferenceRendering = true,
+  directional = false,
 ): Promise<PosePoster> {
   if (!validPosterPath(url)) throw Error("잘못된 포즈 이미지 경로입니다.");
   const response = await apiFetchResponse(url, { auth: false, signal });
   const kind = response.headers.get("X-Standin-Poster-Kind");
   const source = response.headers.get("X-Standin-Source-BVH-SHA256");
+  const native = response.headers.get("X-Standin-Preview-Method") === "frozen-native-scope8-v1";
+  const media = native ? "image/jpeg" : "image/png";
+  let camera: PosterCamera | undefined;
+  try {
+    camera = readPosterCamera(response.headers);
+    if (camera && !directional) throw Error("unexpected directional image");
+  } catch (error) {
+    await response.body?.cancel();
+    throw error;
+  }
+  if (directional && !camera)
+    camera = { yaw: 0, source: "unavailable", fallback: "legacy_reference" };
   const sha = (s: string | null) => !!s && /^[a-f0-9]{64}$/.test(s);
   if (
-    response.headers.get("Content-Type") !== "image/png" ||
+    response.headers.get("Content-Type") !== media ||
     response.headers.get("X-Standin-Poster-Version") !== "default-body-poster-v1" ||
     response.headers.get("X-Standin-Output-Scope") !== scope ||
     response.headers.get("X-Standin-Preview-Projection") !== "orthographic" ||
@@ -75,8 +90,12 @@ export async function loadPosePoster(
     bytes.set(chunk, offset);
     offset += chunk.length;
   }
-  if (bytes.length < 8 || ![137, 80, 78, 71, 13, 10, 26, 10].every((b, i) => bytes[i] === b))
-    throw Error("잘못된 PNG입니다.");
+  if (
+    native
+      ? bytes.length < 3 || ![255, 216, 255].every((b, i) => bytes[i] === b)
+      : bytes.length < 8 || ![137, 80, 78, 71, 13, 10, 26, 10].every((b, i) => bytes[i] === b)
+  )
+    throw Error("잘못된 포즈 이미지입니다.");
   const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
@@ -85,7 +104,23 @@ export async function loadPosePoster(
   signal.throwIfAborted();
   const method = response.headers.get("X-Standin-Preview-Method");
   if (
-    (method && !["frozen-retarget-v1", "pose-only", "reference-skinning-v1"].includes(method)) ||
+    (method &&
+      ![
+        "frozen-retarget-v1",
+        "pose-only",
+        "reference-skinning-v1",
+        "frozen-native-scope8-v1",
+      ].includes(method)) ||
+    (native &&
+      (!directional ||
+        camera?.fallback === "legacy_reference" ||
+        kind !== "default-body" ||
+        response.headers.get("X-Standin-Character-SHA256") !==
+          "7c648b97a24a3bb4914b6e5d515708c33727979881d92ef916d5726e22301f3d" ||
+        response.headers.get("X-Standin-Poster-Asset-Version") !== "scope8-v1" ||
+        !/^lib-\d{8}-[a-f0-9]{8}$/.test(
+          response.headers.get("X-Standin-Asset-Library-Version") ?? "",
+        ))) ||
     (method === "pose-only" && kind !== "pose-only") ||
     (method === "frozen-retarget-v1" && kind !== "default-body") ||
     (method === "reference-skinning-v1" &&
@@ -96,6 +131,7 @@ export async function loadPosePoster(
   )
     throw Error("인체 참고 방식의 출처를 확인하지 못했습니다.");
   if (kind === "pose-only") {
+    if (directional) throw Error("방향별 포즈 이미지를 불러오지 못했습니다.");
     if (!allowReferenceRendering) throw Error("저장된 인체 포즈 이미지가 없습니다.");
     // A verified skeleton is still an unfinished human preview, including in
     // direct save-review consumers of this loader. Render the exact source mesh.
@@ -113,9 +149,12 @@ export async function loadPosePoster(
   }
 
   return {
-    url: await blobToDataUrl(new Blob([bytes], { type: "image/png" })),
+    url: await blobToDataUrl(new Blob([bytes], { type: media })),
     kind,
-    ...(method === "reference-skinning-v1" ? { method } : {}),
+    ...(method === "reference-skinning-v1" || method === "frozen-native-scope8-v1"
+      ? { method }
+      : {}),
+    ...(camera ? { camera } : {}),
   };
 }
 export function useDefaultPosePoster({
@@ -126,6 +165,7 @@ export function useDefaultPosePoster({
   scope = "full",
   enabled = true,
   savedOnly = false,
+  directional = false,
 }: {
   url?: string;
   source?: string;
@@ -134,11 +174,14 @@ export function useDefaultPosePoster({
   scope?: string;
   enabled?: boolean;
   savedOnly?: boolean;
+  directional?: boolean;
 }) {
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const posterUrl = url ?? (candidate ? candidate.asset.preview_bvh_url + "/poster" : undefined);
   const scopedUrl = posterUrl
-    ? posterUrl + (posterUrl.includes("?") ? "&" : "?") + new URLSearchParams({ scope })
+    ? posterUrl +
+      (posterUrl.includes("?") ? "&" : "?") +
+      new URLSearchParams({ scope, ...(directional ? { variant: POSTER_VARIANT } : {}) })
     : undefined;
   return useQuery({
     // The chosen body/shape/hands are deliberately absent: this is a stable,
@@ -152,25 +195,39 @@ export function useDefaultPosePoster({
       candidate?.asset.preview_bvh_url,
       scope,
       savedOnly,
+      directional,
     ],
     enabled: enabled && !!owner && (!!url || !!fallbackUrl || !!candidate),
     queryFn: async ({ signal }): Promise<PosePoster> => {
       if (posterUrl) {
         try {
-          const poster = await loadPosePoster(
-            scopedUrl!,
-            signal,
-            source ?? candidate?.asset.bvh_sha256,
-            scope,
-            !savedOnly,
-          );
+          const controller = new AbortController();
+          const onAbort = () => controller.abort(signal.reason);
+          signal.throwIfAborted();
+          signal.addEventListener("abort", onAbort, { once: true });
+          const timer = directional ? setTimeout(() => controller.abort(), 2500) : undefined;
+          let poster: PosePoster;
+          try {
+            poster = await loadPosePoster(
+              scopedUrl!,
+              controller.signal,
+              source ?? candidate?.asset.bvh_sha256,
+              scope,
+              !savedOnly,
+              directional,
+            );
+          } finally {
+            clearTimeout(timer);
+            signal.removeEventListener("abort", onAbort);
+          }
           if (poster.kind === "default-body") return poster;
         } catch (error) {
           signal.throwIfAborted();
+          if (directional) throw error;
           if (!(error instanceof ApiError) || [401, 403, 409].includes(error.status)) throw error;
         }
       }
-      if (savedOnly) throw Error("저장된 포즈 이미지를 불러오지 못했어요.");
+      if (directional || savedOnly) throw Error("저장된 포즈 이미지를 불러오지 못했어요.");
       // A pose-only image is not completed human preview. Use the shared real
       // human mesh with this exact owned BVH, never a card-triggered Converter.
       const sourceUrl =

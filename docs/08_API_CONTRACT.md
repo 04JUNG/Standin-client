@@ -1,5 +1,17 @@
 # FastAPI 연동 계약 초안
 
+## Top5 수평 8방향 미리보기 2026-10-21
+
+일반 카드와 동적 라이브러리 카드의 공통 poster 로더가 기존 BFF `/poster` URL에 `variant=rough-yaw8-v1`을 추가합니다. BFF가 저장된 후보의 가까운 45도 이미지를 선택하며, 클라이언트는 S3 key나 조회 각도를 직접 결정하지 않습니다.
+
+기존 source/scope/모델/revision/이미지 SHA 검증과 함께 실제 served yaw·요청 yaw·출처·폴백을 검사합니다. 승인된 native 512 JPEG를 지원합니다. `45° 방향 참고`, 의미 검색 기본 시점은 `기본 45° 방향 참고`, 누락 또는 카메라 없음은 `정면 참고`로 표시합니다. pitch·원근·최종 체형의 일치를 뜻하지 않습니다.
+
+방향별 카드 요청은 2.5초 제한과 재시도를 적용합니다. source·candidate·scope·variant가 쿼리 키에 반영되며 이전 요청은 취소합니다. v2 실패 시 자동 체형 렌더·Converter·종이인형 폴백을 실행하지 않습니다. 구 BFF의 검증된 v1 인체 PNG는 정면 참고로 취급합니다.
+
+생성 포즈는 기존 미리보기 경로를 유지합니다. 상세·최종 미리보기와 FBX는 기존 정밀 카메라를 사용합니다. 서버 자산/API → BFF → 클라이언트 순서로 적용하고 실제 러프·미러를 포함한 스테이징 확인 후 배포합니다.
+
+
+
 ## 기본 클로즈업 미리보기 연결 (로컬 구현, 2026-10-21)
 
 BFF의 `basic_model.preview` (`basic-closeup-preview-v1`)가 있으면 기존의 인증된
@@ -14,19 +26,13 @@ export/refine 정책과 검색 후보 흐름은 유지한다. 고개 기울기·
 "기본 체형 · 중립 자세 참고"로 안내한다. BFF 배포와 새 앱 설치가 함께 필요하다.
 추론 서버/Converter 알고리즘·인프라 변경은 필요 없다. 로컬 변경이며 배포하지 않았다.
 
-## v4 보정 장면 최종 확인
+## v4 보정 장면 최종 확인 (scene-save-v1)
 
-BFF가 `capabilities.sceneRefinement=true`를 명시한 이미지 작업은 기존 인물별 확인 후
-`POST /v1/analysis/jobs/:jobId/scene`에 `{ persons, prepare: true }`를 보냅니다.
-`persons`는 확정한 후보와 검수 FBX의 URL·SHA 참조입니다. `version=scene-refinement-v4`,
-`reviewKey`, `artifactSha256`, `previewSha256`, `previewBase64`, `personCount`, `summary`를 받으면
-PNG 해시를 확인하고 최종 장면을 표시합니다. 사용자가 **이 장면으로 저장**을 누른 뒤에만
-같은 참조와 `reviewKey`로 다운로드하며, 검수한 FBX SHA와 응답 SHA가 일치해야 native writer에 넘깁니다.
-취소 또는 화면 이탈 시 저장하지 않습니다. 검수 만료·서버 재시작·선택 변경은 새 확인이 필요합니다.
-
-클라이언트가 방향·좌표·관절을 수동 조정하지 않습니다. capability가 없으면 기존 저장 경로를 유지합니다.
-기본 기능 스위치는 BFF에서 꺼져 있습니다. 이번 변경의 설치 앱 네이티브 저장·Windows/macOS E2E와
-CSP의 FBX 카메라/구도 채택은 미검증입니다. 웹 타입 검사·빌드·계약 테스트 결과를 설치 앱 검증으로 대체하지 않습니다.
+앱/바의 명시적 original-selection / auto-correct-v4 선택, prepare/confirm 버전·SHA·만료,
+서버 summary와 오류 복구 계약은 [통합 FBX 저장 UI](SCENE_SAVE_UI.md)를 따른다.
+새 capability.sceneSaveContract가 있어야 v4를 요청한다. 구 `{persons}` 요청은 v4 flag와
+무관하게 기본 통합 저장이다. 자동 보정 실패를 다른 저장 모드로 조용히 바꾸지 않는다.
+기본 기능 스위치는 BFF에서 꺼져 있다. 로컬 fixture와 실제 설치 Staging 검증을 구분한다.
 
 ## 선택 품질 검토 동의 (2026-10-19)
 

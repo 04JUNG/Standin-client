@@ -49,8 +49,9 @@ export function PoseCandidateCard({
     scope: candidate.posterScope,
     source: candidate.sourceBvhSha256 ?? candidate.previewModel?.sourceSha,
     fallbackUrl: candidate.quickThumbnailUrl,
+    directional: candidate.source !== "generation",
   });
-  const imageUrl = candidate.thumbnailUrl || preview.data?.url;
+  const imageUrl = preview.data?.url || candidate.thumbnailUrl;
   const pending = !imageUrl && preview.isPending;
   const failed = !imageUrl && preview.isError;
   void bodyPreview;

@@ -87,8 +87,11 @@ export function handReviewFromResponse(
     librarySha256: selection.library_sha256,
   };
 }
-export async function downloadHandReview(receipt: HandReview) {
-  const response = await apiFetchResponse(receipt.downloadUrl, { auth: false });
+export async function downloadHandReview(receipt: HandReview, signal?: AbortSignal) {
+  const response = await apiFetchResponse(receipt.downloadUrl, {
+    auth: false,
+    ...(signal ? { signal } : {}),
+  });
   if (
     response.headers.get("X-Standin-Review-Key") !== receipt.reviewKey ||
     response.headers.get("X-Standin-Artifact-SHA256") !== receipt.artifactSha256 ||

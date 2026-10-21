@@ -49,7 +49,10 @@
 
 @container (max-width: 560px) {
   .compact-pose-layout
-    section[aria-label$="포즈 표시 결과"]:has([data-presentation-candidate], [data-semantic-model])
+    section[aria-label$="포즈 표시 결과"]:not([data-rough-candidates]):has(
+      [data-presentation-candidate],
+      [data-semantic-model]
+    )
     .grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -91,7 +94,7 @@
   }
 
   /* Selected text may wrap, but must not grow the row after a user picks it. */
-  .compact-pose-layout [data-presentation-candidate] > button[aria-pressed] {
+  .compact-pose-layout [data-presentation-candidate] > button[aria-pressed]:last-child {
     height: 32px;
     padding: 3px 2px;
     font-size: 11px;

@@ -41,6 +41,7 @@ function Preview({
   compact,
   savedOnly = false,
   pick,
+  displayRank = candidate.rank,
 }: {
   candidate: PreviewCandidate;
   scope: string | null;
@@ -48,6 +49,7 @@ function Preview({
   compact?: boolean;
   savedOnly?: boolean;
   pick?: PoseCandidate;
+  displayRank?: number;
 }) {
   const generated = candidate.source === "generation";
   const selectable = canRelease(pick);
@@ -65,7 +67,7 @@ function Preview({
       <button
         type="button"
         className="w-full rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:cursor-default"
-        aria-label={`${candidate.rank}번 ${candidateLabel(candidate.kind)} 이미지로 선택`}
+        aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 이미지로 선택`}
         aria-pressed={selected}
         disabled={!selectable || !selection || selection.disabled}
         onClick={() => selection?.onSelect(candidate.candidate_id)}
@@ -78,7 +80,7 @@ function Preview({
           lazy={savedOnly}
         />
         <span className="text-xs">
-          {candidate.rank}. {candidateLabel(candidate.kind)}
+          {displayRank}. {candidateLabel(candidate.kind)}
         </span>
       </button>
       {selectable && selection ? (
@@ -88,7 +90,7 @@ function Preview({
           disabled={selection.disabled}
           className="mt-1 w-full rounded border border-border px-2 py-1.5 text-xs font-semibold hover:border-brand-sky disabled:opacity-50"
           onClick={() => selection.onSelect(candidate.candidate_id)}
-          aria-label={`${candidate.rank}번 ${candidateLabel(candidate.kind)} 선택`}
+          aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 선택`}
         >
           {selected ? "선택한 포즈" : "이 포즈 선택"}
         </button>
@@ -119,6 +121,27 @@ function PresentationContent({
     () => new Map(selection?.candidates.map((c) => [c.id, c])),
     [selection?.candidates],
   );
+  const groups = (
+    [
+      ["검색 후보", p.library_candidates],
+      ["좌우 반전 포즈", p.review_candidates.filter((c) => c.kind === "mirror_reference")],
+      ["비슷한 다른 포즈", p.review_candidates.filter((c) => c.kind !== "mirror_reference")],
+      ["새로 만든 참고 포즈", p.generated_candidates],
+    ] as const
+  )
+    .map(
+      ([label, rows]) =>
+        [
+          label,
+          rows.filter((c) => !selection?.hiddenCandidateIds?.includes(c.candidate_id)),
+        ] as const,
+    )
+    .filter(
+      ([label, rows]) =>
+        rows.length > 0 && !(selectableLibrary && !selection && label === "검색 후보"),
+    );
+  const rows = groups.flatMap(([, candidates]) => candidates);
+  const displayRanks = new Map(rows.map((c, i) => [c.candidate_id, i + 1]));
   const render = (c: PreviewCandidate) =>
     renderCandidate ? (
       <div key={c.candidate_id}>{renderCandidate(c)}</div>
@@ -131,12 +154,17 @@ function PresentationContent({
         selection={selection}
         compact={compact}
         savedOnly={semantic}
+        displayRank={semantic ? c.rank : displayRanks.get(c.candidate_id)}
       />
     );
-  const gridClass = `grid gap-2 ${compact ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
+  const gridClass = `grid gap-2 ${compact || !semantic ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
   if (isBasicCloseup(p)) return <BasicCloseupReference presentation={p} compact={compact} />;
   return (
-    <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
+    <section
+      className="space-y-2"
+      aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}
+      data-rough-candidates={semantic ? undefined : true}
+    >
       {!hasPresentationCandidates(p) && <p className="text-xs font-semibold">후보 없음</p>}
       {presentationNotice(p) && (
         <p role="status" className="text-xs text-text-secondary">
@@ -149,59 +177,33 @@ function PresentationContent({
       {["timeout", "rejected", "failed", "error"].includes(p.generation_status ?? "") && (
         <p className="text-xs text-text-secondary">{generatedPoseNotice(p.generation_status)}</p>
       )}
-      {(
-        [
-          ["검색 후보", p.library_candidates],
-          ["좌우 반전 포즈", p.review_candidates.filter((c) => c.kind === "mirror_reference")],
-          ["비슷한 다른 포즈", p.review_candidates.filter((c) => c.kind !== "mirror_reference")],
-          ["새로 만든 참고 포즈", p.generated_candidates],
-        ] as const
-      )
-        .map(
-          ([label, rows]) =>
-            [
-              label,
-              rows.filter((c) => !selection?.hiddenCandidateIds?.includes(c.candidate_id)),
-            ] as const,
-        )
-        .filter(
-          ([label, rows]) =>
-            rows.length > 0 &&
-            !(selectableLibrary && !selection && label === "검색 후보") &&
-            (label !== "좌우 반전 포즈" || rows.length > 0) &&
-            !(label === "검색 후보" && rows.length === 0 && selection?.hiddenCandidateIds?.length),
-        )
-        .map(([label, rows]) => (
+      {!semantic && rows.length > 0 ? (
+        <div>
+          <h3 className="text-xs font-semibold">포즈 후보 {rows.length}개</h3>
+          <CandidatePages
+            key={rows.map((c) => c.candidate_id).join(",")}
+            rows={rows}
+            label="포즈 후보"
+            gridClass={gridClass}
+            render={render}
+          />
+        </div>
+      ) : (
+        groups.map(([label, rows]) => (
           <div key={label}>
             <h3 className="text-xs font-semibold">
               {label} {rows.length}개
             </h3>
-            {rows.length > 0 &&
-              (semantic ? (
-                <SemanticCandidateList
-                  key={rows.map((c) => c.candidate_id).join(",")}
-                  rows={rows}
-                  label={label}
-                  gridClass={gridClass}
-                  render={render}
-                />
-              ) : compact ? (
-                <CandidatePages
-                  key={rows.map((c) => c.candidate_id).join(",")}
-                  rows={rows}
-                  label={label}
-                  gridClass={gridClass}
-                  render={render}
-                />
-              ) : (
-                <div
-                  className={`grid gap-2 ${compact ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`}
-                >
-                  {rows.map(render)}
-                </div>
-              ))}
+            <SemanticCandidateList
+              key={rows.map((c) => c.candidate_id).join(",")}
+              rows={rows}
+              label={label}
+              gridClass={gridClass}
+              render={render}
+            />
           </div>
-        ))}
+        ))
+      )}
     </section>
   );
 }
