@@ -1,4 +1,4 @@
-import { SceneReviewPanel } from "../components/SceneReviewPanel";
+import { SceneSaveControls } from "../components/SceneSaveControls";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
@@ -44,10 +44,9 @@ export function SavePage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState(false);
 
+  const flow = useSaveFlow(jobId);
   const {
     sceneReview,
-    confirmScene,
-    cancelScene,
     recovery,
     returnToReview,
     folder,
@@ -72,7 +71,7 @@ export function SavePage() {
     newScene,
     revealSaved,
     copyPath,
-  } = useSaveFlow(jobId);
+  } = flow;
 
   const modelNotice = characterNotice({
     characterName,
@@ -104,7 +103,10 @@ export function SavePage() {
 
   useShortcuts({
     "save.revealFolder": isSaved ? () => revealSaved() : undefined,
-    "save.chooseFolder": status !== "saving" ? () => void saveToAnotherFolder() : undefined,
+    "save.chooseFolder":
+      ["saved", "error", "cancelled"].includes(status) && !flow.errorCode?.startsWith("SCENE_")
+        ? () => void saveToAnotherFolder()
+        : undefined,
     "save.save": status === "error" && recovery.action === "retry" ? () => void retry() : undefined,
     "save.newScene": isSaved ? () => handleNewScene() : undefined,
   });
@@ -119,15 +121,21 @@ export function SavePage() {
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
             <p className="text-[14px] text-text-secondary">
-              포즈 {selections.length}개를 {format.toUpperCase()}로 저장하고 있습니다…
+              {flow.sceneOutputLabel
+                ? "통합 FBX 파일 저장 중…"
+                : `포즈 ${selections.length}개를 ${format.toUpperCase()}로 저장하고 있습니다…`}
             </p>
             <p className="break-all text-[12px] text-text-secondary">{folder}</p>
           </div>
         )}
 
-        {sceneReview && (
-          <SceneReviewPanel review={sceneReview} confirm={confirmScene} cancel={cancelScene} />
-        )}
+        <SceneSaveControls
+          flow={flow}
+          returnToSelection={() => {
+            returnToReview();
+            navigate(`/app/jobs/${jobId}/review`);
+          }}
+        />
 
         {status === "error" && (
           <div {...tourAnchor("save.error")} className="flex flex-col gap-3">
@@ -156,13 +164,18 @@ export function SavePage() {
             <div className="flex flex-col gap-2">
               <Button size="lg" disabled={recovery.action !== "retry"} onClick={() => void retry()}>
                 <RotateCcw className="h-4 w-4" aria-hidden />
-                다시 저장
+                {flow.retryLabel}
                 <ShortcutKey
                   accelerator={resolveAccelerator("save.save", bindings)!}
                   className="ml-1"
                 />
               </Button>
-              <Button variant="secondary" size="md" onClick={() => void saveToAnotherFolder()}>
+              <Button
+                variant="secondary"
+                size="md"
+                disabled={status === "error" && flow.errorCode?.startsWith("SCENE_")}
+                onClick={() => void saveToAnotherFolder()}
+              >
                 <Save className="h-4 w-4" aria-hidden />
                 다른 폴더에 저장
                 <ShortcutKey
@@ -172,7 +185,7 @@ export function SavePage() {
               </Button>
               {/* FBX 변환 실패는 재시도로 풀리지 않는 경우가 있다(후보 거부·lineage 불일치).
                   그때 사용자가 할 수 있는 유일한 일이 다른 포맷으로 저장하는 것이다. */}
-              {canSaveAlternate && (
+              {canSaveAlternate && !flow.errorCode?.startsWith("SCENE_") && (
                 <Button
                   variant="secondary"
                   size="md"
@@ -184,7 +197,7 @@ export function SavePage() {
               )}
               {/* 체형 거부(CHARACTER_UNAVAILABLE·converter 거부)도 재시도로 풀리지 않는다.
                   설정값은 그대로 두고 이번 한 번만 기본 모델로 저장한다. */}
-              {usesCustomCharacter && (
+              {usesCustomCharacter && !flow.errorCode?.startsWith("SCENE_") && (
                 <Button
                   variant="secondary"
                   size="md"
@@ -194,7 +207,12 @@ export function SavePage() {
                   기본 모델로 저장
                 </Button>
               )}
-              <Button variant="ghost" size="md" onClick={() => void resetToDownloads()}>
+              <Button
+                variant="ghost"
+                size="md"
+                disabled={flow.errorCode?.startsWith("SCENE_")}
+                onClick={() => void resetToDownloads()}
+              >
                 다운로드 폴더로 재설정하고 저장
               </Button>
             </div>
@@ -206,7 +224,9 @@ export function SavePage() {
             <div className="flex flex-col items-center gap-2 text-center">
               <CheckCircle2 className="h-10 w-10 text-brand-coral" aria-hidden />
               <p className="text-[15px] font-semibold text-text-primary">
-                포즈 {selections.length}개를 저장했습니다.
+                {flow.sceneOutputLabel
+                  ? "통합 파일 1개를 저장했습니다."
+                  : `포즈 ${selections.length}개를 저장했습니다.`}
               </p>
             </div>
 
@@ -283,7 +303,10 @@ export function SavePage() {
               <Button
                 variant="secondary"
                 size="md"
-                onClick={() => navigate(`/app/jobs/${jobId}/review`)}
+                onClick={() => {
+                  returnToReview();
+                  navigate(`/app/jobs/${jobId}/review`);
+                }}
               >
                 포즈·손 변경
               </Button>
@@ -295,7 +318,12 @@ export function SavePage() {
                   className="ml-1"
                 />
               </Button>
-              <Button variant="secondary" size="md" onClick={() => void saveToAnotherFolder()}>
+              <Button
+                variant="secondary"
+                size="md"
+                disabled={status === "error" && flow.errorCode?.startsWith("SCENE_")}
+                onClick={() => void saveToAnotherFolder()}
+              >
                 <Save className="h-4 w-4" aria-hidden />
                 다른 폴더에 저장
                 <ShortcutKey
@@ -304,7 +332,7 @@ export function SavePage() {
                 />
               </Button>
               {/* 이번 한 번만 다른 포맷으로도 저장한다. 설정의 기본 포맷은 그대로 둔다. */}
-              {canSaveAlternate && (
+              {canSaveAlternate && !flow.errorCode?.startsWith("SCENE_") && (
                 <Button
                   variant="secondary"
                   size="md"

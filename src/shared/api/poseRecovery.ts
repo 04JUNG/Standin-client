@@ -2,6 +2,8 @@ import { ApiError } from "./errors";
 import { messageForCode } from "./errorMessages";
 
 const CHOOSE = new Set([
+  "SCENE_UNSUPPORTED_BODY",
+  "SCENE_OBSERVATION_MISSING",
   "GENERATED_CHECKS_FAILED",
   "GENERATED_SOURCE_UNAVAILABLE",
   "PREVIEW_UNAVAILABLE",
@@ -18,6 +20,8 @@ const CHOOSE = new Set([
   "CHARACTER_UNAVAILABLE",
 ]);
 const REVIEW = new Set([
+  "SCENE_SOURCE_CHANGED",
+  "SCENE_CONTRACT_UNSUPPORTED",
   "GENERATED_FBX_REQUIRED",
   "BODY_PREVIEW_STALE",
   "BODY_REVIEW_REQUIRED",

@@ -85,8 +85,11 @@ export async function loadBodyReview(
     reviewKey,
   };
 }
-export async function downloadBodyReview(receipt: BodyReview) {
-  const res = await apiFetchResponse(receipt.downloadUrl, { auth: false });
+export async function downloadBodyReview(receipt: BodyReview, signal?: AbortSignal) {
+  const res = await apiFetchResponse(receipt.downloadUrl, {
+    auth: false,
+    ...(signal ? { signal } : {}),
+  });
   if (
     (!scopeIncludesHands(receipt.scope) &&
       (res.headers.has("X-Standin-Hand-Revision") ||

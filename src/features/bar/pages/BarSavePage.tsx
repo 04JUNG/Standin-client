@@ -1,4 +1,4 @@
-import { SceneReviewPanel } from "@/features/export/components/SceneReviewPanel";
+import { SceneSaveControls } from "@/features/export/components/SceneSaveControls";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
@@ -44,6 +44,7 @@ export function BarSavePage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState(false);
 
+  const flow = useSaveFlow(jobId ?? undefined);
   const {
     recovery,
     returnToReview,
@@ -55,8 +56,6 @@ export function BarSavePage() {
     selections,
     isSaved,
     sceneReview,
-    confirmScene,
-    cancelScene,
     characterName,
     requestedCharacterName,
     characterDowngradeReason,
@@ -67,7 +66,7 @@ export function BarSavePage() {
     newScene,
     revealSaved,
     copyPath,
-  } = useSaveFlow(jobId ?? undefined);
+  } = flow;
 
   const modelNotice = characterNotice({
     characterName,
@@ -94,7 +93,10 @@ export function BarSavePage() {
 
   useShortcuts({
     "save.revealFolder": isSaved ? () => revealSaved() : undefined,
-    "save.chooseFolder": status !== "saving" ? () => void saveToAnotherFolder() : undefined,
+    "save.chooseFolder":
+      ["saved", "error", "cancelled"].includes(status) && !flow.errorCode?.startsWith("SCENE_")
+        ? () => void saveToAnotherFolder()
+        : undefined,
     "save.save": status === "error" && recovery.action === "retry" ? () => void retry() : undefined,
     "save.newScene": isSaved ? () => handleNewScene() : undefined,
   });
@@ -108,15 +110,22 @@ export function BarSavePage() {
         {status === "saving" && !sceneReview && (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-text-secondary">
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-            <p className="text-[12px]">포즈 {selections.length}개를 저장하고 있습니다…</p>
+            <p className="text-[12px]">
+              {flow.sceneOutputLabel
+                ? "통합 FBX 파일 저장 중…"
+                : `포즈 ${selections.length}개를 저장하고 있습니다…`}
+            </p>
           </div>
         )}
 
-        {sceneReview && (
-          <div className="min-h-0 overflow-auto">
-            <SceneReviewPanel review={sceneReview} confirm={confirmScene} cancel={cancelScene} />
-          </div>
-        )}
+        <SceneSaveControls
+          flow={flow}
+          returnToSelection={() => {
+            returnToReview();
+            navigate("/bar/review");
+          }}
+        />
+
         {status === "error" && (
           <>
             <p role="alert" className="flex items-start gap-1 text-[11px] text-brand-coral">
@@ -146,13 +155,14 @@ export function BarSavePage() {
                   onClick={() => void retry()}
                 >
                   <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  다시 저장
+                  {flow.retryLabel}
                   <ShortcutKey accelerator={resolveAccelerator("save.save", bindings)!} compact />
                 </Button>
                 <Button
                   variant="secondary"
                   size="sm"
                   className="min-w-0 flex-1"
+                  disabled={status === "error" && flow.errorCode?.startsWith("SCENE_")}
                   onClick={() => void saveToAnotherFolder()}
                 >
                   <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -163,7 +173,12 @@ export function BarSavePage() {
                   />
                 </Button>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => void resetToDownloads()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={flow.errorCode?.startsWith("SCENE_")}
+                onClick={() => void resetToDownloads()}
+              >
                 다운로드 폴더로 재설정하고 저장
               </Button>
             </div>
@@ -174,7 +189,9 @@ export function BarSavePage() {
           <>
             <p className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-text-primary">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-coral" aria-hidden />
-              포즈 {selections.length}개를 저장했습니다.
+              {flow.sceneOutputLabel
+                ? "통합 파일 1개를 저장했습니다."
+                : `포즈 ${selections.length}개를 저장했습니다.`}
             </p>
 
             <p className="shrink-0 text-[10px] text-text-secondary">
@@ -229,7 +246,14 @@ export function BarSavePage() {
               md + 22px 칩으로는 "다른 폴더"가 두 줄로 깨졌다.
             */}
             <div className="flex shrink-0 flex-col gap-1.5">
-              <Button variant="secondary" size="sm" onClick={() => navigate("/bar/review")}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  returnToReview();
+                  navigate("/bar/review");
+                }}
+              >
                 포즈·손 변경
               </Button>
               <Button variant="secondary" size="sm" onClick={revealSaved}>
@@ -245,6 +269,7 @@ export function BarSavePage() {
                   variant="secondary"
                   size="sm"
                   className="min-w-0 flex-1"
+                  disabled={status === "error" && flow.errorCode?.startsWith("SCENE_")}
                   onClick={() => void saveToAnotherFolder()}
                 >
                   <Save className="h-3.5 w-3.5 shrink-0" aria-hidden />
