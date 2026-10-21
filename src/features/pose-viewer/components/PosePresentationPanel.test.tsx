@@ -9,6 +9,11 @@ vi.mock("./DefaultPoseImage", () => ({
     <img src={candidate.asset.preview_bvh_url + "/poster"} alt="기본 포즈 참고 이미지" />
   ),
 }));
+vi.mock("./BasicCloseupReference", () => ({
+  BasicCloseupReference: ({ compact }: { compact: boolean }) => (
+    <div>기본 클로즈업 {String(compact)}</div>
+  ),
+}));
 vi.mock("@/shared/api/client", () => ({ apiFetchBytes: vi.fn(() => new Promise(() => {})) }));
 const p: PosePresentation = {
   version: "dynamic-pose-presentation-v1",
@@ -31,6 +36,27 @@ const p: PosePresentation = {
   refine_allowed: false,
   export_allowed: false,
 };
+it.each([false, true])(
+  "shows a basic close-up instead of an empty candidate panel (compact=%s)",
+  (compact) => {
+    render(
+      <PosePresentationPanel
+        compact={compact}
+        presentation={{
+          ...p,
+          route: "basic_model",
+          status: "basic_reference",
+          search_status: "ok",
+          output_scope: "shoulder_head",
+          basic_model: { status: "planned", output_scope: "shoulder_head" },
+        }}
+      />,
+    );
+    expect(screen.getByText(`기본 클로즈업 ${String(compact)}`)).toBeTruthy();
+    expect(screen.queryByText("후보 없음")).toBeNull();
+    expect(screen.queryByText(/비슷한 포즈를 찾지 못했어요/)).toBeNull();
+  },
+);
 it.each([false, true])("shows empty state and generation rejection (compact=%s)", (compact) => {
   render(
     <QueryClientProvider client={new QueryClient()}>

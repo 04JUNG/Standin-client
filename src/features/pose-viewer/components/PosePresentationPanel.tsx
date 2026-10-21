@@ -17,6 +17,8 @@ import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
 import { SemanticCandidateList } from "@/features/semantic-search/SemanticCandidateList";
 import { CandidatePages } from "./CandidatePages";
+import { isBasicCloseup } from "../api/basicCloseup";
+import { BasicCloseupReference } from "./BasicCloseupReference";
 
 export type PresentationSelection = {
   candidates: PoseCandidate[];
@@ -132,6 +134,7 @@ function PresentationContent({
       />
     );
   const gridClass = `grid gap-2 ${compact ? "grid-cols-5" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"}`;
+  if (isBasicCloseup(p)) return <BasicCloseupReference presentation={p} compact={compact} />;
   return (
     <section className="space-y-2" aria-label={`인물 ${p.person_index + 1} 포즈 표시 결과`}>
       {!hasPresentationCandidates(p) && <p className="text-xs font-semibold">후보 없음</p>}
