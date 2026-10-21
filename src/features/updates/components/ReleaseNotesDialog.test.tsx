@@ -6,7 +6,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useTourStore } from "@/shared/stores/tourStore";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import { useUpdateStore } from "../store/updateStore";
-import { SEEN_RELEASE_KEY, useReleaseNotesStore } from "../lib/releaseNotes";
+import { releases, SEEN_RELEASE_KEY, useReleaseNotesStore } from "../lib/releaseNotes";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), isTauri: vi.fn() }));
@@ -17,6 +17,8 @@ vi.mock("@/features/installation/installationStore", () => ({
 vi.mock("../hooks/useUpdateBlockReason", () => ({
   useUpdateBlockReason: () => ({ reason: null, readReason: () => null }),
 }));
+
+const currentRelease = releases[releases.length - 1];
 
 function show(path = "/app/home") {
   return render(
@@ -30,18 +32,28 @@ beforeEach(() => {
   vi.mocked(isTauri).mockReturnValue(false);
   vi.mocked(invoke).mockReset();
   safeStorage.removeItem(SEEN_RELEASE_KEY);
-  useUpdateStore.setState({ version: "0.1.1-beta.9", configured: true });
+  useUpdateStore.setState({ version: currentRelease.version, configured: true });
   useReleaseNotesStore.getState().closeHistory();
   useTourStore.setState({ active: false, completedAt: null, dismissedAt: "2026-10-19T00:00:00Z" });
 });
 
 describe("ReleaseNotesDialog", () => {
+  it("기존 beta에서 최신 오픈베타로 갱신한 변경 내역을 보여준다", async () => {
+    safeStorage.setItem(SEEN_RELEASE_KEY, "0.1.1-beta.8");
+    show();
+    expect(await screen.findByRole("dialog")).toHaveAccessibleName(
+      `Standin ${currentRelease.version} 업데이트 완료`,
+    );
+    expect(screen.getByText(currentRelease.title)).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "확인" }));
+    expect(safeStorage.getItem(SEEN_RELEASE_KEY)).toBe(currentRelease.version);
+  });
   it("처음에는 소개로 보여주고 확인 후 재마운트해도 반복하지 않는다", async () => {
     const view = show();
     expect(await screen.findByRole("dialog")).toHaveAccessibleName("이번 버전 소개");
-    expect(screen.getByText("자동 업데이트와 변경 내역 안내")).toBeInTheDocument();
+    expect(screen.getByText(currentRelease.title)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "확인" }));
-    expect(safeStorage.getItem(SEEN_RELEASE_KEY)).toBe("0.1.1-beta.9");
+    expect(safeStorage.getItem(SEEN_RELEASE_KEY)).toBe(currentRelease.version);
     view.unmount();
     show();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -56,7 +68,7 @@ describe("ReleaseNotesDialog", () => {
   });
 
   it("작업 화면에서는 자동으로 열지 않고 설정에서 다시 열 수 있다", async () => {
-    safeStorage.setItem(SEEN_RELEASE_KEY, "0.1.1-beta.9");
+    safeStorage.setItem(SEEN_RELEASE_KEY, currentRelease.version);
     show("/app/settings");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     act(() => useReleaseNotesStore.getState().requestHistory());
@@ -87,7 +99,7 @@ describe("ReleaseNotesDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "확인" }));
     expect(screen.getByRole("button", { name: "확인" })).toBeDisabled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    await act(async () => finish("0.1.1-beta.9"));
+    await act(async () => finish(currentRelease.version));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
