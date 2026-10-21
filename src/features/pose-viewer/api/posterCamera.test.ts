@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { readPosterCamera, posterCameraLabel } from "./posterCamera";
+import { readPosterCamera } from "./posterCamera";
 
 function headers(change: Record<string, string> = {}) {
   return new Headers({
@@ -12,17 +12,15 @@ function headers(change: Record<string, string> = {}) {
     ...change,
   });
 }
-it("labels actual served angle and explicit front fallback without pretending pitch/perspective matches", () => {
-  expect(posterCameraLabel(readPosterCamera(headers())!)).toBe("45° 방향 참고");
+it("reads actual served angle and explicit front fallback without pretending pitch/perspective matches", () => {
+  expect(readPosterCamera(headers())).toEqual({ yaw: 45, source: "fixed_117", fallback: "none" });
   const front = readPosterCamera(
     headers({ "X-Standin-Poster-Yaw": "0", "X-Standin-Poster-Fallback": "missing_angle" }),
   );
-  expect(posterCameraLabel(front!)).toBe("정면 참고");
+  expect(front).toEqual({ yaw: 0, source: "fixed_117", fallback: "missing_angle" });
   expect(
-    posterCameraLabel(
-      readPosterCamera(headers({ "X-Standin-Poster-Camera-Source": "semantic_preview" }))!,
-    ),
-  ).toBe("기본 45° 방향 참고");
+    readPosterCamera(headers({ "X-Standin-Poster-Camera-Source": "semantic_preview" })),
+  ).toEqual({ yaw: 45, source: "semantic_preview", fallback: "none" });
 });
 it("rejects stale angle, unknown version, forged exact match and an undeclared wrong front", () => {
   const changes: Record<string, string>[] = [

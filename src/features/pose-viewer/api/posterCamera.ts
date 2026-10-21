@@ -34,8 +34,3 @@ export function readPosterCamera(headers: Headers): PosterCamera | undefined {
     throw Error("포즈 이미지 방향을 확인하지 못했습니다.");
   return { yaw: Number(yaw), source, fallback };
 }
-
-export function posterCameraLabel(camera: PosterCamera): string {
-  if (camera.fallback !== "none") return "정면 참고";
-  return `${camera.source === "semantic_preview" ? "기본 " : ""}${camera.yaw}° 방향 참고`;
-}
