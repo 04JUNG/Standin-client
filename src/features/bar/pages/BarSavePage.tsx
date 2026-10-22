@@ -112,7 +112,7 @@ export function BarSavePage() {
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
             <p className="text-[12px]">
               {flow.sceneOutputLabel
-                ? "통합 FBX 파일 저장 중…"
+                ? "FBX 파일 저장 중…"
                 : `포즈 ${selections.length}개를 저장하고 있습니다…`}
             </p>
           </div>
@@ -190,7 +190,7 @@ export function BarSavePage() {
             <p className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-text-primary">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-coral" aria-hidden />
               {flow.sceneOutputLabel
-                ? "통합 파일 1개를 저장했습니다."
+                ? "FBX 파일 1개를 저장했어요."
                 : `포즈 ${selections.length}개를 저장했습니다.`}
             </p>
 

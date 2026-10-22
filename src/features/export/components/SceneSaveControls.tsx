@@ -21,21 +21,21 @@ export function SceneSaveControls({
         <div className="flex flex-col gap-2">
           <p className="text-[13px] font-semibold">저장 방식 선택</p>
           <p className="text-[12px] text-text-secondary">
-            원래 선택을 유지하면 포즈·체형·손·범위를 그대로 두고 러프의 상대 배치를 적용해요. 자동
-            보정은 포즈·방향·범위까지 바꿀 수 있어 최종 확인이 필요해요.
+            선택한 포즈·체형·손·범위를 유지해 하나의 파일로 저장해요. 인물 배치는 러프를 따라요.
+            자동 보정은 포즈·방향·범위까지 바꿀 수 있어 결과 확인이 필요해요.
           </p>
           <Button
             disabled={!flow.canUseOriginal}
             onClick={() => flow.chooseSceneMode("original-selection")}
           >
-            원래 선택 유지로 저장
+            선택한 포즈 그대로
           </Button>
           <Button
             variant="secondary"
             disabled={!flow.canAutoCorrect}
             onClick={() => flow.chooseSceneMode("auto-correct-v4")}
           >
-            자동 보정 후 확인
+            자동 보정
           </Button>
           {!flow.canAutoCorrect && (
             <p className="text-[12px] text-text-secondary">
@@ -43,22 +43,20 @@ export function SceneSaveControls({
             </p>
           )}
           <Button variant="ghost" onClick={returnToSelection}>
-            선택으로 돌아가기
+            돌아가기
           </Button>
         </div>
       )}
       {flow.status === "preparing" && (
         <div className="flex flex-col gap-2" role="status">
           <p className="text-[13px] text-text-secondary">
-            {flow.sceneMode === "auto-correct-v4"
-              ? "자동 보정 장면 준비 중…"
-              : "선택한 파일 준비 중…"}
+            {flow.sceneMode === "auto-correct-v4" ? "자동 보정 중…" : "파일 준비 중…"}
           </p>
           <p className="text-[11px] text-text-secondary">
-            취소하거나 이 화면을 떠나면 파일을 저장하지 않아요. 서버의 준비 작업은 계속될 수 있어요.
+            취소하거나 이 화면을 떠나면 파일을 저장하지 않아요. 준비 작업은 계속될 수 있어요.
           </p>
           <Button variant="secondary" onClick={flow.cancelSave}>
-            준비 취소
+            취소
           </Button>
         </div>
       )}
@@ -74,33 +72,34 @@ export function SceneSaveControls({
       {flow.status === "cancelled" && (
         <div className="flex flex-col gap-2">
           <p role="status" className="text-[13px]">
-            저장을 취소했어요. 선택은 유지됩니다.
+            저장을 취소했어요. 선택한 포즈는 그대로예요.
           </p>
           <p className="text-[11px] text-text-secondary">
-            서버 준비 작업은 계속될 수 있어요. 다시 시작하면 장면을 새로 확인합니다.
+            준비 작업은 계속될 수 있어요. 다시 시작하면 결과를 새로 확인해 주세요.
           </p>
-          <Button onClick={() => void flow.retry()}>다시 준비·저장</Button>
+          <Button onClick={() => void flow.retry()}>다시 시작</Button>
           {flow.canUseOriginal && (
             <Button variant="secondary" onClick={() => void flow.saveOriginalSelection()}>
-              보정 전 선택 유지로 통합 저장
+              선택한 포즈 그대로 저장
             </Button>
           )}
           <Button variant="ghost" onClick={returnToSelection}>
-            선택으로 돌아가기
+            돌아가기
           </Button>
         </div>
       )}
       {flow.status === "error" && flow.serverOperationMayContinue && (
         <p role="status" className="text-[12px] text-text-secondary">
-          응답 대기가 끝났지만 서버 작업은 계속될 수 있어요. 다시 준비하면 새 작업이 시작될 수
-          있어요.
+          기다림은 끝났지만 준비 작업은 계속될 수 있어요. 다시 시작하면 새로 준비할 수 있어요.
         </p>
       )}
-      {flow.status === "error" && flow.sceneMode === "auto-correct-v4" && flow.canUseOriginal && (
-        <Button variant="secondary" onClick={() => void flow.saveOriginalSelection()}>
-          보정 전 선택 유지로 통합 저장
-        </Button>
-      )}
+      {flow.status === "error" &&
+        flow.sceneMode === "auto-correct-v4" &&
+        flow.canUseOriginalAfterError && (
+          <Button variant="secondary" onClick={() => void flow.saveOriginalSelection()}>
+            선택한 포즈 그대로 저장
+          </Button>
+        )}
     </>
   );
 }
