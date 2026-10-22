@@ -528,7 +528,7 @@ it.each(["app", "bar"] as const)(
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    for (const notice of await screen.findAllByText(/포즈 검색을 마치지 못했어요/))
+    for (const notice of await screen.findAllByText(/포즈 확인을 마치지 못했어요/))
       expect(notice).toBeVisible();
     expect(screen.getAllByText("후보 없음").length).toBeGreaterThan(0);
     expect(screen.queryByText("참고용 포즈")).toBeNull();

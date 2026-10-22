@@ -82,7 +82,7 @@ export function BarCandidatesPage() {
           <BarSearchBackButton query={data.semantic?.query ?? ""} />
         ) : (
           <Button
-            variant="ghost"
+            variant="secondary"
             size="md"
             className="shrink-0"
             onClick={() => navigate("/bar/actions")}

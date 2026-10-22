@@ -13,3 +13,12 @@ it.each([
   expect(text).toMatch(/다시 분석|다른 포즈/);
   expect(text).not.toMatch(/poseId|BVH|SHA|capability|release/);
 });
+
+it.each(["timeout", "rejected", "failed", "error"])(
+  "limits a %s generation notice to generation when other poses remain",
+  (status) => {
+    const text = generatedPoseNotice(status, null, true);
+    expect(text).toContain("새 포즈");
+    expect(text).not.toMatch(/다시 분석|그림을 바꿔/);
+  },
+);
