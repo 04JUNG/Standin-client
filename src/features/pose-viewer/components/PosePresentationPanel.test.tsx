@@ -203,7 +203,7 @@ it.each([false, true])(
     expect(container.querySelectorAll("[data-presentation-candidate]")).toHaveLength(5);
     expect(screen.queryByRole("link", { name: "검색 후보 1" })).toBeNull();
     expect(document.getElementById("pose-candidate-original_0")).toBeInTheDocument();
-    expect(screen.getByText("5. 좌우 반전 포즈")).toBeInTheDocument();
+    expect(screen.queryByText("5. 좌우 반전 포즈")).toBeNull();
     expect(screen.getByRole("button", { name: "5번 좌우 반전 포즈 이미지로 선택" })).toBeDisabled();
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByText(/러프에는|러프와 반대쪽|가려진 부분|의 좌우 반전 포즈/)).toBeNull();
@@ -264,6 +264,63 @@ it("distinguishes failed and empty searches without raw diagnostics", () => {
   );
   expect(screen.getByRole("status")).toBeTruthy();
 });
+
+it.each([false, true])(
+  "keeps manual selection available after a partial failure and shortens cards (compact=%s)",
+  (compact) => {
+    const onSelect = vi.fn();
+    const rows = [0, 1].map((i) => ({
+      candidate_id: `partial-${i}`,
+      rank: i + 1,
+      kind: "library_match",
+      source: "library",
+      asset: { preview_bvh_url: `/v1/partial-${i}` },
+    })) as PreviewCandidate[];
+    const candidates = rows.map((row) => ({
+      id: row.candidate_id,
+      source: "library",
+      manualExportAllowed: true,
+      lookupAllowed: true,
+      releaseAllowed: false,
+      bvhAvailable: true,
+      sourceBvhSha256: "a".repeat(64),
+    })) as import("../api/pose.contract").PoseCandidate[];
+    const { rerender } = render(
+      <PosePresentationPanel
+        compact={compact}
+        presentation={{
+          ...p,
+          search_status: "partial_error",
+          library_candidates: rows,
+          generation_status: "failed",
+        }}
+        selection={{ candidates, selected: "partial-0", onSelect }}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("일부 후보를 불러오지 못했어요.");
+    expect(screen.getByText("새 포즈를 만들지 못했어요.")).toBeVisible();
+    expect(screen.queryByText(/다시 분석|검색을 마치지|1\. 검색 후보|2\. 검색 후보/)).toBeNull();
+    const selected = screen.getByRole("button", { name: "1번 검색 후보 선택" });
+    expect(selected).toBeEnabled();
+    expect(selected).toHaveAttribute("aria-pressed", "true");
+    expect(selected).toHaveTextContent("선택한 포즈");
+    const other = screen.getByRole("button", { name: "2번 검색 후보 선택" });
+    expect(other).toHaveTextContent("포즈 선택");
+    fireEvent.click(other);
+    expect(onSelect).toHaveBeenLastCalledWith("partial-1");
+    expect(screen.getAllByAltText("기본 포즈 참고 이미지")).toHaveLength(2);
+    rerender(
+      <PosePresentationPanel
+        compact={compact}
+        presentation={{ ...p, search_status: "error", library_candidates: [] }}
+        selection={{ candidates: [], onSelect }}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "포즈를 불러오지 못했어요. 다시 시도해 주세요.",
+    );
+  },
+);
 
 it.each([false, true])(
   "all five reference photos use the selection button callback (compact=%s)",

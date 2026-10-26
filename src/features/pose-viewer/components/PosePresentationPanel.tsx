@@ -79,20 +79,20 @@ function Preview({
           savedOnly={savedOnly}
           lazy={savedOnly}
         />
-        <span className="text-xs">
-          {displayRank}. {candidateLabel(candidate.kind)}
-        </span>
       </button>
       {selectable && selection ? (
         <button
           type="button"
           aria-pressed={selected}
           disabled={selection.disabled}
-          className="mt-1 w-full rounded border border-border px-2 py-1.5 text-xs font-semibold hover:border-brand-sky disabled:opacity-50"
+          className={cn(
+            "mt-1 h-8 w-full rounded border px-2 text-xs font-semibold hover:border-brand-sky focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:opacity-50",
+            selected ? "border-brand-coral bg-brand-coral/5" : "border-border",
+          )}
           onClick={() => selection.onSelect(candidate.candidate_id)}
           aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 선택`}
         >
-          {selected ? "선택한 포즈" : "이 포즈 선택"}
+          {selected ? "선택한 포즈" : "포즈 선택"}
         </button>
       ) : (
         <div className="text-[11px] text-text-secondary">
@@ -141,6 +141,7 @@ function PresentationContent({
         rows.length > 0 && !(selectableLibrary && !selection && label === "검색 후보"),
     );
   const rows = groups.flatMap(([, candidates]) => candidates);
+  const notice = presentationNotice(p);
   const displayRanks = new Map(rows.map((c, i) => [c.candidate_id, i + 1]));
   const render = (c: PreviewCandidate) =>
     renderCandidate ? (
@@ -166,16 +167,18 @@ function PresentationContent({
       data-rough-candidates={semantic ? undefined : true}
     >
       {!hasPresentationCandidates(p) && <p className="text-xs font-semibold">후보 없음</p>}
-      {presentationNotice(p) && (
+      {notice && (
         <p role="status" className="text-xs text-text-secondary">
-          {presentationNotice(p)}
+          {notice}
         </p>
       )}
       {presentationGenerationNotice(p) && (
         <p className="text-xs text-text-secondary">{presentationGenerationNotice(p)}</p>
       )}
       {["timeout", "rejected", "failed", "error"].includes(p.generation_status ?? "") && (
-        <p className="text-xs text-text-secondary">{generatedPoseNotice(p.generation_status)}</p>
+        <p className="text-xs text-text-secondary">
+          {generatedPoseNotice(p.generation_status, undefined, hasPresentationCandidates(p))}
+        </p>
       )}
       {!semantic && rows.length > 0 ? (
         <div>
