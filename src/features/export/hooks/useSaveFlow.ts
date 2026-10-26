@@ -29,7 +29,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
-import { ApiError, toAppError } from "@/shared/api/errors";
+import { ApiError, isAppError, toAppError } from "@/shared/api/errors";
 import { copyText } from "@/shared/lib/copyText";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -268,10 +268,14 @@ export function useSaveFlow(jobId: string | undefined) {
     !env.useMockPoseApi &&
     !analysis.people.some((p) => p.candidates.some((c) => c.source === "generation"));
   const sceneContract = isSceneExport ? analysis?.capabilities.sceneSaveContract : undefined;
-  const [sceneMode, setSceneMode] = useState<SceneSaveMode>("original-selection");
-  const [modeChosen, setModeChosen] = useState(false);
+  const [sceneChoice, setSceneChoice] = useState<{
+    jobId: string | undefined;
+    mode: SceneSaveMode;
+  }>();
+  const modeChosen = sceneChoice !== undefined && sceneChoice.jobId === jobId;
+  const sceneMode = modeChosen ? sceneChoice.mode : "original-selection";
   const choosingSceneMode = !!sceneContract && !modeChosen && status === "idle";
-  const sceneOutputLabel = isSceneExport ? `선택 인물 ${selectionCount}명 · 통합 FBX 1개` : null;
+  const sceneOutputLabel = isSceneExport ? `인물 ${selectionCount}명 · FBX 파일 1개` : null;
 
   // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
   // 실행되어야 한다 — 순서가 뒤집히면 방금 채운 이름을 곧바로 지운다.
@@ -324,6 +328,7 @@ export function useSaveFlow(jobId: string | undefined) {
   };
 
   const [serverOperationMayContinue, setServerOperationMayContinue] = useState(false);
+  const [errorAllowedActions, setErrorAllowedActions] = useState<string[]>();
   const [selectedSceneImages, setSelectedSceneImages] = useState<Record<number, string>>({});
   const [sceneReview, setSceneReview] = useState<SceneReview | null>(null);
   const sceneDecision = useRef<((accepted: boolean) => void) | null>(null);
@@ -357,6 +362,18 @@ export function useSaveFlow(jobId: string | undefined) {
       });
     };
   }, []);
+  const previousJob = useRef(jobId);
+  useEffect(() => {
+    if (previousJob.current === jobId) return;
+    previousJob.current = jobId;
+    if (!writingFile.current) activeSave.current?.abort(new ExportError("CANCELLED", ""));
+    sceneDecision.current?.(false);
+    sceneDecision.current = null;
+    scenePreviewController.current?.abort();
+    setSceneReview(null);
+    setSelectedSceneImages({});
+  }, [jobId]);
+
   const decideScene = (accepted: boolean) => {
     if (!accepted) {
       cancelSave();
@@ -409,6 +426,7 @@ export function useSaveFlow(jobId: string | undefined) {
       let unsubscribeQueries = () => {};
       let unsubscribeOwner = () => {};
       setServerOperationMayContinue(false);
+      setErrorAllowedActions(undefined);
       setPhase("preparing");
       try {
         const analysisResult = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id));
@@ -417,6 +435,7 @@ export function useSaveFlow(jobId: string | undefined) {
         }
         const snapshot = () =>
           JSON.stringify({
+            routeJob: latest.current.jobId,
             job: usePoseSelectionStore.getState().jobId,
             owner: useInstallationStore.getState().credentials?.installationId,
             selected: usePoseSelectionStore.getState().selectedByPerson,
@@ -661,13 +680,33 @@ export function useSaveFlow(jobId: string | undefined) {
                           : current,
                       );
                   })
-                  .catch(() => {
-                    if (!previewController.signal.aborted)
-                      setSceneReview((current) =>
-                        current?.reviewKey === review!.reviewKey
-                          ? { ...current, previewFailed: true }
-                          : current,
-                      );
+                  .catch((error) => {
+                    if (previewController.signal.aborted) return;
+                    // Rendering is optional; rejected review/selection identity is not.
+                    if (
+                      error instanceof ApiError &&
+                      ([
+                        "SCENE_REVIEW_REQUIRED",
+                        "SCENE_REVIEW_EXPIRED",
+                        "SCENE_SOURCE_CHANGED",
+                        "SCENE_CONTRACT_UNSUPPORTED",
+                        "SCENE_INTEGRITY",
+                      ].includes(error.code) ||
+                        poseRecovery(error).action !== "retry" ||
+                        error.status === 401 ||
+                        error.status === 403)
+                    ) {
+                      controller.abort(error);
+                      sceneDecision.current = null;
+                      setSceneReview(null);
+                      resolve(false);
+                      return;
+                    }
+                    setSceneReview((current) =>
+                      current?.reviewKey === review!.reviewKey
+                        ? { ...current, previewFailed: true }
+                        : current,
+                    );
                   });
               }
             });
@@ -737,7 +776,9 @@ export function useSaveFlow(jobId: string | undefined) {
         const cause = controller.signal.aborted ? controller.signal.reason : failure;
         const err =
           sceneRequest && !(cause instanceof ApiError) && !(cause instanceof ExportError)
-            ? new ApiError(502, "SCENE_FAILED", "")
+            ? new ApiError(502, "SCENE_FAILED", "", undefined, {
+                serverOperationMayContinue: isAppError(cause) && cause.kind === "network",
+              })
             : cause;
         if (err instanceof ExportError && err.code === "CANCELLED") {
           if (sceneMounted.current && useExportStore.getState().jobId === id) setPhase("cancelled");
@@ -752,7 +793,10 @@ export function useSaveFlow(jobId: string | undefined) {
           err instanceof ApiError &&
           (!err.code.startsWith("SCENE_") || err.code === "SCENE_SOURCE_CHANGED")
         )
-          invalidateFinalReview(qc, id);
+          invalidateFinalReview(
+            qc,
+            qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.jobId ?? id,
+          );
         if (
           err instanceof ApiError &&
           ["SCENE_REVIEW_REQUIRED", "SCENE_SOURCE_CHANGED"].includes(err.code)
@@ -765,6 +809,16 @@ export function useSaveFlow(jobId: string | undefined) {
             ],
           });
         const details = err instanceof ApiError ? err.details : undefined;
+        setErrorAllowedActions(
+          typeof details === "object" &&
+            details !== null &&
+            "allowedActions" in details &&
+            Array.isArray(details.allowedActions)
+            ? details.allowedActions.filter(
+                (action): action is string => typeof action === "string",
+              )
+            : undefined,
+        );
         setServerOperationMayContinue(
           typeof details === "object" &&
             details !== null &&
@@ -807,13 +861,17 @@ export function useSaveFlow(jobId: string | undefined) {
    * StrictMode의 effect 이중 실행과 status 변화로 인한 재실행을 ref로 막는다. 재시도와
    * "다른 폴더에 저장"은 사용자 동작이므로 이 경로를 타지 않는다.
    */
-  const autoSaveStarted = useRef(false);
+  const autoSaveStarted = useRef<string>();
   useEffect(() => {
-    if (autoSaveStarted.current) return;
+    if (autoSaveStarted.current === jobId) return;
     if (!folder || !fileName || !jobId || selectionCount === 0) return;
     if (status !== "idle" || (sceneContract && !modeChosen)) return;
-    autoSaveStarted.current = true;
-    void runSave(folder, effectiveFormat);
+    autoSaveStarted.current = jobId;
+    // A cancelled request from the previous job may still be settling.
+    void saveSettled.current.then(() => {
+      if (sceneMounted.current && latest.current.jobId === jobId)
+        void runSave(folder, effectiveFormat);
+    });
   }, [
     folder,
     fileName,
@@ -829,14 +887,15 @@ export function useSaveFlow(jobId: string | undefined) {
   async function saveOriginalSelection() {
     cancelSave();
     await saveSettled.current;
-    setSceneMode("original-selection");
-    setModeChosen(true);
+    if (!sceneMounted.current || latest.current.jobId !== jobId) return;
+    setSceneChoice({ jobId, mode: "original-selection" });
     if (folder) await runSave(folder, effectiveFormat, { sceneMode: "original-selection" });
   }
 
   /** 저장 실패 후 같은 폴더·같은 포맷으로 다시 시도한다. */
   async function retry() {
     await saveSettled.current;
+    if (!sceneMounted.current || latest.current.jobId !== jobId) return;
     if (folder) await runSave(folder, effectiveFormat);
   }
 
@@ -881,7 +940,7 @@ export function useSaveFlow(jobId: string | undefined) {
     reset();
     clearSelection();
     clearDraft();
-    autoSaveStarted.current = false;
+    autoSaveStarted.current = undefined;
   }
 
   function revealSaved() {
@@ -903,9 +962,14 @@ export function useSaveFlow(jobId: string | undefined) {
       sceneContract?.saveModes.includes("auto-correct-v4") === true &&
       analysis?.capabilities.sceneRefinement === true,
     canUseOriginal: sceneContract?.saveModes.includes("original-selection") === true,
+    canUseOriginalAfterError:
+      sceneContract?.saveModes.includes("original-selection") === true &&
+      (errorAllowedActions
+        ? errorAllowedActions.includes("use_original_selection")
+        : poseRecovery(errorCode ? new ApiError(409, errorCode, "") : undefined).action ===
+          "retry"),
     chooseSceneMode: (mode: SceneSaveMode) => {
-      setSceneMode(mode);
-      setModeChosen(true);
+      setSceneChoice({ jobId, mode });
     },
     saveOriginalSelection,
     comparison: {
@@ -940,7 +1004,7 @@ export function useSaveFlow(jobId: string | undefined) {
       "SCENE_TIMEOUT",
       "SCENE_INTEGRITY",
     ].includes(errorCode ?? "")
-      ? "장면 다시 준비·확인"
+      ? "결과 다시 확인"
       : ["SCENE_UNAVAILABLE", "SCENE_BUSY", "SCENE_FAILED"].includes(errorCode ?? "")
         ? "잠시 후 다시 시도"
         : "다시 저장",

@@ -122,7 +122,7 @@ export function SavePage() {
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
             <p className="text-[14px] text-text-secondary">
               {flow.sceneOutputLabel
-                ? "통합 FBX 파일 저장 중…"
+                ? "FBX 파일 저장 중…"
                 : `포즈 ${selections.length}개를 ${format.toUpperCase()}로 저장하고 있습니다…`}
             </p>
             <p className="break-all text-[12px] text-text-secondary">{folder}</p>
@@ -225,7 +225,7 @@ export function SavePage() {
               <CheckCircle2 className="h-10 w-10 text-brand-coral" aria-hidden />
               <p className="text-[15px] font-semibold text-text-primary">
                 {flow.sceneOutputLabel
-                  ? "통합 파일 1개를 저장했습니다."
+                  ? "FBX 파일 1개를 저장했어요."
                   : `포즈 ${selections.length}개를 저장했습니다.`}
               </p>
             </div>
