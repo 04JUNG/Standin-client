@@ -1,3 +1,4 @@
+import { featureAction } from "@/features/analytics/featureJourney";
 import { clearSearchDrafts } from "./searchDraft";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -5,6 +6,10 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { useSemanticSearch } from "./useSemanticSearch";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+vi.mock("@/features/analytics/featureJourney", async (original) => ({
+  ...(await original<typeof import("@/features/analytics/featureJourney")>()),
+  featureAction: vi.fn(),
+}));
 const api = vi.hoisted(() => ({
   searchCapabilities: vi.fn(),
   searchPoses: vi.fn(),
@@ -31,6 +36,7 @@ function setup(surface: "app" | "bar" = "app") {
   return { ...hook, qc };
 }
 beforeEach(() => {
+  vi.mocked(featureAction).mockClear();
   clearSearchDrafts();
   vi.useRealTimers();
   api.searchCapabilities.mockResolvedValue({
@@ -149,4 +155,22 @@ it("a fast empty Enter result does not leave a second debounced request behind",
   await act(async () => result.current.submit());
   await act(async () => vi.advanceTimersByTime(1000));
   expect(api.searchPoses).toHaveBeenCalledOnce();
+});
+
+it("records zero results and repeated attempts with shared IDs, without search text", async () => {
+  const { result } = setup("bar");
+  await waitFor(() => expect(result.current.ready).toBe(true));
+  act(() => result.current.submit());
+  await waitFor(() => expect(result.current.noResult).toBe(true));
+  const calls = vi.mocked(featureAction).mock.calls;
+  const start = calls.find((c) => c[1] === "search_started")!;
+  const done = calls.find((c) => c[1] === "search_completed")!;
+  expect(start[3]).toMatchObject({ searchOrdinal: 1, source: "semantic", surface: "bar" });
+  expect(done[3]).toMatchObject({ attemptId: start[3]!.attemptId, resultCount: 0 });
+  expect(JSON.stringify(calls)).not.toContain("이전 문장");
+  act(() => result.current.submit());
+  await waitFor(() => expect(api.searchPoses).toHaveBeenCalledTimes(2));
+  expect(
+    vi.mocked(featureAction).mock.calls.filter((c) => c[1] === "search_started")[1][3],
+  ).toMatchObject({ searchOrdinal: 2 });
 });

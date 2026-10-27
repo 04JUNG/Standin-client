@@ -1,4 +1,5 @@
-import { useRef, useState, type DragEvent } from "react";
+import { startInputAttempt, finishInputAttempt } from "@/features/analytics/analyticsClient";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Upload, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { tourAnchor } from "@/shared/lib/tourAnchor";
@@ -17,13 +18,23 @@ import { useImageInput } from "../hooks/useImageInput";
  */
 export function DropZone() {
   const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const input = inputRef.current;
+    const cancel = () => finishInputAttempt("file", "cancelled");
+    input?.addEventListener("cancel", cancel);
+    return () => input?.removeEventListener("cancel", cancel);
+  }, []);
+  function openFilePicker() {
+    startInputAttempt("file");
+    inputRef.current?.click();
+  }
   const [isOver, setIsOver] = useState(false);
   const { acceptFile, error, isProcessing } = useImageInput();
   const bindings = useShortcutStore((s) => s.bindings);
 
   // 파일 선택기의 소유자가 여기라서 단축키도 여기서 등록한다(ref를 위로 노출하지 않는다).
   useShortcuts({
-    "home.openFilePicker": isProcessing ? undefined : () => inputRef.current?.click(),
+    "home.openFilePicker": isProcessing ? undefined : openFilePicker,
   });
 
   function onDrop(e: DragEvent) {
@@ -41,11 +52,11 @@ export function DropZone() {
         tabIndex={0}
         aria-label="이미지 파일을 놓거나 선택"
         aria-disabled={isProcessing || undefined}
-        onClick={() => inputRef.current?.click()}
+        onClick={openFilePicker}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            inputRef.current?.click();
+            openFilePicker();
           }
         }}
         onDragOver={(e) => {

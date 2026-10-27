@@ -55,6 +55,9 @@ vi.mock("@/features/models/hooks/useModelCatalog", () => ({
 }));
 vi.mock("@/features/analytics/analyticsClient", () => ({
   trackEvent: vi.fn(),
+  rememberJobSource: vi.fn(),
+  analyticsConsentId: () => null,
+  subscribeAnalyticsConsent: () => () => {},
   currentSurface: () => "app",
   confirmSelections: vi.fn(),
 }));

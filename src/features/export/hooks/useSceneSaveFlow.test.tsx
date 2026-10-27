@@ -19,8 +19,10 @@ const mock = vi.hoisted(() => ({
   download: vi.fn(),
   save: vi.fn(),
   track: vi.fn(),
+  native: false,
 }));
 vi.stubGlobal("crypto", webcrypto);
+vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => mock.native, invoke: vi.fn() }));
 vi.mock("@/shared/lib/env", () => ({ env: { useMockPoseApi: false, isProduction: false } }));
 vi.mock("@/shared/api/client", async (original) => ({
   ...(await original<typeof import("@/shared/api/client")>()),
@@ -53,6 +55,7 @@ const { SavePage } = await import("../pages/SavePage");
 const { BarSavePage } = await import("@/features/bar/pages/BarSavePage");
 beforeEach(() => {
   vi.resetAllMocks();
+  mock.native = false;
   mock.bytes.mockResolvedValue(new Uint8Array([1]));
   mock.prepare.mockImplementation(async () => sceneReviewFixture());
   mock.preview.mockResolvedValue("fixture-png");
@@ -142,7 +145,11 @@ it.each(["app", "bar"])(
     expect(mock.download.mock.calls[0]?.[2].artifactSha256).toBe("b".repeat(64));
     expect(mock.track).toHaveBeenCalledWith(
       "export_completed",
-      expect.objectContaining({ fileCount: 1 }),
+      expect.objectContaining({
+        fileCount: 1,
+        nativeDiskWrite: false,
+        attemptId: expect.any(String),
+      }),
       "job",
     );
   },
@@ -178,8 +185,16 @@ it("confirmation cancel stays cancelled and emits no export_failed", async () =>
   act(() => hook.result.current.cancelScene());
   await waitFor(() => expect(hook.result.current.status).toBe("cancelled"));
   expect(mock.download).not.toHaveBeenCalled();
+  const request = mock.track.mock.calls.find(([name]) => name === "export_requested")!;
+  expect(mock.track).toHaveBeenCalledWith(
+    "export_cancelled",
+    expect.objectContaining({ attemptId: request[1].attemptId, phase: "confirmation" }),
+    "job",
+  );
   expect(mock.save).not.toHaveBeenCalled();
-  expect(mock.track).not.toHaveBeenCalled();
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
 });
 it.each(["cancel", "leave"])(
   "%s while preparing aborts HTTP and ignores a late success",
@@ -204,7 +219,11 @@ it.each(["cancel", "leave"])(
     await act(async () => finish(sceneReviewFixture()));
     expect(useExportStore.getState().status).toBe("cancelled");
     expect(mock.save).not.toHaveBeenCalled();
-    expect(mock.track).not.toHaveBeenCalled();
+    expect(
+      mock.track.mock.calls.some(
+        ([name]) => name === "export_failed" || name === "export_completed",
+      ),
+    ).toBe(false);
   },
 );
 it.each(["pick", "scope", "body", "hands"])(
@@ -305,7 +324,9 @@ it.each(["app", "bar"])("%s page cancels final scene without a failed export", a
   fireEvent.click(screen.getByRole("button", { name: /^취소$/ }));
   await screen.findByText("저장을 취소했어요. 선택한 포즈는 그대로예요.");
   expect(mock.save).not.toHaveBeenCalled();
-  expect(mock.track).not.toHaveBeenCalled();
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
 });
 it("late scene download after selection change is never written", async () => {
   let finish!: (data: Uint8Array) => void;
@@ -387,7 +408,9 @@ it("an optional preview render failure keeps the checked file available", async 
   const hook = await autoCorrect();
   await waitFor(() => expect(hook.result.current.sceneReview?.previewFailed).toBe(true));
   expect(hook.result.current.status).toBe("awaiting-confirm");
-  expect(mock.track).not.toHaveBeenCalled();
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
   act(() => hook.result.current.confirmScene());
   await waitFor(() => expect(hook.result.current.status).toBe("saved"));
 });
@@ -462,7 +485,9 @@ it("changing route jobs discards the previous result even before selection store
   await waitFor(() => expect(hook.result.current.choosingSceneMode).toBe(true));
   expect(hook.result.current.sceneReview).toBeNull();
   expect(mock.save).not.toHaveBeenCalled();
-  expect(mock.track).not.toHaveBeenCalled();
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
 });
 
 it.each([false, true])("original recovery follows allowedActions (%s)", async (allowed) => {
@@ -476,4 +501,50 @@ it.each([false, true])("original recovery follows allowedActions (%s)", async (a
   act(() => hook.result.current.chooseSceneMode("auto-correct-v4"));
   await waitFor(() => expect(hook.result.current.status).toBe("error"));
   expect(hook.result.current.canUseOriginalAfterError).toBe(allowed);
+});
+
+it("native save completion is emitted only after disk write resolves, with the requested attempt", async () => {
+  mock.native = true;
+  let finish!: (value: { path: string }[]) => void;
+  mock.save.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { wrapper } = setup(false);
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+  expect(mock.track.mock.calls.some(([name]) => name === "export_completed")).toBe(false);
+  const request = mock.track.mock.calls.find(([name]) => name === "export_requested")!;
+  await act(async () => finish([{ path: "/private/user/never-transmitted.fbx" }]));
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.track).toHaveBeenCalledWith(
+    "export_completed",
+    expect.objectContaining({
+      attemptId: request[1].attemptId,
+      writingElapsedMs: expect.any(Number),
+      nativeDiskWrite: true,
+      elapsedMs: expect.any(Number),
+    }),
+    "job",
+  );
+  expect(JSON.stringify(mock.track.mock.calls)).not.toContain("never-transmitted");
+});
+it("write failure and explicit retry have separate attempts without leaking native errors", async () => {
+  mock.save.mockRejectedValueOnce(new Error("/private/user/private-name.fbx"));
+  const { wrapper } = setup(false);
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  await waitFor(() => expect(hook.result.current.status).toBe("error"));
+  const failed = mock.track.mock.calls.find(([name]) => name === "export_failed")!;
+  expect(failed[1]).toMatchObject({
+    phase: "writing",
+    code: "UNKNOWN",
+    attemptId: expect.any(String),
+  });
+  await act(async () => hook.result.current.retry());
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  const complete = mock.track.mock.calls.find(([name]) => name === "export_completed")!;
+  expect(complete[1].attemptId).not.toBe(failed[1].attemptId);
+  expect(JSON.stringify(mock.track.mock.calls)).not.toContain("private-name");
 });

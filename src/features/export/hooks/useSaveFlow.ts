@@ -1,3 +1,10 @@
+import { failureProperties } from "@/features/analytics/featureJourney";
+import { isTauri } from "@tauri-apps/api/core";
+import {
+  attemptProperties,
+  requestExport,
+  takeExportAttempt,
+} from "@/features/analytics/journeyAttempts";
 import { invalidateFinalReview } from "../lib/invalidateFinalReview";
 import {
   downloadBinding,
@@ -414,6 +421,9 @@ export function useSaveFlow(jobId: string | undefined) {
       const name = withFormatExtension(rawName, format);
 
       if (activeSave.current || !sceneMounted.current) return;
+      const serverJob = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.jobId;
+      const attempt = serverJob ? takeExportAttempt(serverJob) : undefined;
+      let telemetryPhase = "preparing";
       const controller = new AbortController();
       activeSave.current = controller;
       let settle!: () => void;
@@ -649,6 +659,7 @@ export function useSaveFlow(jobId: string | undefined) {
             review = await prepareScene(analysisResult.jobId, references, controller.signal);
             controller.signal.throwIfAborted();
             if (!sceneMounted.current) throw new ExportError("CANCELLED", "");
+            telemetryPhase = "confirmation";
             const accepted = await new Promise<boolean>((resolve) => {
               sceneDecision.current = resolve;
               setPhase("awaiting-confirm");
@@ -743,6 +754,8 @@ export function useSaveFlow(jobId: string | undefined) {
         if (!sceneMounted.current) throw new ExportError("CANCELLED", "");
         // Native writes are atomic from the UI's perspective; HTTP cancellation ends here.
         writingFile.current = true;
+        telemetryPhase = "writing";
+        const writingStartedAt = Date.now();
         const results = await exportService.saveCandidates({
           folder: targetFolder,
           files: saveFiles.map((file) => ({
@@ -750,16 +763,14 @@ export function useSaveFlow(jobId: string | undefined) {
             fileName: revisionFileName(file.fileName, revision.ordinal),
           })),
         });
-        rememberDownload(id, binding);
-        if (useExportStore.getState().jobId !== id) return;
-        const paths = results.map((r) => r.path);
-        if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
-        else setSaved(paths);
         // 사용자 기준 성공은 BFF의 BVH 응답이 아니라 로컬 파일 저장이다.
         // 서버 export_events만 보면 저장 단계 실패가 성공으로 집계된다.
         trackEvent(
           "export_completed",
           {
+            ...(attempt ? attemptProperties(attempt) : {}),
+            writingElapsedMs: Math.max(0, Date.now() - writingStartedAt),
+            nativeDiskWrite: isTauri(),
             fileCount: results.length,
             format,
             // 인물마다 다를 수 있으므로 쓰인 값들을 모아 남긴다. 붙지 않은 경우
@@ -770,8 +781,13 @@ export function useSaveFlow(jobId: string | undefined) {
               : [...new Set(picks.map(([i]) => characterFor(Number(i)) ?? "default"))].join(","),
             surface: currentSurface(),
           },
-          usePoseSelectionStore.getState().serverJobId ?? undefined,
+          serverJob,
         );
+        rememberDownload(id, binding);
+        if (useExportStore.getState().jobId !== id) return;
+        const paths = results.map((r) => r.path);
+        if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
+        else setSaved(paths);
       } catch (failure) {
         const cause = controller.signal.aborted ? controller.signal.reason : failure;
         const err =
@@ -781,6 +797,12 @@ export function useSaveFlow(jobId: string | undefined) {
               })
             : cause;
         if (err instanceof ExportError && err.code === "CANCELLED") {
+          if (attempt)
+            trackEvent(
+              "export_cancelled",
+              { ...attemptProperties(attempt), phase: telemetryPhase },
+              serverJob,
+            );
           if (sceneMounted.current && useExportStore.getState().jobId === id) setPhase("cancelled");
           return;
         }
@@ -836,11 +858,14 @@ export function useSaveFlow(jobId: string | undefined) {
         trackEvent(
           "export_failed",
           {
+            ...(attempt ? attemptProperties(attempt) : {}),
+            ...failureProperties(cause, "export"),
+            phase: telemetryPhase,
             code: err instanceof ExportError || err instanceof ApiError ? err.code : "UNKNOWN",
             format,
             surface: currentSurface(),
           },
-          usePoseSelectionStore.getState().serverJobId ?? undefined,
+          serverJob,
         );
       } finally {
         clearTimeout(expiryTimer);
@@ -923,8 +948,35 @@ export function useSaveFlow(jobId: string | undefined) {
    * 기본 폴더를 바꾸려면 설정 화면으로 간다.
    */
   async function saveToAnotherFolder() {
-    const picked = await exportService.chooseFolder(folder ?? undefined);
-    if (picked) await runSave(picked, effectiveFormat);
+    const serverJob = analysis?.jobId;
+    const attempt = serverJob ? requestExport(serverJob, "choose_folder") : undefined;
+    try {
+      const picked = await exportService.chooseFolder(folder ?? undefined);
+      if (picked) await runSave(picked, effectiveFormat);
+      else if (attempt) {
+        takeExportAttempt(serverJob!);
+        trackEvent(
+          "export_cancelled",
+          { ...attemptProperties(attempt), phase: "folder" },
+          serverJob,
+        );
+      }
+    } catch (error) {
+      if (attempt) {
+        takeExportAttempt(serverJob!);
+        trackEvent(
+          "export_failed",
+          {
+            ...attemptProperties(attempt),
+            ...failureProperties(error, "export"),
+            phase: "folder",
+            code: "FOLDER_DIALOG_FAILED",
+          },
+          serverJob,
+        );
+      }
+      setError("저장 폴더를 열지 못했어요. 다시 시도해 주세요.");
+    }
   }
 
   /** 설정 폴더가 사라졌을 때의 복구 경로. 기본값으로 되돌리고 그 폴더에 저장한다. */

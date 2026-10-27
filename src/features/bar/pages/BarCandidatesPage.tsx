@@ -1,3 +1,4 @@
+import { journeyExit } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
@@ -25,7 +26,7 @@ export function BarCandidatesPage() {
   const bindings = useShortcutStore((s) => s.bindings);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-  const analysis = useAnalysisResult(jobId ?? undefined);
+  const analysis = useAnalysisResult(jobId ?? undefined, true);
   const {
     data,
     bodies,
@@ -85,7 +86,10 @@ export function BarCandidatesPage() {
             variant="secondary"
             size="md"
             className="shrink-0"
-            onClick={() => navigate("/bar/actions")}
+            onClick={() => {
+              journeyExit("pose_selection", "results", "home", data?.jobId);
+              navigate("/bar/actions");
+            }}
           >
             처음으로
           </Button>

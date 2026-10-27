@@ -1,3 +1,9 @@
+import {
+  featureAction,
+  useFeatureView,
+  useFeatureFailure,
+  journeyExit,
+} from "@/features/analytics/featureJourney";
 import { messageOf } from "@/shared/api/errors";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,8 +30,16 @@ export function HandChips({
   const [side, setSide] = useState<Side | null>(null);
   const [category, setCategory] = useState("");
   const [query, setQuery] = useState("");
-  if (!state.enabled) return null;
   const entry = state.entries.find((e) => e.personIndex === personIndex);
+  useFeatureFailure("hand_library", state.enabled ? entry?.error : null, state.jobId);
+  useFeatureView(
+    "hand_library",
+    state.enabled && !!state.catalog && !!entry?.selection && !entry.error && !state.pending,
+    "exposure",
+    state.jobId,
+    String(personIndex),
+  );
+  if (!state.enabled) return null;
   if (!entry) return null;
   if (entry.error)
     return (
@@ -67,7 +81,10 @@ export function HandChips({
           [])
   ).filter((p) => !filter || `${p.label} ${p.description}`.toLocaleLowerCase().includes(filter));
   const select = (id: string) => {
-    if (side && !state.pending) state.change(selection, { [side]: id });
+    if (side && !state.pending) {
+      featureAction("hand_library", "selected", state.jobId, { personIndex });
+      state.change(selection, { [side]: id });
+    }
   };
   const tile = (p: HandPreset) => (
     <button
@@ -93,7 +110,10 @@ export function HandChips({
         <button
           type="button"
           disabled={state.pending || !selection.changed.length}
-          onClick={() => state.change(selection, selection.recommended)}
+          onClick={() => {
+            featureAction("hand_library", "reset", state.jobId, { personIndex });
+            state.change(selection, selection.recommended);
+          }}
           className="inline-flex items-center gap-1 underline disabled:opacity-40"
         >
           <RotateCcw className="h-3 w-3" aria-hidden />
@@ -101,9 +121,7 @@ export function HandChips({
         </button>
       </div>
       {selection.observation.status === "unavailable" && (
-        <p className="text-[12px] text-text-secondary">
-          손 모양을 확인하고 골라 주세요.
-        </p>
+        <p className="text-[12px] text-text-secondary">손 모양을 확인하고 골라 주세요.</p>
       )}
       <div className="grid grid-cols-2 gap-2">
         {sides.map((s) => (
@@ -112,6 +130,7 @@ export function HandChips({
             key={s}
             disabled={state.pending}
             onClick={() => {
+              featureAction("hand_library", "open", state.jobId, { personIndex });
               setSide(s);
               setCategory("");
               setQuery("");
@@ -149,7 +168,10 @@ export function HandChips({
       )}
       <Modal
         open={side !== null}
-        onClose={() => setSide(null)}
+        onClose={() => {
+          journeyExit("hand_library", "hand_selection", "close", state.jobId);
+          setSide(null);
+        }}
         title={`인물 ${personIndex + 1}의 ${side ? labels[side] : "손"} · 그림 속 인물 기준`}
         width="lg"
       >

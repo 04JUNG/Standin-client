@@ -1,0 +1,45 @@
+# Journey analytics v2 (not deployed)
+
+Backend counterpart: https://github.com/04JUNG/Standin-app-server/pull/134 . Merge/deploy the BFF capability and allowlist before rolling out this client. Neither deployment is performed by this change.
+
+## Contract
+
+The client probes authenticated `GET /v1/events/capabilities` for `{journeyVersion:2}`. An explicit 404 or non-v2 response disables new names, retaining legacy analytics. Unknown/network/5xx state queues consented events without sending unknown names, uses a 5-second probe timeout, and retries on the 30-second flush/online cadence. Never block product actions on telemetry.
+
+Common metadata: `telemetryVersion:2`, random per-webview `sessionId`, build-derived `appVersion`, `surface:app|bar`, server `jobId` when known. Preserve event IDs and consent IDs across retries. Never send image URLs, original file names, native paths or search text in new events.
+
+Reused: `input_confirmed`, `results_viewed`, `candidate_selected`, `selection_confirmed`, `analysis_failed`, `export_completed`, `export_failed`, `capture_failed`.
+
+Added: `input_started`, `input_cancelled`, `input_failed`, `review_viewed`, `preparation_started`, `preparation_ready`, `preparation_failed`, `export_requested`, `export_cancelled`, `thumbnail_failed`.
+
+- Input starts/cancels/failures cover capture and file picker/drop validation. Pending random attempt IDs share app-origin storage across webviews, scoped to the same consent and expiring in 30 minutes. Input confirmation includes `inputAttemptId` and random draft `inputId`; live result includes the matching `inputId`.
+- `results_viewed` comes only from actual candidate page consumers, not the shared hook's progress/review consumers. It records candidate/person counts. Existing server-job routes (including semantic search and history) are marked `entryPoint:existing_job`; this field does not distinguish history from new semantic search.
+- Thumbnail failures cover query failures and actual image decode/load errors, deduplicated locally per candidate/image identity. Image identities/URLs stay local.
+- Review entry and preparation are shared by both surfaces. Preparation readiness means file prerequisites are ready; it is independent of optional image rendering. Changed candidate/body/hand bindings start a new preparation attempt. Generic preparation rejection currently uses `PREPARATION_UNAVAILABLE`.
+- Export button, actual save attempt and alternate-folder picker use `trigger` to distinguish observed explicit clicks from `save_attempt` fallback. Related outcomes share `attemptId` and elapsed time. Folder cancellation, scene confirmation cancellation and cancelled preparation are recorded separately from errors.
+- `export_completed` is emitted after the save service resolves. Only Tauri writes carry `nativeDiskWrite:true`; browser/mock download initiation must not count as a verified native save. Keep attributing success to the captured job even if navigation changed during writing.
+- Consent bootstrap/network uncertainty suspends collection and transmission without deleting consent-scoped pending events. A verified different consent drops unrelated events; explicit withdrawal clears pending events and inputs immediately.
+
+## Interpretation and limits
+
+Missing events are not proof of abandonment: quality consent, unsupported older clients, app termination and offline delivery must be accounted for. A result screen event confirms a rendered page, not that every card was seen or the image was satisfactory. Saved files do not prove successful use in drawing software. Optional body/hand adjustments are not mandatory funnel steps; the expansion below records their explicit actions. Semantic search requests are measured without typing/search content. Clipboard input-start instrumentation is not added here. OS file-dialog cancel reporting depends on the WebView emitting the standard cancel event; no focus-loss heuristic claims cancellation.
+
+## Local verification
+
+TypeScript and relevant React/queue/native-save fixture tests run locally. Tests use NODE_OPTIONS=--no-experimental-webstorage with the host Node runtime to avoid its experimental localStorage conflicting with jsdom. No production config, data, permissions, app binary or deployment is changed. No real native app E2E was run.
+
+## Feature usage expansion (featureUsageVersion: 1)
+
+`GET /v1/events/capabilities` must additionally return `featureUsageVersion:1`. The three new names `feature_action`, `journey_exit`, `selection_failed` are separately gated: a v2-only server still receives its existing journey events, never these unknown names. Offline/unknown capability queues both until negotiation succeeds. Common `osName` is a platform family, not the OS version; `appVersion` is the current build version. Known capture/file/semantic source is retained per job within the webview.
+
+- `feature_action` distinguishes actual available rendered controls (`exposure`), opening, manual selection, successful application, committed adjustment, reset, creation, saving and reuse. Exposure waits for restored quality consent and deduplicates rerenders. It means a control was mounted on the active page, not viewport intersection or eye attention. History/custom-body opening exposure does not claim every app user saw those controls.
+- Hand defaults/recommendations do not count as manual use. `selected` is a click; `applied` occurs only after PUT success, including an intentional reset. Custom body creation/save has an attempt ID; custom numeric adjustment commits once on pointer-up/key-up/blur, and per-person auto-save adjustments record successful debounced writes, not each slider frame.
+- Semantic requests share an attempt ID across start/zero-result completion/failure/cancel and a page-lifecycle `searchOrdinal`. Counts exclude search text. Cancellation is reported when the aborted request actually settles. The ordinal is not a lifetime search count. Successful selection uses the common candidate event and feature action; a saved semantic job is attributed separately.
+- History records open and explicit reopen (`reused`). Export request/outcomes carry observed feature-use booleans: successful manual hand/body application, reused custom body, history reopen and semantic search. These are consent-scoped local observations, retained for up to 100 jobs across app-origin webviews. They describe prior observed use, not proof the final asset still contains every prior edit; false means no such local observation, not proven non-use. Existing historical/manual actions before this build cannot be recovered.
+- Explicit home/back actions on result/review/custom pages and hand modal close use `journey_exit`. No unload or process termination is guessed as abandonment.
+- Actual multipart upload/job-acceptance requests emit `upload_started/completed/failed`, with input and attempt IDs; completion gains the real server job ID. Elapsed time includes transfer and server acceptance, not pure network throughput. Input confirmation/cancellation duration is emitted only where a matching start exists.
+- Candidate images emit `preview_started/completed/failed` from available `src` to actual image load/error. Final review images and 3D renderers use image load and renderer ready/failed callbacks. Phases are `candidate_image`, `review_image`, `review_model`; identity and URLs stay local. These timings exclude upstream asset generation before the image/model is available, do not block export, and do not assert every result thumbnail was viewed. `thumbnail_failed` still provides the existing candidate failure count; preview failures are a separate lifecycle and should not be summed as extra failures of the same image.
+- Native save success carries `writingElapsedMs` for the local save-service call (base64 serialization, IPC and sequential native writes; no download or folder dialog); the broader correlated export `elapsedMs` still includes preparation/confirmation. Browser saves remain `nativeDiskWrite:false`.
+- Error diagnostics use structured API status/code or typed native/application errors, never raw messages. Categories are server/network/permission/validation/client/unknown. Query image errors preserve structured causes; browser decode errors remain unknown. Preparation errors that have no structured cause remain unknown. Optional features remain branches, not mandatory conversion steps.
+
+Final coverage clarifications: `results_viewed.zeroCandidatePeople` and `peopleWithCandidates` partition all normalized `data.people` by whether their `candidates` array is empty. These counts do not filter by export inclusion or release eligibility and are not a count of exportable people. Analysis failures after successful job acceptance retain the real server job ID via a local error-identity map; failures before acceptance remain pre-job. No client draft ID is sent as a server job ID. App-start recording waits for quality-consent restoration and marks the installation observed only after the event can be queued.

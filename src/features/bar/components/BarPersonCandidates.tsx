@@ -129,6 +129,7 @@ export function BarPersonCandidates({
       {semantic ? (
         person.posePresentation ? (
           <PosePresentationPanel
+            telemetryJob={data.jobId}
             presentation={person.posePresentation}
             bodyPreviewJob={
               data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
@@ -196,6 +197,7 @@ export function BarPersonCandidates({
                         />
                       ) : (
                         <PoseCandidateCard
+                          jobId={data.jobId}
                           candidate={candidate}
                           characterId={characterId}
                           isSelected={candidate.id === selected}

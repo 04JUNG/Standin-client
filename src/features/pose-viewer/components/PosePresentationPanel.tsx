@@ -35,6 +35,7 @@ const candidateLabel = (kind: string) =>
     near_match: "비슷한 다른 포즈",
   })[kind] ?? "자세를 참고할 포즈";
 function Preview({
+  telemetryJob,
   candidate,
   scope,
   selection,
@@ -43,6 +44,7 @@ function Preview({
   pick,
   displayRank = candidate.rank,
 }: {
+  telemetryJob?: string;
   candidate: PreviewCandidate;
   scope: string | null;
   selection?: PresentationSelection;
@@ -73,6 +75,7 @@ function Preview({
         onClick={() => selection?.onSelect(candidate.candidate_id)}
       >
         <DefaultPoseImage
+          jobId={telemetryJob}
           candidate={candidate}
           scope={scope}
           compact={compact}
@@ -104,12 +107,14 @@ function Preview({
   );
 }
 function PresentationContent({
+  telemetryJob,
   presentation: p,
   compact = false,
   selectableLibrary = false,
   renderCandidate,
   selection,
 }: {
+  telemetryJob?: string;
   presentation: PosePresentation;
   compact?: boolean;
   selectableLibrary?: boolean;
@@ -148,6 +153,7 @@ function PresentationContent({
       <div key={c.candidate_id}>{renderCandidate(c)}</div>
     ) : (
       <Preview
+        telemetryJob={telemetryJob}
         key={c.candidate_id}
         candidate={c}
         pick={candidatesById.get(c.candidate_id)}
@@ -252,6 +258,7 @@ function SelectedBodyPresentation({
         <>
           <BodyRenderStatus entry={entry} />
           <PresentationContent
+            telemetryJob={job}
             presentation={presentation}
             compact={compact}
             selectableLibrary={selectableLibrary}
@@ -263,6 +270,7 @@ function SelectedBodyPresentation({
   );
 }
 export function PosePresentationPanel({
+  telemetryJob,
   presentation,
   compact = false,
   selectableLibrary = false,
@@ -270,6 +278,7 @@ export function PosePresentationPanel({
   renderCandidate,
   selection,
 }: {
+  telemetryJob?: string;
   presentation: PosePresentation;
   compact?: boolean;
   selectableLibrary?: boolean;
@@ -292,6 +301,7 @@ export function PosePresentationPanel({
     />
   ) : (
     <PresentationContent
+      telemetryJob={telemetryJob}
       presentation={presentation}
       compact={compact}
       selectableLibrary={selectableLibrary}

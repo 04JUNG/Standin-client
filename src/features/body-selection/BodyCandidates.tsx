@@ -1,3 +1,8 @@
+import {
+  featureAction,
+  useFeatureView,
+  failureProperties,
+} from "@/features/analytics/featureJourney";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -85,6 +90,7 @@ export function BodyChip({
   onViewChange?(expanded: boolean): void;
 }) {
   const { open, setOpen } = useBodyPanel(job, person.index);
+  useFeatureView("body_selection", !!entry?.selection, "exposure", job, String(person.index));
   const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span
@@ -162,6 +168,7 @@ export function BodyLabel({
 
 /** 기본 체형 참고 카드. 사진을 누르면 포즈를 고르고 최종 모습은 다음 화면에서 확인한다. */
 export function BodyCandidateCards({
+  job,
   person,
   selected,
   onSelect,
@@ -183,6 +190,7 @@ export function BodyCandidateCards({
       {person.candidates.map((candidate, i) => (
         <div key={candidate.id} className={cn("min-h-0", cardClassName?.(i))}>
           <PoseCandidateCard
+            jobId={job}
             candidate={candidate}
             isSelected={candidate.id === selected}
             onSelect={() => onSelect(candidate.id)}
@@ -197,6 +205,7 @@ export function BodyCandidateCards({
 
 /** 플로팅 바의 기본 참고 카드. 사진 클릭은 포즈 선택으로 이어진다. */
 export function BodyCandidateCard({
+  job,
   candidate,
   selected,
   onSelect,
@@ -212,6 +221,7 @@ export function BodyCandidateCard({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PoseCandidateCard
+        jobId={job}
         candidate={candidate}
         isSelected={candidate.id === selected}
         onSelect={() => onSelect(candidate.id)}
@@ -277,6 +287,7 @@ export function BodyExpand({
   variant: "bar" | "app";
 }) {
   const selection = entry?.selection;
+  useFeatureView("body_selection", !!selection, "open", job, String(person.index));
   const { options, mutation } = useBodyControls(job, person, selection);
   const cards = cardsOf(useBodyPreferences().data);
   const navigate = useNavigate();
@@ -318,6 +329,17 @@ export function BodyExpand({
     mutation.mutate(
       { intent: "manual", characterId: currentId, shape: { controls } },
       {
+        onSuccess: () => {
+          featureAction("body_selection", "adjusted", job, { personIndex: person.index });
+          featureAction("body_selection", "applied", job, { personIndex: person.index });
+        },
+        onError: (error) =>
+          featureAction(
+            "body_selection",
+            "failed",
+            job,
+            failureProperties(error, "body_selection"),
+          ),
         onSettled: () => {
           if (latest.current === controls) {
             latest.current = null;
@@ -357,16 +379,38 @@ export function BodyExpand({
     const base = baseOf(card);
     if (busy || !base?.selectable || !base.shape || card === currentCard) return;
     setKindView(null);
-    mutation.mutate({
-      intent: "manual",
-      characterId: card.characterId,
-      shape: { controls: card.controls },
-    });
+    featureAction("body_custom", "selected", job, { personIndex: person.index });
+    mutation.mutate(
+      {
+        intent: "manual",
+        characterId: card.characterId,
+        shape: { controls: card.controls },
+      },
+      {
+        onSuccess: () => featureAction("body_custom", "reused", job, { personIndex: person.index }),
+        onError: (error) =>
+          featureAction("body_custom", "failed", job, failureProperties(error, "body_custom")),
+      },
+    );
   }
   function pick(option: BodyOption) {
     if (busy || !option.selectable) return;
     if (option.characterId === currentId && !selection?.shape) return;
-    mutation.mutate({ intent: "manual", characterId: option.characterId });
+    featureAction("body_selection", "selected", job, { personIndex: person.index });
+    mutation.mutate(
+      { intent: "manual", characterId: option.characterId },
+      {
+        onSuccess: () =>
+          featureAction("body_selection", "applied", job, { personIndex: person.index }),
+        onError: (error) =>
+          featureAction(
+            "body_selection",
+            "failed",
+            job,
+            failureProperties(error, "body_selection"),
+          ),
+      },
+    );
   }
 
   const status = mutation.isPending
@@ -415,9 +459,7 @@ export function BodyExpand({
             ))}
           </div>
         </div>
-        <p className="text-[11px] text-text-secondary">
-          선택한 인물에 바로 적용돼요.
-        </p>
+        <p className="text-[11px] text-text-secondary">선택한 인물에 바로 적용돼요.</p>
       </div>
 
       {/* 내 체형(왼쪽, 실시간) | 프리셋(오른쪽, 고정) */}
@@ -630,6 +672,7 @@ export function BodyExpand({
           <ToolButton
             disabled={busy || !currentId || (!selection?.shape && !draft)}
             onClick={() => {
+              featureAction("body_selection", "reset", job, { personIndex: person.index });
               clearTimeout(timer.current);
               latest.current = null;
               setDraft(null);

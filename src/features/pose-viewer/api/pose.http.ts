@@ -1,3 +1,6 @@
+import { rememberAnalysisFailure } from "@/features/analytics/analysisContext";
+import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
+import { rememberJobSource } from "@/features/analytics/analyticsClient";
 import { readSceneSaveContract } from "@/features/export/api/scene";
 import { semanticCandidateSchema, semanticResultSchema } from "@/features/semantic-search/api";
 import { selectionSchema } from "@/features/body-selection/contract";
@@ -512,15 +515,41 @@ function serverJobFor(
   formData.append("width", String(width));
   formData.append("height", String(height));
 
+  const attemptId = crypto.randomUUID();
+  const startedAt = Date.now();
+  featureAction("analysis", "upload_started", undefined, {
+    attemptId,
+    inputId: clientJobId,
+    source,
+    phase: "upload",
+  });
   const created = apiFetch<CreateJobResponse>(endpoints.analysis.jobs, {
     method: "POST",
     body: formData,
     auth: false,
     signal,
   })
-    .then((job) => job.jobId)
+    .then((job) => {
+      rememberJobSource(job.jobId, source);
+      featureAction("analysis", "upload_completed", job.jobId, {
+        attemptId,
+        inputId: clientJobId,
+        source,
+        phase: "upload",
+        elapsedMs: Date.now() - startedAt,
+      });
+      return job.jobId;
+    })
     .catch((error) => {
       // 만들지 못했으면 슬롯도 잡히지 않았다. 다음 시도가 다시 만들 수 있게 지운다.
+      featureAction("analysis", signal.aborted ? "cancelled" : "upload_failed", undefined, {
+        attemptId,
+        inputId: clientJobId,
+        source,
+        phase: "upload",
+        elapsedMs: Date.now() - startedAt,
+        ...(!signal.aborted ? failureProperties(error, "analysis") : {}),
+      });
       serverJobByClientJob.delete(clientJobId);
       throw error;
     });
@@ -566,6 +595,7 @@ export const poseHttp: PoseResultService = {
     signal: parentSignal,
   }): Promise<AnalysisResult> {
     const timeout = createAnalysisDeadline(parentSignal);
+    let knownServerJobId: string | undefined;
 
     try {
       const serverJobId = await serverJobFor(
@@ -573,13 +603,15 @@ export const poseHttp: PoseResultService = {
         { file, source, width, height },
         timeout.createSignal,
       );
+      knownServerJobId = serverJobId;
       const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal);
       const analysis = await toAnalysisResult(result, timeout.signal);
       if (timeout.signal.aborted) throw timeout.signal.reason;
       return analysis;
     } catch (error) {
-      if (timeout.didTimeOut()) throw analysisTimeoutError();
-      throw error;
+      const failure = timeout.didTimeOut() ? analysisTimeoutError() : error;
+      rememberAnalysisFailure(failure, knownServerJobId);
+      throw failure;
     } finally {
       timeout.dispose();
     }

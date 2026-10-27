@@ -1,3 +1,4 @@
+import { journeyExit } from "@/features/analytics/featureJourney";
 import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { PosePresentationPanel } from "../components/PosePresentationPanel";
@@ -78,8 +79,9 @@ export function PoseViewerPage() {
     allSelected,
     confirmedSelections,
     selectCandidate,
-  } = useAnalysisResult(jobId);
+  } = useAnalysisResult(jobId, true);
 
+  const telemetryJob = data?.jobId;
   const people = data?.people ?? [];
   const active =
     people.find((p) => p.index === activeIndex) ??
@@ -125,7 +127,13 @@ export function PoseViewerPage() {
       <AppShell title="포즈 후보">
         <div className="flex h-full flex-col items-center justify-center gap-4 text-text-secondary">
           <p>분석할 그림을 찾지 못했어요. 파일을 다시 올려 주세요.</p>
-          <Button variant="secondary" onClick={() => navigate("/app/home")}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              journeyExit("pose_selection", "results", "home", telemetryJob);
+              navigate("/app/home");
+            }}
+          >
             홈으로 돌아가기
           </Button>
         </div>
@@ -143,7 +151,13 @@ export function PoseViewerPage() {
           <PoseSearchPending preview={restoreOnly ? null : draft} restoring={restoreOnly} />
           {/* 분석은 서버에서 계속 진행되고 결과는 작업 기록에서 다시 열 수 있다.
               기다리는 것 말고 할 수 있는 일이 없는 화면을 만들지 않는다. */}
-          <Button variant="secondary" onClick={() => navigate("/app/home")}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              journeyExit("pose_selection", "results", "home", telemetryJob);
+              navigate("/app/home");
+            }}
+          >
             홈으로 돌아가기
           </Button>
         </div>
@@ -172,7 +186,13 @@ export function PoseViewerPage() {
                 다시 시도
               </Button>
             )}
-            <Button variant="secondary" onClick={() => navigate("/app/home")}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                journeyExit("pose_selection", "results", "home", telemetryJob);
+                navigate("/app/home");
+              }}
+            >
               홈으로 돌아가기
             </Button>
           </div>
@@ -192,6 +212,7 @@ export function PoseViewerPage() {
             <div key={person.index} className="flex flex-col gap-3">
               {person.posePresentation ? (
                 <PosePresentationPanel
+                  telemetryJob={data.jobId}
                   presentation={person.posePresentation}
                   bodyPreviewJob={
                     data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
@@ -367,7 +388,13 @@ export function PoseViewerPage() {
               안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
               대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
             <div className="flex min-w-0 items-center gap-3">
-              <Button variant="ghost" onClick={() => navigate("/app/home")}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  journeyExit("pose_selection", "results", "home", telemetryJob);
+                  navigate("/app/home");
+                }}
+              >
                 홈으로 돌아가기
               </Button>
               <span className="truncate text-[12px] text-text-secondary" aria-live="polite">
@@ -555,6 +582,7 @@ function ActivePersonCard({
                   ) : (
                     gridCandidates.map((candidate) => (
                       <PoseCandidateCard
+                        jobId={jobId}
                         key={candidate.id}
                         candidate={candidate}
                         characterId={characterId}

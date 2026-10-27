@@ -403,6 +403,30 @@ describe("작업 기록 재진입", () => {
     expect(queued().some((event) => event.name === "analysis_failed")).toBe(false);
   });
 
+  it("visible results count zero-candidate people separately from total candidates", async () => {
+    const stored = storedResult();
+    loadResult.mockResolvedValue({
+      ...stored,
+      jobId: "job_count_visibility",
+      people: [
+        {
+          ...stored.people[0],
+          candidates: [
+            { id: "count_candidate", rank: 1, tags: [], bvhAvailable: false, previewImages: [] },
+          ],
+        },
+        { ...stored.people[0], index: 1, candidates: [] },
+      ],
+    });
+    renderHook(() => useAnalysisResult(SERVER_JOB_ID, true), { wrapper });
+    await waitFor(() => expect(queued().some((e) => e.name === "results_viewed")).toBe(true));
+    expect(queued().find((e) => e.name === "results_viewed")!.properties).toMatchObject({
+      peopleCount: 2,
+      zeroCandidatePeople: 1,
+      peopleWithCandidates: 1,
+    });
+  });
+
   it("기록에서 다시 본 결과는 results_viewed로 세지 않는다", async () => {
     loadResult.mockResolvedValue(storedResult());
 
