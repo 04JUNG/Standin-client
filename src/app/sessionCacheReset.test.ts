@@ -38,7 +38,7 @@ describe("clearQueryCacheOnSessionEnd", () => {
   it("로그아웃하면 이전 사용자의 캐시가 남지 않는다", () => {
     // docs/06 §9 — "Query cache에 이전 사용자 데이터가 남지 않음".
     seedCache();
-    saveSearchDraft("owner", "entry", { seed: "", query: "private draft", needsSearch: true });
+    saveSearchDraft("owner", "entry", { seed: "", query: "private draft" });
 
     useAuthStore.setState({ status: "unauthenticated", user: null });
     expect(readSearchDraft("owner", "entry", "")).toBeUndefined();

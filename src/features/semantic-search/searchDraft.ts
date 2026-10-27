@@ -1,5 +1,5 @@
-/** In-memory only. A mode change may unmount an input while a search is pending. */
-type DraftInput = { seed: string; query: string; needsSearch: boolean };
+/** In-memory text only. Restoring a draft never submits another search. */
+type DraftInput = { seed: string; query: string };
 type Draft = DraftInput & { version: number };
 let nextVersion = 0;
 const drafts = new Map<string, Draft>();
@@ -16,16 +16,14 @@ export function saveSearchDraft(owner: string | undefined, context: string, draf
   if (drafts.size > 12) drafts.delete(drafts.keys().next().value!);
   return version;
 }
-export function completeSearchDraft(
+export function isCurrentSearchDraft(
   owner: string | undefined,
   context: string,
   seed: string,
   version: number,
 ) {
   const draft = readSearchDraft(owner, context, seed);
-  if (!draft || draft.version !== version) return false;
-  draft.needsSearch = false;
-  return true;
+  return draft?.version === version;
 }
 export function clearSearchDrafts() {
   drafts.clear();

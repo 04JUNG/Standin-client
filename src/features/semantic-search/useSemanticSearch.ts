@@ -3,7 +3,7 @@ import {
   useFeatureView,
   failureProperties,
 } from "@/features/analytics/featureJourney";
-import { completeSearchDraft, readSearchDraft, saveSearchDraft } from "./searchDraft";
+import { isCurrentSearchDraft, readSearchDraft, saveSearchDraft } from "./searchDraft";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -27,11 +27,9 @@ export function useSemanticSearch(
   const context = resultKey ? `result:${resultKey}` : "entry";
   const draft = readSearchDraft(owner, context, initialQuery);
   const [query, setQuery] = useState(draft?.query ?? initialQuery.slice(0, 500));
-  const [revision, setRevision] = useState(draft?.needsSearch ? 1 : 0);
   const [composing, setComposing] = useState(false);
   const [noResult, setNoResult] = useState(false);
   const generation = useRef(0);
-  const consumedRevision = useRef(0);
   const controller = useRef<AbortController>();
   const activeText = useRef<string>();
   const availability = useQuery({
@@ -66,7 +64,7 @@ export function useSemanticSearch(
         variables.generation !== generation.current ||
         variables.signal.aborted ||
         variables.owner !== useInstallationStore.getState().credentials?.installationId ||
-        !completeSearchDraft(owner, context, initialQuery, variables.draftVersion)
+        !isCurrentSearchDraft(owner, context, initialQuery, variables.draftVersion)
       )
         return;
       activeText.current = undefined;
@@ -106,7 +104,6 @@ export function useSemanticSearch(
     onSettled: (_data, _error, variables) => {
       if (variables.generation === generation.current) {
         activeText.current = undefined;
-        completeSearchDraft(owner, context, initialQuery, variables.draftVersion);
       }
     },
     retry: false,
@@ -123,11 +120,9 @@ export function useSemanticSearch(
     generation.current++;
     controller.current?.abort();
     activeText.current = undefined;
-    consumedRevision.current = 0;
     reset();
     const restored = readSearchDraft(owner, context, initialQuery);
     setQuery(restored?.query ?? initialQuery.slice(0, 500));
-    setRevision(restored?.needsSearch ? 1 : 0);
     setComposing(false);
     setNoResult(false);
   }, [initialQuery, resultKey, owner, context, reset]);
@@ -139,14 +134,13 @@ export function useSemanticSearch(
     [owner, context, initialQuery],
   );
   function edit(text: string) {
-    saveSearchDraft(owner, context, { seed: initialQuery, query: text, needsSearch: true });
+    saveSearchDraft(owner, context, { seed: initialQuery, query: text });
     generation.current++;
     controller.current?.abort();
     activeText.current = undefined;
     reset();
     setNoResult(false);
     setQuery(text);
-    setRevision((r) => r + 1);
   }
   const ready = availability.data?.available === true && availability.data.supportsAllResults;
   useFeatureView("semantic_search", !!ready, "exposure", undefined, context);
@@ -157,9 +151,7 @@ export function useSemanticSearch(
     const draftVersion = saveSearchDraft(owner, context, {
       seed: initialQuery,
       query,
-      needsSearch: true,
     });
-    consumedRevision.current = revision;
     controller.current?.abort();
     controller.current = new AbortController();
     generation.current++;
@@ -183,15 +175,7 @@ export function useSemanticSearch(
       owner,
       draftVersion,
     });
-  }, [query, ready, composing, revision, mutate, owner, context, initialQuery, surface]);
-  useEffect(() => {
-    if (!revision || revision === consumedRevision.current || composing || !ready || !query.trim())
-      return;
-    const timer = window.setTimeout(() => {
-      if (consumedRevision.current !== revision) submit();
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [revision, composing, ready, query, submit]);
+  }, [query, ready, composing, mutate, owner, context, initialQuery, surface]);
   const pending = search.isPending && search.variables?.generation === generation.current;
   return {
     query,
