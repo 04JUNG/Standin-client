@@ -1,3 +1,4 @@
+import { LocalFbxPreview } from "@/features/personal-body/LocalFbxPreview";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
@@ -60,19 +61,23 @@ export function ReviewPage() {
                   key={item.personIndex}
                   className="flex flex-col overflow-hidden rounded-lg border border-border"
                 >
-                  <ReviewPosePreview
-                    telemetryJobId={hands?.jobId}
-                    model={item.previewModel}
-                    src={item.previewUrl}
-                    label={
-                      item.previewReference
-                        ? `인물 ${item.personIndex + 1}의 동작 미리보기`
-                        : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
-                    }
-                    loading={previewLoading}
-                    error={previewError}
-                    onModelStatus={item.onModelStatus}
-                  />
+                  {item.localName ? (
+                    <LocalFbxPreview content={item.localFbx} name={item.localName} />
+                  ) : (
+                    <ReviewPosePreview
+                      telemetryJobId={hands?.jobId}
+                      model={item.previewModel}
+                      src={item.previewUrl}
+                      label={
+                        item.previewReference
+                          ? `인물 ${item.personIndex + 1}의 동작 미리보기`
+                          : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
+                      }
+                      loading={previewLoading}
+                      error={previewError}
+                      onModelStatus={item.onModelStatus}
+                    />
+                  )}
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">
                       인물 {item.personIndex + 1}

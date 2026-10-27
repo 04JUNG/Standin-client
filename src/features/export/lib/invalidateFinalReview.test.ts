@@ -12,13 +12,16 @@ it("drops this job's final URLs and queries while preserving source, other jobs 
     source = ["pose-source", "job_a"];
   const png = ["framed-image", "owner", url],
     scene = ["prepared-scene", "owner", "job_a", "receipt"];
-  for (const key of [image, png, scene, body, other, source]) client.setQueryData(key, "data");
+  const personal = ["personal-body-result", "owner", "job_a", "snapshot"];
+  for (const key of [image, png, scene, body, personal, other, source])
+    client.setQueryData(key, "data");
   invalidateFinalReview(client, "job_a");
   expect(reviewedArtifactSha(url)).toBeUndefined();
   expect(client.getQueryData(image)).toBeUndefined();
   expect(client.getQueryData(body)).toBeUndefined();
   expect(client.getQueryData(png)).toBeUndefined();
   expect(client.getQueryData(scene)).toBeUndefined();
+  expect(client.getQueryData(personal)).toBeUndefined();
   expect(client.getQueryData(source)).toBe("data");
   expect(client.getQueryData(other)).toBe("data");
   client.clear();

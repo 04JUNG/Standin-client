@@ -16,7 +16,8 @@
     "release:check": "node scripts/release-notes.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:personal-body": "node scripts/tauri-personal-body.mjs"
   },
   "dependencies": {
     "@crabnebula/tauri-plugin-drag": "^2.1.0",
