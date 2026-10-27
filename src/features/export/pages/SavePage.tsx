@@ -51,6 +51,7 @@ export function SavePage() {
     returnToReview,
     folder,
     format,
+    hasLocal,
     formatDowngraded,
     characterName,
     requestedCharacterName,
@@ -83,7 +84,7 @@ export function SavePage() {
   // 이미 저장한 포맷의 반대. FBX를 못 주는 서버에서는 FBX를 권하지 않는다 — 눌러도
   // 실패할 버튼을 보여주는 건 안내가 아니라 함정이다.
   const alternateFormat = format === "fbx" ? "bvh" : "fbx";
-  const canSaveAlternate = alternateFormat === "bvh" || serverSupportsFbx;
+  const canSaveAlternate = !hasLocal && (alternateFormat === "bvh" || serverSupportsFbx);
 
   function handleNewScene() {
     newScene();

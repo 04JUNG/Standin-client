@@ -1,3 +1,4 @@
+import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import {
   featureAction,
   useFeatureView,
@@ -25,6 +26,11 @@ export function HandChips({
   personIndex: number;
   compact?: boolean;
 }) {
+  const local = useLocalBodies((s) =>
+    s.models.find(
+      (m) => m.localModelId === s.selected[localSelectionKey(state.jobId, personIndex)],
+    ),
+  );
   const qc = useQueryClient();
   const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const [side, setSide] = useState<Side | null>(null);
@@ -39,6 +45,12 @@ export function HandChips({
     state.jobId,
     String(personIndex),
   );
+  if (local)
+    return (
+      <p role="status" className="p-2 text-xs text-text-secondary">
+        이 체형은 손 모양을 바꿀 수 없어요. 원래 손 모양으로 저장돼요.
+      </p>
+    );
   if (!state.enabled) return null;
   if (!entry) return null;
   if (entry.error)

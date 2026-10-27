@@ -1,3 +1,4 @@
+import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import {
@@ -32,6 +33,8 @@ export function useBodies(
   excluded: Readonly<Record<number, unknown>> = {},
   renderPreviews = false,
 ) {
+  const localSelected = useLocalBodies((s) => s.selected);
+  const localModels = useLocalBodies((s) => s.models);
   const owner = useBodyOwner(),
     job = result?.jobId ?? "";
   const qc = useQueryClient();
@@ -100,23 +103,27 @@ export function useBodies(
     selection: selections[i]?.data,
     group: groups[i]?.data,
     ready:
-      !pending &&
-      selections[i]?.isSuccess === true &&
-      !selections[i]?.isFetching &&
-      selections[i]?.data?.resolutionStatus === "ready" &&
-      !!selections[i]?.data?.resolvedBody &&
-      !isRetiredCharacter(selections[i]!.data!.resolvedBody!.characterId) &&
-      (!renderPreviews || (groups[i]?.isSuccess === true && !groups[i]?.isFetching)),
-    error:
-      selections[i]?.error ??
-      groups[i]?.error ??
-      (selections[i]?.data && selections[i]?.data?.resolutionStatus !== "ready"
-        ? new Error(
-            selections[i]?.data?.resolvedSource === "catalog_default_fallback"
-              ? "남성 기본형을 불러올 수 없어요. 체형 더보기에서 다른 체형을 고르거나 다시 시도해 주세요."
-              : "사용할 체형을 선택해 주세요.",
-          )
-        : null),
+      localModels.some(
+        (m) => m.localModelId === localSelected[localSelectionKey(job, person.index)],
+      ) ||
+      (!pending &&
+        selections[i]?.isSuccess === true &&
+        !selections[i]?.isFetching &&
+        selections[i]?.data?.resolutionStatus === "ready" &&
+        !!selections[i]?.data?.resolvedBody &&
+        !isRetiredCharacter(selections[i]!.data!.resolvedBody!.characterId) &&
+        (!renderPreviews || (groups[i]?.isSuccess === true && !groups[i]?.isFetching))),
+    error: localSelected[localSelectionKey(job, person.index)]
+      ? null
+      : (selections[i]?.error ??
+        groups[i]?.error ??
+        (selections[i]?.data && selections[i]?.data?.resolutionStatus !== "ready"
+          ? new Error(
+              selections[i]?.data?.resolvedSource === "catalog_default_fallback"
+                ? "남성 기본형을 불러올 수 없어요. 체형 더보기에서 다른 체형을 고르거나 다시 시도해 주세요."
+                : "사용할 체형을 선택해 주세요.",
+            )
+          : null)),
     retry: async () => {
       await selections[i]?.refetch();
       // The refreshed selection may use a different query key (or still be absent).
