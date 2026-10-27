@@ -144,7 +144,10 @@ it("saves a picked body without waiting for the previews", () => {
   const card = screen.getByRole("radio", { name: /근육형/ });
   expect(card).not.toBeDisabled();
   fireEvent.click(card);
-  expect(mutate).toHaveBeenCalledWith({ intent: "manual", characterId: "female-muscular" });
+  expect(mutate).toHaveBeenCalledWith(
+    { intent: "manual", characterId: "female-muscular" },
+    expect.objectContaining({ onSuccess: expect.any(Function) }),
+  );
 });
 
 it("applies a saved body card (body and numbers at once) and has no 'my default' buttons", () => {
@@ -152,11 +155,14 @@ it("applies a saved body card (body and numbers at once) and has no 'my default'
   wrap(createElement(BodyExpand, { job: "job-panel", person, entry, variant: "app" }));
   expect(screen.queryByRole("button", { name: /내 기본값/ })).toBeNull();
   fireEvent.click(screen.getByRole("radio", { name: "내 체형 주인공 A" }));
-  expect(mutate).toHaveBeenCalledWith({
-    intent: "manual",
-    characterId: "female-base",
-    shape: { controls: { height: 168, muscle: 1 } },
-  });
+  expect(mutate).toHaveBeenCalledWith(
+    {
+      intent: "manual",
+      characterId: "female-base",
+      shape: { controls: { height: 168, muscle: 1 } },
+    },
+    expect.objectContaining({ onSuccess: expect.any(Function) }),
+  );
 });
 
 it("names the person's body after the card it matches", () => {

@@ -1,3 +1,4 @@
+import { journeyExit } from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
@@ -60,6 +61,7 @@ export function BarReviewPage() {
                   className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[320px]" : "max-w-[256px]"}`}
                 >
                   <ReviewPosePreview
+                    telemetryJobId={hands?.jobId}
                     model={item.previewModel}
                     src={item.previewUrl}
                     label={
@@ -131,7 +133,10 @@ export function BarReviewPage() {
             variant="ghost"
             size="sm"
             className="min-w-0 flex-1"
-            onClick={() => navigate("/bar/candidates")}
+            onClick={() => {
+              journeyExit("export", "review", "back", hands?.jobId);
+              navigate("/bar/candidates");
+            }}
           >
             다시 고르기
           </Button>

@@ -57,7 +57,13 @@ export function PoseCandidateCard({
   const imageUrl = preview.data?.url || candidate.thumbnailUrl;
   const pending = !imageUrl && preview.isPending;
   const failed = !imageUrl && preview.isError;
-  const reportThumbnailFailure = useThumbnailJourney(jobId, candidate.id, failed, imageUrl);
+  const reportThumbnailFailure = useThumbnailJourney(
+    jobId,
+    candidate.id,
+    failed,
+    imageUrl,
+    preview.error,
+  );
   void bodyPreview;
   return (
     <button
@@ -85,6 +91,7 @@ export function PoseCandidateCard({
         <img
           src={imageUrl}
           onError={reportThumbnailFailure}
+          onLoad={reportThumbnailFailure.onLoad}
           alt={candidate.title}
           className={cn(
             "w-full object-contain",

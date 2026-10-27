@@ -1,3 +1,4 @@
+import { failureProperties } from "./failureProperties";
 import { useEffect, useRef } from "react";
 import { currentSurface, trackEvent } from "./analyticsClient";
 
@@ -7,6 +8,7 @@ export function useReviewJourney(input: {
   binding: string;
   ready: boolean;
   failed: boolean;
+  error?: unknown;
   format: string;
 }) {
   const seen = useRef<string>();
@@ -16,7 +18,7 @@ export function useReviewJourney(input: {
     startedAt: number;
     outcome?: string;
   }>();
-  const { jobId, binding, ready, failed, format } = input;
+  const { jobId, binding, ready, failed, format, error } = input;
   useEffect(() => {
     if (!jobId) return;
     const key = `${jobId}:${binding}:${format}`;
@@ -42,9 +44,17 @@ export function useReviewJourney(input: {
         attemptId: attempt.attemptId,
         elapsedMs: Math.max(0, Date.now() - attempt.startedAt),
         format,
-        ...(failed ? { code: "PREPARATION_UNAVAILABLE" } : {}),
+        ...(failed
+          ? {
+              ...failureProperties(error, "export"),
+              code:
+                failureProperties(error, "export").code === "UNKNOWN"
+                  ? "PREPARATION_UNAVAILABLE"
+                  : failureProperties(error, "export").code,
+            }
+          : {}),
       },
       jobId,
     );
-  }, [jobId, binding, ready, failed, format]);
+  }, [jobId, binding, ready, failed, format, error]);
 }

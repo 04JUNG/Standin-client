@@ -108,8 +108,8 @@ export function CaptureOverlayPage() {
       setCaptureStatus("idle");
       // 시작한 곳으로 돌아간다 — 바에서 시작했으면 앱 창을 거치지 않는다(ADR-008).
       navigate(afterInputRoute(origin), { replace: true });
-    } catch {
-      finishInputAttempt("capture", "failed", "CROP_FAILED");
+    } catch (error) {
+      finishInputAttempt("capture", "failed", "CROP_FAILED", error);
       setProcessing(false);
       setSel(null);
     }

@@ -1,3 +1,4 @@
+import { usePreviewJourney } from "@/features/analytics/usePreviewJourney";
 import { useState } from "react";
 import { ImageOff, Loader2 } from "lucide-react";
 import type { ReviewModel } from "../preview/mountReviewModel";
@@ -12,7 +13,9 @@ export function ReviewPosePreview({
   loading,
   error,
   onModelStatus,
+  telemetryJobId,
 }: {
+  telemetryJobId?: string;
   model?: ReviewModel;
   src?: string;
   label: string;
@@ -21,6 +24,12 @@ export function ReviewPosePreview({
   error: boolean;
   onModelStatus: (status: "ready" | "failed") => void;
 }) {
+  const reportPreview = usePreviewJourney(
+    telemetryJobId,
+    model ?? src,
+    "export",
+    model ? "review_model" : "review_image",
+  );
   const [image, setImage] = useState<{ src: string; status: "ready" | "failed" }>();
   const [surface, setSurface] = useState<{ model: ReviewModel; status: "ready" | "failed" }>();
   const imageStatus = image?.src === src ? image?.status : undefined;
@@ -39,6 +48,7 @@ export function ReviewPosePreview({
           model={model}
           label={label}
           onStatus={(status) => {
+            reportPreview(status);
             setSurface({ model, status });
             onModelStatus(status);
           }}
@@ -49,8 +59,14 @@ export function ReviewPosePreview({
           src={src}
           alt={label}
           className={`aspect-square w-full object-contain ${pending ? "invisible" : ""}`}
-          onLoad={() => setImage({ src, status: "ready" })}
-          onError={() => setImage({ src, status: "failed" })}
+          onLoad={() => {
+            reportPreview("ready");
+            setImage({ src, status: "ready" });
+          }}
+          onError={() => {
+            reportPreview("failed");
+            setImage({ src, status: "failed" });
+          }}
         />
       ) : null}
       {pending && (

@@ -15,6 +15,9 @@ const { analyze, loadResult } = vi.hoisted(() => ({ analyze: vi.fn(), loadResult
 vi.mock("../api/pose.service", () => ({ poseService: { analyze, loadResult } }));
 vi.mock("@/features/analytics/analyticsClient", () => ({
   trackEvent: vi.fn(),
+  rememberJobSource: vi.fn(),
+  analyticsConsentId: () => null,
+  subscribeAnalyticsConsent: () => () => {},
   currentSurface: () => "app",
   confirmSelections: vi.fn(),
 }));

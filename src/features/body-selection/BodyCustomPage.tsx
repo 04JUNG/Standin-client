@@ -1,3 +1,9 @@
+import {
+  featureAction,
+  useFeatureView,
+  failureProperties,
+  journeyExit,
+} from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
 import "./BodyCustomPage.css";
 import { useEffect, useRef, useState } from "react";
@@ -43,10 +49,24 @@ type Draft = { characterId: string; controls: Record<string, number> | null; nam
  */
 export function BodyCustomPage() {
   const { cardId } = useParams();
+  const creationAttempt = useRef({ attemptId: crypto.randomUUID(), startedAt: Date.now() });
+  const attemptProps = () => ({
+    attemptId: creationAttempt.current.attemptId,
+    elapsedMs: Math.max(0, Date.now() - creationAttempt.current.startedAt),
+  });
   const [search] = useSearchParams();
   const navigate = useNavigate();
   const { prefs, looks, find, name } = useBodyLooks();
   const { cards, change, supported } = useBodyCards();
+  useFeatureView("body_custom", supported, "exposure");
+  useFeatureView(
+    "body_custom",
+    supported,
+    cardId ? "open" : "creation_started",
+    undefined,
+    cardId ?? "new",
+    { attemptId: creationAttempt.current.attemptId },
+  );
   const card = cardId ? cards.find((c) => c.cardId === cardId) : undefined;
   const editable = looks.filter((l) => !!l.shape);
   const kinds = (["male", "female"] as const).filter((k) =>
@@ -115,6 +135,10 @@ export function BodyCustomPage() {
     if (!draft || !values) return;
     const clean = cleanCardName(draft.name);
     if (!clean) {
+      featureAction("body_custom", "failed", undefined, {
+        errorCategory: "validation",
+        code: "INVALID_NAME",
+      });
       setNameError(true);
       return;
     }
@@ -127,12 +151,32 @@ export function BodyCustomPage() {
           characterId: draft.characterId,
           controls: values,
         },
-        { onSuccess: () => navigate("/app/models") },
+        {
+          onSuccess: () => {
+            featureAction("body_custom", "saved", undefined, attemptProps());
+            navigate("/app/models");
+          },
+          onError: (error) =>
+            featureAction("body_custom", "failed", undefined, {
+              ...failureProperties(error, "body_custom"),
+              ...attemptProps(),
+            }),
+        },
       );
     else
       change.mutate(
         { op: "create", name: clean, characterId: draft.characterId, controls: values },
-        { onSuccess: () => navigate("/app/models") },
+        {
+          onSuccess: () => {
+            featureAction("body_custom", "saved", undefined, attemptProps());
+            navigate("/app/models");
+          },
+          onError: (error) =>
+            featureAction("body_custom", "failed", undefined, {
+              ...failureProperties(error, "body_custom"),
+              ...attemptProps(),
+            }),
+        },
       );
   }
 
@@ -141,7 +185,14 @@ export function BodyCustomPage() {
     <AppShell title="체형 커스텀">
       <div className="mx-auto max-w-[960px] space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/app/models")}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              journeyExit("body_custom", "body_custom", "back");
+              navigate("/app/models");
+            }}
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden />
             체형 목록
           </Button>
@@ -310,7 +361,10 @@ export function BodyCustomPage() {
                     variant="ghost"
                     size="sm"
                     disabled={busy || sameShape(spec, values, null)}
-                    onClick={() => setDraft({ ...draft, controls: null })}
+                    onClick={() => {
+                      featureAction("body_custom", "reset");
+                      setDraft({ ...draft, controls: null });
+                    }}
                     title="시작 체형의 처음 값으로 되돌립니다"
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden />
@@ -341,6 +395,7 @@ export function BodyCustomPage() {
               <ShapeControlGrid
                 spec={spec}
                 values={values}
+                onCommit={() => featureAction("body_custom", "adjusted")}
                 onChange={(key, v) => setDraft({ ...draft, controls: { ...values, [key]: v } })}
                 idPrefix="body-custom"
                 disabled={busy}
@@ -353,7 +408,14 @@ export function BodyCustomPage() {
               <Button disabled={busy || !supported || !dirty} loading={busy} onClick={save}>
                 {card ? "변경 저장" : "카드로 저장"}
               </Button>
-              <Button variant="secondary" disabled={busy} onClick={() => navigate("/app/models")}>
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={() => {
+                  journeyExit("body_custom", "body_custom", "back");
+                  navigate("/app/models");
+                }}
+              >
                 취소
               </Button>
               {card && (
@@ -388,7 +450,17 @@ export function BodyCustomPage() {
           onConfirm={() =>
             change.mutate(
               { op: "delete", cardId: card.cardId },
-              { onSuccess: () => navigate("/app/models") },
+              {
+                onSuccess: () => {
+                  featureAction("body_custom", "saved", undefined, attemptProps());
+                  navigate("/app/models");
+                },
+                onError: (error) =>
+                  featureAction("body_custom", "failed", undefined, {
+                    ...failureProperties(error, "body_custom"),
+                    ...attemptProps(),
+                  }),
+              },
             )
           }
         />

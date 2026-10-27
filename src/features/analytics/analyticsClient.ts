@@ -1,3 +1,4 @@
+import { failureProperties } from "./failureProperties";
 import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { safeStorage } from "@/shared/lib/safeStorage";
@@ -17,6 +18,9 @@ type JourneyEventName =
   | "input_failed";
 
 type EventName =
+  | "feature_action"
+  | "journey_exit"
+  | "selection_failed"
   | JourneyEventName
   | "app_started"
   | "input_confirmed"
@@ -64,8 +68,36 @@ let queueGeneration = 0;
 let qualityConsentId: string | null = null;
 let consentNotBeforeMs = 0;
 let journeyEnabled: boolean | undefined;
+let featureUsageEnabled: boolean | undefined;
+const featureNames = new Set(["feature_action", "journey_exit", "selection_failed"]);
+export function currentOsName() {
+  const platform = navigator.platform.toLowerCase();
+  return platform.includes("mac")
+    ? "macos"
+    : platform.includes("win")
+      ? "windows"
+      : platform.includes("linux")
+        ? "linux"
+        : "unknown";
+}
 let capabilityGeneration = 0;
 let sessionId = crypto.randomUUID();
+export function analyticsConsentId() {
+  return qualityConsentId;
+}
+const consentListeners = new Set<() => void>();
+export function subscribeAnalyticsConsent(listener: () => void) {
+  consentListeners.add(listener);
+  return () => {
+    consentListeners.delete(listener);
+  };
+}
+const jobSources = new Map<string, string>();
+export function rememberJobSource(jobId: string, source: string) {
+  if (source !== "unknown" || !jobSources.has(jobId)) jobSources.set(jobId, source);
+  if (jobSources.size > 100) jobSources.delete(jobSources.keys().next().value!);
+}
+
 const journeyNames = new Set<string>([
   "review_viewed",
   "preparation_started",
@@ -86,20 +118,29 @@ export function refreshJourneyCapability(): Promise<void> {
   if (capabilityRequest) return capabilityRequest;
   const generation = ++capabilityGeneration;
   journeyEnabled = undefined;
+  featureUsageEnabled = undefined;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   capabilityRequest = (async () => {
     try {
-      const capability = await apiFetch<{ journeyVersion?: number }>("/v1/events/capabilities", {
-        auth: false,
-        signal: controller.signal,
-      });
-      if (generation === capabilityGeneration) journeyEnabled = capability.journeyVersion === 2;
+      const capability = await apiFetch<{ journeyVersion?: number; featureUsageVersion?: number }>(
+        "/v1/events/capabilities",
+        {
+          auth: false,
+          signal: controller.signal,
+        },
+      );
+      if (generation === capabilityGeneration) {
+        journeyEnabled = capability.journeyVersion === 2;
+        featureUsageEnabled = journeyEnabled && (capability.featureUsageVersion ?? 0) >= 1;
+      }
     } catch (error) {
       if (generation === capabilityGeneration) {
         // Offline/5xx is not evidence that the server does not support v2.
-        if (error instanceof ApiError && error.status === 404) journeyEnabled = false;
-        else capabilityRetryAt = Date.now() + 30_000;
+        if (error instanceof ApiError && error.status === 404) {
+          journeyEnabled = false;
+          featureUsageEnabled = false;
+        } else capabilityRetryAt = Date.now() + 30_000;
       }
     } finally {
       clearTimeout(timeout);
@@ -117,6 +158,7 @@ export function resetJourneyCapability(): void {
   capabilityRequest = null;
   capabilityRetryAt = 0;
   journeyEnabled = undefined;
+  featureUsageEnabled = undefined;
   sessionId = crypto.randomUUID();
 }
 
@@ -125,13 +167,17 @@ export function setAnalyticsConsent(consentId: string | null, grantedAt?: string
     for (const source of ["capture", "file", "clipboard", "semantic"])
       safeStorage.removeItem(inputAttemptKey(source));
   }
-  if (!consentId || (qualityConsentId !== null && qualityConsentId !== consentId))
+  if (!consentId || (qualityConsentId !== null && qualityConsentId !== consentId)) {
     resetAnalyticsQueue();
+    safeStorage.removeItem("standin.analytics.feature-usage.v1");
+    jobSources.clear();
+  }
   qualityConsentId = consentId;
   const grantedAtMs = grantedAt ? Date.parse(grantedAt) : 0;
   consentNotBeforeMs = consentId && Number.isFinite(grantedAtMs) ? grantedAtMs : 0;
   // A fresh webview may restore the same consent; retain only its persisted events.
   if (consentId) writeQueue(readQueue());
+  consentListeners.forEach((listener) => listener());
 }
 
 function readQueue(): QueuedEvent[] {
@@ -205,6 +251,7 @@ export function trackEvent(
 ): void {
   if (
     !qualityConsentId ||
+    (featureNames.has(name) && featureUsageEnabled === false) ||
     ((journeyNames.has(name) || properties.telemetryVersion === 2) && journeyEnabled === false)
   )
     return;
@@ -219,6 +266,7 @@ export function trackEvent(
     occurredAt: new Date(Math.max(Date.now(), consentNotBeforeMs)).toISOString(),
     jobId,
     properties: {
+      ...(jobId && jobSources.has(jobId) ? { source: jobSources.get(jobId)! } : {}),
       ...properties,
       ...(journeyEnabled !== false
         ? {
@@ -226,6 +274,7 @@ export function trackEvent(
             sessionId,
             appVersion: import.meta.env.VITE_APP_VERSION || "unknown",
             surface: properties.surface ?? currentSurface(),
+            osName: currentOsName(),
           }
         : {}),
     },
@@ -238,6 +287,7 @@ export function suspendAnalyticsConsent(): void {
   queueGeneration += 1;
   qualityConsentId = null;
   consentNotBeforeMs = 0;
+  consentListeners.forEach((listener) => listener());
 }
 
 export function flushEvents(): Promise<void> {
@@ -254,8 +304,12 @@ export function flushEvents(): Promise<void> {
   if (Date.now() < retryAfterMs) return Promise.resolve();
   inflight = (async () => {
     let queue = readQueue();
-    if (!journeyEnabled) {
-      const unsupported = queue.filter((event) => journeyNames.has(event.name));
+    if (!journeyEnabled || featureUsageEnabled === false) {
+      const unsupported = queue.filter(
+        (event) =>
+          (!journeyEnabled && journeyNames.has(event.name)) ||
+          (featureUsageEnabled === false && featureNames.has(event.name)),
+      );
       if (unsupported.length) queue = dropSent(unsupported);
     }
     while (queue.length > 0) {
@@ -304,7 +358,9 @@ export function resetAnalyticsQueue(): void {
  * job이라 배치 전체가 거절되므로 job에 연결하지 않는다.
  */
 const inputAttemptKey = (source: string) => `standin.analytics.input-attempt.v1.${source}`;
-function readInputAttempt(source: string): { attemptId: string; surface: Surface } | undefined {
+function readInputAttempt(
+  source: string,
+): { attemptId: string; surface: Surface; startedAt: number } | undefined {
   try {
     const value = JSON.parse(safeStorage.getItem(inputAttemptKey(source)) ?? "null");
     if (
@@ -337,6 +393,7 @@ export function finishInputAttempt(
   source: string,
   outcome: "cancelled" | "failed",
   code?: string,
+  error?: unknown,
 ): void {
   const attempt = readInputAttempt(source);
   if (!attempt) return;
@@ -344,6 +401,13 @@ export function finishInputAttempt(
     source,
     attemptId: attempt.attemptId,
     surface: attempt.surface,
+    elapsedMs: Math.max(0, Date.now() - attempt.startedAt),
+    ...(outcome === "failed"
+      ? failureProperties(
+          error ?? { code },
+          source === "capture" ? "capture" : source === "clipboard" ? "clipboard" : "file_input",
+        )
+      : {}),
     ...(code ? { code } : {}),
   });
   safeStorage.removeItem(inputAttemptKey(source));
@@ -360,10 +424,12 @@ export function trackInputConfirmed(
    */
   characterId?: string | null,
 ): void {
+  const attempt = readInputAttempt(draft.source);
   trackEvent("input_confirmed", {
     source: draft.source,
     inputAttemptId: readInputAttempt(draft.source)?.attemptId ?? null,
     inputId: draft.id,
+    ...(attempt ? { elapsedMs: Math.max(0, Date.now() - attempt.startedAt) } : {}),
     characterId: characterId ?? "default",
     width: draft.width,
     height: draft.height,
@@ -378,7 +444,16 @@ export async function confirmSelections(
   jobId: string,
   selections: Array<{ personIndex: number; candidateId: string }>,
 ): Promise<void> {
-  await analyticsService.confirmSelections({ jobId, selections });
+  try {
+    await analyticsService.confirmSelections({ jobId, selections });
+  } catch (error) {
+    trackEvent(
+      "selection_failed",
+      { ...failureProperties(error, "pose_selection"), phase: "selection" },
+      jobId,
+    );
+    throw error;
+  }
   trackEvent("selection_confirmed", { selectionCount: selections.length }, jobId);
 }
 

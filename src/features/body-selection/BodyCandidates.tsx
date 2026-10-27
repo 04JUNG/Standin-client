@@ -1,3 +1,8 @@
+import {
+  featureAction,
+  useFeatureView,
+  failureProperties,
+} from "@/features/analytics/featureJourney";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { Plus, RotateCcw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -85,6 +90,7 @@ export function BodyChip({
   onViewChange?(expanded: boolean): void;
 }) {
   const { open, setOpen } = useBodyPanel(job, person.index);
+  useFeatureView("body_selection", !!entry?.selection, "exposure", job, String(person.index));
   const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span
@@ -281,6 +287,7 @@ export function BodyExpand({
   variant: "bar" | "app";
 }) {
   const selection = entry?.selection;
+  useFeatureView("body_selection", !!selection, "open", job, String(person.index));
   const { options, mutation } = useBodyControls(job, person, selection);
   const cards = cardsOf(useBodyPreferences().data);
   const navigate = useNavigate();
@@ -322,6 +329,17 @@ export function BodyExpand({
     mutation.mutate(
       { intent: "manual", characterId: currentId, shape: { controls } },
       {
+        onSuccess: () => {
+          featureAction("body_selection", "adjusted", job, { personIndex: person.index });
+          featureAction("body_selection", "applied", job, { personIndex: person.index });
+        },
+        onError: (error) =>
+          featureAction(
+            "body_selection",
+            "failed",
+            job,
+            failureProperties(error, "body_selection"),
+          ),
         onSettled: () => {
           if (latest.current === controls) {
             latest.current = null;
@@ -361,16 +379,38 @@ export function BodyExpand({
     const base = baseOf(card);
     if (busy || !base?.selectable || !base.shape || card === currentCard) return;
     setKindView(null);
-    mutation.mutate({
-      intent: "manual",
-      characterId: card.characterId,
-      shape: { controls: card.controls },
-    });
+    featureAction("body_custom", "selected", job, { personIndex: person.index });
+    mutation.mutate(
+      {
+        intent: "manual",
+        characterId: card.characterId,
+        shape: { controls: card.controls },
+      },
+      {
+        onSuccess: () => featureAction("body_custom", "reused", job, { personIndex: person.index }),
+        onError: (error) =>
+          featureAction("body_custom", "failed", job, failureProperties(error, "body_custom")),
+      },
+    );
   }
   function pick(option: BodyOption) {
     if (busy || !option.selectable) return;
     if (option.characterId === currentId && !selection?.shape) return;
-    mutation.mutate({ intent: "manual", characterId: option.characterId });
+    featureAction("body_selection", "selected", job, { personIndex: person.index });
+    mutation.mutate(
+      { intent: "manual", characterId: option.characterId },
+      {
+        onSuccess: () =>
+          featureAction("body_selection", "applied", job, { personIndex: person.index }),
+        onError: (error) =>
+          featureAction(
+            "body_selection",
+            "failed",
+            job,
+            failureProperties(error, "body_selection"),
+          ),
+      },
+    );
   }
 
   const status = mutation.isPending
@@ -632,6 +672,7 @@ export function BodyExpand({
           <ToolButton
             disabled={busy || !currentId || (!selection?.shape && !draft)}
             onClick={() => {
+              featureAction("body_selection", "reset", job, { personIndex: person.index });
               clearTimeout(timer.current);
               latest.current = null;
               setDraft(null);

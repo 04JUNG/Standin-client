@@ -1,3 +1,5 @@
+import { analysisFailureJob } from "@/features/analytics/analysisContext";
+import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { useJobSelections } from "@/features/history/hooks/useJobSelections";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { canRelease } from "../api/routedSearch";
@@ -11,7 +13,11 @@ import { AnalysisError } from "../api/pose.contract";
 import { poseQueryKeys } from "../queryKeys";
 import { isServerJobId } from "../lib/serverJobId";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
-import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
+import {
+  currentSurface,
+  trackEvent,
+  rememberJobSource,
+} from "@/features/analytics/analyticsClient";
 
 /**
  * 분석 결과 조회와 선택 상태 파생(docs/03 §7).
@@ -183,17 +189,32 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
     if (restoreOnly) return;
     if (lastFailedKey === jobId) return;
     lastFailedKey = jobId;
-    trackEvent("analysis_failed", {
-      reason: failureReason(query.error),
-      surface: currentSurface(),
-      elapsedMs: startedAt.current ? Date.now() - startedAt.current : 0,
-    });
-  }, [query.isError, query.error, jobId, restoreOnly]);
+    trackEvent(
+      "analysis_failed",
+      {
+        ...failureProperties(query.error, "analysis"),
+        source: draft?.source ?? "unknown",
+        inputId: draft?.id ?? null,
+        reason: failureReason(query.error),
+        surface: currentSurface(),
+        elapsedMs: startedAt.current ? Date.now() - startedAt.current : 0,
+      },
+      analysisFailureJob(query.error),
+    );
+  }, [query.isError, query.error, jobId, restoreOnly, draft?.id, draft?.source]);
 
   useEffect(() => {
     if (!query.data) return;
-    // 기록에서 다시 열어본 것은 분석 퍼널의 "결과 조회"가 아니다. 같이 세면 같은 Job이
-    // 볼 때마다 집계돼 후보 노출 대비 선택률이 실제보다 낮게 보인다.
+    rememberJobSource(
+      query.data.jobId,
+      query.data.source === "semantic"
+        ? "semantic"
+        : !restoreOnly
+          ? (draft?.source ?? "unknown")
+          : "unknown",
+    );
+    // Existing jobs are visible-page observations, distinguished by entryPoint and deduped
+    // by server job/surface; loading the shared hook alone is not a result view.
     if (restoreOnly) {
       setServerJobId(query.data.jobId);
     }
@@ -210,8 +231,14 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
         ...(restoreOnly ? { telemetryVersion: 2 } : {}),
         entryPoint: restoreOnly ? "existing_job" : "live",
         inputId: restoreOnly ? null : (draft?.id ?? null),
-        source: query.data.source ?? draft?.source ?? "unknown",
+        ...(query.data.source === "semantic"
+          ? { source: "semantic" }
+          : !restoreOnly
+            ? { source: draft?.source ?? "unknown" }
+            : {}),
         peopleCount: people.length,
+        zeroCandidatePeople: people.filter((person) => person.candidates.length === 0).length,
+        peopleWithCandidates: people.filter((person) => person.candidates.length > 0).length,
         candidateCount: people.reduce((sum, person) => sum + person.candidates.length, 0),
       },
       query.data.jobId,
@@ -230,6 +257,8 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
     const candidate = people
       .find((person) => person.index === personIndex)
       ?.candidates.find((item) => item.id === candidateId);
+    if (query.data?.source === "semantic")
+      featureAction("semantic_search", "selected", query.data.jobId, { personIndex });
     trackEvent(
       "candidate_selected",
       {

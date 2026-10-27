@@ -39,6 +39,7 @@ export function DefaultPoseImage({
     candidate.candidate_id,
     visible && q.isError,
     q.data?.url,
+    q.error,
   );
   return (
     <div ref={ref} className={className}>
@@ -47,6 +48,7 @@ export function DefaultPoseImage({
           <CompactPoseImage
             src={q.data.url}
             onError={reportFailure}
+            onLoad={reportFailure.onLoad}
             alt={`${candidate.rank}번 ${q.data.kind === "default-body" ? "기본 체형 포즈 참고" : "포즈 뼈대 참고"}`}
           />
         ) : (
@@ -55,6 +57,7 @@ export function DefaultPoseImage({
             decoding="async"
             src={q.data.url}
             onError={reportFailure}
+            onLoad={reportFailure.onLoad}
             alt={q.data.kind === "default-body" ? "기본 체형 포즈 참고" : "포즈 뼈대 참고"}
             className={
               compact ? "h-[110px] w-full object-contain" : "aspect-square w-full object-contain"

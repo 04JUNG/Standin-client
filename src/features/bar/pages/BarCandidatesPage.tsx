@@ -1,3 +1,4 @@
+import { journeyExit } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
@@ -85,7 +86,10 @@ export function BarCandidatesPage() {
             variant="secondary"
             size="md"
             className="shrink-0"
-            onClick={() => navigate("/bar/actions")}
+            onClick={() => {
+              journeyExit("pose_selection", "results", "home", data?.jobId);
+              navigate("/bar/actions");
+            }}
           >
             처음으로
           </Button>

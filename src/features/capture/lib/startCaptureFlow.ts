@@ -1,3 +1,4 @@
+import { failureProperties } from "@/features/analytics/featureJourney";
 import { startInputAttempt, finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { router } from "@/app/router";
 import { useInstallationStore } from "@/features/installation/installationStore";
@@ -63,7 +64,12 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
       await router.navigate(idleRoute(origin), { replace: true });
       return;
     }
-    finishInputAttempt("capture", "failed", err instanceof CaptureError ? err.code : "UNKNOWN");
+    finishInputAttempt(
+      "capture",
+      "failed",
+      err instanceof CaptureError ? err.code : "UNKNOWN",
+      err,
+    );
     const message = captureErrorMessage(err);
     const code = err instanceof CaptureError ? err.code : null;
     useCaptureStore.getState().setError(message, code);
@@ -71,6 +77,7 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
     // 화면 기록 권한 거부는 설치했는데 캡처를 아예 못 쓰는 상태다. 온보딩 최대
     // 실패 지점이라 코드만 남긴다(취소는 위에서 걸러져 여기 오지 않는다).
     trackEvent("capture_failed", {
+      ...failureProperties(err, "capture"),
       code: code ?? "UNKNOWN",
       surface: currentSurface(),
     });

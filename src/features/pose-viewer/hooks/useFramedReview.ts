@@ -239,6 +239,11 @@ export function useFramedReview(jobId: string | undefined) {
     ]),
     ready: downloadReady,
     failed: !!preparationError || requiresFbx,
+    error:
+      queries.find((q) => q.error)?.error ??
+      hands.entries.find((e) => e.error)?.error ??
+      review.bodies.entries.find((e) => e.error)?.error ??
+      catalog.error,
     format,
   });
   const preparationLoading = enabled && !preparationError && !downloadReady;

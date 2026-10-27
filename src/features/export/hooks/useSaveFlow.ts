@@ -1,3 +1,4 @@
+import { failureProperties } from "@/features/analytics/featureJourney";
 import { isTauri } from "@tauri-apps/api/core";
 import {
   attemptProperties,
@@ -754,6 +755,7 @@ export function useSaveFlow(jobId: string | undefined) {
         // Native writes are atomic from the UI's perspective; HTTP cancellation ends here.
         writingFile.current = true;
         telemetryPhase = "writing";
+        const writingStartedAt = Date.now();
         const results = await exportService.saveCandidates({
           folder: targetFolder,
           files: saveFiles.map((file) => ({
@@ -767,6 +769,7 @@ export function useSaveFlow(jobId: string | undefined) {
           "export_completed",
           {
             ...(attempt ? attemptProperties(attempt) : {}),
+            writingElapsedMs: Math.max(0, Date.now() - writingStartedAt),
             nativeDiskWrite: isTauri(),
             fileCount: results.length,
             format,
@@ -856,6 +859,7 @@ export function useSaveFlow(jobId: string | undefined) {
           "export_failed",
           {
             ...(attempt ? attemptProperties(attempt) : {}),
+            ...failureProperties(cause, "export"),
             phase: telemetryPhase,
             code: err instanceof ExportError || err instanceof ApiError ? err.code : "UNKNOWN",
             format,
@@ -957,12 +961,17 @@ export function useSaveFlow(jobId: string | undefined) {
           serverJob,
         );
       }
-    } catch {
+    } catch (error) {
       if (attempt) {
         takeExportAttempt(serverJob!);
         trackEvent(
           "export_failed",
-          { ...attemptProperties(attempt), phase: "folder", code: "FOLDER_DIALOG_FAILED" },
+          {
+            ...attemptProperties(attempt),
+            ...failureProperties(error, "export"),
+            phase: "folder",
+            code: "FOLDER_DIALOG_FAILED",
+          },
           serverJob,
         );
       }

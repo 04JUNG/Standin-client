@@ -17,14 +17,16 @@ export function CompactPoseImage({
   src,
   alt,
   onError,
+  onLoad,
 }: {
   src: string;
   alt: string;
   onError?: () => void;
+  onLoad?: () => void;
 }) {
   return (
     <div className="compact-pose-image">
-      <img src={src} onError={onError} alt={alt} />
+      <img src={src} onLoad={onLoad} onError={onError} alt={alt} />
     </div>
   );
 }

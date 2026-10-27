@@ -1,3 +1,4 @@
+import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
@@ -60,6 +61,7 @@ export function ReviewPage() {
                   className="flex flex-col overflow-hidden rounded-lg border border-border"
                 >
                   <ReviewPosePreview
+                    telemetryJobId={hands?.jobId}
                     model={item.previewModel}
                     src={item.previewUrl}
                     label={
@@ -130,7 +132,13 @@ export function ReviewPage() {
           </div>
         )}
         <div className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
-          <Button variant="ghost" onClick={() => navigate(`/app/jobs/${jobId}`)}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              journeyExit("export", "review", "back", hands?.jobId);
+              navigate(`/app/jobs/${jobId}`);
+            }}
+          >
             후보 다시 고르기
           </Button>
           <Button

@@ -523,6 +523,7 @@ it("native save completion is emitted only after disk write resolves, with the r
     "export_completed",
     expect.objectContaining({
       attemptId: request[1].attemptId,
+      writingElapsedMs: expect.any(Number),
       nativeDiskWrite: true,
       elapsedMs: expect.any(Number),
     }),

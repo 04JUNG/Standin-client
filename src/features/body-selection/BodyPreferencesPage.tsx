@@ -1,3 +1,4 @@
+import { useFeatureView } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +28,7 @@ export function BodyPreferencesPage() {
   const navigate = useNavigate();
   const { prefs, catalog, looks, find, name } = useBodyLooks();
   const { cards, change, supported } = useBodyCards();
+  useFeatureView("body_custom", supported, "exposure");
   const owner = useBodyOwner();
   const qc = useQueryClient();
   const mode = useMutation({

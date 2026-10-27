@@ -1,3 +1,4 @@
+import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import {
   useIsMutating,
@@ -60,6 +61,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       });
     },
     onSuccess: async (selection) => {
+      featureAction("hand_library", "applied", job, { personIndex: selection.personIndex });
       qc.setQueryData(handKeys.selection(owner, job, selection.personIndex), selection);
       await qc.invalidateQueries({
         queryKey: ["body", owner, job, selection.personIndex],
@@ -67,6 +69,10 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       });
     },
     onError: async (error, { selection }) => {
+      featureAction("hand_library", "failed", job, {
+        ...failureProperties(error, "hand_library"),
+        personIndex: selection.personIndex,
+      });
       if (error instanceof ApiError && error.status === 409) {
         await qc.invalidateQueries({ queryKey: handKeys.catalog(owner) });
       }
@@ -110,6 +116,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     !active ||
     (!!catalog.data && entries.every((e) => e.selection && !e.loading && !e.error) && !pending);
   return {
+    jobId: job,
     enabled: active,
     catalog: catalog.data,
     entries,

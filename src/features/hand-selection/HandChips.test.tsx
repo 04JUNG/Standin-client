@@ -1,12 +1,19 @@
+import { featureAction } from "@/features/analytics/featureJourney";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { HandChips } from "./HandChips";
 import type { HandsState } from "./hooks";
 import { catalog, selection } from "./fixtures";
+vi.mock("@/features/analytics/featureJourney", async (original) => ({
+  ...(await original<typeof import("@/features/analytics/featureJourney")>()),
+  featureAction: vi.fn(),
+}));
 vi.mock("@/features/pose-viewer/api/thumbnails", () => ({ loadThumbnail: async () => "" }));
 function mount(change = vi.fn(), extra = {}) {
+  vi.mocked(featureAction).mockClear();
   const state = {
+    jobId: "job_hands",
     enabled: true,
     catalog,
     entries: [{ personIndex: 0, selection }],
@@ -25,6 +32,7 @@ function mount(change = vi.fn(), extra = {}) {
 describe("character-relative hand selection", () => {
   it("shows the selected preset, visibility and low confidence with a keyboard-accessible picker", () => {
     const change = mount();
+    expect(featureAction).not.toHaveBeenCalled();
     const left = screen.getByRole("button", { name: /왼손 · 힘 뺀 손/ });
     expect(left).toHaveTextContent("기본 · 러프에서 안 보임");
     expect(screen.getByRole("button", { name: /오른손 · 편 손/ })).toHaveTextContent("확인 필요");
@@ -33,6 +41,13 @@ describe("character-relative hand selection", () => {
     const fists = within(dialog).getAllByRole("button", { name: "주먹" });
     fireEvent.click(fists[0]!);
     expect(change).toHaveBeenCalledWith(selection, { left: "fist" });
+    expect(featureAction).toHaveBeenCalledWith("hand_library", "open", "job_hands", {
+      personIndex: 0,
+    });
+    expect(featureAction).toHaveBeenCalledWith("hand_library", "selected", "job_hands", {
+      personIndex: 0,
+    });
+    expect(vi.mocked(featureAction).mock.calls.some((c) => c[1] === "applied")).toBe(false);
     fireEvent.click(within(dialog).getByRole("button", { name: "닫기" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
