@@ -1,3 +1,4 @@
+import { RequiredUpdateGate } from "@/features/updates/components/RequiredUpdateGate";
 import { useAppStarted } from "@/features/analytics/useAppStarted";
 import { resetJourneyCapability, flushEvents } from "@/features/analytics/analyticsClient";
 import { type ReactNode, useEffect } from "react";
@@ -18,7 +19,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <UpdateBootstrap>
         <InstallationBootstrap />
-        {children}
+        <RequiredUpdateGate>{children}</RequiredUpdateGate>
       </UpdateBootstrap>
     </QueryClientProvider>
   );

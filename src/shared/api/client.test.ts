@@ -1,3 +1,4 @@
+import { useRequiredUpdateStore } from "@/shared/stores/requiredUpdateStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetApiClient,
@@ -34,9 +35,37 @@ function authHeaderOf(call: unknown[]): string | null {
 }
 
 describe("apiFetch", () => {
+  it("sends the current build version on every request", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await apiFetch("/v1/models", { auth: false });
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers["X-App-Version"]).toBe(import.meta.env.VITE_APP_VERSION);
+  });
+
+  it("a required update latches the global gate without refreshing credentials", async () => {
+    const refresh = vi.fn();
+    setUnauthorizedHandler(refresh);
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          error: {
+            code: "UPDATE_REQUIRED",
+            message: "update",
+            details: { minimumVersion: "0.2.0" },
+          },
+        },
+        426,
+      ),
+    );
+    await expect(apiFetch("/v1/models")).rejects.toBeInstanceOf(ApiError);
+    expect(useRequiredUpdateStore.getState().minimumVersion).toBe("0.2.0");
+    expect(refresh).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    useRequiredUpdateStore.setState({ minimumVersion: null });
     __resetApiClient();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

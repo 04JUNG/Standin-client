@@ -5,10 +5,10 @@ import { useUpdateStore } from "../store/updateStore";
 import { useUpdateBlockReason } from "../hooks/useUpdateBlockReason";
 import { releaseHistory, useReleaseNotesStore } from "../lib/releaseNotes";
 
-export function AppUpdateSection() {
+export function AppUpdateSection({ required = false }: { required?: boolean }) {
   const state = useUpdateStore();
   const loadInfo = state.loadInfo;
-  const { reason, readReason } = useUpdateBlockReason();
+  const { reason, readReason } = useUpdateBlockReason(required);
   const requestHistory = useReleaseNotesStore((s) => s.requestHistory);
   useEffect(() => {
     void loadInfo();
@@ -51,7 +51,7 @@ export function AppUpdateSection() {
             </Button>
           )}
         </div>
-        {state.result?.kind === "up-to-date" && (
+        {!required && state.result?.kind === "up-to-date" && (
           <p className="flex items-center gap-1.5 text-[12px] text-text-secondary">
             <Check className="h-3.5 w-3.5" aria-hidden />
             최신 버전입니다.
