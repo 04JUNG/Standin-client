@@ -51,29 +51,30 @@ beforeEach(() => {
   usePoseSelectionStore.getState().clearSelection();
 });
 afterEach(() => vi.useRealTimers());
-it("debounces edits for 300ms, pauses for Korean composition and does not search on mount", async () => {
+it("typing pauses and Korean composition never search until explicit submission", async () => {
   const { result } = setup();
   await waitFor(() => expect(result.current.ready).toBe(true));
   expect(api.searchPoses).not.toHaveBeenCalled();
   vi.useFakeTimers();
-  act(() => result.current.edit("팔을"));
-  act(() => vi.advanceTimersByTime(200));
-  act(() => result.current.edit("팔을 올린 자세"));
-  act(() => vi.advanceTimersByTime(299));
-  expect(api.searchPoses).not.toHaveBeenCalled();
-  await act(async () => vi.advanceTimersByTime(1));
-  expect(api.searchPoses).toHaveBeenCalledWith("팔을 올린 자세", expect.any(AbortSignal), null);
+  for (const text of ["하늘을", "하늘을 올라가고 있는 포즈", "한쪽 손을 뻗은 형태"]) {
+    act(() => result.current.edit(text));
+    await act(async () => vi.advanceTimersByTime(2000));
+    expect(api.searchPoses).not.toHaveBeenCalled();
+  }
   act(() => {
     result.current.setComposing(true);
     result.current.edit("앉은 자세");
   });
-  await act(async () => vi.advanceTimersByTime(1000));
-  expect(api.searchPoses).toHaveBeenCalledTimes(1);
+  act(() => result.current.submit());
+  expect(api.searchPoses).not.toHaveBeenCalled();
   act(() => result.current.setComposing(false));
-  await act(async () => vi.advanceTimersByTime(300));
-  expect(api.searchPoses).toHaveBeenCalledTimes(2);
+  await act(async () => vi.advanceTimersByTime(2000));
+  expect(api.searchPoses).not.toHaveBeenCalled();
+  await act(async () => result.current.submit());
+  expect(api.searchPoses).toHaveBeenCalledOnce();
+  expect(api.searchPoses).toHaveBeenCalledWith("앉은 자세", expect.any(AbortSignal), null);
 });
-it("Enter cancels the debounce and duplicate submissions; unmount aborts the request", async () => {
+it("explicit submission ignores duplicates while pending; unmount aborts the request", async () => {
   api.searchPoses.mockImplementation(() => new Promise(() => {}));
   const { result, unmount } = setup();
   await waitFor(() => expect(result.current.ready).toBe(true));
@@ -147,7 +148,7 @@ it("changing the displayed history job aborts pending search and synchronizes th
   expect(api.loadResult).not.toHaveBeenCalled();
 });
 
-it("a fast empty Enter result does not leave a second debounced request behind", async () => {
+it("an empty Enter result does not trigger another request while idle", async () => {
   const { result } = setup();
   await waitFor(() => expect(result.current.ready).toBe(true));
   vi.useFakeTimers();
