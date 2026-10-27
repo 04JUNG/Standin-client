@@ -42,6 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init());
 
     let builder = builder
+        .manage(commands::personal_body::PersonalBodyState::default())
         .manage(commands::updates::UpdateRuntime::default())
         .manage(commands::release_notes::ReleaseNotesState::default())
         .plugin(tauri_plugin_opener::init())
@@ -91,6 +92,14 @@ pub fn run() {
             }
             let handler: fn(tauri::ipc::Invoke) -> bool = tauri::generate_handler![
                 commands::capture::grab_screen,
+                commands::personal_body::personal_body_capabilities,
+                commands::personal_body::personal_body_list,
+                commands::personal_body::personal_body_import,
+                commands::personal_body::personal_body_rename,
+                commands::personal_body::personal_body_delete,
+                commands::personal_body::personal_body_cancel,
+                commands::personal_body::personal_body_apply,
+                commands::personal_body::personal_body_preview,
                 commands::export::default_save_dir,
                 commands::export::choose_save_folder,
                 commands::export::folder_exists,

@@ -1,3 +1,6 @@
+import { localBinding, prepareLocal } from "@/features/personal-body/prepare";
+import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
+import { localError } from "@/features/personal-body/contract";
 import { useReviewJourney } from "@/features/analytics/useReviewJourney";
 import { requestExport } from "@/features/analytics/journeyAttempts";
 import { downloadBinding, downloadRevision } from "@/features/export/lib/downloadRevisions";
@@ -43,7 +46,13 @@ export function useFramedReview(jobId: string | undefined) {
   const review = useSelectionReview(jobId);
   const owner = useBodyOwner();
   const bodyMode = review.bodies.enabled;
-  const format = useExportStore((s) => s.format);
+  const preferredFormat = useExportStore((s) => s.format);
+  const localModels = useLocalBodies((s) => s.models);
+  const localSelected = useLocalBodies((s) => s.selected);
+  const hasLocal = review.items.some(
+    (item) => !!localSelected[localSelectionKey(review.data?.jobId ?? "", item.personIndex)],
+  );
+  const format = hasLocal ? "fbx" : preferredFormat;
   const hands = useHands(
     review.data,
     review.items.map((i) => i.personIndex),
@@ -61,6 +70,11 @@ export function useFramedReview(jobId: string | undefined) {
   const requiresFbx = format !== "fbx" && generatedSelected;
   const generatedReviewUnavailable = format === "fbx" && generatedSelected && !enabled;
   const requests = review.items.map((item) => {
+    const local = localModels.find(
+      (m) =>
+        m.localModelId ===
+        localSelected[localSelectionKey(review.data?.jobId ?? "", item.personIndex)],
+    );
     const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
     const character = resolveCharacter({
       pinned: byPerson[item.personIndex] ?? pinned,
@@ -101,6 +115,8 @@ export function useFramedReview(jobId: string | undefined) {
       handEntry?.selection,
     ]);
     return {
+      local,
+      localBinding: local ? localBinding(local, item, scope, handEntry?.selection) : "",
       binding,
       scope,
       characterId,
@@ -115,7 +131,25 @@ export function useFramedReview(jobId: string | undefined) {
   });
   const requestReady = (request: (typeof requests)[number]) =>
     !review.isRefining && request.handReady && (bodyMode ? review.bodies.ready : catalog.isSuccess);
-  const selectionsReady = requests.every(requestReady);
+  const selectionsReady = requests.every((r) => (r.local ? !review.isRefining : requestReady(r)));
+  const localQueries = useQueries({
+    queries: requests.map((request, index) => ({
+      queryKey: ["personal-body-result", owner, review.data?.jobId, request.localBinding],
+      enabled: !!request.local && !review.isRefining,
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        prepareLocal(
+          review.data!.jobId,
+          request.local!,
+          review.items[index]!,
+          request.scope,
+          request.localBinding,
+          signal,
+        ),
+      retry: false,
+      staleTime: 0,
+      gcTime: 600_000,
+    })),
+  });
   const queries = useQueries({
     queries: requests.map((request, index) => ({
       queryKey: bodyMode
@@ -140,7 +174,7 @@ export function useFramedReview(jobId: string | undefined) {
             "verified-fbx-v1",
             request.binding,
           ],
-      enabled: enabled && requestReady(request) && !!request.url,
+      enabled: !request.local && enabled && requestReady(request) && !!request.url,
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<PreparedReview> => {
         const item = review.items[index]!;
         if (bodyMode) {
@@ -205,7 +239,7 @@ export function useFramedReview(jobId: string | undefined) {
   const images = useQueries({
     queries: requests.map((r, i) => ({
       queryKey: ["framed-image", owner, currentData[i]?.downloadUrl ?? r.url],
-      enabled: enabled && requestReady(r) && !!currentData[i]?.downloadUrl,
+      enabled: !r.local && enabled && requestReady(r) && !!currentData[i]?.downloadUrl,
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         const downloadUrl = currentData[i]!.downloadUrl;
         return { downloadUrl, image: await loadPreparedImage(downloadUrl, signal) };
@@ -216,12 +250,20 @@ export function useFramedReview(jobId: string | undefined) {
     })),
   });
   const preparationError =
+    localQueries.some((q, i) => !!requests[i]?.local && q.isError) ||
     generatedReviewUnavailable ||
     (enabled &&
-      (!!hands.error ||
-        (bodyMode ? review.bodies.entries.some((e) => e.error) : catalog.isError) ||
-        requests.some((r) => !r.url) ||
-        queries.some((q) => q.isError)));
+      ((requests.some((r) => !r.local) &&
+        (!!hands.error ||
+          (bodyMode
+            ? review.bodies.entries.some(
+                (e) =>
+                  e.error &&
+                  !localSelected[localSelectionKey(review.data?.jobId ?? "", e.personIndex)],
+              )
+            : catalog.isError))) ||
+        requests.some((r) => !r.local && !r.url) ||
+        queries.some((q, i) => !requests[i]?.local && q.isError)));
   const downloadReady =
     !requiresFbx &&
     !generatedReviewUnavailable &&
@@ -230,12 +272,26 @@ export function useFramedReview(jobId: string | undefined) {
       (selectionsReady &&
         requests.length > 0 &&
         !preparationError &&
-        queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+        queries.every((q, i) =>
+          requests[i]?.local
+            ? localQueries[i]?.data?.binding === requests[i]?.localBinding &&
+              localQueries[i]?.isSuccess &&
+              !localQueries[i]?.isFetching
+            : !!currentData[i] && q.isSuccess && !q.isFetching,
+        ))) &&
+    requests.every(
+      (r, i) =>
+        !r.local ||
+        (format === "fbx" &&
+          localQueries[i]?.data?.binding === r.localBinding &&
+          localQueries[i]?.isSuccess &&
+          !localQueries[i]?.isFetching),
+    );
   useReviewJourney({
     jobId: review.data?.jobId,
     binding: JSON.stringify([
       review.items.map((i) => [i.personIndex, i.candidate.id, i.exportUrl]),
-      requests.map((r) => r.binding),
+      requests.map((r) => (r.local ? r.localBinding : r.binding)),
     ]),
     ready: downloadReady,
     failed: !!preparationError || requiresFbx,
@@ -246,10 +302,13 @@ export function useFramedReview(jobId: string | undefined) {
       catalog.error,
     format,
   });
-  const preparationLoading = enabled && !preparationError && !downloadReady;
+  const localFailure = localQueries.find((q, i) => requests[i]?.local && q.error)?.error;
+  const preparationLoading =
+    (enabled || requests.some((r) => !!r.local)) && !preparationError && !downloadReady;
   const previewLoading =
-    enabled && (preparationLoading || images.some((q) => q.isPending || q.isFetching));
-  const previewError = enabled && images.some((q) => q.isError);
+    preparationLoading ||
+    images.some((q, i) => !requests[i]?.local && enabled && (q.isPending || q.isFetching));
+  const previewError = enabled && images.some((q, i) => !requests[i]?.local && q.isError);
   useEffect(() => {
     if (!enabled || !downloadReady || bodyMode) return;
     requests.forEach((r, i) => {
@@ -287,9 +346,12 @@ export function useFramedReview(jobId: string | undefined) {
     hands,
     items: review.items.map((item, index) => ({
       ...item,
+      localFbx: requests[index]?.local ? localQueries[index]?.data?.content : undefined,
+      localName: requests[index]?.local?.name,
       includesHands: scopeIncludesHands(requests[index]!.scope),
-      previewUrl:
-        generatedReviewUnavailable && item.candidate.source === "generation"
+      previewUrl: requests[index]?.local
+        ? ""
+        : generatedReviewUnavailable && item.candidate.source === "generation"
           ? ""
           : enabled
             ? requestReady(requests[index]!) &&
@@ -299,7 +361,11 @@ export function useFramedReview(jobId: string | undefined) {
               : ""
             : item.previewUrl,
       previewModel: undefined as ReviewModel | undefined,
-      previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
+      previewReference:
+        !requests[index]?.local &&
+        !enabled &&
+        item.previewReference &&
+        item.candidate.source !== "generation",
       onModelStatus: () => {},
       scopeLabel: enabled ? SCOPE_LABELS[requests[index]!.scope] : "",
     })),
@@ -318,21 +384,33 @@ export function useFramedReview(jobId: string | undefined) {
       hands.pending || handsChanged
         ? "변경한 손을 적용하고 있어요…"
         : "다운로드할 파일을 준비하고 있어요…",
-    previewFailure: poseRecovery(
-      queries.find((q) => q.isError)?.error ??
-        review.bodies.entries.find((e) => e.error)?.error ??
-        hands.entries.find((e) => e.error)?.error ??
-        catalog.error,
-    ),
+    previewFailure:
+      localFailure instanceof ApiError
+        ? poseRecovery(localFailure)
+        : localFailure
+          ? {
+              action: "retry" as const,
+              label: "다시 준비",
+              message: localError(localFailure),
+            }
+          : poseRecovery(
+              queries.find((q) => q.isError)?.error ??
+                review.bodies.entries.find((e) => e.error)?.error ??
+                hands.entries.find((e) => e.error)?.error ??
+                catalog.error,
+            ),
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: requiresFbx
       ? "새로 만든 포즈는 FBX로 저장해 주세요."
       : enabled
         ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
-        : format === "bvh"
-          ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
-          : "",
+        : hasLocal
+          ? "내 체형에 몸 포즈를 적용해요. 원래 손 모양으로 전신 FBX를 저장해요."
+          : format === "bvh"
+            ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
+            : "",
     retryPreview: async () => {
+      await Promise.all(localQueries.filter((_, i) => requests[i]?.local).map((q) => q.refetch()));
       if (generatedReviewUnavailable) {
         await review.refetch();
         return;
@@ -341,7 +419,7 @@ export function useFramedReview(jobId: string | undefined) {
         if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
         if (bodyMode) await Promise.all(review.bodies.entries.map((e) => e.retry()));
         else await catalog.refetch();
-        await Promise.all(queries.map((q) => q.refetch()));
+        await Promise.all(queries.filter((_, i) => !requests[i]?.local).map((q) => q.refetch()));
       } else await Promise.all(images.map((q) => q.refetch()));
     },
     // Only the explicit download button arms SavePage's existing save flow.
