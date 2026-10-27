@@ -117,7 +117,7 @@ describe("updateStore", () => {
     const events = queued().filter((e) => e.name === "update_check");
     expect(events).toHaveLength(1);
     // trigger를 갈라야 "시작 시 자동 확인이 실제로 도는가"에 답할 수 있다.
-    expect(events[0].properties).toEqual({ trigger: "startup", result: "available" });
+    expect(events[0].properties).toMatchObject({ trigger: "startup", result: "available" });
   });
 
   it("확인 실패는 사유 코드로만 남기고 오류 원문을 보내지 않는다", async () => {
@@ -131,7 +131,7 @@ describe("updateStore", () => {
     expect(names).toContain("update_failed");
 
     const failed = queued().find((e) => e.name === "update_failed")!;
-    expect(failed.properties).toEqual({ phase: "check", reason: "UNKNOWN" });
+    expect(failed.properties).toMatchObject({ phase: "check", reason: "UNKNOWN" });
     expect(JSON.stringify(queued())).not.toContain("someone");
   });
 

@@ -162,6 +162,7 @@ export function BodyLabel({
 
 /** 기본 체형 참고 카드. 사진을 누르면 포즈를 고르고 최종 모습은 다음 화면에서 확인한다. */
 export function BodyCandidateCards({
+  job,
   person,
   selected,
   onSelect,
@@ -183,6 +184,7 @@ export function BodyCandidateCards({
       {person.candidates.map((candidate, i) => (
         <div key={candidate.id} className={cn("min-h-0", cardClassName?.(i))}>
           <PoseCandidateCard
+            jobId={job}
             candidate={candidate}
             isSelected={candidate.id === selected}
             onSelect={() => onSelect(candidate.id)}
@@ -197,6 +199,7 @@ export function BodyCandidateCards({
 
 /** 플로팅 바의 기본 참고 카드. 사진 클릭은 포즈 선택으로 이어진다. */
 export function BodyCandidateCard({
+  job,
   candidate,
   selected,
   onSelect,
@@ -212,6 +215,7 @@ export function BodyCandidateCard({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PoseCandidateCard
+        jobId={job}
         candidate={candidate}
         isSelected={candidate.id === selected}
         onSelect={() => onSelect(candidate.id)}
@@ -415,9 +419,7 @@ export function BodyExpand({
             ))}
           </div>
         </div>
-        <p className="text-[11px] text-text-secondary">
-          선택한 인물에 바로 적용돼요.
-        </p>
+        <p className="text-[11px] text-text-secondary">선택한 인물에 바로 적용돼요.</p>
       </div>
 
       {/* 내 체형(왼쪽, 실시간) | 프리셋(오른쪽, 고정) */}

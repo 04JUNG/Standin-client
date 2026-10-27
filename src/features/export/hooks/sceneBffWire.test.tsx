@@ -252,7 +252,11 @@ it.each(["app", "bar"])(
     fireEvent.click(screen.getByRole("button", { name: "취소" }));
     await screen.findByText("저장을 취소했어요. 선택한 포즈는 그대로예요.");
     expect(mock.save).not.toHaveBeenCalled();
-    expect(mock.track).not.toHaveBeenCalled();
+    expect(
+      mock.track.mock.calls.some(
+        ([name]) => name === "export_failed" || name === "export_completed",
+      ),
+    ).toBe(false);
     expect(requests.some((r) => r.reviewKey && !r.preview)).toBe(false);
   },
 );

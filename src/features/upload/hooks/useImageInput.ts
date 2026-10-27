@@ -1,3 +1,4 @@
+import { ensureInputAttempt, finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { afterInputRoute, type FlowOrigin } from "@/features/bar/lib/flowOrigin";
@@ -21,12 +22,14 @@ export function useImageInput(options: { origin?: FlowOrigin } = {}) {
 
   const acceptFile = useCallback(
     async (file: File) => {
+      ensureInputAttempt("file", origin);
       setError(null);
       setIsProcessing(true);
       const finishWork = beginWork();
       try {
         const result = await validateImageFile(file);
         if (!result.ok) {
+          finishInputAttempt("file", "failed", "INVALID_IMAGE");
           setError(result.error.message);
           return;
         }
@@ -36,6 +39,9 @@ export function useImageInput(options: { origin?: FlowOrigin } = {}) {
         });
         setDraft(draft, origin);
         navigate(afterInputRoute(origin));
+      } catch {
+        finishInputAttempt("file", "failed", "INPUT_FAILED");
+        setError("이미지를 열지 못했어요. 다시 시도해 주세요.");
       } finally {
         finishWork();
         setIsProcessing(false);

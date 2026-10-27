@@ -57,7 +57,7 @@ function failureReason(err: unknown): string {
   return "UNKNOWN";
 }
 
-export function useAnalysisResult(jobId: string | undefined) {
+export function useAnalysisResult(jobId: string | undefined, resultsVisible = false) {
   // 분석 시작 시각. 실패까지 사용자가 실제로 기다린 시간을 재려면 클라에만 있는 값이다.
   const startedAt = useRef<number | null>(null);
   const queryClient = useQueryClient();
@@ -196,8 +196,8 @@ export function useAnalysisResult(jobId: string | undefined) {
     // 볼 때마다 집계돼 후보 노출 대비 선택률이 실제보다 낮게 보인다.
     if (restoreOnly) {
       setServerJobId(query.data.jobId);
-      return;
     }
+    if (!resultsVisible) return;
     const surface = currentSurface();
     const viewKey = `${query.data.jobId}:${surface}`;
     if (lastViewedKey === viewKey) return;
@@ -207,12 +207,16 @@ export function useAnalysisResult(jobId: string | undefined) {
       "results_viewed",
       {
         surface,
+        ...(restoreOnly ? { telemetryVersion: 2 } : {}),
+        entryPoint: restoreOnly ? "existing_job" : "live",
+        inputId: restoreOnly ? null : (draft?.id ?? null),
+        source: query.data.source ?? draft?.source ?? "unknown",
         peopleCount: people.length,
         candidateCount: people.reduce((sum, person) => sum + person.candidates.length, 0),
       },
       query.data.jobId,
     );
-  }, [query.data, people, setServerJobId, restoreOnly]);
+  }, [query.data, people, setServerJobId, restoreOnly, resultsVisible, draft]);
 
   function selectAndTrack(personIndex: number, candidateId: string) {
     const chosen = people

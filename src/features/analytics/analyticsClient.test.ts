@@ -11,8 +11,15 @@ vi.mock("./api/analytics.service", async () => ({
   analyticsService: (await import("./api/analytics.http")).analyticsHttp,
 }));
 
-const { flushEvents, resetAnalyticsQueue, trackEvent, setAnalyticsConsent, confirmSelections } =
-  await import("./analyticsClient");
+const {
+  flushEvents,
+  resetAnalyticsQueue,
+  trackEvent,
+  setAnalyticsConsent,
+  confirmSelections,
+  refreshJourneyCapability,
+  resetJourneyCapability,
+} = await import("./analyticsClient");
 
 const QUEUE_KEY = "standin.analytics.queue.v1";
 
@@ -54,13 +61,19 @@ function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
 describe("analyticsClient", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     __resetApiClient();
     resetAnalyticsQueue();
     setAnalyticsConsent("test-consent");
     setInstallationCredentials({ installationId: "inst_1", deviceToken: "device-token" });
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
+    resetJourneyCapability();
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ journeyVersion: 0 }), { status: 200 }),
+    );
+    await refreshJourneyCapability();
+    fetchMock.mockReset();
   });
 
   afterEach(() => {

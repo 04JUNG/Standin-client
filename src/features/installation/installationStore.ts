@@ -74,7 +74,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
   credentials: null,
   error: null,
   async initialize() {
-    useQualityConsentStore.getState().reset();
+    useQualityConsentStore.getState().reset(true);
     try {
       const credentials = await installationStorage.get();
       if (!credentials || credentials.consentVersion !== CONSENT_VERSION) {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiFetch } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
 import { env } from "@/shared/lib/env";
-import { setAnalyticsConsent } from "@/features/analytics/analyticsClient";
+import { setAnalyticsConsent, suspendAnalyticsConsent } from "@/features/analytics/analyticsClient";
 
 export const QUALITY_CONSENT_VERSION = "2026-10-19";
 export const qualityConsentSchema = z.object({
@@ -33,7 +33,7 @@ interface State {
   pendingChoices: QualityChoices | null;
   error: string | null;
   accept(value: unknown): void;
-  reset(): void;
+  reset(preservePending?: boolean): void;
   refresh(): Promise<void>;
   save(choices: QualityChoices): Promise<boolean>;
 }
@@ -51,9 +51,10 @@ export const useQualityConsentStore = create<State>((set, get) => ({
     );
     set({ consent, loaded: true, pendingChoices: null, error: null });
   },
-  reset() {
+  reset(preservePending = false) {
     revision++;
-    setAnalyticsConsent(null);
+    if (preservePending) suspendAnalyticsConsent();
+    else setAnalyticsConsent(null);
     set({
       consent: NO_QUALITY_CONSENT,
       loaded: false,
@@ -73,7 +74,7 @@ export const useQualityConsentStore = create<State>((set, get) => ({
       if (current === revision) get().accept(value);
     } catch {
       if (current !== revision) return;
-      setAnalyticsConsent(null);
+      suspendAnalyticsConsent();
       set({
         loaded: false,
         error: "품질 검토 동의 상태를 확인하지 못했습니다. 기본 기능은 계속 이용할 수 있습니다.",

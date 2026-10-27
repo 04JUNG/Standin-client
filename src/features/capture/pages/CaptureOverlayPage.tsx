@@ -1,3 +1,4 @@
+import { finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { useRef, useState, type PointerEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -46,6 +47,7 @@ export function CaptureOverlayPage() {
     "captureOverlay.cancel": processing
       ? undefined
       : () => {
+          finishInputAttempt("capture", "cancelled");
           resetCapture();
           navigate(idleRoute(origin), { replace: true });
         },
@@ -107,6 +109,7 @@ export function CaptureOverlayPage() {
       // 시작한 곳으로 돌아간다 — 바에서 시작했으면 앱 창을 거치지 않는다(ADR-008).
       navigate(afterInputRoute(origin), { replace: true });
     } catch {
+      finishInputAttempt("capture", "failed", "CROP_FAILED");
       setProcessing(false);
       setSel(null);
     }

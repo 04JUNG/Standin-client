@@ -1,3 +1,4 @@
+import { useThumbnailJourney } from "@/features/analytics/useThumbnailJourney";
 import { reviewOnly, canRelease } from "../api/routedSearch";
 import { useDefaultPosePoster } from "../api/posePoster";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
@@ -18,6 +19,7 @@ const MATCH_BADGE_CLASS: Record<MatchLevel, string> = {
 };
 
 type PoseCandidateCardProps = {
+  jobId?: string;
   bodyPreview?: { url?: string; pending: boolean };
   candidate: PoseCandidate;
   characterId?: string | null;
@@ -32,6 +34,7 @@ type PoseCandidateCardProps = {
 };
 
 export function PoseCandidateCard({
+  jobId,
   candidate,
   bodyPreview,
   characterId,
@@ -54,6 +57,7 @@ export function PoseCandidateCard({
   const imageUrl = preview.data?.url || candidate.thumbnailUrl;
   const pending = !imageUrl && preview.isPending;
   const failed = !imageUrl && preview.isError;
+  const reportThumbnailFailure = useThumbnailJourney(jobId, candidate.id, failed, imageUrl);
   void bodyPreview;
   return (
     <button
@@ -80,6 +84,7 @@ export function PoseCandidateCard({
       {imageUrl ? (
         <img
           src={imageUrl}
+          onError={reportThumbnailFailure}
           alt={candidate.title}
           className={cn(
             "w-full object-contain",

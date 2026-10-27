@@ -78,7 +78,7 @@ export function PoseViewerPage() {
     allSelected,
     confirmedSelections,
     selectCandidate,
-  } = useAnalysisResult(jobId);
+  } = useAnalysisResult(jobId, true);
 
   const people = data?.people ?? [];
   const active =
@@ -192,6 +192,7 @@ export function PoseViewerPage() {
             <div key={person.index} className="flex flex-col gap-3">
               {person.posePresentation ? (
                 <PosePresentationPanel
+                  telemetryJob={data.jobId}
                   presentation={person.posePresentation}
                   bodyPreviewJob={
                     data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
@@ -555,6 +556,7 @@ function ActivePersonCard({
                   ) : (
                     gridCandidates.map((candidate) => (
                       <PoseCandidateCard
+                        jobId={jobId}
                         key={candidate.id}
                         candidate={candidate}
                         characterId={characterId}

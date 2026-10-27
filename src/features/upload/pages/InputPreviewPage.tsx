@@ -1,3 +1,4 @@
+import { finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Trash2, RefreshCw } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
@@ -42,6 +43,7 @@ export function InputPreviewPage() {
   if (!draft) return <Navigate to="/app/home" replace />;
 
   function discardAndHome() {
+    finishInputAttempt(draft!.source, "cancelled");
     clearDraft();
     navigate("/app/home", { replace: true });
   }

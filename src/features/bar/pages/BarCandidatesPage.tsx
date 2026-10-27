@@ -25,7 +25,7 @@ export function BarCandidatesPage() {
   const bindings = useShortcutStore((s) => s.bindings);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-  const analysis = useAnalysisResult(jobId ?? undefined);
+  const analysis = useAnalysisResult(jobId ?? undefined, true);
   const {
     data,
     bodies,

@@ -21,6 +21,8 @@ vi.mock("@/app/router", () => ({
 }));
 vi.mock("@/features/analytics/analyticsClient", () => ({
   trackEvent: vi.fn(),
+  startInputAttempt: vi.fn(),
+  finishInputAttempt: vi.fn(),
   currentSurface: () => "app",
 }));
 

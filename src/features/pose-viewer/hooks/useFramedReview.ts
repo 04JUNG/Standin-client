@@ -1,3 +1,5 @@
+import { useReviewJourney } from "@/features/analytics/useReviewJourney";
+import { requestExport } from "@/features/analytics/journeyAttempts";
 import { downloadBinding, downloadRevision } from "@/features/export/lib/downloadRevisions";
 import { ApiError } from "@/shared/api/errors";
 import { poseRecovery } from "@/shared/api/poseRecovery";
@@ -229,6 +231,16 @@ export function useFramedReview(jobId: string | undefined) {
         requests.length > 0 &&
         !preparationError &&
         queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+  useReviewJourney({
+    jobId: review.data?.jobId,
+    binding: JSON.stringify([
+      review.items.map((i) => [i.personIndex, i.candidate.id, i.exportUrl]),
+      requests.map((r) => r.binding),
+    ]),
+    ready: downloadReady,
+    failed: !!preparationError || requiresFbx,
+    format,
+  });
   const preparationLoading = enabled && !preparationError && !downloadReady;
   const previewLoading =
     enabled && (preparationLoading || images.some((q) => q.isPending || q.isFetching));
@@ -330,6 +342,7 @@ export function useFramedReview(jobId: string | undefined) {
     // Only the explicit download button arms SavePage's existing save flow.
     requestDownload: () => {
       if (!downloadReady) return false;
+      if (review.data?.jobId) requestExport(review.data.jobId);
       useExportStore.getState().clearError();
       return true;
     },

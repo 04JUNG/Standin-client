@@ -1,3 +1,4 @@
+import { startInputAttempt, finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { router } from "@/app/router";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { idleRoute, type FlowOrigin } from "@/features/bar/lib/flowOrigin";
@@ -45,6 +46,7 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
   if (router.state.location.pathname === "/app/capture") return;
 
   // 오버레이가 끝난 뒤 돌아갈 곳을 기억한다(바에서 시작했으면 바로 복귀).
+  startInputAttempt("capture", origin);
   capture.setOrigin(origin);
   capture.setError(null);
   capture.setStatus("grabbing");
@@ -56,10 +58,12 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
   } catch (err) {
     // 취소는 오류가 아니라 정상 복귀(docs/07 §6).
     if (err instanceof CaptureError && err.code === "CANCELLED") {
+      finishInputAttempt("capture", "cancelled");
       useCaptureStore.getState().reset();
       await router.navigate(idleRoute(origin), { replace: true });
       return;
     }
+    finishInputAttempt("capture", "failed", err instanceof CaptureError ? err.code : "UNKNOWN");
     const message = captureErrorMessage(err);
     const code = err instanceof CaptureError ? err.code : null;
     useCaptureStore.getState().setError(message, code);
