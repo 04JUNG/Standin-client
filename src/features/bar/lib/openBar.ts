@@ -1,3 +1,4 @@
+import { useRequiredUpdateStore } from "@/shared/stores/requiredUpdateStore";
 import { router } from "@/app/router";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { globalShortcutService } from "@/features/capture/api/globalShortcut.service";
@@ -6,7 +7,10 @@ import { barStateForPath } from "./barSizes";
 
 /** 동의 전에는 제품 라우트가 없다. RequireInstallation과 같은 조건을 본다. */
 function canUseApp(): boolean {
-  return useInstallationStore.getState().status === "registered";
+  return (
+    !useRequiredUpdateStore.getState().minimumVersion &&
+    useInstallationStore.getState().status === "registered"
+  );
 }
 
 /**
