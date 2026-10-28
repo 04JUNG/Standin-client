@@ -3,6 +3,10 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { AcquisitionConsent, AcquisitionSettings } from "./AcquisitionConsent";
 import { useAcquisitionStore } from "./acquisitionStore";
 import { apiFetch } from "@/shared/api/client";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
+vi.mock("@tauri-apps/api/core", () => ({ isTauri: vi.fn(() => false) }));
+vi.mock("@tauri-apps/plugin-deep-link", () => ({ getCurrent: vi.fn(), onOpenUrl: vi.fn() }));
 vi.mock("@/shared/api/client", () => ({ apiFetch: vi.fn() }));
 vi.mock("./installationStore", () => ({
   useInstallationStore: (selector: (state: { status: string }) => unknown) =>
@@ -10,10 +14,33 @@ vi.mock("./installationStore", () => ({
 }));
 beforeEach(() => {
   cleanup();
+  vi.mocked(isTauri).mockReturnValue(false);
   vi.mocked(apiFetch).mockReset();
   useAcquisitionStore.setState({ pending: "meta-poster-a" });
 });
 describe("optional acquisition consent", () => {
+  it("receives cold and warm native links without sending before consent, and unsubscribes", async () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    useAcquisitionStore.setState({ pending: null });
+    const stop = vi.fn();
+    let receive: ((urls: string[]) => void) | undefined;
+    vi.mocked(onOpenUrl).mockImplementation(async (handler) => {
+      receive = handler;
+      return stop;
+    });
+    vi.mocked(getCurrent).mockResolvedValue([
+      "standin-dev://campaign?source=instagram&campaign=open-beta&creative=meta-poster-a",
+    ]);
+    const view = render(<AcquisitionConsent />);
+    await waitFor(() => expect(useAcquisitionStore.getState().pending).toBe("meta-poster-a"));
+    expect(apiFetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "연결하지 않고 계속" }));
+    receive?.(["standin-dev://campaign?source=instagram&campaign=open-beta&creative=meta-hook-a"]);
+    await waitFor(() => expect(useAcquisitionStore.getState().pending).toBe("meta-hook-a"));
+    expect(apiFetch).not.toHaveBeenCalled();
+    view.unmount();
+    expect(stop).toHaveBeenCalledOnce();
+  });
   it("does not send on open or rejection", () => {
     render(<AcquisitionConsent />);
     expect(apiFetch).not.toHaveBeenCalled();

@@ -78,7 +78,8 @@ export function AcquisitionConsent() {
       </p>
       <p className="mt-3 text-sm text-text-secondary">
         거절해도 이용에 불이익이 없습니다. 설정의 ‘광고 유입 연결 해제’에서 철회할 수 있습니다.
-        문의: standin.asm@gmail.com
+        철회·만료 후에는 광고 구분값을 삭제하며, 재연결 방지용 동의 시각은 설치 기록이 삭제될 때까지
+        남습니다. 문의: standin.asm@gmail.com
       </p>
       {error && (
         <p role="alert" className="mt-3 text-sm text-brand-coral">
