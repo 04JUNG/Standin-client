@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import fixture from "./__fixtures__/mini-female-0.3.4.breast6.json";
+import fixture from "./__fixtures__/mini-female-0.3.4.breast7.json";
 import { evaluateShape, resolveControls, SUPPORTED_RULES } from "./evaluate";
 import { parseShapeRuntime, type ShapeRuntime } from "./format";
-import { FEMALE_034_BREAST6 } from "./female034breast6";
+import { FEMALE_034_BREAST7 } from "./female034breast7";
 
-describe("female breast6 — actual controller breast samples", () => {
+describe("female breast7 — actual controller breast samples", () => {
   let runtime: ShapeRuntime;
   beforeAll(async () => {
     const packed = Uint8Array.from(atob(fixture.ssrGzip), (c) => c.charCodeAt(0));
@@ -15,7 +15,7 @@ describe("female breast6 — actual controller breast samples", () => {
   });
 
   it("accepts the new rules and the extended slider range", () => {
-    expect(SUPPORTED_RULES.has(FEMALE_034_BREAST6)).toBe(true);
+    expect(SUPPORTED_RULES.has(FEMALE_034_BREAST7)).toBe(true);
     expect(runtime.header.controls.breast_size).toMatchObject({ min: -1, max: 2, default: 0 });
     expect(resolveControls(runtime, "BASE", { breast_size: 1.5 }).breast_size).toBe(1.5);
     expect(resolveControls(runtime, "BASE", { breast_size: 3 }).breast_size).toBe(2);

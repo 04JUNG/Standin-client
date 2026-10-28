@@ -1,12 +1,12 @@
 # Female breast candidate runtime
 
-`standin-female-body-0.3.4.breast6` is an opt-in authoring candidate, not a change
+`standin-female-body-0.3.4.breast7` is an opt-in authoring candidate, not a change
 to existing female 0.3.4 assets. The source branch is
 `04JUNG/Standin-server:codex/female-breast-shape-20261028`.
 
 The catalog supplies `breast_size` range `[-1,2]`, grid `.01`, default `0`.
 Existing zero and positive sizes through +1 are exact. Above +1, the controller
-uses a separate rounded target with upper- and lower-pole fullness; it does not extrapolate the old Large key.
+uses a separate rounded target with upper-, lower- and lateral-pole fullness; it does not extrapolate the old Large key.
 Negative values intentionally use the improved compact small target.
 
 The new evaluator shares the existing female anatomy, muscle, pelvis, warp and

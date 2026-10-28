@@ -6,7 +6,7 @@ import { anatomyWarp, normalsBuffer, type Warp } from "./anatomy";
 import { faceNormals, foldGuard } from "./mesh";
 
 /** Isolated authoring candidate; +1 keeps the old target, +2 adds a separate key. */
-export const FEMALE_034_BREAST6 = "standin-female-body-0.3.4.breast6";
+export const FEMALE_034_BREAST7 = "standin-female-body-0.3.4.breast7";
 
 function mappings(runtime: ShapeRuntime, c: BlenderControls) {
   const weights = mappingsFemale022(runtime, c);
@@ -17,7 +17,7 @@ function mappings(runtime: ShapeRuntime, c: BlenderControls) {
   return weights;
 }
 
-export function evaluateFemale034Breast6(
+export function evaluateFemale034Breast7(
   runtime: ShapeRuntime,
   c: BlenderControls,
   out: Float32Array,

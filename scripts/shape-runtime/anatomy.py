@@ -24,7 +24,7 @@ import numpy as np
 
 # 0.7.2 / 0.3.4: pose surface correction only; the neutral computation is unchanged.
 MALE_RULES = ("standin-body-0.7.1", "standin-body-0.7.2")
-FEMALE_RULES = ("standin-female-body-0.3.3", "standin-female-body-0.3.4", "standin-female-body-0.3.4.breast6")
+FEMALE_RULES = ("standin-female-body-0.3.3", "standin-female-body-0.3.4", "standin-female-body-0.3.4.breast7")
 RULES = MALE_RULES + FEMALE_RULES
 PROTECT = ("Head", "Neck", "Hand", "Foot", "Toe")
 LIMBS = (("Arm", .48), ("ForeArm", .44), ("UpLeg", .40))  # muscle_refine_limb_fields order per side
@@ -141,7 +141,7 @@ def anatomy_layer(sb, m, s, c, out, weights, reference, AD, FA):
 
 
 def evaluate(sb, m, baked, c, rest_body):
-    if sb.VERSION != 'standin-female-body-0.3.4.breast6' or 0 <= c['breast_size'] <= 1:
+    if sb.VERSION != 'standin-female-body-0.3.4.breast7' or 0 <= c['breast_size'] <= 1:
         return evaluate_legacy(sb, m, baked, c, rest_body)
     previous = sb.BREAST_REFERENCE
     try:

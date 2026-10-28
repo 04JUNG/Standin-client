@@ -23,7 +23,7 @@ ap.add_argument('--controller', required=True)
 ap.add_argument('--out', required=True)
 args = ap.parse_args(sys.argv[sys.argv.index('--') + 1:])
 sb, mesh = build.load_bpy(args.blend, args.controller)
-assert sb.VERSION == 'standin-female-body-0.3.4.breast6'
+assert sb.VERSION == 'standin-female-body-0.3.4.breast7'
 s = sb.source()
 co = s['co']
 samples = [[.079, -.110, 1.272], [.09, -.08, 1.235], [.06, -.06, 1.36],
