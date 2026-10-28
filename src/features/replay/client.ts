@@ -7,7 +7,15 @@ import { ApiError } from "@/shared/api/errors";
 import { appSession, initializeAppSession, sessionClock } from "@/shared/lib/appSession";
 import { replayConfig, REPLAY_POLICY, REPLAY_PROTOCOL } from "./config";
 import { base64, encodeEvents, sha256 } from "./encoding";
-import { clearReplayQueue, enqueue, queueItems, removeQueued, type QueueItem } from "./queue";
+import {
+  clearReplayQueue,
+  enqueue,
+  queueItems,
+  removeQueued,
+  persistWithdrawal,
+  persistedWithdrawal,
+  type QueueItem,
+} from "./queue";
 import { sanitizeReplay } from "./privacy";
 
 export const useReplayStatus = create<{
@@ -89,6 +97,7 @@ async function queueRequest(
 export async function beginReplay(owner: string, qualityConsentId?: string) {
   if (context?.owner === owner) return;
   const config = replayConfig();
+  if (await persistedWithdrawal()) safeStorage.setItem(withdrawalKey, "true");
   if (
     !config.enabled ||
     !config.allowed ||
@@ -150,7 +159,7 @@ export function stopReplay() {
 export async function withdrawReplay() {
   safeStorage.setItem(withdrawalKey, "true");
   stopReplay();
-  await clearReplayQueue();
+  await Promise.allSettled([persistWithdrawal(true), clearReplayQueue()]);
   // Server keeps a durable withdrawal marker; failed requests remain locally blocked.
   await replayFetch("/v1/replays", { method: "DELETE", auth: false });
 }

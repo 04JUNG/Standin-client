@@ -14,20 +14,30 @@ const MAX_AGE = 24 * 60 * 60_000;
 let database: Promise<IDBDatabase> | undefined;
 function db() {
   return (database ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore("queue", { keyPath: "id" });
-    request.onsuccess = () => resolve(request.result);
+    const request = indexedDB.open(DB, 2);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("queue"))
+        request.result.createObjectStore("queue", { keyPath: "id" });
+      if (!request.result.objectStoreNames.contains("control"))
+        request.result.createObjectStore("control");
+    };
+    request.onsuccess = () => {
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    };
+    request.onblocked = () => reject(new Error("replay_queue_upgrade_blocked"));
     request.onerror = () => reject(request.error);
   }));
 }
 async function transaction<T>(
   mode: IDBTransactionMode,
   operation: (store: IDBObjectStore) => IDBRequest<T>,
+  storeName = "queue",
 ) {
   const database = await db();
   return new Promise<T>((resolve, reject) => {
-    const tx = database.transaction("queue", mode);
-    const request = operation(tx.objectStore("queue"));
+    const tx = database.transaction(storeName, mode);
+    const request = operation(tx.objectStore(storeName));
     tx.oncomplete = () => resolve(request.result);
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
@@ -51,3 +61,11 @@ export async function enqueue(item: QueueItem): Promise<number> {
   }
   return dropped;
 }
+
+/** Stored separately from payloads so clearing uploads cannot erase a withdrawal. */
+export const persistedWithdrawal = () =>
+  transaction("readonly", (store) => store.get("withdrawn"), "control") as Promise<
+    boolean | undefined
+  >;
+export const persistWithdrawal = (value: boolean) =>
+  transaction("readwrite", (store) => store.put(value, "withdrawn"), "control");

@@ -15,6 +15,9 @@ export function ReplayBootstrap() {
   const status = useInstallationStore((s) => s.status);
   const owner = useInstallationStore((s) => s.credentials?.installationId);
   const consentId = useQualityConsentStore((s) => s.consent.consentId);
+  const qualityReady = useQualityConsentStore(
+    (s) => s.loaded && !s.pendingChoices && s.consent.personalData && s.consent.contentLicense,
+  );
   useEffect(() => {
     const off = observeReplay((tag) => {
       if (tag === "replay_withdraw")
@@ -29,7 +32,7 @@ export function ReplayBootstrap() {
     }
     let cancelled = false;
     let cleanup: (() => void) | undefined;
-    void beginReplay(owner, consentId ?? undefined)
+    void beginReplay(owner, qualityReady ? (consentId ?? undefined) : undefined)
       .then(() => {
         if (!cancelled && replayActive())
           void import("./recorder")
@@ -51,6 +54,6 @@ export function ReplayBootstrap() {
       window.removeEventListener("online", online);
       stopReplay();
     };
-  }, [status, owner, consentId]);
+  }, [status, owner, consentId, qualityReady]);
   return null;
 }

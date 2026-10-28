@@ -1,11 +1,11 @@
 import "fake-indexeddb/auto";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 import { gunzipSync, strFromU8 } from "fflate";
 import { replayConfig } from "./config";
 import { sanitizeReplay } from "./privacy";
 import { encodeEvents } from "./encoding";
-import { clearReplayQueue, enqueue, queueItems } from "./queue";
+import { clearReplayQueue, enqueue, queueItems, persistWithdrawal } from "./queue";
 import { setInstallationCredentials } from "@/shared/api/client";
 import {
   beginReplay,
@@ -16,6 +16,19 @@ import {
   withdrawReplay,
 } from "./client";
 import { safeStorage } from "@/shared/lib/safeStorage";
+// Exercise upgrade from the first shipped payload-only database as well as new writes.
+beforeAll(
+  () =>
+    new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open("standin-replay-v1", 1);
+      request.onupgradeneeded = () => request.result.createObjectStore("queue", { keyPath: "id" });
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+      request.onerror = () => reject(request.error);
+    }),
+);
 beforeEach(async () => {
   vi.stubGlobal("crypto", webcrypto);
   vi.stubEnv("VITE_REPLAY_ENABLED", "true");
@@ -23,6 +36,7 @@ beforeEach(async () => {
   safeStorage.removeItem("standin.replay.withdrawn.v1");
   stopReplay();
   await clearReplayQueue();
+  await persistWithdrawal(false);
   setInstallationCredentials({ installationId: "owner", deviceToken: "fixture-not-a-real-token" });
 });
 afterEach(() => {
@@ -124,6 +138,7 @@ it("explicit withdrawal stops synchronously, drops pending uploads and remains b
   expect(replayActive()).toBe(false);
   await expect(withdrawal).rejects.toBeDefined();
   expect(await queueItems()).toEqual([]);
+  safeStorage.removeItem("standin.replay.withdrawn.v1");
   await beginReplay("owner");
   expect(replayActive()).toBe(false);
 });
