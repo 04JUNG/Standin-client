@@ -147,7 +147,7 @@ pub fn save_pose_file(
             .map_err(|_| ExportError::new("WRITE_FAILED", "장면 정보를 확인하지 못했습니다."))?;
         if !safe_name.to_lowercase().ends_with(".fbx")
             || parsed["version"] != "csp-scene-manifest-v1"
-            || parsed["artifact"]["sha256"].as_str().map_or(true, |sha| sha.len() != 64) {
+            || parsed["artifact"]["sha256"].as_str().is_none_or(|sha| sha.len() != 64) {
             return Err(ExportError::new("WRITE_FAILED", "장면 정보를 확인하지 못했습니다."));
         }
     }
