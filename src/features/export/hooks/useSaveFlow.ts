@@ -1,3 +1,17 @@
+import {
+  prepareOriginalScene,
+  validateSceneManifest,
+  SCENE_MANIFEST_VERSION,
+  type SceneManifest,
+  type OriginalSceneReceipt,
+} from "../api/sceneMetadata";
+import {
+  saveCoverage,
+  sceneUnavailableMessage,
+  sceneSelectionAvailable,
+} from "../lib/saveCoverage";
+import { saveConsentBinding } from "../lib/saveBinding";
+import { jobFileName } from "../lib/jobFileName";
 import { failureProperties } from "@/features/analytics/featureJourney";
 import { isTauri } from "@tauri-apps/api/core";
 import {
@@ -32,7 +46,7 @@ import {
   scopeIncludesHands,
   type BodyScope,
 } from "@/features/pose-viewer/api/outputScope";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
@@ -53,7 +67,7 @@ import {
   type SceneSaveMode,
 } from "../api/scene";
 import { ExportError } from "../api/export.contract";
-import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
+import { personFileName, withFormatExtension } from "../lib/defaultFileName";
 import { mockBvhContent } from "../lib/mockBvhContent";
 import { useModelStore } from "@/features/models/store/modelStore";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
@@ -153,6 +167,7 @@ export function useSaveFlow(jobId: string | undefined) {
   const queryClient = useQueryClient();
   const draft = useUploadStore((s) => s.draft);
   const clearDraft = useUploadStore((s) => s.clearDraft);
+  const excludedPeople = usePoseSelectionStore((s) => s.excludedPeople);
   const selectedByPerson = usePoseSelectionStore((s) => s.selectedByPerson);
   const clearSelection = usePoseSelectionStore((s) => s.clearSelection);
 
@@ -271,17 +286,54 @@ export function useSaveFlow(jobId: string | undefined) {
   const isSceneExport =
     effectiveFormat === "fbx" &&
     analysis?.source !== "semantic" &&
-    analysis?.capabilities.sceneExport === true &&
-    !env.useMockPoseApi &&
-    !analysis.people.some((p) => p.candidates.some((c) => c.source === "generation"));
+    sceneSelectionAvailable(analysis, selectedByPerson) &&
+    !env.useMockPoseApi;
   const sceneContract = isSceneExport ? analysis?.capabilities.sceneSaveContract : undefined;
+  const consentBinding = useSyncExternalStore(
+    useCallback(
+      (changed) => {
+        const offCache = queryClient.getQueryCache().subscribe(changed);
+        const offSelection = usePoseSelectionStore.subscribe(changed);
+        const offOwner = useInstallationStore.subscribe(changed);
+        return () => {
+          offCache();
+          offSelection();
+          offOwner();
+        };
+      },
+      [queryClient],
+    ),
+    () => saveConsentBinding(queryClient, jobId),
+  );
+  const coverage = saveCoverage(analysis, selectedByPerson, excludedPeople);
+  const partialConsent = useExportStore((s) => s.partialConsentBinding);
+  const individualConsent = useExportStore((s) => s.individualConsentBinding);
+  const partialRequired = coverage.omitted.length > 0;
+  const individualRequired =
+    preferredFormat === "fbx" &&
+    analysis?.source !== "semantic" &&
+    !isSceneExport &&
+    !env.useMockPoseApi;
+  const needsPartialConfirmation = partialRequired && partialConsent !== consentBinding;
+  const needsIndividualConfirmation = individualRequired && individualConsent !== consentBinding;
+  const waitingForSaveConsent = needsPartialConfirmation || needsIndividualConfirmation;
+  useEffect(() => {
+    if (partialConsent !== consentBinding)
+      useExportStore.setState({ partialConsentBinding: undefined });
+    if (individualConsent !== consentBinding)
+      useExportStore.setState({ individualConsentBinding: undefined });
+  }, [consentBinding, partialConsent, individualConsent]);
+  const currentConsent = useRef({ partialConsent, individualConsent });
+  currentConsent.current = { partialConsent, individualConsent };
+
   const [sceneChoice, setSceneChoice] = useState<{
     jobId: string | undefined;
     mode: SceneSaveMode;
   }>();
   const modeChosen = sceneChoice !== undefined && sceneChoice.jobId === jobId;
   const sceneMode = modeChosen ? sceneChoice.mode : "original-selection";
-  const choosingSceneMode = !!sceneContract && !modeChosen && status === "idle";
+  const choosingSceneMode =
+    !!sceneContract && !modeChosen && status === "idle" && !waitingForSaveConsent;
   const sceneOutputLabel = isSceneExport ? `인물 ${selectionCount}명 · FBX 파일 1개` : null;
 
   // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
@@ -304,17 +356,8 @@ export function useSaveFlow(jobId: string | undefined) {
   // 파일 이름은 beginJob이 비울 수 있으므로 마운트 1회가 아니라 비어 있을 때마다 채운다.
   // 확장자는 실제 저장 포맷을 따른다 — 설정에서 포맷을 바꾸면 다음 기본 이름부터 반영된다.
   useEffect(() => {
-    if (!fileName)
-      setFileName(
-        defaultFileName(
-          queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.source ===
-            "semantic"
-            ? "문장검색.png"
-            : draft?.originalName,
-          effectiveFormat,
-        ),
-      );
-  }, [fileName, draft, effectiveFormat, setFileName, queryClient, jobId]);
+    if (!fileName && jobId) setFileName(jobFileName(jobId, analysis, draft, effectiveFormat));
+  }, [fileName, draft, effectiveFormat, setFileName, analysis, jobId]);
 
   // 최신 값을 자동 저장 effect에서 읽되, effect가 값 변화마다 재실행되지는 않게 한다.
   const latest = useRef({
@@ -416,6 +459,26 @@ export function useSaveFlow(jobId: string | undefined) {
         preferredCharacterId: preferred,
       } = latest.current;
       if (!targetFolder || !rawName || !id || picks.length === 0) return;
+      const currentAnalysis = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id));
+      const currentState = usePoseSelectionStore.getState();
+      const currentCoverage = saveCoverage(
+        currentAnalysis,
+        currentState.selectedByPerson,
+        currentState.excludedPeople,
+      );
+      const binding = saveConsentBinding(qc, id);
+      if (
+        (currentCoverage.omitted.length > 0 && currentConsent.current.partialConsent !== binding) ||
+        ((format === "fbx" || preferredFormat === "fbx") &&
+          currentAnalysis?.source !== "semantic" &&
+          !sceneSelectionAvailable(currentAnalysis, currentState.selectedByPerson) &&
+          !env.useMockPoseApi &&
+          currentConsent.current.individualConsent !== binding)
+      ) {
+        autoSaveStarted.current = undefined;
+        useExportStore.setState({ status: "idle" });
+        return;
+      }
       // 이름의 확장자와 실제 내용이 어긋나면 클립스튜디오는 열지 못하면서 이유는 알려 주지
       // 않는다. 이름은 설정에서 포맷을 바꾸기 전에 정해졌을 수 있으므로 여기서 맞춘다.
       const name = withFormatExtension(rawName, format);
@@ -449,6 +512,7 @@ export function useSaveFlow(jobId: string | undefined) {
             job: usePoseSelectionStore.getState().jobId,
             owner: useInstallationStore.getState().credentials?.installationId,
             selected: usePoseSelectionStore.getState().selectedByPerson,
+            excluded: usePoseSelectionStore.getState().excludedPeople,
             character: usePoseSelectionStore.getState().characterId,
             characters: usePoseSelectionStore.getState().characterByPerson,
             refine: usePoseSelectionStore.getState().refineByPerson,
@@ -619,13 +683,13 @@ export function useSaveFlow(jobId: string | undefined) {
           }),
         );
         controller.signal.throwIfAborted();
-        let saveFiles: { fileName: string; content: Uint8Array }[] = files;
+        let saveFiles: { fileName: string; content: Uint8Array; sceneMetadata?: string }[] = files;
         let sceneBinding: string | undefined;
+        let sceneMetadata: SceneManifest | undefined;
         if (
           format === "fbx" &&
           analysisResult.source !== "semantic" &&
-          analysisResult.capabilities.sceneExport === true &&
-          !analysisResult.people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
+          sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
           !env.useMockPoseApi
         ) {
           sceneRequest = true;
@@ -650,13 +714,53 @@ export function useSaveFlow(jobId: string | undefined) {
           );
           const contract = analysisResult.capabilities.sceneSaveContract;
           const mode = options.sceneMode ?? sceneMode;
-          let review: SceneReview | undefined;
           if (contract && !contract.saveModes.includes(mode))
             throw new ApiError(409, "SCENE_CONTRACT_UNSUPPORTED", "");
+          let review: SceneReview | undefined;
+          let originalReceipt: OriginalSceneReceipt | undefined;
+          const hasManifest = contract?.manifestVersion === SCENE_MANIFEST_VERSION;
+          if (
+            hasManifest &&
+            analysisResult.capabilities.sceneAvailability?.manifest.available !== true
+          )
+            throw new ApiError(503, "SCENE_UNAVAILABLE", "");
+          const excluded = Object.keys(selectionState.excludedPeople).map(Number);
+          const validateMetadata = (manifest: unknown, digest: string) =>
+            validateSceneManifest(manifest, {
+              jobId: analysisResult.jobId,
+              mode,
+              sha256: digest,
+              references,
+              detected: analysisResult.people.map((p) => p.index),
+              excluded,
+              noCandidates: analysisResult.people
+                .filter((p) => p.candidates.length === 0)
+                .map((p) => p.index),
+              sourceImage: analysisResult.sourceImage,
+            });
+          if (mode === "original-selection" && hasManifest) {
+            originalReceipt = await prepareOriginalScene(
+              analysisResult.jobId,
+              references,
+              excluded,
+              controller.signal,
+            );
+            sceneMetadata = validateMetadata(
+              originalReceipt.manifest,
+              originalReceipt.artifactSha256,
+            );
+          }
           if (mode === "auto-correct-v4") {
             if (!contract || analysisResult.capabilities.sceneRefinement !== true)
               throw new ApiError(409, "SCENE_CONTRACT_UNSUPPORTED", "");
-            review = await prepareScene(analysisResult.jobId, references, controller.signal);
+            review = await prepareScene(
+              analysisResult.jobId,
+              references,
+              controller.signal,
+              hasManifest ? excluded : undefined,
+            );
+            if (hasManifest)
+              sceneMetadata = validateMetadata(review.manifest, review.artifactSha256);
             controller.signal.throwIfAborted();
             if (!sceneMounted.current) throw new ExportError("CANCELLED", "");
             telemetryPhase = "confirmation";
@@ -727,16 +831,33 @@ export function useSaveFlow(jobId: string | undefined) {
           }
           controller.signal.throwIfAborted();
           startSaving();
-          const content = await downloadScene(analysisResult.jobId, references, review, {
-            signal: controller.signal,
-            negotiated: !!contract,
-          });
+          const content = await downloadScene(
+            analysisResult.jobId,
+            references,
+            review ?? originalReceipt,
+            {
+              signal: controller.signal,
+              negotiated: !!contract,
+            },
+          );
+          if (
+            sceneMetadata &&
+            (await sceneReference(0, "scene", "/", content)).sha256 !==
+              sceneMetadata.artifact.sha256
+          )
+            throw new ApiError(502, "SCENE_INTEGRITY", "");
           sceneBinding = JSON.stringify([
             downloadBinding(format, files),
             mode,
             (await sceneReference(0, "scene", "/", content)).sha256,
           ]);
-          saveFiles = [{ fileName: name.replace(/\.fbx$/i, "_scene.fbx"), content }];
+          saveFiles = [
+            {
+              fileName: name.replace(/\.fbx$/i, "_scene.fbx"),
+              content,
+              ...(sceneMetadata ? { sceneMetadata: JSON.stringify(sceneMetadata) } : {}),
+            },
+          ];
         }
         controller.signal.throwIfAborted();
         // A late response must never write an older selection to disk.
@@ -877,7 +998,7 @@ export function useSaveFlow(jobId: string | undefined) {
         settle();
       }
     },
-    [startSaving, setPhase, setSaved, addSaved, setError, queryClient, sceneMode],
+    [startSaving, setPhase, setSaved, addSaved, setError, queryClient, sceneMode, preferredFormat],
   );
 
   /**
@@ -890,7 +1011,7 @@ export function useSaveFlow(jobId: string | undefined) {
   useEffect(() => {
     if (autoSaveStarted.current === jobId) return;
     if (!folder || !fileName || !jobId || selectionCount === 0) return;
-    if (status !== "idle" || (sceneContract && !modeChosen)) return;
+    if (status !== "idle" || (sceneContract && !modeChosen) || waitingForSaveConsent) return;
     autoSaveStarted.current = jobId;
     // A cancelled request from the previous job may still be settling.
     void saveSettled.current.then(() => {
@@ -907,6 +1028,7 @@ export function useSaveFlow(jobId: string | undefined) {
     effectiveFormat,
     sceneContract,
     modeChosen,
+    waitingForSaveConsent,
   ]);
 
   async function saveOriginalSelection() {
@@ -1005,6 +1127,21 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    coverage,
+    needsPartialConfirmation,
+    needsIndividualConfirmation,
+    waitingForSaveConsent,
+    sceneUnavailableReason: sceneUnavailableMessage(
+      analysis?.capabilities.sceneAvailability?.originalSelection.reasons[0] ??
+        (analysis?.capabilities.sceneSaveContract?.manifestVersion
+          ? analysis.capabilities.sceneAvailability?.manifest.reasons[0]
+          : undefined) ??
+        (analysis?.capabilities.sceneExport && !isSceneExport
+          ? "selected_artifact_unsupported"
+          : undefined),
+    ),
+    confirmPartial: () => useExportStore.setState({ partialConsentBinding: consentBinding }),
+    confirmIndividual: () => useExportStore.setState({ individualConsentBinding: consentBinding }),
     cancelSave,
     sceneMode,
     serverOperationMayContinue,

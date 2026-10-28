@@ -1,0 +1,153 @@
+body {
+  margin: 0;
+  background: #edf0f6;
+  color: #222b40;
+  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif;
+}
+main {
+  max-width: 1160px;
+  margin: auto;
+  padding: 24px;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0 25px;
+}
+header b {
+  font-size: 26px;
+}
+header em {
+  margin-left: auto;
+  font-size: 12px;
+  font-style: normal;
+  color: #63718a;
+}
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  background: #fff;
+  padding: 12px;
+  border-radius: 12px;
+}
+.toolbar button {
+  padding: 9px 20px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.toolbar button[aria-pressed="true"] {
+  background: #273451;
+  color: white;
+}
+select {
+  background: #f5f7fa;
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+.caption,
+footer {
+  font-size: 12px;
+  color: #69748c;
+  padding: 16px 0;
+}
+.window {
+  background: white;
+  border: 1px solid #dbe0e8;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px #25365312;
+  margin: 10px auto;
+  overflow: hidden;
+}
+.title {
+  background: #f9fafc;
+  padding: 14px 22px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #e6e9f0;
+  font-size: 13px;
+}
+.title span {
+  color: #8090a5;
+}
+.content {
+  display: flex;
+  padding: 28px;
+  gap: 30px;
+}
+aside {
+  width: 46%;
+  flex-shrink: 0;
+}
+.rough {
+  height: 340px;
+  border: 1px solid #e2e6ee;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfaf8;
+}
+.rough span {
+  font-size: 12px;
+  color: #788196;
+}
+.rough svg {
+  height: 290px;
+  width: 100%;
+}
+.cards {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+.cards div {
+  border: 2px solid #79b9f1;
+  background: #f3f9ff;
+  padding: 15px;
+  border-radius: 10px;
+  flex: 1;
+  font-size: 12px;
+}
+.cards b {
+  font-size: 13px;
+  line-height: 2;
+}
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+h2 {
+  font-size: 21px;
+  font-weight: 650;
+  margin: 0 0 10px;
+}
+.note {
+  font-size: 12px;
+  background: #f5f7fb;
+  border-radius: 10px;
+  padding: 14px;
+  line-height: 1.8;
+}
+code {
+  font-size: 12px;
+  word-break: break-all;
+}
+.bar {
+  width: 420px;
+}
+.bar .content {
+  padding: 16px;
+  max-height: 440px;
+  overflow: auto;
+}
+.bar h2 {
+  font-size: 16px;
+}
+.bar section {
+  gap: 10px;
+}
+footer {
+  text-align: center;
+}

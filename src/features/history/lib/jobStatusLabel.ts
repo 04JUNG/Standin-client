@@ -1,5 +1,5 @@
 import type { JobHistoryItem } from "../api/history.contract";
-import { upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
+import { ANALYSIS_TIMEOUT_MESSAGE, upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
 
 export type JobStatusTone = "done" | "failed" | "running";
 
@@ -17,7 +17,9 @@ export type JobStatusDisplay = {
  * **같은 이미지로 잠시 뒤 다시 하면 되는** 상태인데, 일반 실패로 뭉개면 화면이 "다른
  * 이미지로 다시 시도"를 안내하게 된다. 문구는 pose.http.ts의 기존 분기와 맞춘다.
  */
-export function jobStatusDisplay(item: Pick<JobHistoryItem, "status" | "errorCode">): JobStatusDisplay {
+export function jobStatusDisplay(
+  item: Pick<JobHistoryItem, "status" | "errorCode">,
+): JobStatusDisplay {
   if (item.status === "completed") return { label: "완료", tone: "done", detail: null };
   if (item.status === "queued" || item.status === "running") {
     return { label: "분석 중", tone: "running", detail: null };
@@ -30,9 +32,13 @@ export function jobStatusDisplay(item: Pick<JobHistoryItem, "status" | "errorCod
   }
   switch (item.errorCode) {
     case "ANALYSIS_UNAVAILABLE":
-      return { label: "실패", tone: "failed", detail: "분석 서버가 혼잡했습니다. 같은 이미지로 다시 시도할 수 있습니다." };
+      return {
+        label: "실패",
+        tone: "failed",
+        detail: "분석 서버가 혼잡했습니다. 같은 이미지로 다시 시도할 수 있습니다.",
+      };
     case "ANALYSIS_TIMEOUT":
-      return { label: "실패", tone: "failed", detail: "분석 시간이 초과되었습니다." };
+      return { label: "실패", tone: "failed", detail: ANALYSIS_TIMEOUT_MESSAGE };
     case "ABANDONED":
       return { label: "실패", tone: "failed", detail: "분석이 중단되었습니다." };
     case "INPUT_STORAGE_FAILED":

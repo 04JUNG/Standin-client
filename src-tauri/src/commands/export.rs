@@ -127,6 +127,7 @@ pub fn save_pose_file(
     folder: String,
     file_name: String,
     content_base64: String,
+    scene_metadata: Option<String>,
 ) -> Result<SavedFile, ExportError> {
     let folder_path = Path::new(&folder);
     if !folder_path.is_dir() {
@@ -138,8 +139,22 @@ pub fn save_pose_file(
         .map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
 
     let safe_name = sanitize_file_name(&file_name);
-    let final_path = unique_file::write_unique(folder_path, &safe_name, &bytes)
-        .map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
+    if let Some(metadata) = &scene_metadata {
+        if metadata.len() > 128 * 1024 {
+            return Err(ExportError::new("WRITE_FAILED", "장면 정보를 확인하지 못했습니다."));
+        }
+        let parsed: serde_json::Value = serde_json::from_str(metadata)
+            .map_err(|_| ExportError::new("WRITE_FAILED", "장면 정보를 확인하지 못했습니다."))?;
+        if !safe_name.to_lowercase().ends_with(".fbx")
+            || parsed["version"] != "csp-scene-manifest-v1"
+            || parsed["artifact"]["sha256"].as_str().is_none_or(|sha| sha.len() != 64) {
+            return Err(ExportError::new("WRITE_FAILED", "장면 정보를 확인하지 못했습니다."));
+        }
+    }
+    let final_path = match scene_metadata.as_deref() {
+        Some(metadata) => unique_file::write_unique_with_sidecar(folder_path, &safe_name, &bytes, Some(metadata.as_bytes())),
+        None => unique_file::write_unique(folder_path, &safe_name, &bytes),
+    }.map_err(|e| ExportError::new("WRITE_FAILED", e.to_string()))?;
 
     Ok(SavedFile {
         path: final_path.to_string_lossy().to_string(),

@@ -77,6 +77,7 @@ export type AnalysisResult = {
   semantic?: { query: string; index: Record<string, string> };
   jobId: string;
   inputPreviewUrl?: string;
+  sourceImage?: import("@/features/export/api/sceneMetadata").SceneManifest["sourceImage"];
   people: PersonResult[];
   /**
    * 서버가 이 기능을 노출하는가. 추론 endpoint가 살아 있어도 BFF flag가 꺼져 있으면
@@ -91,6 +92,7 @@ export type AnalysisResult = {
      */
     fbxExport: boolean;
     sceneExport?: boolean;
+    sceneAvailability?: import("@/features/export/api/sceneMetadata").SceneAvailability;
     sceneRefinement?: boolean;
     sceneSaveContract?: import("@/features/export/api/scene").SceneSaveContract;
     /**

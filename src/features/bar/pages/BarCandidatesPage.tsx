@@ -34,7 +34,7 @@ export function BarCandidatesPage() {
     isError,
     error,
     restoreOnly,
-    refetch,
+    retryAnalysis,
     draft,
     sourceFile,
     people,
@@ -156,8 +156,7 @@ export function BarCandidatesPage() {
               <Button
                 size="md"
                 onClick={() => {
-                  if (restoreOnly) void refetch();
-                  else navigate("/bar/progress", { replace: true });
+                  retryAnalysis(() => navigate("/bar/progress", { replace: true }));
                 }}
               >
                 다시 시도

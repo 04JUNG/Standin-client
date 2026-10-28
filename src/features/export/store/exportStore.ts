@@ -38,6 +38,8 @@ type ExportState = {
   savedPaths: string[];
   error: string | null;
   errorCode?: string;
+  partialConsentBinding?: string;
+  individualConsentBinding?: string;
   setFolder(folder: string): void;
   beginJob(jobId: string): void;
   setFormat(format: ExportFormat): void;
@@ -82,6 +84,8 @@ export const useExportStore = create<ExportState>()(
             : {
                 jobId,
                 fileName: "",
+                partialConsentBinding: undefined,
+                individualConsentBinding: undefined,
                 status: "idle",
                 savedPaths: [],
                 error: null,
@@ -115,6 +119,8 @@ export const useExportStore = create<ExportState>()(
         set({
           jobId: null,
           fileName: "",
+          partialConsentBinding: undefined,
+          individualConsentBinding: undefined,
           status: "idle",
           savedPaths: [],
           error: null,

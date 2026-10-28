@@ -1,3 +1,4 @@
+import { SaveCoveragePanel } from "./SaveCoveragePanel";
 import { Button } from "@/shared/components/Button";
 import type { useSaveFlow } from "../hooks/useSaveFlow";
 import { SceneReviewPanel } from "./SceneReviewPanel";
@@ -12,6 +13,17 @@ export function SceneSaveControls({
 }) {
   return (
     <>
+      <SaveCoveragePanel
+        coverage={flow.coverage}
+        needsPartialConfirmation={flow.needsPartialConfirmation}
+        needsIndividualConfirmation={flow.needsIndividualConfirmation}
+        unavailableReason={flow.sceneUnavailableReason}
+        confirmPartial={flow.confirmPartial}
+        confirmIndividual={flow.confirmIndividual}
+        returnToSelection={returnToSelection}
+        saved={flow.status === "saved"}
+        scene={!!flow.sceneOutputLabel}
+      />
       {flow.sceneOutputLabel && (
         <p role="status" className="text-[12px] text-text-secondary">
           {flow.sceneOutputLabel}

@@ -54,6 +54,8 @@ beforeEach(() => {
   mock.hand.mockResolvedValue(new Uint8Array([3]));
   mock.save.mockResolvedValue([{ path: "/fixture/result.fbx" }]);
   useExportStore.setState({
+    partialConsentBinding: undefined,
+    individualConsentBinding: undefined,
     jobId: "job",
     folder: "/fixture",
     format: "fbx",
@@ -146,11 +148,13 @@ function mount(
         },
       });
   });
-  return renderHook(() => useSaveFlow("job"), {
+  const hook = renderHook(() => useSaveFlow("job"), {
     wrapper: ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={qc}>{children}</QueryClientProvider>
     ),
   });
+  act(() => hook.result.current.confirmIndividual());
+  return hook;
 }
 it.each(["head", "shoulder_head", "bust"])(
   "saves %s using the framed artifact without requiring stale cached hand receipts",
