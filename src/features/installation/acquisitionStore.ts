@@ -13,7 +13,7 @@ export function parseAcquisitionUrl(value: string, environment = env.appEnv): Cr
     if (
       url.protocol !== protocol ||
       url.host !== "campaign" ||
-      url.pathname ||
+      (url.pathname !== "" && url.pathname !== "/") ||
       url.hash ||
       url.username ||
       url.password
