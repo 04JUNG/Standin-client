@@ -1,3 +1,4 @@
+import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
 import { failureProperties } from "@/features/analytics/featureJourney";
 import { isTauri } from "@tauri-apps/api/core";
 import {
@@ -783,6 +784,7 @@ export function useSaveFlow(jobId: string | undefined) {
           },
           serverJob,
         );
+        void rememberSavedArtifacts(serverJob, format, saveFiles, binding).catch(() => {});
         rememberDownload(id, binding);
         if (useExportStore.getState().jobId !== id) return;
         const paths = results.map((r) => r.path);

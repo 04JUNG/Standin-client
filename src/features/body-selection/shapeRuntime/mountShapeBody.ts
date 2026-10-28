@@ -1,3 +1,4 @@
+import { recordCanvasFrame } from "@/features/replay/canvas";
 import * as THREE from "three";
 import {
   libraryPreviewMaterial,
@@ -79,6 +80,7 @@ export function mountShapeBody(
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     renderer.render(scene, camera);
+    recordCanvasFrame(canvas, { preview: "body_shape" });
   };
   const flush = () => {
     frame = 0;
@@ -173,6 +175,7 @@ export function snapshotShapeBody(
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
     renderer.render(scene, camera);
+    recordCanvasFrame(canvas, { preview: "body_shape" });
     return canvas.toDataURL("image/png");
   } finally {
     geometry.dispose();

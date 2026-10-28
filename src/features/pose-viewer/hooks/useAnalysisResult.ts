@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { analysisFailureJob } from "@/features/analytics/analysisContext";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { useJobSelections } from "@/features/history/hooks/useJobSelections";
@@ -223,6 +224,24 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
     const viewKey = `${query.data.jobId}:${surface}`;
     if (lastViewedKey === viewKey) return;
     lastViewedKey = viewKey;
+    replayObservation(
+      "candidates_snapshot",
+      {
+        people: people.map((person) => ({
+          index: person.index,
+          candidates: person.candidates.map((candidate) => ({
+            id: candidate.id,
+            thumbnailUrl:
+              candidate.thumbnailUrl ||
+              candidate.quickThumbnailUrl ||
+              candidate.deferredThumbnailUrl,
+            rank: candidate.rank,
+            poseId: candidate.poseId,
+          })),
+        })),
+      },
+      query.data.jobId,
+    );
     setServerJobId(query.data.jobId);
     trackEvent(
       "results_viewed",
