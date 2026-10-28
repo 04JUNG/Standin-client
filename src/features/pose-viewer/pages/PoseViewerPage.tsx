@@ -66,7 +66,7 @@ export function PoseViewerPage() {
     error,
     restoreOnly,
     roughUrl,
-    refetch,
+    retryAnalysis,
     sourceFile,
     selectablePeople,
     includedPeople,
@@ -179,8 +179,9 @@ export function PoseViewerPage() {
             {failure.retryable && (
               <Button
                 onClick={() => {
-                  if (restoreOnly) void refetch();
-                  else navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true });
+                  retryAnalysis(() =>
+                    navigate(`/app/jobs/${crypto.randomUUID()}`, { replace: true }),
+                  );
                 }}
               >
                 다시 시도

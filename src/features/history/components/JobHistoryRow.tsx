@@ -1,3 +1,4 @@
+import { isAnalysisTimeout } from "@/shared/api/analysisJobFailure";
 import { ImageOff, Search, Trash2, Users } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import type { JobHistoryItem } from "../api/history.contract";
@@ -11,9 +12,18 @@ type JobHistoryRowProps = {
   onOpen(jobId: string): void;
   onRequestDelete(item: JobHistoryItem): void;
   isDeleting: boolean;
+  onRetry?: () => void;
+  retrying?: boolean;
 };
 
-export function JobHistoryRow({ item, onOpen, onRequestDelete, isDeleting }: JobHistoryRowProps) {
+export function JobHistoryRow({
+  item,
+  onOpen,
+  onRequestDelete,
+  isDeleting,
+  onRetry,
+  retrying,
+}: JobHistoryRowProps) {
   const thumbnail = useAuthedImage(item.thumbnailUrl);
   const status = jobStatusDisplay(item);
   const openable = isOpenable(item);
@@ -79,6 +89,16 @@ export function JobHistoryRow({ item, onOpen, onRequestDelete, isDeleting }: Job
         </div>
       </button>
 
+      {item.status === "failed" && isAnalysisTimeout(item.errorCode) && onRetry && (
+        <button
+          type="button"
+          disabled={retrying}
+          onClick={onRetry}
+          className="shrink-0 rounded-lg border border-border px-3 py-2 text-[12px] hover:border-brand-sky"
+        >
+          원본 다시 선택
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onRequestDelete(item)}

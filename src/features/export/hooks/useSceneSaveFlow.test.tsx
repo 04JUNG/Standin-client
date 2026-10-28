@@ -65,6 +65,8 @@ beforeEach(() => {
     credentials: { installationId: "owner", deviceToken: "fixture", consentVersion: "2026-08-02" },
   });
   useExportStore.setState({
+    partialConsentBinding: undefined,
+    individualConsentBinding: undefined,
     jobId: "job",
     folder: "/fixture",
     format: "fbx",
@@ -547,4 +549,117 @@ it("write failure and explicit retry have separate attempts without leaking nati
   const complete = mock.track.mock.calls.find(([name]) => name === "export_completed")!;
   expect(complete[1].attemptId).not.toBe(failed[1].attemptId);
   expect(JSON.stringify(mock.track.mock.calls)).not.toContain("private-name");
+});
+
+it.each(["app", "bar"])(
+  "%s blocks partial save until explicit confirmation and shows no-candidate omissions",
+  async (surface) => {
+    const { qc, wrapper: Provider } = setup();
+    const result = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+    qc.setQueryData(poseQueryKeys.result("job"), {
+      ...result,
+      people: [result.people[0], { ...result.people[1], candidates: [] }],
+    });
+    usePoseSelectionStore.setState({ selectedByPerson: { 0: "pick0" }, excludedPeople: {} });
+    render(
+      <Provider>
+        <MemoryRouter initialEntries={[surface === "app" ? "/app/jobs/job/save" : "/bar/save"]}>
+          <Routes>
+            <Route path="/app/jobs/:jobId/save" element={<SavePage />} />
+            <Route path="/bar/save" element={<BarSavePage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    expect(screen.getByText("감지 2명 · 저장 1명")).toBeVisible();
+    expect(screen.getByText("인물 2 · 후보 없음")).toBeVisible();
+    expect(mock.bytes).not.toHaveBeenCalled();
+    expect(mock.save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "1명만 저장" }));
+    fireEvent.click(screen.getByRole("button", { name: /^선택한 포즈 그대로$/ }));
+    await screen.findByText("FBX 파일 1개를 저장했어요.");
+    expect(mock.save.mock.calls[0][0].files).toHaveLength(1);
+  },
+);
+it("distinguishes explicit user exclusion and invalidates partial confirmation after body/hand/selection changes", async () => {
+  const { qc, wrapper } = setup();
+  usePoseSelectionStore.setState({
+    selectedByPerson: { 0: "pick0" },
+    excludedPeople: { 1: "pick1" },
+  });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.coverage.omitted).toEqual([
+    { personIndex: 1, reason: "user_excluded" },
+  ]);
+  for (const change of [
+    () => usePoseSelectionStore.setState({ characterByPerson: { 0: "changed" } }),
+    () => qc.setQueryData(["hands", "owner", "job", 0], { revision: 2 }),
+    () => qc.setQueryData(["body", "owner", "job", 0, "selection"], { selectionRevision: 2 }),
+    () =>
+      usePoseSelectionStore.setState({
+        selectedByPerson: { 0: "pick0", 1: "pick1" },
+        excludedPeople: {},
+      }),
+  ]) {
+    act(() => hook.result.current.confirmPartial());
+    expect(hook.result.current.needsPartialConfirmation).toBe(false);
+    act(change);
+    if (hook.result.current.coverage.omitted.length)
+      await waitFor(() => expect(hook.result.current.needsPartialConfirmation).toBe(true));
+  }
+  expect(mock.save).not.toHaveBeenCalled();
+});
+it("does not silently switch an unsupported scene to individual files, including retry shortcuts", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    capabilities: { ...data.capabilities, sceneExport: false },
+  });
+  usePoseSelectionStore.setState({ excludedPeople: {} });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.needsIndividualConfirmation).toBe(true);
+  await act(async () => hook.result.current.retry());
+  expect(mock.save).not.toHaveBeenCalled();
+  act(() => hook.result.current.confirmIndividual());
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.download).not.toHaveBeenCalled();
+  expect(mock.save.mock.calls[0][0].files).toHaveLength(2);
+});
+it("unselected generation alternatives cannot disable the selected library scene", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    people: data.people.map((p) => ({
+      ...p,
+      candidates: [
+        ...p.candidates,
+        { id: "unselected", source: "generation", releaseAllowed: false },
+      ],
+    })),
+  });
+  usePoseSelectionStore.setState({ excludedPeople: {} });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.sceneOutputLabel).toBe("인물 2명 · FBX 파일 1개");
+  act(() => hook.result.current.chooseSceneMode("original-selection"));
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.download).toHaveBeenCalledTimes(1);
+});
+it("app/bar remount preserves the same partial consent; returning a changed choice requires a new one", async () => {
+  const { wrapper } = setup();
+  usePoseSelectionStore.setState({
+    selectedByPerson: { 0: "pick0" },
+    excludedPeople: { 1: "pick1" },
+  });
+  const app = renderHook(() => useSaveFlow("job"), { wrapper });
+  act(() => app.result.current.confirmPartial());
+  expect(app.result.current.needsPartialConfirmation).toBe(false);
+  app.unmount();
+  const bar = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(bar.result.current.needsPartialConfirmation).toBe(false);
+  act(() => usePoseSelectionStore.setState({ characterByPerson: { 0: "different" } }));
+  await waitFor(() => expect(bar.result.current.needsPartialConfirmation).toBe(true));
+  act(() => usePoseSelectionStore.setState({ characterByPerson: {} }));
+  expect(bar.result.current.needsPartialConfirmation).toBe(true);
 });
