@@ -24,7 +24,7 @@ import numpy as np
 
 # 0.7.2 / 0.3.4: pose surface correction only; the neutral computation is unchanged.
 MALE_RULES = ("standin-body-0.7.1", "standin-body-0.7.2")
-FEMALE_RULES = ("standin-female-body-0.3.3", "standin-female-body-0.3.4")
+FEMALE_RULES = ("standin-female-body-0.3.3", "standin-female-body-0.3.4", "standin-female-body-0.3.4.breast6")
 RULES = MALE_RULES + FEMALE_RULES
 PROTECT = ("Head", "Neck", "Hand", "Foot", "Toe")
 LIMBS = (("Arm", .48), ("ForeArm", .44), ("UpLeg", .40))  # muscle_refine_limb_fields order per side
@@ -141,6 +141,23 @@ def anatomy_layer(sb, m, s, c, out, weights, reference, AD, FA):
 
 
 def evaluate(sb, m, baked, c, rest_body):
+    if sb.VERSION != 'standin-female-body-0.3.4.breast6' or 0 <= c['breast_size'] <= 1:
+        return evaluate_legacy(sb, m, baked, c, rest_body)
+    previous = sb.BREAST_REFERENCE
+    try:
+        sb.BREAST_REFERENCE = True
+        reference = evaluate_legacy(sb, m, baked, c, rest_body)
+    finally:
+        sb.BREAST_REFERENCE = previous
+    F = baked['F']
+    small = max(0., -c['breast_size'])
+    large = max(0., c['breast_size'] - 1.)
+    delta = (F['D:BODY_BreastSmall']-F['D:BODY_BreastSmallReference'])*small + F['D:BODY_BreastExtended']*large
+    offset = sb.warp(baked['co']+delta, c, m)-sb.warp(baked['co'], c, m)
+    return sb.fold_guard(sb.source(), reference, reference+offset, max_iterations=20, max_rings=3)
+
+
+def evaluate_legacy(sb, m, baked, c, rest_body):
     """The app's computation, in numpy, on the baked data (+ the controller's warp/fold_guard)."""
     s = sb.source()
     co = baked["co"]

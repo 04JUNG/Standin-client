@@ -27,14 +27,20 @@ const LIMBS = [
 ] as const;
 const SIDES = ["Left", "Right"] as const;
 
-export function evaluateFemale033(runtime: ShapeRuntime, c: BlenderControls, out: Float32Array) {
+export function evaluateFemale033(
+  runtime: ShapeRuntime,
+  c: BlenderControls,
+  out: Float32Array,
+  mappings: typeof mappingsFemale022 = mappingsFemale022,
+  preciseOut?: Float64Array,
+) {
   const parent: Warp = (cc, points, o) => warpFemale022(runtime, cc, points, o);
   const warp = anatomyWarp(runtime, "female", parent);
   const normals = normalsBuffer(runtime);
   const n = out.length;
   // 끝까지 Float64(뒤집힘 판정이 Blender와 같게), 마지막에 out으로 옮긴다.
   const reference = warp(c, runtime.basis, new Float64Array(n));
-  const body = anatomy(runtime, warp, c, new Float64Array(n), reference, normals);
+  const body = anatomy(runtime, warp, c, new Float64Array(n), reference, normals, mappings);
   const V = runtime.header.vertexCount;
   const h175 = c.height_cm! / 175;
   const refNormals = () => faceNormals(runtime, reference, reference, normals);
@@ -52,6 +58,7 @@ export function evaluateFemale033(runtime: ShapeRuntime, c: BlenderControls, out
       new Float64Array(n),
       reference,
       normals,
+      mappings,
     );
     const added = new Float64Array(n);
     for (let i = 0; i < n; i++) added[i] = body[i]! - low[i]!;
@@ -154,6 +161,7 @@ export function evaluateFemale033(runtime: ShapeRuntime, c: BlenderControls, out
     for (let v = 0; v < V; v++) body[v * 3] += -Math.sign(basis[v * 3]!) * amount * pv[v]!;
     foldGuard(runtime, reference, body, refNormals(), 30, 6);
   }
+  preciseOut?.set(body);
   out.set(body);
   return out;
 }
@@ -166,8 +174,9 @@ function anatomy(
   out: Float64Array,
   reference: Float64Array,
   normals: Float64Array,
+  mappings: typeof mappingsFemale022,
 ) {
-  const weights = mappingsFemale022(runtime, c);
+  const weights = mappings(runtime, c);
   const coef = new Map<string, number>();
   for (const [name, w] of Object.entries(weights)) if (w !== 0) coef.set("D:" + name, w);
   const body = new Float64Array(out.length);

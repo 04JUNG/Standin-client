@@ -6,6 +6,7 @@ import { evaluateMale0610, MALE_0610 } from "./male0610";
 import { evaluateFemale022, FEMALE_022 } from "./female022";
 import { evaluateMale071, MALE_071, MALE_072 } from "./male071";
 import { evaluateFemale033, FEMALE_033, FEMALE_034 } from "./female033";
+import { evaluateFemale034Breast6, FEMALE_034_BREAST6 } from "./female034breast6";
 
 export type { BlenderControls } from "./common";
 
@@ -24,6 +25,7 @@ const EVALUATORS: Record<
   [FEMALE_033]: evaluateFemale033,
   [MALE_072]: evaluateMale071,
   [FEMALE_034]: evaluateFemale033,
+  [FEMALE_034_BREAST6]: evaluateFemale034Breast6,
 };
 export const SUPPORTED_RULES: ReadonlySet<string> = new Set(Object.keys(EVALUATORS));
 
