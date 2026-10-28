@@ -77,6 +77,7 @@ export const exportTauri: ExportService = {
           folder: input.folder,
           fileName: file.fileName,
           contentBase64: toBase64(file.content),
+          ...(file.sceneMetadata ? { sceneMetadata: file.sceneMetadata } : {}),
         });
         results.push(saved);
       } catch (err) {
