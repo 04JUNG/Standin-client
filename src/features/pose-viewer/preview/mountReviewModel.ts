@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { libraryPreviewMaterial, PREVIEW_BACKGROUND } from "./previewStyle";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { validateModel, validRotation, type CandidateModel } from "./modelContract";
+import { BodyOutlineRenderer } from "../outline/BodyOutlineRenderer";
 
 export type ReviewModel = {
   data: ArrayBuffer;
@@ -16,11 +17,12 @@ export type ReviewModel = {
   shapeSha256?: string | null;
 };
 
-/** Keep the validated surface on the GPU until review closes; draw only on resize. */
+/** Keep the validated surface on the GPU; redraw on resize or preview width changes. */
 export async function mountReviewModel(
   canvas: HTMLCanvasElement,
   model: ReviewModel,
   signal: AbortSignal,
+  outlineWidth = 0,
 ) {
   signal.throwIfAborted();
   const meta = validateModel(
@@ -44,8 +46,13 @@ export async function mountReviewModel(
   const { scene: body } = await loader.parseAsync(model.data, "");
   let renderer: THREE.WebGLRenderer | undefined;
   let observer: ResizeObserver | undefined;
+  let outline: BodyOutlineRenderer | undefined;
+  let disposed = false;
   const dispose = () => {
+    if (disposed) return;
+    disposed = true;
     observer?.disconnect();
+    outline?.dispose();
     body.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();
@@ -113,7 +120,10 @@ export async function mountReviewModel(
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
+    outline = new BodyOutlineRenderer(renderer);
+    outline.setWidth(body, outlineWidth);
     const draw = () => {
+      if (disposed) return;
       const width = Math.max(1, canvas.clientWidth),
         height = Math.max(1, canvas.clientHeight);
       const aspect = width / height;
@@ -123,12 +133,18 @@ export async function mountReviewModel(
       camera.bottom = -camera.top;
       camera.updateProjectionMatrix();
       renderer!.setSize(width, height, false);
-      renderer!.render(scene, camera);
+      outline!.render(scene, camera);
     };
     draw();
     observer = new ResizeObserver(draw);
     observer.observe(canvas);
-    return dispose;
+    return Object.assign(dispose, {
+      setOutlineWidth(width: number) {
+        if (disposed) return;
+        outline!.setWidth(body, width);
+        outline!.render(scene, camera);
+      },
+    });
   } catch (error) {
     dispose();
     throw error;

@@ -1,0 +1,33 @@
+{
+  "export": {
+    "format": "GLB",
+    "offSha256": "b028c04c4d06d0a40a26a3868dd545f63ffa93db4a3081677cd404cc5c2adfe9",
+    "onSha256": "b028c04c4d06d0a40a26a3868dd545f63ffa93db4a3081677cd404cc5c2adfe9",
+    "identical": true,
+    "bytes": [
+      1295268,
+      1295268
+    ],
+    "interpretation": "Preview render state is absent from this exported surface. This does not validate FBX or CSP import."
+  },
+  "rapid": {
+    "choice": {
+      "model": "male",
+      "pose": "standing",
+      "skin": "flesh-guide",
+      "angle": "front",
+      "detail": "full"
+    },
+    "meshName": "male-standing",
+    "errors": []
+  },
+  "integratedDpi": {
+    "normalizedAreas": [
+      5109.371241830339,
+      5107.468954248181
+    ],
+    "ratio": 0.99962768656022,
+    "method": "Sum of base-minus-outline luminance, normalized by DPR squared; includes antialias coverage."
+  },
+  "result": "PASS"
+}
