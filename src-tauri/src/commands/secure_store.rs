@@ -14,6 +14,7 @@ use keyring::{Entry, Error as KeyringError};
 use serde::Serialize;
 
 /// 키체인 항목 식별자. 앱마다 고유해야 하므로 번들 식별자와 같은 값을 쓴다.
+#[cfg(not(test))]
 const SERVICE: &str = match option_env!("STANDIN_KEYRING_SERVICE") {
     Some(service) => service,
     None => "app.standin.desktop",
@@ -21,6 +22,18 @@ const SERVICE: &str = match option_env!("STANDIN_KEYRING_SERVICE") {
 /// 이 서비스 안에서 refresh token을 가리키는 이름.
 const ACCOUNT: &str = "refresh_token";
 const INSTALLATION_ACCOUNT: &str = "installation_credentials";
+
+/// Native tests must never clear or overwrite the installed app's credentials.
+fn keyring_service() -> &'static str {
+    #[cfg(not(test))]
+    { SERVICE }
+    #[cfg(test)]
+    {
+        static TEST_SERVICE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        TEST_SERVICE.get_or_init(|| format!("app.standin.desktop.tests.{}", std::process::id())).as_str()
+    }
+}
+
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,11 +57,11 @@ pub fn get_installation_environment(app: tauri::AppHandle) -> InstallationEnviro
 }
 
 fn entry() -> Result<Entry, String> {
-    Entry::new(SERVICE, ACCOUNT).map_err(|_| "보안 저장소를 열 수 없습니다.".to_string())
+    Entry::new(keyring_service(), ACCOUNT).map_err(|_| "보안 저장소를 열 수 없습니다.".to_string())
 }
 
 fn installation_entry() -> Result<Entry, String> {
-    Entry::new(SERVICE, INSTALLATION_ACCOUNT)
+    Entry::new(keyring_service(), INSTALLATION_ACCOUNT)
         .map_err(|_| "설치 보안 저장소를 열 수 없습니다.".to_string())
 }
 
@@ -110,6 +123,13 @@ pub fn clear_secure_token() -> Result<(), String> {
 #[cfg(all(test, any(windows, target_os = "macos")))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tests_use_an_isolated_keyring_namespace() {
+        assert!(keyring_service().starts_with("app.standin.desktop.tests."));
+        assert_ne!(keyring_service(), "app.standin.desktop");
+        assert_ne!(keyring_service(), "app.standin.desktop.staging");
+    }
 
     /// keyring 백엔드가 살아 있는지 확인한다. 이 왕복이 깨지면 세션 복원이 통째로 죽는다.
     #[test]
