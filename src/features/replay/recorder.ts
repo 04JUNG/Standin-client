@@ -22,6 +22,7 @@ export function startRecorder() {
     inputAttemptId?: string;
     attemptId?: string;
     feature?: string;
+    screen?: string;
     failed?: boolean;
     saveState?: string;
   } = {};
@@ -46,7 +47,7 @@ export function startRecorder() {
     if (!stop || !replayActive()) return;
     if (tag === "input_started") {
       flush();
-      links = {};
+      links = { screen: links.screen };
     }
     if (jobId && links.jobId !== jobId) {
       flush();
@@ -87,6 +88,13 @@ export function startRecorder() {
       flush();
       surface = next;
       lastRoute = route;
+      links = {
+        ...links,
+        screen: route
+          .replace(/[a-f0-9-]{32,36}/gi, "job")
+          .replace(/[^a-zA-Z0-9_.:-]/g, "_")
+          .slice(0, 128),
+      };
     }
     if (!stop) {
       // Capture has its own restricted reconstruction. Its full desktop DOM is never serialized.

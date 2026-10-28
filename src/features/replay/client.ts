@@ -276,6 +276,7 @@ export function sendReplayEvents(
     inputAttemptId?: string;
     attemptId?: string;
     feature?: string;
+    screen?: string;
     failed?: boolean;
     saveState?: string;
   } = {},
@@ -311,6 +312,8 @@ export function sendReplayEvents(
         startedOffsetMs: offset(clean[0].timestamp),
         endedOffsetMs: offset(clean[clean.length - 1].timestamp),
         clock: sessionClock(),
+        failed: false,
+        saveState: "unknown",
         ...links,
       });
     })

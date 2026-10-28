@@ -146,5 +146,8 @@ export async function finishCaptureReplay(selection?: CropRect, file?: File) {
       },
     },
   ];
-  sendReplayEvents("capture", [...viewport, ...events], { inputAttemptId });
+  sendReplayEvents("capture", [...viewport, ...events], {
+    inputAttemptId,
+    screen: "capture_overlay",
+  });
 }
