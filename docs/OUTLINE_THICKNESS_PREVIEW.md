@@ -4,7 +4,7 @@
 
 ## 구현과 범위
 
-- `src/features/pose-viewer/outline/BodyOutlineRenderer.ts`: 기존 WebGLRenderer에 연결하는 추가 back-face pass. 화면 XY만 이동하고 실제 geometry·transform·rig·skin weights·morph 값을 변경하지 않는다. 원래 depth buffer로 가려진 표면을 거르고, 대상 body root에만 적용한다. 카드 선택/hover 테두리는 대상이 아니다.
+- `src/features/pose-viewer/outline/BodyOutlineRenderer.ts`: `stencil: true`인 WebGLRenderer에 연결하는 내부 보호 mask + back-face pass. 몸 안쪽의 음영/오목한 굴곡에는 선을 추가하지 않고 배경과 만나는 실루엣 밖에만 그린다. 화면 XY만 이동하고 실제 geometry·transform·rig·skin weights·morph 값을 변경하지 않는다. 원래 depth buffer로 가려진 표면을 거르고, 대상 body root에만 적용한다. 카드 선택/hover 테두리는 대상이 아니다.
 - `OutlineThicknessControl.tsx`: controlled 슬라이더, 현재 수치, 초기화. input change마다 반영하며 pointer 이벤트가 부모의 회전 동작을 시작하지 않는다.
 - `PersonOutlineSettings`: **뷰어/작업마다 한 인스턴스**. 인물 index별 독립 저장, 모델·스킨·포즈 변경에도 유지, 새 작업/로그아웃/뷰어 종료에서 clear. 세션/서버 영속화는 하지 않는다.
 - `ReviewModelPreview`에 기본 0인 optional `outlineWidth`를 추가했다. 변경 시 기존 GPU surface만 다시 그리며 모델 요청/파싱/재생성을 하지 않는다. `mountReviewModel`의 반환 dispose 함수는 `setOutlineWidth` 핸들도 제공한다. 기존 앱 화면의 조작 정책·저장/다운로드 계약은 바꾸지 않았다.
@@ -23,11 +23,13 @@
 - 기본 포즈 비교는 스킨 담당이 Blender full-weight 평가한 실제 정적 표면을 쓴다. `rig` 실험은 별도 rigged GLB를 쓴다. GLB의 4-component weight와 Blender 원본의 full-weight 표면이 완전히 같은 리타게팅 결과라고 주장하지 않는다.
 - 피부 PNG 4종과 원래 기본 재질을 함께 실제 적용했다. 이 PNG는 복사 시점의 **시안**이며 이후 스킨 담당의 수정본과 자동 동기화하지 않는다. 이번 작업에서 텍스처/UV/원본 모델/관절 제한은 만들거나 수정하지 않았다.
 
+아래 초기 4단계 이미지는 수정 전 렌더 기록이다. 최신 결과는 실루엣 전용 수정 비교를 따른다.
+
 ![같은 남성 모델 4단계](qa/outline-thickness-20261028/outline-comparison-male.png)
 ![여성 굽힘 포즈와 피부 시안](qa/outline-thickness-20261028/outline-comparison-female-bent-skin.png)
 ![손가락 확대](qa/outline-thickness-20261028/outline-comparison-rig-fingers.png)
 
-## 검사 결과
+## 초기 검사 결과 (실루엣 전용 수정 전)
 
 - Chrome headless / SwiftShader WebGL2, macOS host. 실제 Tauri WebView·Windows·CSP 실행은 검증하지 않았다.
 - 0은 direct renderer 결과와 PNG 픽셀 동일. 피부/geometry/weights/morph/bone matrix의 동일성과 원래 재질 참조를 검사했다. 4단계의 완전 검정 픽셀 수는 0, 59, 1332, 3532로 증가했다. 얇은 선의 안티앨리어싱 픽셀이 덜 검게 보이는 것은 raster coverage이며 alpha 값 변경이 아니다.
@@ -38,6 +40,18 @@
 - DPR 1/2의 base-minus-outline 통합 휘도 면적을 DPR²로 정규화한 비율 0.99963. zoom 0.7/1/3 렌더 확인. 추가적인 물리 모니터 혼합 DPI와 Tauri 실기는 남았다.
 - typecheck, lint, build, 프리뷰 별도 strict typecheck 통과. lint는 기존 `BodyCandidates.tsx` fast-refresh 경고 1건. 최신 develop `711f18eb57447d66bd008a91f923ba409fb80ecf` 위에서 전체 테스트 1,234 통과 / 1 skip. Node 26 기본 실행은 기존 Zustand localStorage 테스트 99개가 환경 충돌로 실패했으며, bundled Node 24의 `--no-experimental-webstorage`로 전체 통과했다. 테스트/설정 코드를 우회 수정하지 않았다.
 - 상세 수치는 `qa/outline-thickness-20261028/*qa.json`에 있다.
+
+## 실루엣 전용 수정 검수
+
+몸 안쪽의 오목한 표면에 back-face 외곽선이 노출되던 문제를 해결했다. 색상을 쓰지 않는 원래 표면 mask를 stencil에 먼저 기록하고, 그 영역 밖에서만 검정 외곽선을 그린다. 따라서 음영 대비나 normal 변화로 선을 추출하지 않는다. 실제 손가락 사이 등 배경이 보이는 틈의 경계는 유지한다. 0은 여전히 기본 render 한 번이고, 나머지는 base → interior mask → exterior outline 세 번이다.
+
+호출자는 renderer를 `new THREE.WebGLRenderer({ stencil: true, ... })`로 생성해야 한다. 이 모듈은 기본 framebuffer의 stencil을 사용/초기화하므로 다른 stencil 효과와 공유하지 않는다. 부족한 컨텍스트에서 조용히 내부 선이 있는 방식으로 폴백하지 않는다. 앱 기존 리뷰 및 독립 뷰어에 이 생성 옵션을 연결했다. 슬라이더 변경에 컨텍스트 재생성은 없다. mask/outline 재질 모두 교체·disable·dispose에서 정리한다.
+
+![수정 전후 같은 2px 렌더](qa/outline-thickness-20261028/outline-silhouette-only-comparison.png)
+
+수정 후 남녀·4방향·3포즈·피부 시안·DPR 1/2와 3단계 활성 선폭에서 총 62개 실제 WebGL 검사를 통과했다. 원래 색 배경과 magenta 배경에서 동일한 색을 갖는 완전 피복 인체 픽셀을 추출하고 1 physical pixel을 추가 침식해 anti-alias 경계를 제외한 뒤, 선폭 0과 활성 선폭의 RGB를 비교했다. **모든 검사에서 내부 픽셀 변화 0**, 경계에는 실제 변화가 있었다. 같은 남성 DPR2 프레임의 내부 168,067 픽셀에서, 수정 전 검은 자국은 2,265 픽셀을 바꿨고 수정 후에는 0이었다. renderer stencil 옵션을 켜기 전/후에도 선폭 0의 원래 이미지는 픽셀 동일했다.
+
+상세는 `qa/outline-thickness-20261028/outline-silhouette-only-qa.json`. 기존 `outline-qa.json`과 `outline-export-and-dpi-qa.json`은 초기 방식의 수치 기록이며, 수정 후 GPU program 수를 뜻하지 않는다. 수정 후 내부 보호 및 mask 재질 수명·예외 복원 테스트, 전체 1,234 tests / 1 skip, typecheck/lint/build와 프리뷰 strict typecheck를 통과했다. 열려 있던 프리뷰도 2 px로 새로고침해 직접 확인했다.
 
 ## FBX / CSP 경계와 후속
 

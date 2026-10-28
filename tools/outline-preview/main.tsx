@@ -82,7 +82,7 @@ export default function App() {
         <div>
           <p className="eyebrow">BODY OUTLINE STUDY</p>
           <h1>외곽선 두께</h1>
-          <p>슬라이더를 오른쪽으로 움직이면 인체의 검정 외곽선이 두꺼워집니다.</p>
+          <p>슬라이더를 오른쪽으로 움직이면 인체 바깥 테두리만 두꺼워집니다.</p>
         </div>
         <div className="rule">
           <span>BLACK</span>

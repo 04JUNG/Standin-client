@@ -8,10 +8,13 @@ function setup() {
   scene.background = new THREE.Color("white");
   const camera = new THREE.PerspectiveCamera();
   const observed: { width: number; alpha: number; material: THREE.ShaderMaterial }[] = [];
+  const masks: THREE.ShaderMaterial[] = [];
   let fail = false;
   const renderer = {
     autoClear: true,
     shadowMap: { enabled: true },
+    getContext: () => ({ getContextAttributes: () => ({ stencil: true }) }),
+    clearStencil: vi.fn(),
     getViewport: (v: THREE.Vector4) => v.set(0, 0, 400, 600),
     render: vi.fn(() => {
       scene.traverse((o) => {
@@ -26,6 +29,10 @@ function setup() {
             material,
             null!,
           );
+          if (!material.colorWrite) {
+            masks.push(material);
+            return;
+          }
           observed.push({
             width: material.uniforms.outlineWidth.value,
             alpha: material.opacity,
@@ -43,6 +50,7 @@ function setup() {
     renderer,
     pass,
     observed,
+    masks,
     failNextOutline: () => {
       fail = true;
     },
@@ -60,6 +68,7 @@ describe("body outline lifetime and render boundary", () => {
     t.pass.render(t.scene, t.camera);
     expect(t.renderer.render).toHaveBeenCalledTimes(1);
     expect(t.observed).toHaveLength(0);
+    expect(t.renderer.clearStencil).not.toHaveBeenCalled();
     expect(mesh.material).toBe(material);
     expect(mesh.geometry).toBe(geometry);
   });
@@ -77,6 +86,18 @@ describe("body outline lifetime and render boundary", () => {
     t.pass.setWidth(a, 0.65);
     t.pass.setWidth(b, 2);
     t.pass.render(t.scene, t.camera);
+    expect(t.renderer.render).toHaveBeenCalledTimes(3);
+    expect(t.renderer.clearStencil).toHaveBeenCalledTimes(2);
+    expect(t.masks).toHaveLength(2);
+    for (const mask of t.masks) {
+      expect(mask.colorWrite).toBe(false);
+      expect(mask.depthWrite).toBe(false);
+      expect(mask.stencilFunc).toBe(THREE.AlwaysStencilFunc);
+      expect(mask.stencilZPass).toBe(THREE.ReplaceStencilOp);
+      expect(mask.uniforms.outlineWidth.value).toBe(0);
+    }
+    expect(t.observed[0].material.stencilFunc).toBe(THREE.NotEqualStencilFunc);
+    expect(t.observed[0].material.stencilWriteMask).toBe(0);
     expect(t.observed.map((v) => v.width)).toEqual([0.65, 2]);
     expect(t.observed.map((v) => v.alpha)).toEqual([1, 1]);
     expect(t.observed[0].material.fragmentShader).toContain("vec4(0.0, 0.0, 0.0, 1.0)");
@@ -106,6 +127,7 @@ describe("body outline lifetime and render boundary", () => {
     expect(other.visible).toBe(true);
     expect(t.scene.background).toBe(background);
     expect(t.renderer.autoClear).toBe(true);
+    expect(t.renderer.clearStencil).toHaveBeenCalledTimes(2);
   });
 
   it("disposes stale outline materials after skin replacement and on disable/dispose", () => {
@@ -116,13 +138,17 @@ describe("body outline lifetime and render boundary", () => {
     t.pass.setWidth(mesh, 1);
     t.pass.render(t.scene, t.camera);
     const first = vi.spyOn(t.observed[0].material, "dispose");
+    const firstMask = vi.spyOn(t.masks[0], "dispose");
     mesh.material = new THREE.MeshStandardMaterial();
     t.pass.render(t.scene, t.camera);
     expect(first).toHaveBeenCalledTimes(1);
+    expect(firstMask).toHaveBeenCalledTimes(1);
     const second = vi.spyOn(t.observed[1].material, "dispose");
+    const secondMask = vi.spyOn(t.masks[1], "dispose");
     t.pass.setWidth(mesh, 0);
     t.pass.render(t.scene, t.camera);
     expect(second).toHaveBeenCalledTimes(1);
+    expect(secondMask).toHaveBeenCalledTimes(1);
     t.pass.dispose();
     t.pass.dispose();
     expect(sourceDispose).not.toHaveBeenCalled();

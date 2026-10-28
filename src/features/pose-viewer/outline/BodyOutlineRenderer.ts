@@ -52,7 +52,9 @@ type Surface = THREE.Material &
   >;
 
 /**
- * Opaque body silhouette pass for the current WebGL renderer (default framebuffer).
+ * Exterior-only body silhouette pass (default framebuffer, renderer stencil: true).
+ * Uses a colorless body mask to exclude all surface interiors, regardless of shading.
+ * Owns/clears the default stencil buffer while active; do not share it with another pass.
  * Call render instead of renderer.render; setWidth only changes render settings.
  * Supply the body root, not card borders, helpers or the whole scene.
  * Source materials are borrowed, restored in finally, and never disposed here.
@@ -60,6 +62,7 @@ type Surface = THREE.Material &
 export class BodyOutlineRenderer {
   private widths = new Map<THREE.Object3D, number>();
   private materials = new Map<THREE.Material, THREE.ShaderMaterial>();
+  private masks = new Map<THREE.Material, THREE.ShaderMaterial>();
   private viewport = new THREE.Vector4();
   private disposed = false;
 
@@ -85,28 +88,36 @@ export class BodyOutlineRenderer {
     return 0;
   }
 
-  private materialFor(source: Surface) {
-    let material = this.materials.get(source);
+  private materialFor(source: Surface, mask = false) {
+    const cache = mask ? this.masks : this.materials;
+    let material = cache.get(source);
     if (!material) {
       material = new THREE.ShaderMaterial({
-        name: "Standin body outline",
+        name: mask ? "Standin body interior mask" : "Standin exterior outline",
         vertexShader,
         fragmentShader,
         uniforms: THREE.UniformsUtils.merge([
           THREE.UniformsLib.displacementmap,
           { outlineWidth: { value: 0 }, outlineViewport: { value: new THREE.Vector2() } },
         ]),
-        side: THREE.BackSide,
-        depthTest: true,
+        side: mask ? source.side : THREE.BackSide,
+        colorWrite: !mask,
+        depthTest: !mask,
         depthWrite: false,
         transparent: false,
         opacity: 1,
         toneMapped: false,
         clipping: true,
+        stencilWrite: true,
+        stencilRef: 1,
+        stencilFunc: mask ? THREE.AlwaysStencilFunc : THREE.NotEqualStencilFunc,
+        stencilWriteMask: mask ? 0xff : 0,
+        stencilZPass: mask ? THREE.ReplaceStencilOp : THREE.KeepStencilOp,
       });
-      this.materials.set(source, material);
+      cache.set(source, material);
     }
     material.visible = source.visible;
+    material.side = mask ? source.side : THREE.BackSide;
     material.clippingPlanes = source.clippingPlanes;
     material.clipIntersection = source.clipIntersection;
     const hadDisplacement = Boolean(material.uniforms.displacementMap.value);
@@ -123,11 +134,18 @@ export class BodyOutlineRenderer {
     this.renderer.render(scene, camera);
     const used = new Set<THREE.Material>();
     const restore: (() => void)[] = [];
+    const outlineMeshes: (() => void)[] = [];
+    let stencilUsed = false;
     const { background, overrideMaterial, matrixWorldAutoUpdate } = scene;
     const { autoClear } = this.renderer;
     const shadows = this.renderer.shadowMap.enabled;
     try {
       if (!this.widths.size) return;
+      if (!this.renderer.getContext().getContextAttributes()?.stencil) {
+        throw new Error("Body outlines require WebGLRenderer({ stencil: true })");
+      }
+      stencilUsed = true;
+      this.renderer.clearStencil();
       this.renderer.getViewport(this.viewport);
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
@@ -144,15 +162,18 @@ export class BodyOutlineRenderer {
             object.visible = false;
             return;
           }
-          const convert = (m: THREE.Material) => {
-            used.add(m);
-            const outline = this.materialFor(m);
-            return outline;
+          const convert = (mask: boolean) => {
+            const material = (m: THREE.Material) => {
+              used.add(m);
+              return this.materialFor(m, mask);
+            };
+            object.material = Array.isArray(source) ? source.map(material) : material(source);
           };
-          object.material = Array.isArray(source) ? source.map(convert) : convert(source);
+          convert(true);
+          outlineMeshes.push(() => convert(false));
           object.onBeforeRender = (_r, _s, _c, _g, material) => {
             const outline = material as THREE.ShaderMaterial;
-            outline.uniforms.outlineWidth.value = width;
+            outline.uniforms.outlineWidth.value = outline.colorWrite ? width : 0;
             outline.uniforms.outlineViewport.value.set(this.viewport.z, this.viewport.w);
             // People may share a skin/material but have different outline widths.
             outline.uniformsNeedUpdate = true;
@@ -174,6 +195,9 @@ export class BodyOutlineRenderer {
       scene.matrixWorldAutoUpdate = false;
       this.renderer.autoClear = false;
       this.renderer.shadowMap.enabled = false;
+      // First mark the unexpanded surface. Only pixels outside this mask may receive ink.
+      this.renderer.render(scene, camera);
+      for (const swap of outlineMeshes) swap();
       this.renderer.render(scene, camera);
     } finally {
       for (const reset of restore) reset();
@@ -182,18 +206,23 @@ export class BodyOutlineRenderer {
       scene.matrixWorldAutoUpdate = matrixWorldAutoUpdate;
       this.renderer.autoClear = autoClear;
       this.renderer.shadowMap.enabled = shadows;
-      for (const [source, material] of this.materials) {
-        if (!used.has(source)) {
-          material.dispose();
-          this.materials.delete(source);
+      if (stencilUsed) this.renderer.clearStencil();
+      for (const cache of [this.materials, this.masks]) {
+        for (const [source, material] of cache) {
+          if (!used.has(source)) {
+            material.dispose();
+            cache.delete(source);
+          }
         }
       }
     }
   }
 
   dispose() {
-    for (const material of this.materials.values()) material.dispose();
-    this.materials.clear();
+    for (const cache of [this.materials, this.masks]) {
+      for (const material of cache.values()) material.dispose();
+      cache.clear();
+    }
     this.widths.clear();
     this.disposed = true;
   }

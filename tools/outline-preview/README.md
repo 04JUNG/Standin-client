@@ -21,3 +21,5 @@ node_modules/.bin/tsc --noEmit --strict --skipLibCheck --target ES2020 --module 
 ```
 
 See `docs/OUTLINE_THICKNESS_PREVIEW.md` for verified scope, actual screenshots, settings ownership, model provenance, and the FBX/CSP boundary.
+
+The body outline uses a colorless stencil mask to preserve all body shading and draw ink only outside the projected surface. Callers must create `WebGLRenderer({ stencil: true })`; this pass owns the default stencil buffer. Current correction evidence: `docs/qa/outline-thickness-20261028/outline-silhouette-only-qa.json`. Earlier QA JSON files describe the initial pass.

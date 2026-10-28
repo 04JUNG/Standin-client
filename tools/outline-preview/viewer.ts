@@ -49,6 +49,7 @@ export class OutlineViewer {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
+      stencil: true,
       preserveDrawingBuffer: true,
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));

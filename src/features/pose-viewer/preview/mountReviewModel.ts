@@ -116,7 +116,7 @@ export async function mountReviewModel(
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(PREVIEW_BACKGROUND);
     scene.add(body);
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, stencil: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
