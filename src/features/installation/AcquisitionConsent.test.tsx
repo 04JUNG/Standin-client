@@ -29,13 +29,13 @@ describe("optional acquisition consent", () => {
       return stop;
     });
     vi.mocked(getCurrent).mockResolvedValue([
-      "standin-dev://campaign?source=instagram&campaign=open-beta&creative=meta-poster-a",
+      "standin-dev://campaign/?source=instagram&campaign=open-beta&creative=meta-poster-a",
     ]);
     const view = render(<AcquisitionConsent />);
     await waitFor(() => expect(useAcquisitionStore.getState().pending).toBe("meta-poster-a"));
     expect(apiFetch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "연결하지 않고 계속" }));
-    receive?.(["standin-dev://campaign?source=instagram&campaign=open-beta&creative=meta-hook-a"]);
+    receive?.(["standin-dev://campaign/?source=instagram&campaign=open-beta&creative=meta-hook-a"]);
     await waitFor(() => expect(useAcquisitionStore.getState().pending).toBe("meta-hook-a"));
     expect(apiFetch).not.toHaveBeenCalled();
     view.unmount();
