@@ -5,20 +5,72 @@ import { useAcquisitionStore } from "./acquisitionStore";
 import { apiFetch } from "@/shared/api/client";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
+import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: vi.fn(() => false) }));
 vi.mock("@tauri-apps/plugin-deep-link", () => ({ getCurrent: vi.fn(), onOpenUrl: vi.fn() }));
 vi.mock("@/shared/api/client", () => ({ apiFetch: vi.fn() }));
 vi.mock("./installationStore", () => ({
   useInstallationStore: (selector: (state: { status: string }) => unknown) =>
-    selector({ status: "registered" }),
+    selector({ status: "registered", credentials: { installationId: "test-install" } } as {
+      status: string;
+    }),
 }));
 beforeEach(() => {
   cleanup();
   vi.mocked(isTauri).mockReturnValue(false);
   vi.mocked(apiFetch).mockReset();
+  useAcquisitionChoiceStore.getState().reset();
   useAcquisitionStore.setState({ pending: "meta-poster-a" });
 });
 describe("optional acquisition consent", () => {
+  it("uses an explicit onboarding choice without a second dialog", async () => {
+    useAcquisitionChoiceStore.getState().record("test-install", true);
+    vi.mocked(apiFetch).mockResolvedValue({ creative: "meta-poster-a" });
+    render(<AcquisitionConsent />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledTimes(1));
+    expect(useAcquisitionStore.getState().pending).toBeNull();
+  });
+  it("does not ask or send when onboarding choice was denied", async () => {
+    useAcquisitionChoiceStore.getState().record("test-install", false);
+    render(<AcquisitionConsent />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(useAcquisitionStore.getState().pending).toBeNull());
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+  it("does not reuse consent from a different installation", () => {
+    useAcquisitionChoiceStore.getState().record("other-install", true);
+    render(<AcquisitionConsent />);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+  it("withdrawal waits for a pending automatic POST then deletes the link", async () => {
+    let resolvePost!: (value: unknown) => void;
+    useAcquisitionChoiceStore.getState().record("test-install", true);
+    vi.mocked(apiFetch).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePost = resolve;
+        }),
+    );
+    render(
+      <>
+        <AcquisitionConsent />
+        <AcquisitionSettings />
+      </>,
+    );
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "광고 유입 연결 해제" }));
+    expect(useAcquisitionChoiceStore.getState().mode("test-install")).toBe("deny");
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    vi.mocked(apiFetch).mockResolvedValueOnce({ creative: null });
+    resolvePost({ creative: "meta-poster-a" });
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledTimes(2));
+    expect(apiFetch).toHaveBeenLastCalledWith("/v1/installations/current/acquisition", {
+      method: "DELETE",
+      auth: false,
+    });
+  });
   it("receives cold and warm native links without sending before consent, and unsubscribes", async () => {
     vi.mocked(isTauri).mockReturnValue(true);
     useAcquisitionStore.setState({ pending: null });

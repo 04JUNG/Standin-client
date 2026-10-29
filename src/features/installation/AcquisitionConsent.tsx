@@ -5,13 +5,39 @@ import { Modal } from "@/shared/components/Modal";
 import { Button } from "@/shared/components/Button";
 import { useInstallationStore } from "./installationStore";
 import { useAcquisitionStore } from "./acquisitionStore";
+import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
 
 const endpoint = "/v1/installations/current/acquisition";
+let automaticLink: Promise<void> = Promise.resolve();
 export function AcquisitionConsent() {
   const { pending, clear } = useAcquisitionStore();
   const status = useInstallationStore((s) => s.status);
+  const installationId = useInstallationStore((s) => s.credentials?.installationId);
+  const choices = useAcquisitionChoiceStore();
+  const mode = choices.mode(installationId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!pending || status !== "registered" || mode === "unset") return;
+    clear();
+    if (mode === "deny") return;
+    automaticLink = automaticLink
+      .then(async () => {
+        if (useAcquisitionChoiceStore.getState().mode(installationId) !== "allow") return;
+        await apiFetch(endpoint, {
+          method: "POST",
+          auth: false,
+          body: { creative: pending, version: "2026-10-29", consent: true },
+        });
+        useAcquisitionChoiceStore.setState({ error: "" });
+      })
+      .catch(() => {
+        useAcquisitionChoiceStore.setState({
+          error:
+            "광고 연결을 완료하지 못했습니다. 첫 실행 24시간 이내의 새 설치만 연결할 수 있습니다. 앱 이용은 계속할 수 있습니다.",
+        });
+      });
+  }, [pending, status, mode, clear, installationId]);
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
@@ -48,6 +74,7 @@ export function AcquisitionConsent() {
         auth: false,
         body: { creative: pending, version: "2026-10-29", consent: true },
       });
+      if (installationId) choices.record(installationId, true);
       clear();
     } catch {
       setError(
@@ -59,7 +86,7 @@ export function AcquisitionConsent() {
   }
   return (
     <Modal
-      open={Boolean(pending) && status === "registered"}
+      open={Boolean(pending) && status === "registered" && mode === "unset"}
       onClose={() => {
         if (!busy) {
           clear();
@@ -91,6 +118,7 @@ export function AcquisitionConsent() {
           variant="secondary"
           disabled={busy}
           onClick={() => {
+            if (installationId) choices.record(installationId, false);
             clear();
             setError("");
           }}
@@ -105,12 +133,18 @@ export function AcquisitionConsent() {
   );
 }
 export function AcquisitionSettings() {
+  const installationId = useInstallationStore((s) => s.credentials?.installationId);
+  const choices = useAcquisitionChoiceStore();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   async function revoke() {
     setBusy(true);
     setMessage("");
+    if (installationId) choices.record(installationId, false);
+    useAcquisitionStore.getState().clear();
     try {
+      // Finish an already-authorized handoff before deleting, so a late POST cannot restore it.
+      await automaticLink;
       await apiFetch(endpoint, { method: "DELETE", auth: false });
       useAcquisitionStore.getState().clear();
       setMessage("광고와 이 설치의 연결을 해제했습니다.");
@@ -124,9 +158,14 @@ export function AcquisitionSettings() {
     <section>
       <h2 className="text-[15px] font-bold text-text-primary">광고 유입 측정</h2>
       <p className="my-3 text-sm text-text-secondary">
-        앱 열기 링크에서 별도로 동의한 광고 연결만 해제합니다. 앱과 작업 기록은 계속 이용할 수
-        있습니다.
+        첫 실행 화면 또는 앱 열기 안내에서 선택한 광고 연결을 해제합니다. 앱과 작업 기록은 계속
+        이용할 수 있습니다.
       </p>
+      {choices.error && (
+        <p role="alert" className="my-3 text-sm text-brand-coral">
+          {choices.error}
+        </p>
+      )}
       <Button variant="secondary" disabled={busy} onClick={() => void revoke()}>
         광고 유입 연결 해제
       </Button>

@@ -6,6 +6,7 @@ import { messageOf } from "@/shared/api/errors";
 import { env } from "@/shared/lib/env";
 import { installationStorage, type InstallationCredentials } from "./installationStorage";
 import { resetAnalyticsQueue } from "@/features/analytics/analyticsClient";
+import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
 
 import {
   useQualityConsentStore,
@@ -27,7 +28,7 @@ interface InstallationState {
   credentials: InstallationCredentials | null;
   error: string | null;
   initialize(): Promise<void>;
-  register(quality?: QualityChoices): Promise<void>;
+  register(quality?: QualityChoices, acquisition?: boolean): Promise<void>;
   withdraw(): Promise<void>;
 }
 
@@ -93,7 +94,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
       });
     }
   },
-  async register(quality = { personalData: false, contentLicense: false }) {
+  async register(quality = { personalData: false, contentLicense: false }, acquisition) {
     useQualityConsentStore.getState().reset();
     set({ status: "initializing", error: null });
     try {
@@ -135,6 +136,8 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
         consentVersion: CONSENT_VERSION,
       };
       await installationStorage.set(credentials);
+      if (acquisition !== undefined)
+        useAcquisitionChoiceStore.getState().record(credentials.installationId, acquisition);
       setInstallationCredentials(credentials);
       // Older servers leave review disabled; basic access remains available.
       try {
@@ -176,6 +179,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
       set({ error: "보안 저장소를 정리하지 못했습니다. 앱을 다시 시작해 주세요." });
     }
     resetAnalyticsQueue();
+    useAcquisitionChoiceStore.getState().reset();
     setInstallationCredentials(null);
     set({ status: "consent_required", credentials: null });
   },
