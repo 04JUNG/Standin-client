@@ -8,6 +8,7 @@ import { QualityConsentFields } from "./QualityConsentFields";
 import type { QualityChoices } from "./qualityConsentStore";
 import { env } from "@/shared/lib/env";
 import { openExternal } from "@/shared/lib/openExternal";
+import { AcquisitionConsentFields } from "./AcquisitionConsentFields";
 
 export function BetaConsentPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export function BetaConsentPage() {
   const error = useInstallationStore((state) => state.error);
   const register = useInstallationStore((state) => state.register);
   const [accepted, setAccepted] = useState(false);
+  const [acquisition, setAcquisition] = useState(false);
   const [quality, setQuality] = useState<QualityChoices>({
     personalData: false,
     contentLicense: false,
@@ -22,8 +24,16 @@ export function BetaConsentPage() {
 
   if (status === "registered") return <Navigate to="/app/home" replace />;
 
-  async function submit() {
-    await register(quality);
+  async function submit(all = false) {
+    if (all) {
+      setAccepted(true);
+      setQuality({ personalData: true, contentLicense: true });
+      setAcquisition(true);
+    }
+    await register(
+      all ? { personalData: true, contentLicense: true } : quality,
+      all || acquisition,
+    );
     if (useInstallationStore.getState().status !== "registered") return;
 
     // macOS 화면 기록 권한은 켠 뒤 앱을 다시 실행해야 반영된다. 첫 캡처 시점에 요구하면
@@ -85,18 +95,34 @@ export function BetaConsentPage() {
             disabled={status === "initializing"}
           />
         </div>
+        <div className="mt-5">
+          <AcquisitionConsentFields
+            value={acquisition}
+            onChange={setAcquisition}
+            disabled={status === "initializing"}
+          />
+        </div>
         {error && (
           <p role="alert" className="mt-3 text-sm text-brand-coral">
             {error}
           </p>
         )}
         <div className="mt-6 flex flex-col gap-2">
+          <p className="mb-2 text-sm leading-6 text-text-secondary">
+            전체 동의에는 필수 약관과 선택 항목인 품질 검토용 개인정보·원고 이용, 광고 유입·사용
+            통계가 모두 포함됩니다. 필수 항목만 체크하고 아래 ‘선택한 항목만 동의하고 시작’을 눌러도
+            동일한 기본 기능을 이용할 수 있습니다.
+          </p>
+          <Button size="lg" disabled={status === "initializing"} onClick={() => void submit(true)}>
+            전체 동의하고 시작
+          </Button>
           <Button
+            variant="secondary"
             size="lg"
             disabled={!accepted || status === "initializing"}
             onClick={() => void submit()}
           >
-            {status === "initializing" ? "등록 중…" : "베타 시작"}
+            {status === "initializing" ? "등록 중…" : "선택한 항목만 동의하고 시작"}
           </Button>
           <Button variant="ghost" size="md" onClick={decline}>
             종료

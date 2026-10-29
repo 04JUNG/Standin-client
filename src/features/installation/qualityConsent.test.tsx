@@ -8,6 +8,7 @@ import { useInstallationStore, CONSENT_VERSION } from "./installationStore";
 import { useQualityConsentStore, NO_QUALITY_CONSENT } from "./qualityConsentStore";
 import { BetaConsentPage } from "./BetaConsentPage";
 import { QualityConsentSection } from "./QualityConsentSection";
+import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
 
 vi.mock("@/shared/api/client", () => ({ apiFetch: vi.fn(), setInstallationCredentials: vi.fn() }));
 vi.mock("./installationStorage", () => ({
@@ -32,6 +33,7 @@ const fetchMock = vi.mocked(apiFetch);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useAcquisitionChoiceStore.getState().reset();
   useQualityConsentStore.getState().reset();
   useInstallationStore.setState({ status: "consent_required", credentials: null, error: null });
 });
@@ -46,10 +48,10 @@ describe("optional quality consent", () => {
     );
     const checks = screen.getAllByRole("checkbox");
     checks.forEach((check) => expect(check).not.toBeChecked());
-    expect(screen.getByRole("button", { name: "베타 시작" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "선택한 항목만 동의하고 시작" })).toBeDisabled();
     await userEvent.click(checks[0]);
-    expect(screen.getByRole("button", { name: "베타 시작" })).toBeEnabled();
-    await userEvent.click(screen.getByRole("button", { name: "베타 시작" }));
+    expect(screen.getByRole("button", { name: "선택한 항목만 동의하고 시작" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "선택한 항목만 동의하고 시작" }));
     await waitFor(() => expect(useInstallationStore.getState().status).toBe("registered"));
     expect(fetchMock).toHaveBeenCalledWith(
       "/v1/installations",
@@ -64,6 +66,59 @@ describe("optional quality consent", () => {
       }),
     );
     expect(installationStorage.set).toHaveBeenCalledWith(credentials);
+    expect(useAcquisitionChoiceStore.getState().mode(credentials.installationId)).toBe("deny");
+  });
+  it("the explicitly labeled all-consent action grants both optional categories", async () => {
+    fetchMock.mockResolvedValue({ ...credentials, qualityConsent: granted });
+    render(
+      <MemoryRouter>
+        <BetaConsentPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/전체 동의에는 필수 약관과 선택 항목/)).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "전체 동의하고 시작" }));
+    await waitFor(() => expect(useInstallationStore.getState().status).toBe("registered"));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/v1/installations",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          qualityConsent: { version: "2026-10-19", personalData: true, contentLicense: true },
+        }),
+      }),
+    );
+    expect(useAcquisitionChoiceStore.getState().mode(credentials.installationId)).toBe("allow");
+  });
+  it("selected consent can allow attribution without granting manuscript review", async () => {
+    fetchMock.mockResolvedValue({ ...credentials, qualityConsent: NO_QUALITY_CONSENT });
+    render(
+      <MemoryRouter>
+        <BetaConsentPage />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /필수/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /광고 유입·사용 통계 수집/ }));
+    await userEvent.click(screen.getByRole("button", { name: "선택한 항목만 동의하고 시작" }));
+    await waitFor(() => expect(useInstallationStore.getState().status).toBe("registered"));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/v1/installations",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          qualityConsent: { version: "2026-10-19", personalData: false, contentLicense: false },
+        }),
+      }),
+    );
+    expect(useAcquisitionChoiceStore.getState().mode(credentials.installationId)).toBe("allow");
+  });
+  it("a failed registration does not persist an all-consent choice", async () => {
+    fetchMock.mockRejectedValue(new Error("offline"));
+    render(
+      <MemoryRouter>
+        <BetaConsentPage />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "전체 동의하고 시작" }));
+    await waitFor(() => expect(useInstallationStore.getState().error).not.toBeNull());
+    expect(useAcquisitionChoiceStore.getState().choice).toBeNull();
   });
 
   it("existing installations keep their identity and basic access if consent lookup is unavailable", async () => {
