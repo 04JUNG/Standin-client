@@ -165,6 +165,7 @@ async function resolvePoseBytes(
  */
 export function useSaveFlow(jobId: string | undefined) {
   const queryClient = useQueryClient();
+  const [savedSceneManifest, setSavedSceneManifest] = useState<SceneManifest>();
   const draft = useUploadStore((s) => s.draft);
   const clearDraft = useUploadStore((s) => s.clearDraft);
   const excludedPeople = usePoseSelectionStore((s) => s.excludedPeople);
@@ -906,6 +907,7 @@ export function useSaveFlow(jobId: string | undefined) {
         );
         rememberDownload(id, binding);
         if (useExportStore.getState().jobId !== id) return;
+        setSavedSceneManifest(sceneMetadata);
         const paths = results.map((r) => r.path);
         if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
         else setSaved(paths);
@@ -1111,6 +1113,7 @@ export function useSaveFlow(jobId: string | undefined) {
 
   /** 저장을 마치고 새 장면을 시작한다. 목적지는 호출부가 정한다. */
   function newScene() {
+    setSavedSceneManifest(undefined);
     reset();
     clearSelection();
     clearDraft();
@@ -1127,6 +1130,7 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    savedSceneManifest,
     coverage,
     needsPartialConfirmation,
     needsIndividualConfirmation,

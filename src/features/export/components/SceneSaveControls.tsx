@@ -23,6 +23,7 @@ export function SceneSaveControls({
         returnToSelection={returnToSelection}
         saved={flow.status === "saved"}
         scene={!!flow.sceneOutputLabel}
+        camera={flow.savedSceneManifest?.camera}
       />
       {flow.sceneOutputLabel && (
         <p role="status" className="text-[12px] text-text-secondary">
