@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
+import { bodyDraftKey, useBodyDrafts } from "@/features/body-selection/bodyDrafts";
 import { Button } from "@/shared/components/Button";
 import { apiFetchResponse } from "@/shared/api/client";
 import { useInstallationStore } from "@/features/installation/installationStore";
@@ -73,7 +74,12 @@ function EnabledCspSaveButton({
     [],
   );
   const body = selected.data?.resolvedBody;
+  const changing = useIsMutating({ mutationKey: ["body-change", owner, jobId, personIndex] }) > 0;
+  const draftKey = bodyDraftKey(owner, jobId, personIndex);
+  const draftPending = useBodyDrafts((s) => s.pending[draftKey] === true);
   const supported =
+    !changing &&
+    !draftPending &&
     !!body &&
     characterIds.includes(body.characterId) &&
     selected.data?.resolutionStatus === "ready";
@@ -98,6 +104,7 @@ function EnabledCspSaveButton({
       control.signal.throwIfAborted();
       if (
         fresh.selectionRevision !== revision ||
+        useBodyDrafts.getState().pending[draftKey] ||
         usePoseSelectionStore.getState().selectedByPerson[personIndex] !== candidateId
       )
         throw new Error("selection changed");

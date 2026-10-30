@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import { BodyChip, BodyExpand } from "./BodyCandidates";
+import { bodyDraftKey, useBodyDrafts } from "./bodyDrafts";
 import type { BodyEntry } from "./hooks";
 import type { BodyPreferences, ShapeSpec } from "./contract";
 
@@ -148,6 +149,30 @@ it("saves a picked body without waiting for the previews", () => {
     { intent: "manual", characterId: "female-muscular" },
     expect.objectContaining({ onSuccess: expect.any(Function) }),
   );
+});
+
+it("marks unsaved sliders immediately and releases the save guard after persistence", () => {
+  vi.useFakeTimers();
+  try {
+    wrap(createElement(BodyExpand, { job: "job-debounce", person, entry, variant: "app" }));
+    const key = bodyDraftKey("panel-test", "job-debounce", 0);
+    fireEvent.change(screen.getAllByRole("slider")[0], { target: { value: "180" } });
+    expect(useBodyDrafts.getState().pending[key]).toBe(true);
+    expect(mutate).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(600);
+    expect(mutate).toHaveBeenCalledWith(
+      {
+        intent: "manual",
+        characterId: "female-base",
+        shape: { controls: { height: 180, muscle: 0 } },
+      },
+      expect.anything(),
+    );
+    mutate.mock.calls[0][1].onSettled();
+    expect(useBodyDrafts.getState().pending[key]).toBeUndefined();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("applies a saved body card (body and numbers at once) and has no 'my default' buttons", () => {
