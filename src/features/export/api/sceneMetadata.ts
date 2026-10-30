@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cameraRecipeSchema, validateSceneCamera } from "./sceneCamera";
 import { apiFetchResponse } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import type { SceneReference, SceneSaveMode } from "./scene";
@@ -55,16 +56,27 @@ export const sceneManifestSchema = z.object({
     partial: z.boolean(),
     confirmationRequired: z.boolean(),
   }),
-  // Current BFF has no verified camera transport. Unknown recipe contracts fail closed.
-  camera: z.object({
-    version: z.literal("scene-camera-v1"),
-    status: z.literal("unavailable"),
-    reason: z.string(),
-    recipe: z.null(),
-    applicationRequired: z.literal(true),
-    automaticApplication: z.literal("unsupported"),
-    cspValidation: z.literal("unverified"),
-  }),
+  camera: z.discriminatedUnion("status", [
+    z.object({
+      version: z.literal("scene-camera-v1"),
+      status: z.literal("unavailable"),
+      reason: z.string(),
+      recipe: z.null(),
+      applicationRequired: z.literal(true),
+      automaticApplication: z.literal("unsupported"),
+      cspValidation: z.literal("unverified"),
+    }),
+    z.object({
+      version: z.literal("scene-camera-v1"),
+      status: z.literal("available"),
+      reason: z.null(),
+      artifactSha256: sha,
+      recipe: cameraRecipeSchema,
+      applicationRequired: z.literal(true),
+      automaticApplication: z.literal("unsupported"),
+      cspValidation: z.literal("unverified"),
+    }),
+  ]),
 });
 export type SceneManifest = z.infer<typeof sceneManifestSchema>;
 const receiptSchema = z.object({
@@ -104,6 +116,18 @@ export function validateSceneManifest(
   const parsed = sceneManifestSchema.safeParse(value);
   if (!parsed.success) throw sceneIntegrity();
   const m = parsed.data;
+  if (m.camera.status === "available") {
+    if (!m.sourceImage.width || !m.sourceImage.height) throw sceneIntegrity();
+    validateSceneCamera(
+      {
+        version: "scene-camera-artifact-v1",
+        artifact_sha256: m.camera.artifactSha256,
+        recipe: m.camera.recipe,
+      },
+      expected.sha256,
+      { width: m.sourceImage.width, height: m.sourceImage.height },
+    );
+  }
   const p = m.people;
   const requested = expected.references.map((r) => r.personIndex);
   const missing = expected.detected.filter((id) => !requested.includes(id));
@@ -138,7 +162,11 @@ export function validateSceneManifest(
   return m;
 }
 export function manifestRequest(excluded: number[]) {
-  return { manifestVersion: SCENE_MANIFEST_VERSION, excludedPersonIds: excluded };
+  return {
+    manifestVersion: SCENE_MANIFEST_VERSION,
+    cameraContractVersion: "scene-camera-artifact-v1",
+    excludedPersonIds: excluded,
+  };
 }
 export function manifestRelease(manifest: SceneManifest, excluded: number[]) {
   return {
