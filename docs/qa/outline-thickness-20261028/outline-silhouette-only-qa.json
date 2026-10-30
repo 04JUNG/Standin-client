@@ -1,0 +1,659 @@
+{
+  "purpose": "Exterior-only outline: fully covered body pixels retain exact original shading",
+  "cases": [
+    {
+      "dpr": 1,
+      "model": "male",
+      "pose": "standing",
+      "skin": "default",
+      "angle": "front",
+      "width": 0.65,
+      "coveredInteriorPixels": 40031,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3549
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "pose": "standing",
+      "skin": "default",
+      "angle": "front",
+      "width": 1.2,
+      "coveredInteriorPixels": 40031,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 4965
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "pose": "standing",
+      "skin": "default",
+      "angle": "front",
+      "width": 2,
+      "coveredInteriorPixels": 40031,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 6989
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "front",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 40031,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 6989
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "front",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 37311,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5748
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "front",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 31381,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5417
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "quarter",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 39921,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5614
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "quarter",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 37719,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 4792
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "quarter",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 33589,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 4379
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "side",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 23433,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3394
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "side",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 24865,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3916
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "side",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 23382,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3279
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "back",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 40011,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 6991
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "back",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 37269,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5775
+    },
+    {
+      "dpr": 1,
+      "model": "male",
+      "angle": "back",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 31229,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5394
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "front",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 37763,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 6920
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "front",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 34650,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5595
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "front",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 28288,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5210
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "quarter",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 37233,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5576
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "quarter",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 35103,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 4624
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "quarter",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 30567,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 4395
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "side",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 21725,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3325
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "side",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 23286,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3862
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "side",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 21866,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3202
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "back",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 37749,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 6904
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "back",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 34619,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5568
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "angle": "back",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 28151,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 5193
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "gray-guide",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 132978,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3852
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "flesh",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 132978,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3852
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "flesh-guide",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 132978,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3852
+    },
+    {
+      "dpr": 1,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "muscle",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 132978,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 3852
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "pose": "standing",
+      "skin": "default",
+      "angle": "front",
+      "width": 0.65,
+      "coveredInteriorPixels": 168067,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 10476
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "pose": "standing",
+      "skin": "default",
+      "angle": "front",
+      "width": 1.2,
+      "coveredInteriorPixels": 168067,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 16101
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "pose": "standing",
+      "skin": "default",
+      "angle": "front",
+      "width": 2,
+      "coveredInteriorPixels": 168067,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 24215
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "front",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 168067,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 24215
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "front",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 155809,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 19962
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "front",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 131632,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 18749
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "quarter",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 166316,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 19473
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "quarter",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 156453,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 16692
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "quarter",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 139676,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 15340
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "side",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 97553,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 11771
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "side",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 103884,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 13583
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "side",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 97289,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 11441
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "back",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 167992,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 24230
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "back",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 155654,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 19953
+    },
+    {
+      "dpr": 2,
+      "model": "male",
+      "angle": "back",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 131043,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 18636
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "front",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 158874,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 24013
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "front",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 144889,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 19348
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "front",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 119128,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 18116
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "quarter",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 155299,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 19327
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "quarter",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 145737,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 15957
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "quarter",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 127581,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 15105
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "side",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 90714,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 11445
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "side",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 97547,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 13291
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "side",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 91132,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 11194
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "back",
+      "pose": "standing",
+      "width": 2,
+      "coveredInteriorPixels": 158840,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 23979
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "back",
+      "pose": "bent",
+      "width": 2,
+      "coveredInteriorPixels": 144746,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 19260
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "angle": "back",
+      "pose": "seated",
+      "width": 2,
+      "coveredInteriorPixels": 118581,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 17964
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "gray-guide",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 537376,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 13303
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "flesh",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 537376,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 13303
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "flesh-guide",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 537376,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 13303
+    },
+    {
+      "dpr": 2,
+      "model": "female",
+      "pose": "bent",
+      "angle": "quarter",
+      "skin": "muscle",
+      "detail": "face",
+      "width": 2,
+      "coveredInteriorPixels": 537376,
+      "changedInteriorPixels": 0,
+      "changedBoundaryPixels": 13303
+    }
+  ],
+  "errors": [],
+  "before": {
+    "coveredInteriorPixels": 168067,
+    "changedInteriorPixels": 2265,
+    "changedBoundaryPixels": 24514
+  },
+  "after": {
+    "coveredInteriorPixels": 168067,
+    "changedInteriorPixels": 0,
+    "changedBoundaryPixels": 24215
+  },
+  "result": "PASS"
+}
