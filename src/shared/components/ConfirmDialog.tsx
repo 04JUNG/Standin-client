@@ -11,6 +11,7 @@ type ConfirmDialogProps = {
   /** 되돌릴 수 없는 동작이면 확인 버튼을 강조색으로. */
   destructive?: boolean;
   loading?: boolean;
+  privateContent?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -28,13 +29,21 @@ export function ConfirmDialog({
   cancelLabel = "취소",
   destructive = false,
   loading = false,
+  privateContent,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <Modal open={open} onClose={onCancel} title={title} width="sm" initialFocus={cancelRef}>
+    <Modal
+      privateContent={privateContent}
+      open={open}
+      onClose={onCancel}
+      title={title}
+      width="sm"
+      initialFocus={cancelRef}
+    >
       <p className="text-[14px] text-text-secondary">{description}</p>
       <div className="mt-6 flex justify-end gap-2">
         <Button ref={cancelRef} variant="secondary" onClick={onCancel} disabled={loading}>

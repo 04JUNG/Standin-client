@@ -48,7 +48,7 @@ export function HandChips({
   if (local)
     return (
       <p role="status" className="p-2 text-xs text-text-secondary">
-        이 체형은 손 모양을 바꿀 수 없어요. 원래 손 모양으로 저장돼요.
+        이 데포르메는 원래 손 모양으로 저장돼요.
       </p>
     );
   if (!state.enabled) return null;

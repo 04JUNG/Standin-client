@@ -1,5 +1,7 @@
 # 개인 체형 로컬 등록 — 클라이언트 Draft
 
+> 이 문서는 2026-10-28 당시 구현/패키지 기록이다. 최종 카드 흐름과 조건부 CS3C 지원은 [2026-10-31 UI 구현 기록](../personal-deforme-ui-20261031.md)을 따른다.
+
 기준: `origin/develop`의 `a5226ec1059322509cfcd779d9bf9a300db8dfbf`.
 브랜치: `codex/personal-body-local-client-20261028`.
 전략: 서버 작업 디렉터리의 `docs/NEXT_SPRINT/PERSONAL_BODY_LOCAL_REGISTRATION_STRATEGY_2026-10-28.md`.

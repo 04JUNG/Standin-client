@@ -170,7 +170,7 @@ pub async fn personal_body_import(
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
-        .set_title("체형 파일 선택")
+        .set_title("내 데포르메 파일 선택")
         .add_filter("FBX · CS3C", &["fbx", "cs3c"])
         .pick_file(move |path| {
             let _ = tx.send(path);

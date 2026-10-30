@@ -122,7 +122,10 @@ export function LocalFbxPreview({
     };
   }, [content, format]);
   return (
-    <div className="relative aspect-square w-full rounded border border-border bg-surface-2">
+    <div
+      data-replay-private
+      className="relative aspect-square w-full rounded border border-border bg-surface-2"
+    >
       <canvas ref={canvas} className="h-full w-full" aria-label={`${name}에 적용한 포즈`} />
       {(!content || status !== "ready") && (
         <p
@@ -131,7 +134,7 @@ export function LocalFbxPreview({
         >
           {status === "failed"
             ? "미리보기를 표시하지 못했어요. 준비된 FBX는 저장할 수 있어요."
-            : "내 체형의 포즈를 준비하고 있어요."}
+            : "내 데포르메의 포즈를 준비하고 있어요."}
         </p>
       )}
     </div>

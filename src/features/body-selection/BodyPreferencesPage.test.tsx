@@ -51,12 +51,14 @@ vi.mock("@/features/models/hooks/useModelCatalog", () => ({
           availability: "available",
           bodyRef: { characterId: "child" },
         },
-        ...["female", "male"].flatMap((gender) => ["athletic", "base", "muscular"].map((preset) => ({
-          characterId: `body-${gender}-${preset}`,
-          displayName: `구형 성인 ${gender} ${preset}`,
-          availability: "available",
-          bodyRef: { characterId: `body-${gender}-${preset}` },
-        }))),
+        ...["female", "male"].flatMap((gender) =>
+          ["athletic", "base", "muscular"].map((preset) => ({
+            characterId: `body-${gender}-${preset}`,
+            displayName: `구형 성인 ${gender} ${preset}`,
+            availability: "available",
+            bodyRef: { characterId: `body-${gender}-${preset}` },
+          })),
+        ),
       ],
     },
   }),
@@ -152,7 +154,14 @@ it("starts new jobs with the last used body by default and can switch to auto", 
   // 마지막 체형이 카드와 같으면 카드 이름으로 알려 준다.
   expect(await screen.findByText("현재 체형: 주인공 A")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("radio", { name: /^자동 추천/ }));
-  await waitFor(() =>
-    expect(putPreferences).toHaveBeenCalledWith({ mode: "auto" }, 2),
-  );
+  await waitFor(() => expect(putPreferences).toHaveBeenCalledWith({ mode: "auto" }, 2));
+});
+
+it("offers the personal library plus card even when server models are unavailable", async () => {
+  prefs.current = null;
+  show();
+  fireEvent.click(screen.getByRole("button", { name: "내 데포르메" }));
+  fireEvent.click(screen.getByRole("button", { name: "내 데포르메 불러오기" }));
+  expect(screen.getByRole("dialog", { name: "내 데포르메 불러오기" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "FBX·CS3C 파일 선택" })).toBeDisabled();
 });

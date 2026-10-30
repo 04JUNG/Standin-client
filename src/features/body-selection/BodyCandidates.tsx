@@ -1,4 +1,4 @@
-import { LocalLibrary } from "@/features/personal-body/LocalLibrary";
+import { PersonalDeformCards } from "@/features/personal-body/PersonalDeformCards";
 import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import {
   featureAction,
@@ -19,7 +19,13 @@ import type {
   PoseCandidate,
 } from "@/features/pose-viewer/api/pose.contract";
 import { useBodyControls, type BodyEntry } from "./hooks";
-import { BODY_KIND_LABEL, bodyKind, useBodyPanel, type BodyKind } from "./bodyPanel";
+import {
+  BODY_KIND_LABEL,
+  bodyKind,
+  useBodyPanel,
+  useBodyCategory,
+  type BodyKind,
+} from "./bodyPanel";
 import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
 import { ShapeControlGrid } from "./ShapeControls";
 import { shapeDefaults as defaults } from "./shapeValues";
@@ -62,6 +68,9 @@ function useBodyName(job: string, person: Pick<PersonResult, "index">, selection
 
 /** 인물 줄에 적을 체형: 내 체형 카드와 같으면 카드 이름, 아니면 체형 이름(+ 수정). */
 function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selection?: BodySelection) {
+  const local = useLocalBodies((s) =>
+    s.models.find((m) => m.localModelId === s.selected[localSelectionKey(job, person.index)]),
+  );
   const { options } = useBodyControls(job, person, selection);
   const name = useBodyName(job, person, selection);
   const cards = cardsOf(useBodyPreferences().data);
@@ -69,8 +78,8 @@ function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selectio
   const spec = options.data?.characters.find((c) => c.characterId === id)?.shape;
   const card = matchCard(cards, id, selection?.shape?.controls ?? null, spec);
   return {
-    source: sourceLabel(selection, card),
-    title: card ? card.name : `${name(id)}${selection?.shape ? " 수정" : ""}`,
+    source: local ? "내 데포르메" : sourceLabel(selection, card),
+    title: local ? local.name : card ? card.name : `${name(id)}${selection?.shape ? " 수정" : ""}`,
   };
 }
 
@@ -103,7 +112,9 @@ export function BodyChip({
       )}
     >
       <span className="shrink-0 text-text-secondary">{source}</span>
-      <strong className="truncate font-semibold text-text-primary">{title}</strong>
+      <strong data-replay-private className="truncate font-semibold text-text-primary">
+        {title}
+      </strong>
       {/* 포즈 | 체형 더보기. 코랄 바탕이 고른 쪽으로 미끄러진다. 열고 닫는 버튼을 따로 두지 않는다. */}
       <span
         role="group"
@@ -161,7 +172,10 @@ export function BodyLabel({
   const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span className="truncate text-[12px] text-text-secondary">
-      {source} · <span className="font-semibold text-text-primary">{title}</span>
+      {source} ·{" "}
+      <span data-replay-private className="font-semibold text-text-primary">
+        {title}
+      </span>
     </span>
   );
 }
@@ -289,7 +303,6 @@ export function BodyExpand({
   variant: "bar" | "app";
 }) {
   const localSelected = useLocalBodies((s) => s.selected[localSelectionKey(job, person.index)]);
-  const localModel = useLocalBodies((s) => s.models.find((m) => m.localModelId === localSelected));
   const clearLocal = () => useLocalBodies.getState().select(localSelectionKey(job, person.index));
   const selection = entry?.selection;
   useFeatureView("body_selection", !!selection, "open", job, String(person.index));
@@ -303,8 +316,9 @@ export function BodyExpand({
   const kinds = (["male", "female", "child"] as const).filter((k) =>
     characters.some((c) => bodyKind(c) === k),
   );
-  const [kindView, setKindView] = useState<BodyKind | null>(null);
-  const kind: BodyKind = kindView ?? (current ? bodyKind(current) : (kinds[0] ?? "male"));
+  const { kindView, setKindView } = useBodyCategory(job, person.index);
+  const kind: BodyKind | "personal" =
+    kindView ?? (localSelected ? "personal" : current ? bodyKind(current) : (kinds[0] ?? "male"));
   const visible = characters.filter((c) => bodyKind(c) === kind);
 
   /* ---- 수치 조절: 손을 뗀 뒤 0.6초 쉬면 저장. 저장 중이면 끝난 뒤 마지막 값을 보낸다. */
@@ -322,10 +336,15 @@ export function BodyExpand({
     setDraft(null);
     latest.current = null;
     clearTimeout(timer.current);
-  }, [currentId]);
+  }, [currentId, localSelected]);
   useEffect(() => () => clearTimeout(timer.current), []);
   function sendShape() {
-    if (!currentId || !latest.current) return;
+    if (
+      !currentId ||
+      !latest.current ||
+      useLocalBodies.getState().selected[localSelectionKey(job, person.index)]
+    )
+      return;
     if (pendingRef.current) {
       setFlush(true);
       return;
@@ -382,7 +401,8 @@ export function BodyExpand({
   });
   function applyCard(card: BodyCard) {
     const base = baseOf(card);
-    if (busy || !base?.selectable || !base.shape || card === currentCard) return;
+    if (busy || !base?.selectable || !base.shape || (!localSelected && card === currentCard))
+      return;
     clearLocal();
     setKindView(null);
     featureAction("body_custom", "selected", job, { personIndex: person.index });
@@ -401,8 +421,8 @@ export function BodyExpand({
   }
   function pick(option: BodyOption) {
     if (busy || !option.selectable) return;
-    if (option.characterId === currentId && !selection?.shape) return;
     clearLocal();
+    if (option.characterId === currentId && !selection?.shape) return;
     featureAction("body_selection", "selected", job, { personIndex: person.index });
     mutation.mutate(
       { intent: "manual", characterId: option.characterId },
@@ -436,13 +456,6 @@ export function BodyExpand({
       aria-label={`인물 ${person.index + 1} 체형 선택`}
       className="flex min-h-0 w-full min-w-0 flex-col gap-2"
     >
-      <LocalLibrary job={job} person={person.index} />
-      {localSelected && (
-        <p role="status" className="text-xs text-text-secondary">
-          내 체형을 선택했어요. 다음 화면에서 포즈를 적용해요. 수치 조절은 기본 체형에만 사용할 수
-          있어요.
-        </p>
-      )}
       {/* 체형 종류 */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[11px] text-text-secondary">
@@ -452,12 +465,12 @@ export function BodyExpand({
             aria-label="체형 종류"
             className="inline-flex rounded-full border border-border bg-surface-0 p-0.5"
           >
-            {(["male", "female", "child"] as const).map((k) => (
+            {(["male", "female", "child", "personal"] as const).map((k) => (
               <button
                 key={k}
                 type="button"
                 aria-pressed={kind === k}
-                disabled={!kinds.includes(k)}
+                disabled={k !== "personal" && !kinds.includes(k)}
                 onClick={() => setKindView(k)}
                 className={cn(
                   "rounded-full px-3.5 py-0.5 text-[12px] font-semibold transition-colors",
@@ -468,7 +481,7 @@ export function BodyExpand({
                     : "text-text-secondary hover:text-text-primary",
                 )}
               >
-                {BODY_KIND_LABEL[k]}
+                {k === "personal" ? "내 데포르메" : BODY_KIND_LABEL[k]}
               </button>
             ))}
           </div>
@@ -477,7 +490,9 @@ export function BodyExpand({
       </div>
 
       {/* 내 체형(왼쪽, 실시간) | 프리셋(오른쪽, 고정) */}
-      {options.isError ? (
+      {kind === "personal" ? (
+        <PersonalDeformCards job={job} person={person.index} variant={variant} />
+      ) : options.isError ? (
         <div className="flex items-center gap-2 text-[12px] text-text-secondary" role="alert">
           체형 목록을 불러오지 못했습니다.
           <Button variant="secondary" size="sm" onClick={() => void options.refetch()}>
@@ -491,13 +506,7 @@ export function BodyExpand({
       ) : (
         <div className="flex min-w-0 shrink-0 items-stretch gap-2">
           {/* 왼쪽: 지금 고른 체형. 조절 바를 움직이면 여기만 다시 그린다. */}
-          {localModel ? (
-            <div className="w-[140px] shrink-0 rounded-xl border border-brand-coral bg-surface-0 p-3 text-xs">
-              <strong>{localModel.name}</strong>
-              <p>내 체형 · 버전 {localModel.version}</p>
-              <p className="mt-2">다음 화면에서 포즈를 적용한 모습을 확인해요.</p>
-            </div>
-          ) : (
+          {!localSelected && (
             <LiveBodyView
               option={current}
               name={currentCard?.name ?? name(currentId)}
@@ -633,14 +642,14 @@ export function BodyExpand({
         </div>
       )}
 
-      {selectionFallbackMessage(selection) && (
+      {!localSelected && kind !== "personal" && selectionFallbackMessage(selection) && (
         <p role="status" className="text-[11.5px] text-text-secondary">
           {selectionFallbackMessage(selection)}
         </p>
       )}
 
       {/* 조절 바 */}
-      {!localSelected && (
+      {kind !== "personal" && !localSelected && (
         <div className="flex shrink-0 flex-col gap-1.5 rounded-xl border border-border bg-surface-0 px-2.5 py-2">
           <div className="flex items-center justify-between gap-2 text-[11.5px] text-text-secondary">
             <span className="truncate">

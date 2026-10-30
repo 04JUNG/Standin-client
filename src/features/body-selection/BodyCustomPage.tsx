@@ -1,4 +1,3 @@
-import { LocalLibrary } from "@/features/personal-body/LocalLibrary";
 import {
   featureAction,
   useFeatureView,
@@ -201,8 +200,6 @@ export function BodyCustomPage() {
             {card ? `${card.name} 편집` : "새 체형 만들기"}
           </h2>
         </div>
-
-        <LocalLibrary />
 
         {prefs.isPending && <p role="status">체형 정보를 불러오는 중…</p>}
         {prefs.isError && (

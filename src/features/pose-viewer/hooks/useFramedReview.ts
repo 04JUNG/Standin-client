@@ -405,7 +405,7 @@ export function useFramedReview(jobId: string | undefined) {
       : enabled
         ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
         : hasLocal
-          ? "내 체형에 몸 포즈를 적용해요. 원래 손 모양으로 전신 FBX를 저장해요."
+          ? "내 데포르메에 몸 포즈를 적용해요. 원래 손 모양으로 전신 FBX를 저장해요."
           : format === "bvh"
             ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
             : "",

@@ -1,10 +1,12 @@
+import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
+import type { LocalModel } from "@/features/personal-body/contract";
 import { createElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
-import { BodyChip, BodyExpand } from "./BodyCandidates";
+import { BodyChip, BodyExpand, BodyLabel } from "./BodyCandidates";
 import type { BodyEntry } from "./hooks";
 import type { BodyPreferences, ShapeSpec } from "./contract";
 
@@ -12,6 +14,12 @@ import type { BodyPreferences, ShapeSpec } from "./contract";
  * #84의 의도(미리보기가 느리거나 실패해도 체형 패널이 사용자를 가두지 않는다)를 새 패널에서 지킨다.
  * 새 UX에는 "확정" 버튼이 없다 — 카드를 누르면 바로 저장되고, 칩의 "포즈"로 언제든 닫는다.
  */
+vi.mock("@/features/personal-body/api", () => ({
+  localBodyApi: {
+    list: async () => useLocalBodies.getState().models,
+    preview: async () => new Uint8Array(),
+  },
+}));
 const mutate = vi.hoisted(() => vi.fn());
 const prefs = vi.hoisted(() => ({ current: null as BodyPreferences | null }));
 const spec: ShapeSpec = {
@@ -96,6 +104,7 @@ function wrap(node: ReturnType<typeof createElement>) {
 }
 
 beforeEach(() => {
+  useLocalBodies.setState({ models: [], selected: {}, scroll: {} });
   mutate.mockClear();
   prefs.current = null;
   useInstallationStore.setState({
@@ -206,5 +215,48 @@ for (const variant of ["app", "bar"] as const) {
     expect(auto).not.toBeDisabled();
     fireEvent.click(auto);
     expect(mutate).toHaveBeenCalledWith({ intent: "auto" });
+  });
+}
+
+it("updates both body labels from a selected personal card, including inline renames", () => {
+  const model = { localModelId: "local-card", name: "데포르메 주인공" } as LocalModel;
+  useLocalBodies.setState({
+    models: [model],
+    selected: { [localSelectionKey("local-title", 0)]: model.localModelId },
+  });
+  wrap(
+    createElement(
+      "div",
+      null,
+      createElement(BodyChip, { job: "local-title", person, entry }),
+      createElement(BodyLabel, { job: "local-title", person, entry }),
+    ),
+  );
+  expect(screen.getAllByText("데포르메 주인공")).toHaveLength(2);
+  act(() => useLocalBodies.getState().setModels([{ ...model, name: "새 이름" }]));
+  expect(screen.getAllByText("새 이름")).toHaveLength(2);
+});
+for (const variant of ["app", "bar"] as const) {
+  it(`${variant}: keeps the personal tab after remount and returns to the same basic body`, () => {
+    const job = "local-category-" + variant;
+    const model = { localModelId: "local-card", name: "개인 모델" } as LocalModel;
+    useLocalBodies.setState({
+      models: [model],
+      selected: { [localSelectionKey(job, 0)]: model.localModelId },
+    });
+    const first = wrap(createElement(BodyExpand, { job, person, entry, variant }));
+    expect(screen.getByRole("button", { name: "내 데포르메" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByRole("slider")).toBeNull();
+    expect(screen.queryByText(/조절.*미제공|수치 조절은 기본/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "여성" }));
+    first.unmount();
+    wrap(createElement(BodyExpand, { job, person, entry, variant }));
+    expect(screen.getByRole("button", { name: "여성" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("radio", { name: /기본형/ }));
+    expect(useLocalBodies.getState().selected[localSelectionKey(job, 0)]).toBeUndefined();
+    expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
   });
 }

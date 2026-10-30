@@ -45,3 +45,26 @@ export function bodyKind(option: Pick<BodyOption, "characterId" | "displayName">
   if (/female|woman|girl|여성|여자/.test(text)) return "female";
   return "male";
 }
+
+/** Category follows the same installation/job/person scope as the expanded panel. */
+type BodyCategory = BodyKind | "personal";
+const useCategories = create<{
+  values: Record<string, BodyCategory>;
+  set: (key: string, value: BodyCategory | null) => void;
+}>((set) => ({
+  values: {},
+  set: (key, value) =>
+    set((state) => {
+      const values = { ...state.values };
+      if (value) values[key] = value;
+      else delete values[key];
+      return { values };
+    }),
+}));
+export function useBodyCategory(job: string, person: number) {
+  const owner = useBodyOwner();
+  const key = JSON.stringify([owner, job, person]);
+  const kindView = useCategories((s) => s.values[key]);
+  const set = useCategories((s) => s.set);
+  return { kindView, setKindView: (kind: BodyCategory | null) => set(key, kind) };
+}
