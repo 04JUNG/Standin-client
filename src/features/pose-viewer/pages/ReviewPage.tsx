@@ -1,4 +1,5 @@
 import { journeyExit } from "@/features/analytics/featureJourney";
+import { CspSaveButton } from "@/features/export/components/CspSaveButton";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
@@ -22,6 +23,7 @@ export function ReviewPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const {
+    data,
     items,
     hands,
     isRefining,
@@ -72,6 +74,13 @@ export function ReviewPage() {
                     loading={previewLoading}
                     error={previewError}
                     onModelStatus={item.onModelStatus}
+                  />
+                  <CspSaveButton
+                    jobId={jobId}
+                    personIndex={item.personIndex}
+                    candidateId={item.candidate.id}
+                    poseId={item.candidate.poseId ?? ""}
+                    characterIds={data?.capabilities.cspNativeExport?.characterIds}
                   />
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">

@@ -992,3 +992,18 @@ HTTP 426 `UPDATE_REQUIRED`를 받으면 앱 화면 전체를 업데이트 화면
 없는 빌드는 설정된 Standin 홈페이지에서 직접 설치할 수 있다. 설치 후 재시작해야 해제된다.
 분석·저장은 서버에서도 검사하므로 기존 배포 앱이 새 UI를 갖고 있지 않아도 사용할 수 없다.
 릴리스 순서: 0.2.0 이상 설치 파일과 업데이트 피드를 게시한 다음 최소 버전 정책 BFF 배포.
+
+## CSP 인형·포즈 저장
+
+`capabilities.cspNativeExport?: {characterIds:string[]}`가 제공될 때 검토 화면에
+별도 CSP 저장을 노출한다. 해당 목록에 포함된 선택 체형의 저장된
+`bodySelectionRevision`과 `jobId/personIndex/candidateId/poseId`를
+`GET /v1/csp-shape/bundle`로 보낸다. 슬라이더 수치를 쿼리로 재구성하지 않는다.
+서버는 저장된 선택을 읽고 승인 소스에서 중립 VRM을 생성한다. ZIP 응답의
+`X-Standin-Artifact-SHA256`을 검사한 후 기존 native writer로 `.zip`을 저장한다.
+저장 직전 체형 리비전/후보를 다시 확인하고 화면 이탈 시 요청을 취소한다.
+
+CSP에서 ZIP을 풀어 model.vrm을 가져오고 pose.bvh를 적용한다. 손 모양·카메라·통합
+장면은 이 별도 저장의 대상이 아니며 기존 FBX 저장을 유지한다. 수동 변경한 손
+선택이 있으면 서버가 저장을 거절한다. 네이티브 관절 제한과 고정 지속 여부는
+CSP 검증 사항이며 ZIP 또는 VRM에 고정값이 내장됐다고 표시하지 않는다.
