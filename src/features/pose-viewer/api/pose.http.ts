@@ -76,6 +76,7 @@ type BffAnalysisResult = {
   sourceImage?: unknown;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: {
+    cspNativeExport?: { characterIds?: unknown };
     handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
@@ -414,6 +415,17 @@ async function toAnalysisResult(
         : undefined,
     people,
     capabilities: {
+      ...(Array.isArray(raw.capabilities?.cspNativeExport?.characterIds) &&
+      raw.capabilities.cspNativeExport.characterIds.length <= 100 &&
+      raw.capabilities.cspNativeExport.characterIds.every(
+        (v: unknown) => typeof v === "string" && /^[a-z0-9][a-z0-9.-]{0,63}$/.test(v),
+      )
+        ? {
+            cspNativeExport: {
+              characterIds: raw.capabilities.cspNativeExport.characterIds as string[],
+            },
+          }
+        : {}),
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
       semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,

@@ -19,6 +19,7 @@ import {
   renderBodyCandidate,
 } from "./api";
 import type { BodyChange, BodySelection } from "./contract";
+import { bodyDraftKey, useBodyDrafts } from "./bodyDrafts";
 export function useBodyOwner() {
   return useInstallationStore((s) => s.credentials?.installationId ?? "");
 }
@@ -84,6 +85,11 @@ export function useBodies(
     }),
   });
   const bodyPending = useIsMutating({ mutationKey: ["body-change", owner, job] }) > 0;
+  const draftPending = useBodyDrafts((s) =>
+    people.some(
+      (p) => !(p.index in excluded) && s.pending[bodyDraftKey(owner, job, p.index)] === true,
+    ),
+  );
   const handPending =
     useIsMutating({
       mutationKey: ["hand-change", owner, job],
@@ -94,7 +100,7 @@ export function useBodies(
         return people.some((p) => p.index === index && scopeIncludesHands(previewScope(p)));
       },
     }) > 0;
-  const pending = bodyPending || handPending;
+  const pending = bodyPending || handPending || draftPending;
   const entries = people.map((person, i) => ({
     personIndex: person.index,
     selection: selections[i]?.data,

@@ -384,6 +384,8 @@ def main(argv=None):
              ('basis', 'int16', basis_q.reshape(-1))]
     write_ssr2(Path(args.out), header, blobs)
     # Measure exactly what ships: read the file back and evaluate with the app's rule.
+    # Blender --python does not add the script directory to sys.path.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     from check_sampled_runtime import make_evaluator, read_ssr2
     shipped, arrays = read_ssr2(args.out)
     evaluate = make_evaluator(shipped, arrays, K)

@@ -35,7 +35,18 @@ const INVALID_CHARS: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
 ///
 /// 확장자를 프론트가 정하되 아무 값이나 받지는 않는다. 여기가 열려 있으면 파일명 문자열
 /// 하나로 임의 확장자를 쓸 수 있게 되고, 그건 저장 폴더에 무엇이든 만들 수 있다는 뜻이다.
-const ALLOWED_EXTENSIONS: &[&str] = &[".bvh", ".fbx"];
+const ALLOWED_EXTENSIONS: &[&str] = &[".bvh", ".fbx", ".zip"];
+
+#[cfg(test)]
+mod csp_save_tests {
+    use super::sanitize_file_name;
+    #[test]
+    fn csp_zip_extension_is_preserved_and_paths_cannot_escape() {
+        assert_eq!(sanitize_file_name("standin_CSP.zip"), "standin_CSP.zip");
+        assert_eq!(sanitize_file_name("../CSP.zip"), "..CSP.zip");
+        assert_eq!(sanitize_file_name("unsafe.exe"), "unsafe.exe.bvh");
+    }
+}
 
 /// 파일명에서 경로 구분자·예약 문자를 제거하고 허용 확장자를 강제한다(ADR-006).
 fn sanitize_file_name(raw: &str) -> String {

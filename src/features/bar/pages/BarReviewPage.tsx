@@ -1,4 +1,5 @@
 import { journeyExit } from "@/features/analytics/featureJourney";
+import { CspSaveButton } from "@/features/export/components/CspSaveButton";
 import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
@@ -20,6 +21,7 @@ export function BarReviewPage() {
   const navigate = useNavigate();
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const {
+    data,
     items,
     hands,
     isRefining,
@@ -72,6 +74,13 @@ export function BarReviewPage() {
                     loading={previewLoading}
                     error={previewError}
                     onModelStatus={item.onModelStatus}
+                  />
+                  <CspSaveButton
+                    jobId={jobId}
+                    personIndex={item.personIndex}
+                    candidateId={item.candidate.id}
+                    poseId={item.candidate.poseId ?? ""}
+                    characterIds={data?.capabilities.cspNativeExport?.characterIds}
                   />
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">
