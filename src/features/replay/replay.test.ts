@@ -5,7 +5,14 @@ import { gunzipSync, strFromU8 } from "fflate";
 import { replayConfig } from "./config";
 import { sanitizeReplay } from "./privacy";
 import { encodeEvents } from "./encoding";
-import { clearReplayQueue, enqueue, queueItems, persistWithdrawal } from "./queue";
+import {
+  clearReplayQueue,
+  enqueue,
+  queueItems,
+  persistWithdrawal,
+  pendingWithdrawal,
+  persistPendingWithdrawal,
+} from "./queue";
 import { setInstallationCredentials } from "@/shared/api/client";
 import {
   beginReplay,
@@ -14,6 +21,9 @@ import {
   sendReplayEvents,
   stopReplay,
   withdrawReplay,
+  flushReplay,
+  retryReplayWithdrawal,
+  storeReplayAsset,
 } from "./client";
 import { safeStorage } from "@/shared/lib/safeStorage";
 // Exercise upgrade from the first shipped payload-only database as well as new writes.
@@ -34,9 +44,11 @@ beforeEach(async () => {
   vi.stubEnv("VITE_REPLAY_ENABLED", "true");
   vi.stubEnv("VITE_APP_ENV", "development");
   safeStorage.removeItem("standin.replay.withdrawn.v1");
+  safeStorage.removeItem("standin.replay.withdrawal.pending.v1");
   stopReplay();
   await clearReplayQueue();
   await persistWithdrawal(false);
+  await persistPendingWithdrawal("owner", false);
   setInstallationCredentials({ installationId: "owner", deviceToken: "fixture-not-a-real-token" });
 });
 afterEach(() => {
@@ -153,4 +165,81 @@ it("production assumed and explicit false do not create or enqueue recordings", 
   vi.stubEnv("VITE_REPLAY_ENABLED", "false");
   await beginReplay("owner");
   expect(await queueItems()).toEqual([]);
+});
+
+it("retries durable withdrawal on restart/online while disabled and never resumes recording", async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetch);
+  await beginReplay("owner");
+  await settleReplay();
+  fetch.mockRejectedValue(new Error("offline"));
+  await expect(withdrawReplay()).rejects.toBeDefined();
+  expect(await pendingWithdrawal("owner")).toBe(true);
+  // Simulate losing localStorage/process state: only the IDB control work survives.
+  safeStorage.removeItem("standin.replay.withdrawn.v1");
+  safeStorage.removeItem("standin.replay.withdrawal.pending.v1");
+  stopReplay();
+  vi.stubEnv("VITE_REPLAY_ENABLED", "false");
+  fetch.mockClear();
+  await beginReplay("owner"); // still offline
+  expect(await pendingWithdrawal("owner")).toBe(true);
+  fetch.mockResolvedValue(new Response("{}", { status: 200 }));
+  fetch.mockClear();
+  await Promise.all([flushReplay(), retryReplayWithdrawal("owner")]);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls[0][1].method).toBe("DELETE");
+  expect(fetch.mock.calls[0][1].headers["X-Installation-Id"]).toBe("owner");
+  expect(await pendingWithdrawal("owner")).toBeUndefined();
+  expect(replayActive()).toBe(false);
+  vi.stubEnv("VITE_REPLAY_ENABLED", "true");
+  await beginReplay("owner");
+  expect(replayActive()).toBe(false);
+  expect(await queueItems()).toEqual([]);
+});
+
+it("does not send an old owner's pending deletion under replacement credentials", async () => {
+  await persistWithdrawal(true);
+  await persistPendingWithdrawal("owner", true);
+  setInstallationCredentials({ installationId: "replacement", deviceToken: "fixture-other" });
+  const fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetch);
+  await Promise.all([retryReplayWithdrawal("owner"), beginReplay("replacement")]);
+  await flushReplay();
+  expect(fetch).not.toHaveBeenCalled();
+  expect(await pendingWithdrawal("owner")).toBe(true);
+  setInstallationCredentials({ installationId: "owner", deviceToken: "fixture-not-a-real-token" });
+  await retryReplayWithdrawal("owner");
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(await pendingWithdrawal("owner")).toBeUndefined();
+});
+
+it("preserves both offline bindings and their original expiry for identical image bytes", async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+  vi.stubGlobal("fetch", fetch);
+  await beginReplay("owner");
+  await settleReplay();
+  fetch.mockRejectedValue(new Error("offline"));
+  const png = Uint8Array.from(
+    atob(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==",
+    ),
+    (c) => c.charCodeAt(0),
+  );
+  const blob = new Blob([png], { type: "image/png" });
+  Object.defineProperty(blob, "arrayBuffer", { value: async () => png.buffer });
+  const early = new Date(Date.now() + 86400000).toISOString();
+  await storeReplayAsset(blob, { kind: "rough", snapshotVersion: "first", sourceExpiresAt: early });
+  await settleReplay();
+  await storeReplayAsset(blob, { kind: "final", snapshotVersion: "second" });
+  // Identical metadata retry must still be one queue item.
+  await storeReplayAsset(blob, { snapshotVersion: "second", kind: "final" });
+  const assets = (await queueItems()).filter((i) => i.path.includes("/assets/"));
+  expect(assets).toHaveLength(2);
+  expect(assets.map((i) => i.body)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: "rough", snapshotVersion: "first", sourceExpiresAt: early }),
+      expect.objectContaining({ kind: "final", snapshotVersion: "second" }),
+    ]),
+  );
+  expect(new Set(assets.map((i) => i.path)).size).toBe(1);
 });

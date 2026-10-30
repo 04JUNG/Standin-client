@@ -69,3 +69,13 @@ export const persistedWithdrawal = () =>
   >;
 export const persistWithdrawal = (value: boolean) =>
   transaction("readwrite", (store) => store.put(value, "withdrawn"), "control");
+
+/** Owner-scoped control work survives payload eviction, expiry and process restart. */
+export const pendingWithdrawal = (owner: string) =>
+  transaction("readonly", (store) => store.get(`delete:${owner}`), "control") as Promise<
+    boolean | undefined
+  >;
+export const persistPendingWithdrawal = (owner: string, pending: boolean) =>
+  pending
+    ? transaction("readwrite", (store) => store.put(true, `delete:${owner}`), "control")
+    : transaction("readwrite", (store) => store.delete(`delete:${owner}`), "control");

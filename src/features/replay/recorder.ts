@@ -123,7 +123,7 @@ export function startRecorder() {
             maskTextSelector: '[data-replay-mask], [title*="/"], [title*="\\\\"]',
             maskTextFn: () => "[private]",
             slimDOMOptions: "all",
-            sampling: { mousemove: 100, scroll: 150, input: "last" },
+            sampling: { mousemove: 100, scroll: 150, input: "all" },
             errorHandler: () => {
               replayGap("recorder_error");
               return true;

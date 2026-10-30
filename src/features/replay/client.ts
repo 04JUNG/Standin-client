@@ -2,7 +2,7 @@ import { replayFetch } from "./http";
 import { create } from "zustand";
 import { replayObservation } from "@/shared/lib/replayBridge";
 import { safeStorage } from "@/shared/lib/safeStorage";
-import { apiFetchBlob } from "@/shared/api/client";
+import { apiFetchBlob, currentInstallationId } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
 import { appSession, initializeAppSession, sessionClock } from "@/shared/lib/appSession";
 import { replayConfig, REPLAY_POLICY, REPLAY_PROTOCOL } from "./config";
@@ -14,6 +14,8 @@ import {
   removeQueued,
   persistWithdrawal,
   persistedWithdrawal,
+  pendingWithdrawal,
+  persistPendingWithdrawal,
   type QueueItem,
 } from "./queue";
 import { sanitizeReplay } from "./privacy";
@@ -51,6 +53,8 @@ let pendingChunks = 0;
 let aborter = new AbortController();
 const assetCache = new Map<string, Promise<string>>();
 const withdrawalKey = "standin.replay.withdrawn.v1";
+const pendingWithdrawalKey = "standin.replay.withdrawal.pending.v1";
+const withdrawalRequests = new Map<string, Promise<void>>();
 export const replayWithdrawn = () => safeStorage.getItem(withdrawalKey) === "true";
 export const replayActive = () => Boolean(context);
 export function replayGap(reason: string) {
@@ -68,6 +72,7 @@ async function queueRequest(
   path: string,
   body: unknown,
   method: "PUT" | "POST" = "PUT",
+  bindingId?: string,
 ) {
   if (!active(ctx)) return;
   const bytes = new TextEncoder().encode(JSON.stringify(body)).length;
@@ -78,7 +83,7 @@ async function queueRequest(
     return;
   }
   const dropped = await enqueue({
-    id: `${ctx.replayId}:${path}`,
+    id: `${ctx.replayId}:${path}${bindingId ? `:${bindingId}` : ""}`,
     owner: ctx.owner,
     replayId: ctx.replayId,
     path,
@@ -95,6 +100,7 @@ async function queueRequest(
   void flushReplay();
 }
 export async function beginReplay(owner: string, qualityConsentId?: string) {
+  await retryReplayWithdrawal(owner).catch(() => replayGap("withdrawal_pending"));
   if (context?.owner === owner) return;
   const config = replayConfig();
   if (await persistedWithdrawal()) safeStorage.setItem(withdrawalKey, "true");
@@ -115,6 +121,7 @@ export async function beginReplay(owner: string, qualityConsentId?: string) {
   if (startingGeneration !== generation) return;
   aborter = new AbortController();
   recordingBytes = 0;
+  retryAt = 0;
   sequence = new Map();
   assetCache.clear();
   const session = appSession();
@@ -157,13 +164,38 @@ export function stopReplay() {
   useReplayStatus.setState({ state: "stopped" });
 }
 export async function withdrawReplay() {
+  const owner = currentInstallationId();
   safeStorage.setItem(withdrawalKey, "true");
+  if (owner) safeStorage.setItem(pendingWithdrawalKey, owner);
   stopReplay();
-  await Promise.allSettled([persistWithdrawal(true), clearReplayQueue()]);
-  // Server keeps a durable withdrawal marker; failed requests remain locally blocked.
-  await replayFetch("/v1/replays", { method: "DELETE", auth: false });
+  await Promise.allSettled([
+    persistWithdrawal(true),
+    ...(owner ? [persistPendingWithdrawal(owner, true)] : []),
+    clearReplayQueue(),
+  ]);
+  if (owner) await retryReplayWithdrawal(owner);
 }
-export function flushReplay(): Promise<void> {
+/** Runs even with recording disabled/withdrawn, and only with the original owner's auth. */
+export function retryReplayWithdrawal(owner: string): Promise<void> {
+  const existing = withdrawalRequests.get(owner);
+  if (existing) return existing;
+  const request = (async () => {
+    const pending =
+      safeStorage.getItem(pendingWithdrawalKey) === owner || (await pendingWithdrawal(owner));
+    // Check after the asynchronous storage read, immediately before auth headers are built.
+    if (!pending || currentInstallationId() !== owner) return;
+    safeStorage.setItem(withdrawalKey, "true");
+    await replayFetch("/v1/replays", { method: "DELETE", auth: false });
+    await persistPendingWithdrawal(owner, false);
+    if (safeStorage.getItem(pendingWithdrawalKey) === owner)
+      safeStorage.removeItem(pendingWithdrawalKey);
+  })().finally(() => withdrawalRequests.delete(owner));
+  withdrawalRequests.set(owner, request);
+  return request;
+}
+export async function flushReplay(): Promise<void> {
+  const owner = currentInstallationId();
+  if (owner) await retryReplayWithdrawal(owner).catch(() => replayGap("withdrawal_pending"));
   if (flushing) return flushing;
   const ctx = context;
   if (!ctx || Date.now() < retryAt || replayWithdrawn()) return Promise.resolve();
@@ -222,12 +254,24 @@ export async function storeReplayAsset(blob: Blob, metadata: ReplayAsset): Promi
     throw new Error("asset_unavailable");
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const hash = await sha256(bytes);
+  // One byte hash may have multiple immutable semantic/version/job/expiry bindings.
+  const bindingId = await sha256(
+    new TextEncoder().encode(
+      JSON.stringify(Object.entries(metadata).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
+    ),
+  );
   if (!active(ctx)) throw new Error("recording_stopped");
-  await queueRequest(ctx, `/v1/replays/${ctx.replayId}/assets/${hash}`, {
-    contentType: blob.type,
-    dataBase64: base64(bytes),
-    ...metadata,
-  });
+  await queueRequest(
+    ctx,
+    `/v1/replays/${ctx.replayId}/assets/${hash}`,
+    {
+      contentType: blob.type,
+      dataBase64: base64(bytes),
+      ...metadata,
+    },
+    "PUT",
+    bindingId,
+  );
   return hash;
 }
 async function preserveSource(source: string, kind: ReplayAsset["kind"] = "thumbnail") {
