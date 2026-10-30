@@ -46,7 +46,7 @@ VITE_USE_MOCK_API=false VITE_USE_MOCK_POSE_API=false \
 
 Run the BFF’s documented local runner and normal installation registration. For native testing, keep a dedicated app identifier/keychain service and allow the local BFF origin in a temporary Tauri dev config. Do not reuse production installation credentials. Native capture requires normal OS screen-recording permission. Do not deploy these defaults into production with assumed mode.
 
-Pending OS/model checks above must pass before this Draft PR is considered release-ready. No merge, release or deployment was performed.
+Pending OS/model checks above must pass before this implementation is considered release-ready. No merge, release or deployment was performed.
 
 ## Review readiness versus release activation (2026-10-31)
 
