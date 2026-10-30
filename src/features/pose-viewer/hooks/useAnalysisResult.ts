@@ -293,8 +293,19 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
     selectCandidate(personIndex, candidateId);
   }
 
+  const retryClaim = useRef<string>();
+  const retryAnalysis = (startNew: () => void) => {
+    if (retryClaim.current === jobId || query.isFetching) return;
+    retryClaim.current = jobId;
+    if (restoreOnly)
+      void query.refetch().finally(() => {
+        retryClaim.current = undefined;
+      });
+    else startNew();
+  };
   return {
     ...query,
+    retryAnalysis,
     bodies,
     // 기록은 다른 live draft와 수명이 겹친다. 원본도 조회한 job에만 묶고,
     // 없거나 결과 identity가 다르면 다른 입력으로 대체하지 않는다.

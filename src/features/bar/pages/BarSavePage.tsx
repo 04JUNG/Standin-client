@@ -197,8 +197,8 @@ export function BarSavePage() {
 
             <p className="shrink-0 text-[10px] text-text-secondary">
               {dragService.isSupported
-                ? "파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
-                : `폴더를 열고 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`}
+                ? "파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요."
+                : `폴더를 열고 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요.`}
             </p>
             {format === "bvh" && (
               <p className="shrink-0 text-[10px] text-text-secondary">

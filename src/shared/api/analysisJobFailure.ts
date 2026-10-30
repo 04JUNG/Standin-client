@@ -1,3 +1,9 @@
+export const ANALYSIS_TIMEOUT_MESSAGE =
+  "분석 시간이 너무 오래 걸렸어요. 잠시 후 다시 시도해 주세요.";
+export const isAnalysisTimeout = (code: string | null | undefined) =>
+  ["TIMEOUT", "ANALYSIS_TIMEOUT", "ANALYSIS_UPSTREAM_TIMEOUT", "UPSTREAM_TIMEOUT"].includes(
+    code ?? "",
+  );
 /** BFF의 저장된 분석 실패 코드만 해석한다. 서버 원문은 화면에 노출하지 않는다. */
 export type UpstreamAnalysisCode =
   | "UPSTREAM_UNAVAILABLE"
@@ -30,7 +36,7 @@ const GUIDANCE: Readonly<Record<string, FailureGuidance>> = {
   },
   ANALYSIS_UPSTREAM_TIMEOUT: {
     code: "UPSTREAM_TIMEOUT",
-    message: "분석에 시간이 너무 오래 걸렸어요. 잠시 후 다시 시도해 주세요.",
+    message: ANALYSIS_TIMEOUT_MESSAGE,
     retryable: true,
   },
   ANALYSIS_UPSTREAM_ERROR: {

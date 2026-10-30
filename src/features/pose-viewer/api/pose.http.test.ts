@@ -135,7 +135,7 @@ describe("poseHttp", () => {
         expect(c.bvhUrl).toContain(`/pose-candidates/${id}/export?`);
         expect(c.posterUrl).toContain(`/people/0/pose-previews/${id}/${hash}/poster`);
       } else expect(c.bvhUrl).toBeUndefined();
-      expect(result.capabilities.sceneExport).toBe(false);
+      expect(result.capabilities.sceneExport).toBe(true);
     },
   );
 
@@ -444,6 +444,14 @@ describe("poseHttp", () => {
     // 이 fixture에는 품질 필드가 없다 = 구 BFF와의 순차 배포 창(E2E-12).
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
+      sourceImage: {
+        identity: "server-job:input",
+        originalName: "rough.png",
+        sha256: null,
+        width: 1,
+        height: 1,
+        captureMapping: { status: "unavailable", reason: "not_recorded" },
+      },
       jobId: "server-job",
       capabilities: {
         handSelection: false,
@@ -812,6 +820,7 @@ describe("poseHttp", () => {
       "오늘 사용할 수 있는 분석 횟수",
     ],
     ["ANALYSIS_UPSTREAM_TIMEOUT", "UPSTREAM_TIMEOUT", "시간이 너무 오래"],
+    ["ANALYSIS_TIMEOUT", "TIMEOUT", "분석 시간이 너무 오래"],
     ["ANALYSIS_UPSTREAM_ERROR", "UPSTREAM_ERROR", "분석 중 잠시 문제"],
   ])("Job 실패 %s의 원인을 유지한다", async (error, code, message) => {
     fetchMock

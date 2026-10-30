@@ -173,3 +173,8 @@ runtime PREVIEW_NOT_READY503 재확인을 검사한다. PNG 렌더 후 무효화
 사용한 wire JSON SHA256은 `c25712ccd60b15f875823b41fcb5e95c6b070e01bfa001285c0a65fb972749ed`,
 실행된 BFF 구현 SHA256은 `d79b286c0ddc9a5f9a0b8773d4d949e265c9aca1c671c659775bbcdbcdee2020`이다.
 전체 suite는 `NODE_OPTIONS=--no-experimental-webstorage npm test`로 실행했다.
+
+## 감지 인원·CSP 구도 상태 후속 보완 (2026-10-28)
+
+감지/저장 인원, 부분 저장 확인, 선택 산출물 기준 eligibility, FBX에 결합한 메타데이터 및
+작업별 파일명·시간 초과 복구는 [CSP_LAYOUT_SAVE_UI.md](CSP_LAYOUT_SAVE_UI.md)를 따른다.

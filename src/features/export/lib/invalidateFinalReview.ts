@@ -1,8 +1,13 @@
+import { useExportStore } from "../store/exportStore";
 import type { QueryClient } from "@tanstack/react-query";
 import { forgetFramedJob } from "./framedExport";
 /** Preferences and explicit picks invalidate final receipts, never analysis or candidate identity. */
 export function invalidateFinalReview(client: QueryClient, job: string) {
   forgetFramedJob(job);
+  useExportStore.setState({
+    partialConsentBinding: undefined,
+    individualConsentBinding: undefined,
+  });
   const filters = {
     predicate: (q: import("@tanstack/react-query").Query) => {
       const key = q.queryKey;

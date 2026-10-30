@@ -1,6 +1,7 @@
 import { rememberAnalysisFailure } from "@/features/analytics/analysisContext";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { rememberJobSource } from "@/features/analytics/analyticsClient";
+import { sourceImageSchema, sceneAvailabilitySchema } from "@/features/export/api/sceneMetadata";
 import { readSceneSaveContract } from "@/features/export/api/scene";
 import { semanticCandidateSchema, semanticResultSchema } from "@/features/semantic-search/api";
 import { selectionSchema } from "@/features/body-selection/contract";
@@ -23,7 +24,7 @@ import type {
   SkeletonState,
 } from "./pose.contract";
 
-import { upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
+import { ANALYSIS_TIMEOUT_MESSAGE, upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
 
 /** BFF의 비동기 분석 Job 계약. */
 type AnalysisJobStatus = "queued" | "running" | "completed" | "failed";
@@ -72,12 +73,14 @@ type BffAnalysisResult = {
   notes: string[];
   /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
   inputUrl?: string | null;
+  sourceImage?: unknown;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: {
     handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
     sceneExport?: boolean;
+    sceneAvailability?: unknown;
     sceneRefinement?: boolean;
     sceneSaveContract?: unknown;
     characterSelection?: boolean;
@@ -163,10 +166,7 @@ const POLL_INTERVAL_MS = 750;
 const JOB_TIMEOUT_MS = 3 * 60 * 1000;
 
 function analysisTimeoutError(): AnalysisError {
-  return new AnalysisError(
-    "TIMEOUT",
-    "분석 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.",
-  );
+  return new AnalysisError("TIMEOUT", ANALYSIS_TIMEOUT_MESSAGE);
 }
 
 /**
@@ -407,6 +407,11 @@ async function toAnalysisResult(
     ...(semantic ? { source: "semantic" as const, semantic } : {}),
     // 라이브 분석에서도 원본 미리보기가 draft의 blob URL에 의존하지 않게 된다.
     inputPreviewUrl: raw.inputUrl ?? undefined,
+    sourceImage:
+      sourceImageSchema.safeParse(raw.sourceImage).success &&
+      sourceImageSchema.parse(raw.sourceImage).identity === `${raw.jobId}:input`
+        ? sourceImageSchema.parse(raw.sourceImage)
+        : undefined,
     people,
     capabilities: {
       handSelection: raw.capabilities?.handSelection === true,
@@ -423,17 +428,15 @@ async function toAnalysisResult(
       fbxExport: raw.capabilities?.fbxExport === true,
       ...(raw.capabilities?.sceneRefinement === true
         ? {
-            sceneRefinement:
-              !semantic &&
-              !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
-              raw.capabilities?.sceneExport === true,
+            sceneRefinement: !semantic && raw.capabilities?.sceneExport === true,
           }
         : {}),
+      sceneAvailability: sceneAvailabilitySchema.safeParse(raw.capabilities?.sceneAvailability)
+        .success
+        ? sceneAvailabilitySchema.parse(raw.capabilities?.sceneAvailability)
+        : undefined,
       sceneSaveContract: readSceneSaveContract(raw.capabilities?.sceneSaveContract),
-      sceneExport:
-        !semantic &&
-        !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
-        raw.capabilities?.sceneExport === true,
+      sceneExport: !semantic && raw.capabilities?.sceneExport === true,
       // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
       // 않아 이 기능이 없던 때와 바이트까지 같은 파일이 나온다.
       characterSelection: raw.capabilities?.characterSelection === true,
@@ -471,6 +474,7 @@ async function waitForResult(
       // 상류(VLM)가 붐벼서 지금은 못 하는 상태다. 이걸 일반 실패로 뭉개면 화면이
       // "다른 이미지로 다시 시도"라고 안내하는데, 상류가 붐비는 동안에는 어떤 이미지도
       // 실패한다(2026-08-21 장애). 같은 입력으로 잠시 뒤 다시 하는 것이 맞다.
+      if (job.error === "ANALYSIS_TIMEOUT") throw analysisTimeoutError();
       const upstream = upstreamAnalysisFailure(job.error);
       if (upstream) throw new AnalysisError(upstream.code, upstream.message);
       throw new AnalysisError(
@@ -607,7 +611,17 @@ export const poseHttp: PoseResultService = {
       const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal);
       const analysis = await toAnalysisResult(result, timeout.signal);
       if (timeout.signal.aborted) throw timeout.signal.reason;
-      return analysis;
+      return {
+        ...analysis,
+        sourceImage: analysis.sourceImage ?? {
+          identity: `${analysis.jobId}:input`,
+          originalName: file.name,
+          sha256: null,
+          width,
+          height,
+          captureMapping: { status: "unavailable", reason: "not_recorded" },
+        },
+      };
     } catch (error) {
       const failure = timeout.didTimeOut() ? analysisTimeoutError() : error;
       rememberAnalysisFailure(failure, knownServerJobId);

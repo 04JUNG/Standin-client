@@ -19,7 +19,7 @@ export class ExportError extends Error {
 export type SavedFile = { path: string };
 
 /** 저장할 포즈 파일 하나. `fileName`의 확장자가 곧 포맷이다(.bvh 또는 .fbx). */
-export type SaveCandidateInput = { fileName: string; content: Uint8Array };
+export type SaveCandidateInput = { fileName: string; content: Uint8Array; sceneMetadata?: string };
 
 export interface ExportService {
   /** OS 다운로드 폴더 경로(docs/12 §4 기본값). */

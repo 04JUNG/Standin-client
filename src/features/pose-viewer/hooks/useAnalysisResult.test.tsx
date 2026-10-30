@@ -1,7 +1,7 @@
 import { setAnalyticsConsent } from "@/features/analytics/analyticsClient";
 import { createElement, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/shared/api/errors";
 import { safeStorage } from "@/shared/lib/safeStorage";
@@ -69,6 +69,25 @@ function wrapperFor(client: QueryClient) {
 }
 
 describe("useAnalysisResult 실패 계측", () => {
+  it("explicit retry claims a failed live route only once and does not create on remount", async () => {
+    analyze.mockRejectedValue(new AnalysisError("TIMEOUT", "timeout"));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const h = renderHook(() => useAnalysisResult("failed-retry"), { wrapper: wrapperFor(client) });
+    await waitFor(() => expect(h.result.current.isError).toBe(true));
+    const startNew = vi.fn();
+    act(() => {
+      h.result.current.retryAnalysis(startNew);
+      h.result.current.retryAnalysis(startNew);
+    });
+    expect(startNew).toHaveBeenCalledOnce();
+    expect(analyze).toHaveBeenCalledOnce();
+    h.unmount();
+    const next = renderHook(() => useAnalysisResult("failed-retry"), {
+      wrapper: wrapperFor(client),
+    });
+    await waitFor(() => expect(next.result.current.isError).toBe(true));
+    expect(analyze).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     setAnalyticsConsent("test-consent");
     safeStorage.removeItem(QUEUE_KEY);

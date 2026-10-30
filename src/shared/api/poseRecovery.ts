@@ -2,6 +2,7 @@ import { ApiError } from "./errors";
 import { messageForCode } from "./errorMessages";
 
 const CHOOSE = new Set([
+  "GENERATED_INDIVIDUAL_ONLY",
   "SCENE_UNSUPPORTED_BODY",
   "SCENE_OBSERVATION_MISSING",
   "GENERATED_CHECKS_FAILED",
@@ -20,6 +21,7 @@ const CHOOSE = new Set([
   "CHARACTER_UNAVAILABLE",
 ]);
 const REVIEW = new Set([
+  "SCENE_PARTIAL_CONFIRMATION_REQUIRED",
   "PREVIEW_NOT_READY",
   "SCENE_SOURCE_CHANGED",
   "SCENE_CONTRACT_UNSUPPORTED",

@@ -36,7 +36,9 @@ vi.mock("./useSelectionReview", () => ({
     isRefining: false,
   }),
 }));
-vi.mock("@/features/export/store/exportStore", () => ({ useExportStore: () => "fbx" }));
+vi.mock("@/features/export/store/exportStore", () => ({
+  useExportStore: Object.assign(() => "fbx", { setState: vi.fn() }),
+}));
 vi.mock("@/features/models/store/modelStore", () => ({ useModelStore: () => null }));
 vi.mock("../store/poseSelectionStore", () => ({
   usePoseSelectionStore: (select: (s: unknown) => unknown) =>

@@ -1,6 +1,10 @@
 import { messageOf, toAppError } from "@/shared/api/errors";
 import { AnalysisError, type AnalysisErrorCode } from "../api/pose.contract";
-import { upstreamAnalysisRetryable } from "@/shared/api/analysisJobFailure";
+import {
+  ANALYSIS_TIMEOUT_MESSAGE,
+  isAnalysisTimeout,
+  upstreamAnalysisRetryable,
+} from "@/shared/api/analysisJobFailure";
 
 /**
  * 분석 실패 하나를 화면이 필요로 하는 두 가지로 바꾼다 — **무엇을 보여줄지**와
@@ -25,10 +29,7 @@ import { upstreamAnalysisRetryable } from "@/shared/api/analysisJobFailure";
  * `NO_PEOPLE`·`JOB_FAILED`는 뺀다 — 같은 이미지로 다시 해도 같은 결과다. 그때는 다른
  * 입력으로 가야 하므로 재시도 버튼이 오히려 사용자를 붙잡는다.
  */
-const RETRYABLE_CODES = new Set<AnalysisErrorCode>([
-  "TIMEOUT",
-  "ABANDONED",
-]);
+const RETRYABLE_CODES = new Set<AnalysisErrorCode>(["TIMEOUT", "ABANDONED"]);
 
 export type AnalysisFailure = {
   message: string;
@@ -40,9 +41,8 @@ export function analysisFailure(error: unknown): AnalysisFailure {
   if (error instanceof AnalysisError) {
     // 앱이 직접 쓴 문구다. 코드로 다시 고르면 원인 설명만 흐려진다.
     return {
-      message: error.message,
-      retryable: RETRYABLE_CODES.has(error.code)
-        || upstreamAnalysisRetryable(error.code),
+      message: isAnalysisTimeout(error.code) ? ANALYSIS_TIMEOUT_MESSAGE : error.message,
+      retryable: RETRYABLE_CODES.has(error.code) || upstreamAnalysisRetryable(error.code),
     };
   }
   // 서버 오류 봉투·네트워크 실패. 문구는 code로 고르고(서버 원문 노출 금지, docs/06 §4)

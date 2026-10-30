@@ -234,8 +234,8 @@ export function SavePage() {
             <div {...tourAnchor("save.files")} className="flex flex-col gap-2">
               <p className="text-[13px] text-text-secondary">
                 {dragService.isSupported
-                  ? `아래 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`
-                  : `폴더를 열어 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`}
+                  ? `아래 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요.`
+                  : `폴더를 열어 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요.`}
               </p>
               {format === "bvh" && (
                 <p className="text-[12px] text-text-secondary">
