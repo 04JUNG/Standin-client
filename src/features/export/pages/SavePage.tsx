@@ -1,3 +1,4 @@
+import { CspResultCapture } from "@/features/replay/CspResultCapture";
 import { SceneSaveControls } from "../components/SceneSaveControls";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
@@ -261,6 +262,7 @@ export function SavePage() {
 
             {/* 서버 job이 없으면(Mock 후보 등) 보낼 곳이 없다. 눌러도 아무 일이 없는
                 버튼을 두느니 섹션을 감춘다. */}
+            {serverJobId && <CspResultCapture jobId={serverJobId} />}
             {serverJobId && qualityEnabled && (
               <div className="rounded-xl border border-border p-4">
                 <p className="text-[13px] font-semibold text-text-primary">결과는 어땠나요?</p>

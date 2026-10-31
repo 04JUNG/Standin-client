@@ -42,6 +42,7 @@ export function SearchPage() {
             어떤 포즈를 찾으세요?
           </label>
           <textarea
+            data-replay-search="true"
             id="pose-query"
             value={query}
             maxLength={500}

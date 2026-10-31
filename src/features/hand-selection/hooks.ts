@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import {
@@ -61,6 +62,17 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       });
     },
     onSuccess: async (selection) => {
+      replayObservation(
+        "hand_selection",
+        {
+          personIndex: selection.personIndex,
+          left: selection.left,
+          right: selection.right,
+          revision: selection.revision,
+          libraryHash: selection.library_sha256,
+        },
+        job,
+      );
       featureAction("hand_library", "applied", job, { personIndex: selection.personIndex });
       qc.setQueryData(handKeys.selection(owner, job, selection.personIndex), selection);
       await qc.invalidateQueries({

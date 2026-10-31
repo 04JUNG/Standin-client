@@ -1,3 +1,4 @@
+import { recordCanvasFrame } from "@/features/replay/canvas";
 import * as THREE from "three";
 import { libraryPreviewMaterial, PREVIEW_BACKGROUND } from "./previewStyle";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -124,6 +125,14 @@ export async function mountReviewModel(
       camera.updateProjectionMatrix();
       renderer!.setSize(width, height, false);
       renderer!.render(scene, camera);
+      recordCanvasFrame(canvas, {
+        preview: "review_model",
+        characterId: model.characterId,
+        scope: model.scope,
+        modelRevision: model.modelRevision,
+        sourceSha: model.sourceSha,
+        shapeSha256: model.shapeSha256,
+      });
     };
     draw();
     observer = new ResizeObserver(draw);

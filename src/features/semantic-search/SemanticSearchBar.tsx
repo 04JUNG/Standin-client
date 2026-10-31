@@ -55,6 +55,7 @@ export function SemanticSearchBar({
       >
         <Search className="ml-2 h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
         <input
+          data-replay-search="true"
           id={id}
           type="search"
           value={query}

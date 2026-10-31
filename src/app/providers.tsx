@@ -1,3 +1,4 @@
+import { ReplayBootstrap } from "@/features/replay/ReplayBootstrap";
 import { RequiredUpdateGate } from "@/features/updates/components/RequiredUpdateGate";
 import { useAppStarted } from "@/features/analytics/useAppStarted";
 import { resetJourneyCapability, flushEvents } from "@/features/analytics/analyticsClient";
@@ -19,6 +20,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <UpdateBootstrap>
         <InstallationBootstrap />
+        <ReplayBootstrap />
         <RequiredUpdateGate>{children}</RequiredUpdateGate>
       </UpdateBootstrap>
     </QueryClientProvider>

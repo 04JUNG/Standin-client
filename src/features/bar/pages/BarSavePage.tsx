@@ -1,3 +1,4 @@
+import { CspResultCapture } from "@/features/replay/CspResultCapture";
 import { SceneSaveControls } from "@/features/export/components/SceneSaveControls";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -213,6 +214,7 @@ export function BarSavePage() {
             </div>
 
             {/* 서버 job이 없으면 보낼 곳이 없다(SavePage와 같은 이유). */}
+            {serverJobId && <CspResultCapture jobId={serverJobId} />}
             {serverJobId && qualityEnabled && (
               <label className="flex shrink-0 items-center gap-2 text-[10px] text-text-secondary">
                 {feedbackError ? (

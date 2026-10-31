@@ -111,6 +111,13 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
     allowWhileTyping: true,
   },
   {
+    id: "save.captureCspResult",
+    label: "적용 결과 보내기",
+    scope: "save",
+    defaultAccelerator: "Mod+Alt+KeyR",
+    customizable: false,
+  },
+  {
     id: "save.save",
     label: "다시 저장",
     scope: "save",

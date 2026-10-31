@@ -88,7 +88,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex h-full items-center justify-center bg-brand-paper p-6">
+    <div data-replay-private className="flex h-full items-center justify-center bg-brand-paper p-6">
       <div className="w-full max-w-[420px] rounded-2xl border border-border bg-surface-0 p-8 shadow-sm">
         <div className="mb-6 text-center">
           <div className="text-[28px] font-bold text-brand-ink">Standin</div>
