@@ -493,7 +493,10 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
           gh release download "v$VERSION" --pattern latest.json --dir updater-feed
-          gh api "repos/$GH_REPO/releases/tags/v$VERSION" > updater-feed/release.json
+          # Draft releases are not returned by the REST tag endpoint. Resolve the
+          # draft through gh release view, then fetch the same release by ID.
+          RELEASE_API="$(gh release view "v$VERSION" --json apiUrl --jq .apiUrl)"
+          gh api "$RELEASE_API" > updater-feed/release.json
           node scripts/validate-campaign-packages.mjs updater-feed/release.json updater-feed/latest.json
           node scripts/release-notes.mjs --manifest updater-feed/latest.json
           gh release upload "v$VERSION" updater-feed/latest.json --clobber
