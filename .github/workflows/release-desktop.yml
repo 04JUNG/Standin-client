@@ -25,6 +25,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        platform: [windows-latest, macos-latest]
+        creative: ${{ inputs.environment == 'production' && fromJSON('["standard","meta-poster-a","meta-hook-a"]') || fromJSON('["standard"]') }}
         include:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
@@ -311,6 +313,7 @@ jobs:
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
           VITE_APP_ENV: ${{ inputs.environment }}
+          VITE_INSTALL_CREATIVE: ${{ matrix.creative != 'standard' && matrix.creative || '' }}
           # ⚠ OS 키체인 서비스 이름. 번들 identifier와 **자동으로 연동되지 않는다**
           #   (secure_store.rs의 SERVICE 상수가 컴파일 타임에 굳는다).
           #
@@ -372,10 +375,14 @@ jobs:
           # prerelease는 releases/latest에서 제외되므로 그 경로를 원천 차단한다.
           prerelease: ${{ inputs.environment == 'staging' }}
           uploadWorkflowArtifacts: true
+          # Each creative is a signed shared package, never a per-person build.
+          releaseAssetNamePattern: ${{ matrix.creative != 'standard' && format('[name]_[version]_{0}_[arch][setup][ext]', matrix.creative) || '' }}
+          workflowArtifactNamePattern: '[platform]-[arch]-[bundle]-${{ matrix.creative }}'
           # The input is uploadUpdaterJson, not includeUpdaterJson — the action warned
           # "Unexpected input(s) 'includeUpdaterJson'" and fell back to its default of
           # true, so latest.json shipped by luck rather than through the updater gate.
-          uploadUpdaterJson: ${{ steps.updater.outputs.enabled }}
+          # All existing installs update to the neutral build. Campaign jobs cannot overwrite its feed.
+          uploadUpdaterJson: ${{ steps.updater.outputs.enabled == 'true' && matrix.creative == 'standard' }}
           args: ${{ matrix.args }} ${{ steps.updater.outputs.extraArgs }} ${{ steps.winsign.outputs.extraArgs }}
 
       - name: Verify Windows signature
@@ -486,6 +493,8 @@ jobs:
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
           gh release download "v$VERSION" --pattern latest.json --dir updater-feed
+          gh api "repos/$GH_REPO/releases/tags/v$VERSION" > updater-feed/release.json
+          node scripts/validate-campaign-packages.mjs updater-feed/release.json updater-feed/latest.json
           node scripts/release-notes.mjs --manifest updater-feed/latest.json
           gh release upload "v$VERSION" updater-feed/latest.json --clobber
       - name: Publish verified release

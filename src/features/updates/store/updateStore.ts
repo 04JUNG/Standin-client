@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { prepareInstallerCampaign } from "@/features/installation/installerCampaign";
 import { trackEvent } from "@/features/analytics/analyticsClient";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import { updateService } from "../api/update.service";
@@ -92,6 +93,8 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   async bootstrap() {
     if (!bootstrapPromise) {
       bootstrapPromise = (async () => {
+        // Preserve a fresh package's shared campaign label before a cached generic update runs.
+        await prepareInstallerCampaign();
         await get().loadInfo();
         if (!get().configured) {
           set({ startupComplete: true });

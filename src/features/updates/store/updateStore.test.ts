@@ -9,6 +9,11 @@ const cached = vi.fn();
 const download = vi.fn();
 const install = vi.fn();
 const relaunch = vi.fn();
+const prepareInstaller = vi.fn();
+
+vi.mock("@/features/installation/installerCampaign", () => ({
+  prepareInstallerCampaign: () => prepareInstaller(),
+}));
 
 vi.mock("../api/update.service", () => ({
   updateService: {
@@ -44,6 +49,7 @@ function queued(): QueuedEvent[] {
 beforeEach(() => {
   setAnalyticsConsent("test-consent");
   vi.clearAllMocks();
+  prepareInstaller.mockReset().mockResolvedValue(undefined);
   safeStorage.removeItem(QUEUE_KEY);
   safeStorage.removeItem("standin.updates.installAttempt");
   useUpdateStore.getState().reset();
@@ -152,6 +158,25 @@ describe("updateStore", () => {
     expect(install).toHaveBeenCalledTimes(1);
     expect(relaunch).toHaveBeenCalledTimes(1);
     expect(useUpdateStore.getState().startupComplete).toBe(false);
+  });
+
+  it("일반 업데이트가 설치되기 전에 원래 설치 파일의 소재 전달을 완료한다", async () => {
+    let finish!: () => void;
+    prepareInstaller.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    cached.mockResolvedValue({ version: "0.1.2", attempted: false });
+    const boot = useUpdateStore.getState().bootstrap();
+    await vi.waitFor(() => expect(prepareInstaller).toHaveBeenCalledTimes(1));
+    expect(cached).not.toHaveBeenCalled();
+    expect(install).not.toHaveBeenCalled();
+    finish();
+    await boot;
+    expect(install).toHaveBeenCalledTimes(1);
+    expect(relaunch).toHaveBeenCalledTimes(1);
   });
 
   it("이전 설치가 실패한 버전을 다음 실행에서 자동 재설치하지 않는다", async () => {
