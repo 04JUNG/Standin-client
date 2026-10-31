@@ -79,6 +79,33 @@ export function BetaConsentPage() {
             ))}
           </div>
         </div>
+        <aside
+          className="mt-5 rounded-xl bg-surface-1 p-4 text-sm leading-6 text-text-secondary"
+          aria-label="소재별 건수 통계 안내"
+        >
+          <p className="font-bold text-text-primary">소재별 건수 통계 안내</p>
+          <p className="mt-2">
+            새로 등록한 앱에서 24시간 안에 광고 링크를 열면, 포스터·영상 구분과 첫 실행·첫 이미지
+            분석 성공 건수를 선택 동의와 별개로 집계합니다. 설치·작업 식별자, 원고, 쿠키는 이 집계에
+            보내지 않으며 Google·Meta에도 보내지 않습니다. 서버에는 날짜·소재·이벤트별 합계만 최대
+            90일 보관합니다. 기기의 소재 구분은 첫 분석 성공 또는 등록 후 7일까지 보관하고 만료 후
+            다음 실행 시 삭제합니다.
+          </p>
+          <p className="mt-2">
+            설치별 이용 이력을 광고와 연결하는 아래 선택 항목과는 별개입니다. 이미 합산한 건수는
+            개인을 구분할 수 없어 개별 삭제할 수 없습니다. 자세한 처리 범위는{" "}
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() =>
+                void openExternal(`${env.webBaseUrl}/legal/measurement/#campaign-counts`)
+              }
+            >
+              측정 고지
+            </button>
+            에서 확인할 수 있습니다.
+          </p>
+        </aside>
         <label className="mt-6 flex items-start gap-3 rounded-xl border border-border p-4 text-sm text-text-primary">
           <input
             type="checkbox"
@@ -109,9 +136,9 @@ export function BetaConsentPage() {
         )}
         <div className="mt-6 flex flex-col gap-2">
           <p className="mb-2 text-sm leading-6 text-text-secondary">
-            전체 동의에는 필수 약관과 선택 항목인 품질 검토용 개인정보·원고 이용, 광고 유입·사용
-            통계가 모두 포함됩니다. 필수 항목만 체크하고 아래 ‘선택한 항목만 동의하고 시작’을 눌러도
-            동일한 기본 기능을 이용할 수 있습니다.
+            전체 동의에는 필수 약관과 선택 항목인 품질 검토용 개인정보·원고 이용, 설치별 광고
+            유입·사용 이력 연결이 모두 포함됩니다. 필수 항목만 체크하고 아래 ‘선택한 항목만 동의하고
+            시작’을 눌러도 동일한 기본 기능을 이용할 수 있습니다.
           </p>
           <Button size="lg" disabled={status === "initializing"} onClick={() => void submit(true)}>
             전체 동의하고 시작

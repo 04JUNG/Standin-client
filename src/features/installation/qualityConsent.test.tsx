@@ -9,6 +9,17 @@ import { useQualityConsentStore, NO_QUALITY_CONSENT } from "./qualityConsentStor
 import { BetaConsentPage } from "./BetaConsentPage";
 import { QualityConsentSection } from "./QualityConsentSection";
 import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
+import { campaignCounter } from "./campaignCounts";
+import { useAcquisitionStore } from "./acquisitionStore";
+
+vi.mock("./campaignCounts", () => ({
+  campaignCounter: {
+    initializeNewRegistration: vi.fn(),
+    purgeExpired: vi.fn(),
+    clear: vi.fn(),
+    receive: vi.fn(),
+  },
+}));
 
 vi.mock("@/shared/api/client", () => ({ apiFetch: vi.fn(), setInstallationCredentials: vi.fn() }));
 vi.mock("./installationStorage", () => ({
@@ -34,6 +45,7 @@ const fetchMock = vi.mocked(apiFetch);
 beforeEach(() => {
   vi.clearAllMocks();
   useAcquisitionChoiceStore.getState().reset();
+  useAcquisitionStore.setState({ pending: "meta-poster-a" });
   useQualityConsentStore.getState().reset();
   useInstallationStore.setState({ status: "consent_required", credentials: null, error: null });
 });
@@ -67,6 +79,7 @@ describe("optional quality consent", () => {
     );
     expect(installationStorage.set).toHaveBeenCalledWith(credentials);
     expect(useAcquisitionChoiceStore.getState().mode(credentials.installationId)).toBe("deny");
+    expect(campaignCounter.initializeNewRegistration).toHaveBeenCalledWith("meta-poster-a");
   });
   it("the explicitly labeled all-consent action grants both optional categories", async () => {
     fetchMock.mockResolvedValue({ ...credentials, qualityConsent: granted });
@@ -96,7 +109,9 @@ describe("optional quality consent", () => {
       </MemoryRouter>,
     );
     await userEvent.click(screen.getByRole("checkbox", { name: /필수/ }));
-    await userEvent.click(screen.getByRole("checkbox", { name: /광고 유입·사용 통계 수집/ }));
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /설치별 광고 유입·사용 이력 연결/ }),
+    );
     await userEvent.click(screen.getByRole("button", { name: "선택한 항목만 동의하고 시작" }));
     await waitFor(() => expect(useInstallationStore.getState().status).toBe("registered"));
     expect(fetchMock).toHaveBeenCalledWith(
@@ -119,6 +134,7 @@ describe("optional quality consent", () => {
     await userEvent.click(screen.getByRole("button", { name: "전체 동의하고 시작" }));
     await waitFor(() => expect(useInstallationStore.getState().error).not.toBeNull());
     expect(useAcquisitionChoiceStore.getState().choice).toBeNull();
+    expect(campaignCounter.initializeNewRegistration).not.toHaveBeenCalled();
   });
 
   it("existing installations keep their identity and basic access if consent lookup is unavailable", async () => {
@@ -131,6 +147,7 @@ describe("optional quality consent", () => {
       consent: NO_QUALITY_CONSENT,
     });
     expect(installationStorage.clear).not.toHaveBeenCalled();
+    expect(campaignCounter.initializeNewRegistration).not.toHaveBeenCalled();
   });
 
   it("unchecking one permission withdraws review only and keeps installation credentials", async () => {

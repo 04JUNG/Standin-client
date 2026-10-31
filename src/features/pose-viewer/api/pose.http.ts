@@ -1,4 +1,5 @@
 import { readSceneSaveContract } from "@/features/export/api/scene";
+import { campaignCounter } from "@/features/installation/campaignCounts";
 import { semanticCandidateSchema, semanticResultSchema } from "@/features/semantic-search/api";
 import { selectionSchema } from "@/features/body-selection/contract";
 import { readOutputScope } from "./outputScope";
@@ -518,7 +519,10 @@ function serverJobFor(
     auth: false,
     signal,
   })
-    .then((job) => job.jobId)
+    .then((job) => {
+      campaignCounter.analysisStarted(job.jobId);
+      return job.jobId;
+    })
     .catch((error) => {
       // 만들지 못했으면 슬롯도 잡히지 않았다. 다음 시도가 다시 만들 수 있게 지운다.
       serverJobByClientJob.delete(clientJobId);
@@ -576,6 +580,7 @@ export const poseHttp: PoseResultService = {
       const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal);
       const analysis = await toAnalysisResult(result, timeout.signal);
       if (timeout.signal.aborted) throw timeout.signal.reason;
+      campaignCounter.analysisSucceeded(serverJobId);
       return analysis;
     } catch (error) {
       if (timeout.didTimeOut()) throw analysisTimeoutError();
