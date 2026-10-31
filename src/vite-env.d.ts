@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_USE_MOCK_API?: string;
   readonly VITE_USE_MOCK_POSE_API?: string;
   readonly VITE_APP_ENV?: string;
+  readonly VITE_INSTALL_CREATIVE?: string;
   /** vite.config.ts가 package.json의 version을 주입한다. .env로 설정하지 않는다. */
   readonly VITE_APP_VERSION: string;
 }

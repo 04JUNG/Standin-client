@@ -8,6 +8,7 @@ import { installationStorage, type InstallationCredentials } from "./installatio
 import { resetAnalyticsQueue } from "@/features/analytics/analyticsClient";
 import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
 import { campaignCounter } from "./campaignCounts";
+import { installerCampaign } from "./installerCampaign";
 import { useAcquisitionStore } from "./acquisitionStore";
 
 import {
@@ -139,9 +140,15 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
         consentVersion: CONSENT_VERSION,
       };
       await installationStorage.set(credentials);
-      campaignCounter.initializeNewRegistration(useAcquisitionStore.getState().pending);
+      const packagedCreative = installerCampaign.consume();
+      const creative = packagedCreative ?? useAcquisitionStore.getState().pending;
+      campaignCounter.initializeNewRegistration(creative);
       if (acquisition !== undefined)
         useAcquisitionChoiceStore.getState().record(credentials.installationId, acquisition);
+      // The existing optional installation linkage is still allowed only after consent.
+      // Keep it consistent with the source used for aggregate counts.
+      if (packagedCreative)
+        useAcquisitionStore.setState({ pending: acquisition === true ? packagedCreative : null });
       setInstallationCredentials(credentials);
       // Older servers leave review disabled; basic access remains available.
       try {
@@ -185,6 +192,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
     resetAnalyticsQueue();
     useAcquisitionChoiceStore.getState().reset();
     campaignCounter.clear();
+    installerCampaign.clear();
     setInstallationCredentials(null);
     set({ status: "consent_required", credentials: null });
   },

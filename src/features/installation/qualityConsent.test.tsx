@@ -10,6 +10,7 @@ import { BetaConsentPage } from "./BetaConsentPage";
 import { QualityConsentSection } from "./QualityConsentSection";
 import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
 import { campaignCounter } from "./campaignCounts";
+import { installerCampaign } from "./installerCampaign";
 import { useAcquisitionStore } from "./acquisitionStore";
 
 vi.mock("./campaignCounts", () => ({
@@ -44,6 +45,7 @@ const fetchMock = vi.mocked(apiFetch);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  installerCampaign.clear();
   useAcquisitionChoiceStore.getState().reset();
   useAcquisitionStore.setState({ pending: "meta-poster-a" });
   useQualityConsentStore.getState().reset();
@@ -51,6 +53,29 @@ beforeEach(() => {
 });
 
 describe("optional quality consent", () => {
+  it("counts a plain installer launch without granting installation linkage", async () => {
+    useAcquisitionStore.setState({ pending: null });
+    installerCampaign.capture("meta-hook-a", false);
+    fetchMock.mockResolvedValue({ ...credentials, qualityConsent: NO_QUALITY_CONSENT });
+    await useInstallationStore
+      .getState()
+      .register({ personalData: false, contentLicense: false }, false);
+    expect(campaignCounter.initializeNewRegistration).toHaveBeenCalledWith("meta-hook-a");
+    expect(useAcquisitionChoiceStore.getState().mode(credentials.installationId)).toBe("deny");
+    expect(useAcquisitionStore.getState().pending).toBeNull();
+    expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("meta-hook-a");
+  });
+  it("uses the package source for opted-in linkage and preserves it after failed registration", async () => {
+    installerCampaign.capture("meta-hook-a", false);
+    fetchMock.mockRejectedValueOnce(Error("offline"));
+    await useInstallationStore.getState().register(undefined, true);
+    expect(campaignCounter.initializeNewRegistration).not.toHaveBeenCalled();
+    fetchMock.mockResolvedValue({ ...credentials, qualityConsent: NO_QUALITY_CONSENT });
+    await useInstallationStore.getState().register(undefined, true);
+    expect(campaignCounter.initializeNewRegistration).toHaveBeenCalledWith("meta-hook-a");
+    expect(useAcquisitionChoiceStore.getState().mode(credentials.installationId)).toBe("allow");
+    expect(useAcquisitionStore.getState().pending).toBe("meta-hook-a");
+  });
   it("all checkboxes start unchecked and basic agreement alone permits registration", async () => {
     fetchMock.mockResolvedValue({ ...credentials, qualityConsent: NO_QUALITY_CONSENT });
     render(

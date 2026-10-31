@@ -20,6 +20,8 @@ export const env = {
   // 포즈 분석 서버만 먼저 붙는 과도기 지원: 미설정이면 useMockApi를 그대로 따른다.
   useMockPoseApi: readBool(import.meta.env.VITE_USE_MOCK_POSE_API, useMockApi),
   appEnv: (import.meta.env.VITE_APP_ENV as AppEnv | undefined) ?? "development",
+  // Shared installer campaign label, never an installation/click/user identifier.
+  installCreative: import.meta.env.VITE_INSTALL_CREATIVE ?? "",
   get isProduction(): boolean {
     return this.appEnv === "production";
   },
