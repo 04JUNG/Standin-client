@@ -12,7 +12,7 @@ export function AcquisitionConsentFields({
       disabled={disabled}
       className="space-y-3 rounded-xl border border-border p-4 text-sm text-text-primary"
     >
-      <legend className="px-1 font-bold">광고 유입·사용 통계 (선택)</legend>
+      <legend className="px-1 font-bold">설치별 광고 유입·사용 이력 연결 (선택)</legend>
       <p className="leading-6 text-text-secondary">
         어떤 광고가 실제 이용에 도움이 되는지 확인하기 위해, 광고 링크로 앱을 열면 광고 구분값과 이
         설치의 식별자·동의 확인 시각을 연결합니다. 연결 후 활성 이용·분석 성공·후보 선택·저장 완료
@@ -32,7 +32,7 @@ export function AcquisitionConsentFields({
           checked={value}
           onChange={(e) => onChange(e.target.checked)}
         />
-        [선택] 위 목적·항목·기간에 따른 광고 유입·사용 통계 수집·이용에 동의합니다.
+        [선택] 위 목적·항목·기간에 따른 설치별 광고 유입·사용 이력 연결에 동의합니다.
       </label>
     </fieldset>
   );

@@ -984,3 +984,7 @@ refine을 호출한다. 자동 release 권한은 올리지 않고, 보정 결과
 ## 광고 유입 연결 선택 기능
 
 신규 설치의 선택 동의·연결·철회 API는 [AD_ACQUISITION.md](AD_ACQUISITION.md)를 따른다. 앱 이용 필수 단계가 아니며 기존 품질 검토 동의와 별개다.
+
+## 소재별 건수 보고 (v0.2.7)
+
+POST /v1/metrics/campaign-counts의 비인증 공유 라벨 계약은 [AD_ACQUISITION.md](AD_ACQUISITION.md)를 따른다. 기존 설치별 광고 연결 선택 동의 API는 변경하지 않는다.

@@ -7,6 +7,8 @@ import { env } from "@/shared/lib/env";
 import { installationStorage, type InstallationCredentials } from "./installationStorage";
 import { resetAnalyticsQueue } from "@/features/analytics/analyticsClient";
 import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
+import { campaignCounter } from "./campaignCounts";
+import { useAcquisitionStore } from "./acquisitionStore";
 
 import {
   useQualityConsentStore,
@@ -75,6 +77,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
   credentials: null,
   error: null,
   async initialize() {
+    campaignCounter.purgeExpired();
     useQualityConsentStore.getState().reset();
     try {
       const credentials = await installationStorage.get();
@@ -136,6 +139,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
         consentVersion: CONSENT_VERSION,
       };
       await installationStorage.set(credentials);
+      campaignCounter.initializeNewRegistration(useAcquisitionStore.getState().pending);
       if (acquisition !== undefined)
         useAcquisitionChoiceStore.getState().record(credentials.installationId, acquisition);
       setInstallationCredentials(credentials);
@@ -180,6 +184,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
     }
     resetAnalyticsQueue();
     useAcquisitionChoiceStore.getState().reset();
+    campaignCounter.clear();
     setInstallationCredentials(null);
     set({ status: "consent_required", credentials: null });
   },

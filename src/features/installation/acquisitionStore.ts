@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { env } from "@/shared/lib/env";
+import { campaignCounter } from "./campaignCounts";
 export type Creative = "meta-poster-a" | "meta-hook-a";
 export function parseAcquisitionUrl(value: string, environment = env.appEnv): Creative | null {
   try {
@@ -44,6 +45,7 @@ export const useAcquisitionStore = create<{
   pending: null,
   receive(url) {
     const creative = parseAcquisitionUrl(url);
+    if (creative) campaignCounter.receive(creative);
     if (creative && !get().pending) set({ pending: creative });
   },
   clear() {

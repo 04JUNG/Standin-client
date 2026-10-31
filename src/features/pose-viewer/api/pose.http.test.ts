@@ -2,6 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetApiClient, setAccessToken, setInstallationCredentials } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
 import { __resetAnalysisJobs, poseHttp } from "./pose.http";
+import { campaignCounter } from "@/features/installation/campaignCounts";
+
+vi.mock("@/features/installation/campaignCounts", () => ({
+  campaignCounter: { analysisStarted: vi.fn(), analysisSucceeded: vi.fn() },
+}));
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -14,6 +19,7 @@ describe("poseHttp", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     __resetApiClient();
     __resetAnalysisJobs();
     setAccessToken("access-token");
@@ -86,6 +92,7 @@ describe("poseHttp", () => {
       expect(result.people[0].candidates[0].refineAllowed).toBe(validCamera);
       expect(result.people[0].candidates[0].releaseAllowed).toBe(false);
       expect(result.people[0].candidates[0].bvhAvailable).toBe(true);
+      expect(campaignCounter.analysisSucceeded).not.toHaveBeenCalled();
     },
   );
 
@@ -422,6 +429,8 @@ describe("poseHttp", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(campaignCounter.analysisStarted).toHaveBeenCalledWith("server-job");
+    expect(campaignCounter.analysisSucceeded).toHaveBeenCalledWith("server-job");
     expect(fetchMock.mock.calls[0][0]).toBe(`${env.apiBaseUrl}/v1/analysis/jobs`);
     const createInit = fetchMock.mock.calls[0][1] as RequestInit;
     expect(createInit.body).toBeInstanceOf(FormData);
@@ -674,6 +683,7 @@ describe("poseHttp", () => {
         height: 1,
       }),
     ).rejects.toThrow("포즈 분석에 실패했습니다");
+    expect(campaignCounter.analysisSucceeded).not.toHaveBeenCalled();
   });
 
   it("응답이 없는 HTTP 요청을 전체 Job deadline에 실제로 중단한다", async () => {
