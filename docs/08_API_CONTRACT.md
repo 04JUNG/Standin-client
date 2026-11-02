@@ -1004,8 +1004,9 @@ Server acknowledgement clears pending deletion, not the local withdrawn state.
 
 ### 통합 저장 비활성 배포의 개별 저장
 
-`capabilities.sceneExport`가 `false`이거나 없는 작업은 저장 화면 진입 시 기존 인물별
-자동 저장을 사용한다. 별도의 통합 저장 비활성 안내·개별 저장 확인 단계는 표시하지 않는다.
+`sceneAvailability.originalSelection.reasons`에 `feature_disabled`가 있는 작업은
+저장 화면 진입 시 기존 인물별 자동 저장을 사용한다. 상세 가용성 계약이 없는 구 응답은
+`capabilities.sceneExport`가 `false`이거나 없을 때 같은 방식으로 저장한다. 별도의 통합 저장 비활성 안내·개별 저장 확인 단계는 표시하지 않는다.
 전체화면과 플로팅 바에 함께 적용되며 저장 완료 후 파일 목록과 경로·폴더 동작은 유지한다.
 감지된 인물 중 저장 대상에서 빠진 인물이 있으면 부분 저장 확인은 계속 필요하다.
 통합 저장이 켜져 있지만 선택한 포즈나 배치/자산 조건으로 사용할 수 없을 때는

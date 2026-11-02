@@ -111,6 +111,18 @@ function setup(negotiated = true) {
   );
   return { qc, wrapper };
 }
+function unavailableScene(
+  reason: string,
+): NonNullable<AnalysisResult["capabilities"]["sceneAvailability"]> {
+  return {
+    version: "scene-availability-v1",
+    selectionValidation: "required_on_prepare",
+    originalSelection: { available: false, reasons: [reason] },
+    autoCorrectV4: { available: false, reasons: [reason] },
+    manifest: { available: false, reasons: [reason] },
+    candidateEligibility: [],
+  };
+}
 async function autoCorrect() {
   const { qc, wrapper } = setup();
   const hook = renderHook(() => useSaveFlow("job"), { wrapper });
@@ -617,6 +629,8 @@ it("still confirms individual fallback when an enabled scene lacks required meta
     ...data,
     capabilities: {
       ...data.capabilities,
+      sceneExport: false,
+      sceneAvailability: unavailableScene("observation_missing"),
       sceneSaveContract: { ...sceneContractFixture, manifestVersion: "csp-scene-manifest-v1" },
     },
   });
@@ -642,7 +656,11 @@ it.each([
     const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
     qc.setQueryData(poseQueryKeys.result("job"), {
       ...data,
-      capabilities: { ...data.capabilities, sceneExport: false },
+      capabilities: {
+        ...data.capabilities,
+        sceneExport: false,
+        sceneAvailability: unavailableScene("feature_disabled"),
+      },
       people: data.people.slice(0, count),
     });
     usePoseSelectionStore.setState({
