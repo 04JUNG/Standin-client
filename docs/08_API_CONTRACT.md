@@ -1001,3 +1001,12 @@ stopped. Device tokens are attached at send time and never persisted in replay c
 Pending deletion is never sent with another installation's credentials. Exact asset bytes
 may retain multiple immutable semantic/version/expiry bindings during offline retry.
 Server acknowledgement clears pending deletion, not the local withdrawn state.
+
+### 통합 저장 비활성 배포의 개별 저장
+
+`capabilities.sceneExport`가 `false`이거나 없는 작업은 저장 화면 진입 시 기존 인물별
+자동 저장을 사용한다. 별도의 통합 저장 비활성 안내·개별 저장 확인 단계는 표시하지 않는다.
+전체화면과 플로팅 바에 함께 적용되며 저장 완료 후 파일 목록과 경로·폴더 동작은 유지한다.
+감지된 인물 중 저장 대상에서 빠진 인물이 있으면 부분 저장 확인은 계속 필요하다.
+통합 저장이 켜져 있지만 선택한 포즈나 배치/자산 조건으로 사용할 수 없을 때는
+개별 파일로 변경할지 기존 확인을 유지한다.

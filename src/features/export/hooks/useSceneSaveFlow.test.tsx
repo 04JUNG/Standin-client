@@ -81,6 +81,7 @@ beforeEach(() => {
     serverJobId: "job",
     selectedByPerson: { 0: "pick0", 1: "pick1" },
     refineByPerson: {},
+    excludedPeople: {},
     characterId: null,
     characterByPerson: {},
   });
@@ -609,12 +610,15 @@ it("distinguishes explicit user exclusion and invalidates partial confirmation a
   }
   expect(mock.save).not.toHaveBeenCalled();
 });
-it("does not silently switch an unsupported scene to individual files, including retry shortcuts", async () => {
+it("still confirms individual fallback when an enabled scene lacks required metadata, including retry shortcuts", async () => {
   const { qc, wrapper } = setup();
   const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
   qc.setQueryData(poseQueryKeys.result("job"), {
     ...data,
-    capabilities: { ...data.capabilities, sceneExport: false },
+    capabilities: {
+      ...data.capabilities,
+      sceneSaveContract: { ...sceneContractFixture, manifestVersion: "csp-scene-manifest-v1" },
+    },
   });
   usePoseSelectionStore.setState({ excludedPeople: {} });
   const hook = renderHook(() => useSaveFlow("job"), { wrapper });
@@ -625,6 +629,76 @@ it("does not silently switch an unsupported scene to individual files, including
   await waitFor(() => expect(hook.result.current.status).toBe("saved"));
   expect(mock.download).not.toHaveBeenCalled();
   expect(mock.save.mock.calls[0][0].files).toHaveLength(2);
+});
+it.each([
+  ["app", 1],
+  ["bar", 1],
+  ["app", 2],
+  ["bar", 2],
+] as const)(
+  "%s automatically saves %i individual files when scene export is disabled",
+  async (surface, count) => {
+    const { qc, wrapper: Provider } = setup();
+    const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+    qc.setQueryData(poseQueryKeys.result("job"), {
+      ...data,
+      capabilities: { ...data.capabilities, sceneExport: false },
+      people: data.people.slice(0, count),
+    });
+    usePoseSelectionStore.setState({
+      selectedByPerson: count === 1 ? { 0: "pick0" } : { 0: "pick0", 1: "pick1" },
+    });
+    render(
+      <Provider>
+        <MemoryRouter initialEntries={[surface === "app" ? "/app/jobs/job/save" : "/bar/save"]}>
+          <Routes>
+            <Route path="/app/jobs/:jobId/save" element={<SavePage />} />
+            <Route path="/bar/save" element={<BarSavePage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    expect(screen.queryByRole("button", { name: "개별 파일로 저장" })).toBeNull();
+    await screen.findByText(`포즈 ${count}개를 저장했습니다.`);
+    expect(screen.getByText("개별 파일 저장 · 러프 배치 제외")).toBeVisible();
+    expect(mock.bytes).toHaveBeenCalledTimes(count);
+    expect(mock.save).toHaveBeenCalledTimes(1);
+    expect(mock.save.mock.calls[0][0].files).toHaveLength(count);
+    expect(mock.prepare).not.toHaveBeenCalled();
+    expect(mock.download).not.toHaveBeenCalled();
+  },
+);
+it("legacy responses without scene capability retain individual automatic saving", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    capabilities: { ...data.capabilities, sceneExport: undefined },
+  });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(hook.result.current.needsIndividualConfirmation).toBe(false);
+  expect(mock.save).toHaveBeenCalledTimes(1);
+  expect(mock.download).not.toHaveBeenCalled();
+});
+it("disabled scene export still requires confirmation when people are omitted", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    capabilities: { ...data.capabilities, sceneExport: false },
+    people: [data.people[0], { ...data.people[1], candidates: [] }],
+  });
+  usePoseSelectionStore.setState({ selectedByPerson: { 0: "pick0" } });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.needsPartialConfirmation).toBe(true);
+  expect(hook.result.current.needsIndividualConfirmation).toBe(false);
+  await act(async () => hook.result.current.retry());
+  expect(mock.save).not.toHaveBeenCalled();
+  act(() => hook.result.current.confirmPartial());
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.save.mock.calls[0][0].files).toHaveLength(1);
+  expect(mock.download).not.toHaveBeenCalled();
 });
 it("unselected generation alternatives cannot disable the selected library scene", async () => {
   const { qc, wrapper } = setup();
