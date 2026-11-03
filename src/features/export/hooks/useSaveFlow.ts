@@ -10,6 +10,7 @@ import {
   saveCoverage,
   sceneUnavailableMessage,
   sceneSelectionAvailable,
+  sceneFallbackNeedsConfirmation,
 } from "../lib/saveCoverage";
 import { saveConsentBinding } from "../lib/saveBinding";
 import { jobFileName } from "../lib/jobFileName";
@@ -335,10 +336,12 @@ export function useSaveFlow(jobId: string | undefined) {
   const partialConsent = useExportStore((s) => s.partialConsentBinding);
   const individualConsent = useExportStore((s) => s.individualConsentBinding);
   const partialRequired = coverage.omitted.length > 0;
+  // 기능 자체가 꺼진 배포는 기존 개별 자동 저장을 쓴다.
+  // 켜진 기능이 선택/자산 조건으로 불가능할 때만 저장 방식 변경을 확인한다.
   const individualRequired =
     preferredFormat === "fbx" &&
     analysis?.source !== "semantic" &&
-    !isSceneExport &&
+    sceneFallbackNeedsConfirmation(analysis, selectedByPerson) &&
     !env.useMockPoseApi;
   const needsPartialConfirmation = partialRequired && partialConsent !== consentBinding;
   const needsIndividualConfirmation = individualRequired && individualConsent !== consentBinding;
@@ -497,7 +500,7 @@ export function useSaveFlow(jobId: string | undefined) {
         (currentCoverage.omitted.length > 0 && currentConsent.current.partialConsent !== binding) ||
         ((format === "fbx" || preferredFormat === "fbx") &&
           currentAnalysis?.source !== "semantic" &&
-          !sceneSelectionAvailable(currentAnalysis, currentState.selectedByPerson) &&
+          sceneFallbackNeedsConfirmation(currentAnalysis, currentState.selectedByPerson) &&
           !env.useMockPoseApi &&
           currentConsent.current.individualConsent !== binding)
       ) {
