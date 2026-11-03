@@ -5,6 +5,7 @@ import { ApiError } from "@/shared/api/errors";
 import { canRelease } from "@/features/pose-viewer/api/routedSearch";
 import type { ReviewItem } from "@/features/pose-viewer/hooks/useSelectionReview";
 import { modelIdentity, type LocalModel } from "./contract";
+import { personalCamera } from "./camera";
 import { localBodyApi } from "./api";
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
 const artifactSchema = z.object({
@@ -39,6 +40,16 @@ export function localBinding(model: LocalModel, item: ReviewItem, scope: string,
     item.candidate.sourceBvhSha256,
     item.exportUrl,
     item.refined,
+    [
+      "personal-camera/1",
+      item.candidate.presentationCamera ?? null,
+      item.candidate.previewModel
+        ? {
+            rotation: item.candidate.previewModel.rotation,
+            sourceSha: item.candidate.previewModel.sourceSha,
+          }
+        : null,
+    ],
     scope,
     hands,
   ]);
@@ -71,7 +82,10 @@ export async function finalPose(job: string, item: ReviewItem, signal: AbortSign
     !new TextDecoder().decode(bytes.subarray(0, 256)).trimStart().startsWith("HIERARCHY")
   )
     throw new ApiError(409, "INVALID_EXPORT", "");
-  return { bytes, hash: await digest(bytes) };
+  const hash = await digest(bytes);
+  if (!item.refined && item.candidate.sourceBvhSha256 && hash !== item.candidate.sourceBvhSha256)
+    throw { code: "STALE_RESULT" };
+  return { bytes, hash };
 }
 export async function prepareLocal(
   job: string,
@@ -82,25 +96,31 @@ export async function prepareLocal(
   signal: AbortSignal,
 ): Promise<LocalArtifact> {
   if (scope !== "full") throw { code: "SCOPE_UNSUPPORTED" };
+  const camera = personalCamera(item);
   const pose = await finalPose(job, item, signal);
   const jobId = crypto.randomUUID();
   const cancel = () => {
-    void localBodyApi.cancel(jobId);
+    void localBodyApi.cancel(jobId).catch(() => {});
   };
   signal.addEventListener("abort", cancel, { once: true });
   try {
     signal.throwIfAborted();
     const result = artifactSchema.parse(
       await invoke("personal_body_apply", {
-        jobId,
-        id: model.localModelId,
-        sourceHash: model.sourceHash,
-        poseBase64: base64(pose.bytes),
-        poseHash: pose.hash,
-        selectionId: crypto.randomUUID(),
+        request: {
+          jobId,
+          id: model.localModelId,
+          sourceHash: model.sourceHash,
+          poseBase64: base64(pose.bytes),
+          poseHash: pose.hash,
+          selectionId: crypto.randomUUID(),
+          camera,
+        },
       }),
     );
     signal.throwIfAborted();
+    if (JSON.stringify(personalCamera(item)) !== JSON.stringify(camera))
+      throw { code: "STALE_RESULT" };
     const content = Uint8Array.from(atob(result.contentBase64), (c) => c.charCodeAt(0));
     if ((await digest(content)) !== result.artifactHash) throw { code: "STALE_RESULT" };
     return {

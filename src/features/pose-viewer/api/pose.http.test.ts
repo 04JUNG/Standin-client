@@ -351,7 +351,15 @@ describe("poseHttp", () => {
                 tags: ["front"],
                 matchLevel: "medium",
                 bvhAvailable: true,
-                camera: { version: "candidate-camera-v1" },
+                camera: {
+                  version: "candidate-camera-v1",
+                  rotation: [
+                    [0, 0, 1],
+                    [0, 1, 0],
+                    [-1, 0, 0],
+                  ],
+                  source_bvh_sha256: "a".repeat(64),
+                },
                 thumbnailUrl: "/v1/pose-candidates/pose/aligned?jobId=job_saved",
                 quickThumbnailUrl: "/v1/pose-candidates/pose/thumbnail?view=back",
               },
@@ -365,6 +373,16 @@ describe("poseHttp", () => {
     expect(result.people[0]?.candidates[0]?.thumbnailUrl).toBe("");
     expect(result.people[0]?.candidates[0]?.deferredThumbnailUrl).toContain("/aligned?");
     expect(result.people[0]?.candidates[0]?.quickThumbnailUrl).toContain("/thumbnail?view=back");
+    expect(result.people[0]?.candidates[0]?.previewModel).toBeUndefined();
+    expect(result.people[0]?.candidates[0]?.presentationCamera).toMatchObject({
+      version: "candidate-camera-v1",
+      sourceBvhSha256: "a".repeat(64),
+      rotation: [
+        [0, 0, 1],
+        [0, 1, 0],
+        [-1, 0, 0],
+      ],
+    });
   });
 
   it("인증된 multipart Job을 만들고 완료 결과를 클라이언트 후보로 변환한다", async () => {

@@ -4,6 +4,7 @@ import { replayObservation, observeReplay } from "@/shared/lib/replayBridge";
 import { replayConfig } from "./config";
 import { replayActive, replayGap, sendReplayEvents, finishReplay } from "./client";
 import { safeReplayText } from "./privacy";
+import { createReplayPrivacyFilter } from "./privateDom";
 type Surface = "app" | "bar" | "capture";
 type TimedEvent = { type: number; timestamp: number; data: unknown };
 const surfaceAt = (): Surface =>
@@ -27,13 +28,16 @@ export function startRecorder() {
     saveState?: string;
   } = {};
   let lastRoute = "";
+  let filterPrivate = createReplayPrivacyFilter();
   const flush = () => {
     if (buffer.length) sendReplayEvents(surface, buffer, links);
     buffer = [];
     bytes = 0;
   };
-  const emit = (event: TimedEvent) => {
+  const emit = (raw: TimedEvent) => {
     if (!replayActive()) return;
+    const event = filterPrivate(raw) as TimedEvent | undefined;
+    if (!event) return;
     const size = JSON.stringify(event).length;
     if (size > 900_000) {
       replayGap("snapshot_too_large");
@@ -104,6 +108,7 @@ export function startRecorder() {
         return;
       }
       try {
+        filterPrivate = createReplayPrivacyFilter();
         stop =
           record({
             emit: (event) => emit(event as TimedEvent),

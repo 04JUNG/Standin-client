@@ -119,6 +119,9 @@ pub async fn personal_body_capabilities(app: AppHandle) -> Result<Value, LocalEr
             &AtomicBool::new(false),
             json!({"action":"hello"}),
         )?;
+        if hello["cameraContractVersion"] != "personal-camera/1" {
+            return Ok(json!({"available":false,"formats":[],"reason":"CAMERA_UNSUPPORTED"}));
+        }
         let formats: Vec<&str> = ["fbx", "cs3c"]
             .into_iter()
             .filter(|f| hello["formats"][*f] == true)
@@ -348,18 +351,34 @@ pub async fn personal_body_delete(app: AppHandle, id: String) -> Result<(), Loca
     .await
     .map_err(|_| err("STORAGE_FAILED"))?
 }
-#[tauri::command]
-pub async fn personal_body_apply(
-    app: AppHandle,
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApplyRequest {
     job_id: String,
     id: String,
     source_hash: String,
     pose_base64: String,
     pose_hash: String,
     selection_id: String,
+    camera: Value,
+}
+#[tauri::command]
+pub async fn personal_body_apply(
+    app: AppHandle,
+    request: ApplyRequest,
 ) -> Result<Value, LocalError> {
+    let ApplyRequest {
+        job_id,
+        id,
+        source_hash,
+        pose_base64,
+        pose_hash,
+        selection_id,
+        camera,
+    } = request;
     tauri::async_runtime::spawn_blocking(move || operation(&app,&job_id,|root,cancel| {
         if !valid_hash(&pose_hash) || !valid_hash(&source_hash) || !valid_id(&selection_id) || pose_base64.len() > 12 * 1024 * 1024 { return Err(err("INVALID_REQUEST")); }
+        validate_camera(&camera)?;
         let model = card(root,&id)?; if model.source_hash != source_hash { return Err(err("STALE_RESULT")); }
         let bytes = BASE64.decode(pose_base64).map_err(|_|err("INVALID_REQUEST"))?;
         if bytes.len() > 8*1024*1024 || hash(&bytes) != pose_hash { return Err(err("STALE_RESULT")); }
@@ -367,8 +386,16 @@ pub async fn personal_body_apply(
         let result=(|| {
             let pose_path=stage.join("pose.bvh");io(fs::write(&pose_path,bytes))?;
             let mut session=Session::start(&app,root)?;
-            let applied=session.request(Some(&app),&job_id,cancel,json!({"action":"apply","localModelId":model.worker_model_id,"sourceHash":source_hash,"posePath":pose_path,"poseHash":pose_hash,"selectionId":selection_id,"hands":{"left":null,"right":null}}))?;
+            let hello=session.request(Some(&app),&job_id,cancel,json!({"action":"hello"}))?;
+            if hello["cameraContractVersion"] != "personal-camera/1" { return Err(err("CAMERA_UNSUPPORTED")); }
+            let applied=session.request(Some(&app),&job_id,cancel,json!({"action":"apply","localModelId":model.worker_model_id,"sourceHash":source_hash,"posePath":pose_path,"poseHash":pose_hash,"selectionId":selection_id,"camera":camera,"hands":{"left":null,"right":null}}))?;
             if applied["localModelId"] != model.worker_model_id || applied["snapshot"]["sourceHash"] != source_hash || applied["snapshot"]["poseHash"] != pose_hash { return Err(err("SNAPSHOT_MISMATCH")); }
+            let expected = json!({"localModelId":model.worker_model_id,"sourceHash":source_hash,
+                "importerVersion":model.importer_version,"normalizationVersion":model.normalization_version,
+                "rigMappingVersion":model.rig_mapping_version,"converterVersion":model.converter_version,
+                "converterFingerprint":model.converter_fingerprint,"poseHash":pose_hash,
+                "hands":{"left":null,"right":null},"camera":camera,"orientation":"candidate-y-up-about-hips/1","outputMode":"rigged_rest"});
+            if applied["snapshot"] != expected { return Err(err("SNAPSHOT_MISMATCH")); }
             let snapshot=applied["snapshotHash"].as_str().filter(|s|valid_hash(s)).ok_or_else(||err("SNAPSHOT_MISMATCH"))?;
             let destination=stage.join("output.fbx");
             let exported=session.request(Some(&app),&job_id,cancel,json!({"action":"export","localModelId":model.worker_model_id,"snapshotHash":snapshot,"destinationPath":destination}))?;
@@ -414,4 +441,61 @@ pub async fn personal_body_preview(
     })
     .await
     .map_err(|_| err("STORAGE_FAILED"))?
+}
+
+/// Reject reflection/scale/nonfinite data at the native boundary as well as in the worker.
+fn validate_camera(camera: &Value) -> Result<(), LocalError> {
+    let object = camera
+        .as_object()
+        .ok_or_else(|| err("CAMERA_UNSUPPORTED"))?;
+    if object.len() != 3
+        || camera["version"] != "personal-camera/1"
+        || !object.contains_key("sourceBvhSha256")
+        || !object.contains_key("rotation")
+    {
+        return Err(err("CAMERA_UNSUPPORTED"));
+    }
+    if !camera["sourceBvhSha256"].is_null()
+        && !camera["sourceBvhSha256"].as_str().is_some_and(valid_hash)
+    {
+        return Err(err("CAMERA_UNSUPPORTED"));
+    }
+    if camera["rotation"].is_null() {
+        return Ok(());
+    }
+    if camera["sourceBvhSha256"].is_null() {
+        return Err(err("CAMERA_UNSUPPORTED"));
+    }
+    let rows = camera["rotation"]
+        .as_array()
+        .filter(|v| v.len() == 3)
+        .ok_or_else(|| err("CAMERA_UNSUPPORTED"))?;
+    let mut m = [[0.0; 3]; 3];
+    for (i, row) in rows.iter().enumerate() {
+        let cells = row
+            .as_array()
+            .filter(|v| v.len() == 3)
+            .ok_or_else(|| err("CAMERA_UNSUPPORTED"))?;
+        for (j, cell) in cells.iter().enumerate() {
+            m[i][j] = cell
+                .as_f64()
+                .filter(|x| x.is_finite())
+                .ok_or_else(|| err("CAMERA_UNSUPPORTED"))?;
+        }
+    }
+    for i in 0..3 {
+        for j in 0..3 {
+            let dot: f64 = (0..3).map(|k| m[i][k] * m[j][k]).sum();
+            if (dot - if i == j { 1.0 } else { 0.0 }).abs() > 1e-6 {
+                return Err(err("CAMERA_UNSUPPORTED"));
+            }
+        }
+    }
+    let [a, b, c] = m;
+    let det = a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0])
+        + a[2] * (b[0] * c[1] - b[1] * c[0]);
+    if (det - 1.0).abs() > 1e-6 {
+        return Err(err("CAMERA_UNSUPPORTED"));
+    }
+    Ok(())
 }

@@ -97,6 +97,7 @@ function show() {
 }
 
 beforeEach(() => {
+  vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "true");
   putPreferences.mockReset();
   changeCard.mockReset();
   navigate.mockReset();
@@ -164,4 +165,11 @@ it("offers the personal library plus card even when server models are unavailabl
   fireEvent.click(screen.getByRole("button", { name: "내 데포르메 불러오기" }));
   expect(screen.getByRole("dialog", { name: "내 데포르메 불러오기" })).toBeVisible();
   expect(screen.getByRole("button", { name: "FBX·CS3C 파일 선택" })).toBeDisabled();
+});
+
+it("keeps the personal feature inactive in a normal build without a reviewed runtime", () => {
+  vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "false");
+  show();
+  expect(screen.queryByRole("button", { name: "내 데포르메" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "내 데포르메 불러오기" })).toBeNull();
 });

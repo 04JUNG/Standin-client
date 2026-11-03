@@ -67,6 +67,9 @@ fn malformed_ids_names_and_corrupt_cards_fail_closed() {
 fn real_packaged_worker_import_apply_export_restart_delete() {
     let runtime = PathBuf::from(std::env::var("STANDIN_TEST_LAUNCHER").expect("packaged launcher"));
     let source = PathBuf::from(std::env::var("STANDIN_TEST_FBX").expect("permitted FBX"));
+    exercise_packaged_model(runtime, source);
+}
+fn exercise_packaged_model(runtime: PathBuf, source: PathBuf) {
     let pose = PathBuf::from(std::env::var("STANDIN_TEST_BVH").expect("final BVH fixture"));
     let root = temporary_root();
     let cancel = AtomicBool::new(false);
@@ -84,6 +87,28 @@ fn real_packaged_worker_import_apply_export_restart_delete() {
         assert_eq!(imported["capabilities"]["bodyPose"], true);
         let mut saved = fixture();
         saved.worker_model_id = model_id.into();
+        saved.source_hash = source_hash.clone();
+        saved.format = source.extension().unwrap().to_string_lossy().to_lowercase();
+        saved.importer_version = imported["versions"]["importerVersion"]
+            .as_str()
+            .unwrap()
+            .into();
+        saved.normalization_version = imported["versions"]["normalizationVersion"]
+            .as_str()
+            .unwrap()
+            .into();
+        saved.rig_mapping_version = imported["versions"]["rigMappingVersion"]
+            .as_str()
+            .unwrap()
+            .into();
+        saved.converter_version = imported["versions"]["converterVersion"]
+            .as_str()
+            .unwrap()
+            .into();
+        saved.converter_fingerprint = imported["versions"]["converterFingerprint"]
+            .as_str()
+            .unwrap()
+            .into();
         save_card(&root, &saved).unwrap();
     }
     assert_eq!(cards(&root).unwrap().len(), 1);
@@ -98,7 +123,7 @@ fn real_packaged_worker_import_apply_export_restart_delete() {
             )
             .unwrap();
         assert_eq!(inspected["sourceHash"], source_hash);
-        let result=session.request(None,"apply",&cancel,json!({"action":"apply","localModelId":model_id,"sourceHash":source_hash,"posePath":pose,"poseHash":pose_hash,"selectionId":"selection","hands":{"left":null,"right":null}})).unwrap();
+        let result=session.request(None,"apply",&cancel,json!({"action":"apply","localModelId":model_id,"sourceHash":source_hash,"posePath":pose,"poseHash":pose_hash,"selectionId":"selection","camera":{"version":"personal-camera/1","sourceBvhSha256":null,"rotation":null},"hands":{"left":null,"right":null}})).unwrap();
         assert_eq!(result["snapshot"]["poseHash"], pose_hash);
         let destination = root.join("saved.fbx");
         let exported=session.request(None,"export",&cancel,json!({"action":"export","localModelId":model_id,"snapshotHash":result["snapshotHash"],"destinationPath":destination})).unwrap();
@@ -106,7 +131,9 @@ fn real_packaged_worker_import_apply_export_restart_delete() {
             hash(&fs::read(&destination).unwrap()),
             exported["artifactHash"].as_str().unwrap()
         );
-        if let Some(copy) = std::env::var_os("STANDIN_TEST_EXPORT_COPY") { fs::copy(&destination, copy).unwrap(); }
+        if let Some(copy) = std::env::var_os("STANDIN_TEST_EXPORT_COPY") {
+            fs::copy(&destination, copy).unwrap();
+        }
         session
             .request(
                 None,
@@ -162,9 +189,10 @@ fn real_packaged_worker_cancel_does_not_publish_model() {
 }
 #[test]
 #[ignore = "Requires packaged runtime and actual CS3C fixture via STANDIN_TEST_*; unsupported format must not publish a model"]
-fn real_packaged_worker_cs3c_is_rejected_without_success_card() {
-    let launcher =
-        PathBuf::from(std::env::var("STANDIN_TEST_LAUNCHER").expect("packaged launcher"));
+fn real_packaged_worker_without_decoder_rejects_cs3c() {
+    let launcher = PathBuf::from(
+        std::env::var("STANDIN_TEST_LAUNCHER_NO_DECODER").expect("decoder-free packaged launcher"),
+    );
     let source = PathBuf::from(std::env::var("STANDIN_TEST_CS3C").expect("CS3C fixture"));
     let root = std::env::temp_dir().join(format!(
         "standin-client-cs3c-{}",
@@ -176,6 +204,15 @@ fn real_packaged_worker_cs3c_is_rejected_without_success_card() {
     fs::create_dir_all(&root).unwrap();
     {
         let mut session = Session::start_from(&launcher, &root).unwrap();
+        let hello = session
+            .request(
+                None,
+                "hello",
+                &AtomicBool::new(false),
+                json!({"action":"hello"}),
+            )
+            .unwrap();
+        assert_eq!(hello["formats"]["cs3c"], false);
         let result=session.request(None,"cs3ctest",&AtomicBool::new(false),json!({"action":"import","localModelId":"cs3c-model","sourcePath":source,"sourceHash":hash(&fs::read(&source).unwrap())}));
         assert_eq!(result.unwrap_err().code, "CS3C_DECODER_UNAVAILABLE");
     }
@@ -205,4 +242,29 @@ fn sweep_preserves_registered_models_and_user_exports() {
     assert!(!root.join("staging").join(orphan).exists());
     assert!(root.join("user-saved.fbx").exists());
     fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn camera_is_a_versioned_proper_rotation_with_source_lineage() {
+    assert!(validate_camera(
+        &json!({"version":"personal-camera/1","sourceBvhSha256":null,"rotation":null})
+    )
+    .is_ok());
+    let mut camera = json!({"version":"personal-camera/1","sourceBvhSha256":"a".repeat(64),"rotation":[[0,0,1],[0,1,0],[-1,0,0]]});
+    assert!(validate_camera(&camera).is_ok());
+    camera["rotation"] = json!([[-1, 0, 0], [0, 1, 0], [0, 0, 1]]);
+    assert!(validate_camera(&camera).is_err());
+    camera["rotation"] = json!([[2, 0, 0], [0, 1, 0], [0, 0, 1]]);
+    assert!(validate_camera(&camera).is_err());
+    assert!(validate_camera(&json!({})).is_err());
+}
+
+#[test]
+#[ignore = "Requires decoder-enabled packaged runtime, permitted original CS3C and BVH"]
+fn real_packaged_worker_with_decoder_imports_original_cs3c() {
+    let runtime =
+        PathBuf::from(std::env::var("STANDIN_TEST_LAUNCHER").expect("decoder-enabled launcher"));
+    let source =
+        PathBuf::from(std::env::var("STANDIN_TEST_CS3C").expect("permitted original CS3C"));
+    exercise_packaged_model(runtime, source);
 }

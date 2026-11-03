@@ -104,6 +104,7 @@ function wrap(node: ReturnType<typeof createElement>) {
 }
 
 beforeEach(() => {
+  vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "true");
   useLocalBodies.setState({ models: [], selected: {}, scroll: {} });
   mutate.mockClear();
   prefs.current = null;

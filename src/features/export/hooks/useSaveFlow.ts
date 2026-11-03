@@ -319,10 +319,12 @@ export function useSaveFlow(jobId: string | undefined) {
         const offCache = queryClient.getQueryCache().subscribe(changed);
         const offSelection = usePoseSelectionStore.subscribe(changed);
         const offOwner = useInstallationStore.subscribe(changed);
+        const offLocal = useLocalBodies.subscribe(changed);
         return () => {
           offCache();
           offSelection();
           offOwner();
+          offLocal();
         };
       },
       [queryClient],

@@ -32,6 +32,8 @@ export const capabilitySchema = z.object({
   reason: z.string().optional(),
 });
 export const messages: Record<string, string> = {
+  CAMERA_UNSUPPORTED:
+    "선택한 포즈의 방향을 확인하지 못했어요. 후보를 다시 고르거나 앱 업데이트를 확인해 주세요.",
   LIBRARY_REFRESH_FAILED:
     "파일은 보관했지만 목록을 새로 확인하지 못했어요. 내 데포르메에서 다시 시도해 주세요.",
   SCOPE_UNSUPPORTED:

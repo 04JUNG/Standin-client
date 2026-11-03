@@ -1,3 +1,4 @@
+import { personalDeformeEnabled } from "@/features/personal-body/config";
 import { PersonalDeformCards } from "@/features/personal-body/PersonalDeformCards";
 import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import {
@@ -465,7 +466,14 @@ export function BodyExpand({
             aria-label="체형 종류"
             className="inline-flex rounded-full border border-border bg-surface-0 p-0.5"
           >
-            {(["male", "female", "child", "personal"] as const).map((k) => (
+            {(
+              [
+                "male",
+                "female",
+                "child",
+                ...(personalDeformeEnabled() ? ["personal" as const] : []),
+              ] as const
+            ).map((k) => (
               <button
                 key={k}
                 type="button"

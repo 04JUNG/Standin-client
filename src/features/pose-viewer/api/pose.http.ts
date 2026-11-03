@@ -307,6 +307,15 @@ async function toPoseCandidate(
         }
       : {}),
     ...(deferred ? { deferredThumbnailUrl: raw.thumbnailUrl } : {}),
+    ...(raw.camera != null
+      ? {
+          presentationCamera: {
+            version: raw.camera.version,
+            rotation: raw.camera.rotation,
+            sourceBvhSha256: raw.camera.source_bvh_sha256,
+          },
+        }
+      : {}),
     ...(raw.quickThumbnailUrl || (!deferred && raw.thumbnailUrl)
       ? {
           quickThumbnailUrl: raw.quickThumbnailUrl || raw.thumbnailUrl,

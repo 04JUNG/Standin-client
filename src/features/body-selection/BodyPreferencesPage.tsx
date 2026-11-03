@@ -1,3 +1,4 @@
+import { personalDeformeEnabled } from "@/features/personal-body/config";
 import { PersonalDeformLibrary } from "@/features/personal-body/PersonalDeformCards";
 import { useFeatureView } from "@/features/analytics/featureJourney";
 import { useState } from "react";
@@ -187,7 +188,15 @@ export function BodyPreferencesPage() {
               aria-label="기본 모델 종류"
               className="inline-flex rounded-full border border-border bg-surface-0 p-0.5"
             >
-              {(["all", "male", "female", "child", "personal"] as const).map((k) => (
+              {(
+                [
+                  "all",
+                  "male",
+                  "female",
+                  "child",
+                  ...(personalDeformeEnabled() ? ["personal" as const] : []),
+                ] as const
+              ).map((k) => (
                 <button
                   key={k}
                   type="button"
