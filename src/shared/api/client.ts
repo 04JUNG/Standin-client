@@ -20,6 +20,11 @@ export function setInstallationCredentials(
   installationCredentials = credentials;
 }
 
+/** Owner identity only; replay control work must never persist device credentials. */
+export function currentInstallationId(): string | undefined {
+  return installationCredentials?.installationId;
+}
+
 /**
  * 401을 받았을 때 access token을 재발급할 방법. 새 토큰을 돌려주면 원 요청을 재시도하고,
  * `null`이면 세션이 끝난 것으로 본다.

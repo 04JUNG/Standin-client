@@ -1,3 +1,5 @@
+import { appSession } from "@/shared/lib/appSession";
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { failureProperties } from "./failureProperties";
 import { apiFetch } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
@@ -81,7 +83,7 @@ export function currentOsName() {
         : "unknown";
 }
 let capabilityGeneration = 0;
-let sessionId = crypto.randomUUID();
+
 export function analyticsConsentId() {
   return qualityConsentId;
 }
@@ -159,7 +161,6 @@ export function resetJourneyCapability(): void {
   capabilityRetryAt = 0;
   journeyEnabled = undefined;
   featureUsageEnabled = undefined;
-  sessionId = crypto.randomUUID();
 }
 
 export function setAnalyticsConsent(consentId: string | null, grantedAt?: string | null): void {
@@ -249,6 +250,7 @@ export function trackEvent(
   properties: QueuedEvent["properties"],
   jobId?: string,
 ): void {
+  replayObservation(name, properties, jobId);
   if (
     !qualityConsentId ||
     (featureNames.has(name) && featureUsageEnabled === false) ||
@@ -271,7 +273,7 @@ export function trackEvent(
       ...(journeyEnabled !== false
         ? {
             telemetryVersion: 2,
-            sessionId,
+            sessionId: appSession().appSessionId,
             appVersion: import.meta.env.VITE_APP_VERSION || "unknown",
             surface: properties.surface ?? currentSurface(),
             osName: currentOsName(),
@@ -380,13 +382,11 @@ function readInputAttempt(
 }
 export function startInputAttempt(source: string, surface: Surface = currentSurface()): string {
   const attemptId = crypto.randomUUID();
-  if (qualityConsentId) {
-    safeStorage.setItem(
-      inputAttemptKey(source),
-      JSON.stringify({ attemptId, surface, startedAt: Date.now(), consentId: qualityConsentId }),
-    );
-    trackEvent("input_started", { source, attemptId, surface });
-  }
+  safeStorage.setItem(
+    inputAttemptKey(source),
+    JSON.stringify({ attemptId, surface, startedAt: Date.now(), consentId: qualityConsentId }),
+  );
+  trackEvent("input_started", { source, attemptId, inputAttemptId: attemptId, surface });
   return attemptId;
 }
 export function finishInputAttempt(

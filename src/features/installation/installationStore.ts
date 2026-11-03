@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { create } from "zustand";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { apiFetch, setInstallationCredentials } from "@/shared/api/client";
@@ -156,6 +157,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
     }
   },
   async withdraw() {
+    replayObservation("replay_withdraw", {});
     useQualityConsentStore.getState().reset();
     set({ error: null });
     if (get().status === "registered") {

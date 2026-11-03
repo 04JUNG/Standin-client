@@ -992,3 +992,12 @@ HTTP 426 `UPDATE_REQUIRED`를 받으면 앱 화면 전체를 업데이트 화면
 없는 빌드는 설정된 Standin 홈페이지에서 직접 설치할 수 있다. 설치 후 재시작해야 해제된다.
 분석·저장은 서버에서도 검사하므로 기존 배포 앱이 새 UI를 갖고 있지 않아도 사용할 수 없다.
 릴리스 순서: 0.2.0 이상 설치 파일과 업데이트 피드를 게시한 다음 최소 버전 정책 BFF 배포.
+
+### Replay retry control (2026-10-31)
+
+Failed `DELETE /v1/replays` is retained as installation-owned IDB control work, separate from
+the bounded payload queue, and retried at startup/online/timer while collection remains
+stopped. Device tokens are attached at send time and never persisted in replay controls.
+Pending deletion is never sent with another installation's credentials. Exact asset bytes
+may retain multiple immutable semantic/version/expiry bindings during offline retry.
+Server acknowledgement clears pending deletion, not the local withdrawn state.

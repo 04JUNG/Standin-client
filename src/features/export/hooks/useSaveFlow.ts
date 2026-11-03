@@ -1,3 +1,4 @@
+import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
 import {
   prepareOriginalScene,
   validateSceneManifest,
@@ -963,6 +964,7 @@ export function useSaveFlow(jobId: string | undefined) {
           },
           serverJob,
         );
+        void rememberSavedArtifacts(serverJob, format, saveFiles, binding).catch(() => {});
         rememberDownload(id, binding);
         if (useExportStore.getState().jobId !== id) return;
         setSavedSceneManifest(sceneMetadata);
