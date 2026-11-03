@@ -31,7 +31,7 @@
 - runtime을 지정하면 manifest SHA pin, 대상 OS/명시 target, per-file SHA, camera revision을 검증한 후 resource를 포함하고 frontend를 활성화한다. 이미 복사된 resource도 매번 다시 검증한다.
 - universal macOS에 arm64 package를 슬쩍 넣을 수 없다. 현재 검증 대상은 arm64뿐이다. Windows/x64/universal native qualification은 남아 있다.
 - `releaseReady:false`는 debug 검수에서만 허용한다. 일반 공개 release 경로에서는 거부한다. 서명/공증·Blender 소스/고지·decoder 재배포 적합성은 별도 출시 gate다.
-- 검수 app/DMG는 별도 identifier `app.standin.desktop.personal-review-20261103`로 빌드했다. 기존 사용자 앱 데이터/동의/설정은 건드리지 않았다. 검수 overlay만 updater endpoints를 비워 테스트 앱의 자동 교체를 막았다.
+- [현재 소스로 빌드한 app/DMG](native-package-verification-20261103.json)는 runtime manifest 6,579개 파일을 모두 검증했고 변경 0개, DMG 안 앱과 원래 앱의 arm64 binary/runtime hash가 같다. 무서명 debug/체험 API 빌드다. 검수 app/DMG는 별도 identifier `app.standin.desktop.personal-review-20261103`로 빌드했다. 기존 사용자 앱 데이터/동의/설정은 건드리지 않았다. 검수 overlay만 updater endpoints를 비워 테스트 앱의 자동 교체를 막았다.
 
 ```sh
 STANDIN_LOCAL_CONVERTER_PACKAGE=/absolute/reviewed/runtime \
@@ -47,7 +47,7 @@ npm run tauri -- build --debug --bundles app,dmg --no-sign
 
 - 원본 CS3C 2종 + 기존 FBX 1종, 같은 BVH에 source/yaw/roll 3가지 실제 packaged IPC apply/export. source·pose·artifact SHA, restart/reuse, cache 분리, invalid camera/stale 거절, 삭제 후 저장 파일 보존을 확인했다.
 - 9개 출력 FBX를 Blender에 독립 재임포트해 요청 rigid transform을 본 world 좌표/vertex와 대조했다. 단일 회전, 원래 스킨 가중치 및 오브젝트 scale 보존을 검사했다. 이것은 CSP 수용 검증과 다르다.
-- 실제 macOS 앱의 네이티브 file picker → 승인 원본과 동일 hash의 CS3C 및 FBX 입력 → 성공 카드/실제 GLB 표시 → inline rename을 확인했다. 파일 선택 경로 단축을 위해 `/private/tmp`에 byte-identical 검수 사본을 사용했다. 원본을 변환한 FBX로 대체해 CS3C 성공을 주장하지 않았다.
+- 실제 macOS 앱의 네이티브 file picker → 승인 원본과 동일 hash의 CS3C 및 FBX 입력 → 성공 카드/실제 GLB 표시 → inline rename → 현재 소스의 앱 재시작 후 두 카드/이름 보존을 확인했다. 이름 변경 Escape 취소 및 삭제 확인/취소도 실제 UI에서 확인했다. 파일 선택 경로 단축을 위해 `/private/tmp`에 byte-identical 검수 사본을 사용했다. 원본을 변환한 FBX로 대체해 CS3C 성공을 주장하지 않았다.
 - 앱 resource 자체의 runtime을 Rust 어댑터에서 실행해 FBX 성공/CS3C 포함 성공/미포함 거부/취소 정리를 검사했다.
 - 후보 선택/앱↔바/부분·개별 저장/손 회귀는 실제 제품 컴포넌트와 테스트 대역이다. 인증된 live staging BFF까지 연결한 연속 UI E2E는 아직 미완료이며 새 유료 추론/평가를 실행하지 않았다.
 
@@ -56,3 +56,15 @@ npm run tauri -- build --debug --bundles app,dmg --no-sign
 CSP 5.1.1에서 별도 새 검수 canvas에 `model-0-camera-1.fbx`(CS3C 기반, yaw 적용)를 File → Import → 3D data로 선택했을 때 CSP 프로세스가 종료되었다. macOS crash report는 main thread excessive recursion / `EXC_BAD_ACCESS`, `SIGSEGV`다. **CSP 가져오기 성공으로 보고하지 않는다.** Blender roundtrip 성공을 CSP 호환성으로 확대하지 않는다. 출력 방향의 수학적 일치는 확인했지만 CSP 종료의 원인은 아직 특정하지 못했다. 원본 방향/다른 모델 및 실제 CSP 수용 문제의 독립 검수가 필요하다.
 
 기능을 끈 기반 병합 검토는 가능하지만, CSP 호환·live 설치 소유 BFF 연속 검증·나머지 OS와 release qualification이 끝나기 전 사용자 활성화/출시를 승인할 수 없다. 운영 접속/배포, main/develop 직접 push, PR merge는 수행하지 않는다.
+
+## 실제 제품 화면 (macOS debug, API는 체험 모드)
+
+런타임/파일 선택/등록/목록/rename은 실제 native 실행이다. 후보 API를 mock으로 실행한 검수 앱이며 live BFF 전체 E2E로 해석하지 않는다. 아래는 재시작한 현재 제품 코드 화면이다.
+
+![재시작 후 플러스 카드와 실제 CS3C/FBX 카드](native-deforme-restarted-20261103.png)
+
+![새 파일 불러오기 전용 창](native-deforme-import-dialog-20261103.png)
+
+![카드 내부 이름 변경](native-deforme-inline-rename-20261103.png)
+
+![삭제 확인 및 저장된 FBX 보존 안내](native-deforme-delete-confirm-20261103.png)
