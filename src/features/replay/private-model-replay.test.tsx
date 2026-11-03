@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 import { gunzipSync, strFromU8 } from "fflate";
+import { SavedFileList } from "@/features/export/components/SavedFileList";
 import { PersonalDeformLibrary } from "@/features/personal-body/PersonalDeformCards";
 import { useLocalBodies, useLocalImport } from "@/features/personal-body/store";
 import { setInstallationCredentials } from "@/shared/api/client";
@@ -134,6 +135,10 @@ it("actual product cards + rrweb recorder + sanitizer + queue and upload contain
   render(
     <QueryClientProvider client={qc}>
       <PersonalDeformLibrary />
+      <SavedFileList
+        paths={["/Users/private/PRIVATE_CHARACTER_NAME_20261103.fbx"]}
+        onCopy={async () => true}
+      />
     </QueryClientProvider>,
   );
   await screen.findByRole("button", { name: `${secret} 이름 변경` });

@@ -390,12 +390,7 @@ pub async fn personal_body_apply(
             if hello["cameraContractVersion"] != "personal-camera/1" { return Err(err("CAMERA_UNSUPPORTED")); }
             let applied=session.request(Some(&app),&job_id,cancel,json!({"action":"apply","localModelId":model.worker_model_id,"sourceHash":source_hash,"posePath":pose_path,"poseHash":pose_hash,"selectionId":selection_id,"camera":camera,"hands":{"left":null,"right":null}}))?;
             if applied["localModelId"] != model.worker_model_id || applied["snapshot"]["sourceHash"] != source_hash || applied["snapshot"]["poseHash"] != pose_hash { return Err(err("SNAPSHOT_MISMATCH")); }
-            let expected = json!({"localModelId":model.worker_model_id,"sourceHash":source_hash,
-                "importerVersion":model.importer_version,"normalizationVersion":model.normalization_version,
-                "rigMappingVersion":model.rig_mapping_version,"converterVersion":model.converter_version,
-                "converterFingerprint":model.converter_fingerprint,"poseHash":pose_hash,
-                "hands":{"left":null,"right":null},"camera":camera,"orientation":"candidate-y-up-about-hips/1","outputMode":"rigged_rest"});
-            if applied["snapshot"] != expected { return Err(err("SNAPSHOT_MISMATCH")); }
+            validate_snapshot(&model, &pose_hash, &camera, &applied["snapshot"])?;
             let snapshot=applied["snapshotHash"].as_str().filter(|s|valid_hash(s)).ok_or_else(||err("SNAPSHOT_MISMATCH"))?;
             let destination=stage.join("output.fbx");
             let exported=session.request(Some(&app),&job_id,cancel,json!({"action":"export","localModelId":model.worker_model_id,"snapshotHash":snapshot,"destinationPath":destination}))?;
@@ -496,6 +491,23 @@ fn validate_camera(camera: &Value) -> Result<(), LocalError> {
         + a[2] * (b[0] * c[1] - b[1] * c[0]);
     if (det - 1.0).abs() > 1e-6 {
         return Err(err("CAMERA_UNSUPPORTED"));
+    }
+    Ok(())
+}
+
+fn validate_snapshot(
+    model: &Card,
+    pose_hash: &str,
+    camera: &Value,
+    actual: &Value,
+) -> Result<(), LocalError> {
+    let expected = json!({"localModelId":model.worker_model_id,"sourceHash":model.source_hash,
+        "importerVersion":model.importer_version,"normalizationVersion":model.normalization_version,
+        "rigMappingVersion":model.rig_mapping_version,"converterVersion":model.converter_version,
+        "converterFingerprint":model.converter_fingerprint,"poseHash":pose_hash,
+        "hands":{"left":null,"right":null},"camera":camera,"orientation":"candidate-y-up-about-hips/1","outputMode":"rigged_rest"});
+    if *actual != expected {
+        return Err(err("SNAPSHOT_MISMATCH"));
     }
     Ok(())
 }

@@ -1,5 +1,7 @@
 # 내 데포르메 카드 UI 구현 — 2026-10-31
 
+> 이 문서는 당시 UI 작업 기록이다. 카메라/리플레이/일반 빌드 경로의 현재 상태는 [2026-11-03 통합 기록](personal-deforme-integration-20261103/README.md)을 따른다.
+
 ## 기준과 작업 분리
 
 - 브랜치: `codex/personal-deforme-ui-20261031`

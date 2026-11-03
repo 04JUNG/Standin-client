@@ -125,6 +125,11 @@ fn exercise_packaged_model(runtime: PathBuf, source: PathBuf) {
         assert_eq!(inspected["sourceHash"], source_hash);
         let result=session.request(None,"apply",&cancel,json!({"action":"apply","localModelId":model_id,"sourceHash":source_hash,"posePath":pose,"poseHash":pose_hash,"selectionId":"selection","camera":{"version":"personal-camera/1","sourceBvhSha256":null,"rotation":null},"hands":{"left":null,"right":null}})).unwrap();
         assert_eq!(result["snapshot"]["poseHash"], pose_hash);
+        let registered = card(&root, &fixture().local_model_id).unwrap();
+        let camera = json!({"version":"personal-camera/1","sourceBvhSha256":null,"rotation":null});
+        assert!(validate_snapshot(&registered, &pose_hash, &camera, &result["snapshot"]).is_ok());
+        let changed = json!({"version":"personal-camera/1","sourceBvhSha256":pose_hash,"rotation":[[0,0,1],[0,1,0],[-1,0,0]]});
+        assert!(validate_snapshot(&registered, &pose_hash, &changed, &result["snapshot"]).is_err());
         let destination = root.join("saved.fbx");
         let exported=session.request(None,"export",&cancel,json!({"action":"export","localModelId":model_id,"snapshotHash":result["snapshotHash"],"destinationPath":destination})).unwrap();
         assert_eq!(

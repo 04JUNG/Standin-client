@@ -3,13 +3,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { useLocalBodies, localSelectionKey } from "./store";
+import type { PoseCandidate } from "@/features/pose-viewer/api/pose.contract";
 import type { LocalModel } from "./contract";
 const fixtures = vi.hoisted(() => ({
   prepare: vi.fn(),
   loadServerBody: vi.fn(),
   item: {
     personIndex: 0,
-    candidate: { id: "p", title: "pose" },
+    candidate: { id: "p", title: "pose" } as PoseCandidate,
     refined: false,
     exportUrl: "/v1/pose-candidates/p/export?jobId=job&personIndex=0&candidateId=p",
     previewUrl: "",
@@ -65,6 +66,7 @@ function setup() {
   });
 }
 beforeEach(() => {
+  fixtures.item.candidate = { id: "p", title: "pose" } as PoseCandidate;
   fixtures.prepare.mockReset();
   fixtures.loadServerBody.mockReset();
   useLocalBodies.setState({
@@ -113,4 +115,30 @@ it("shows a recoverable worker error without preparing a different body", async 
   expect(result.current.downloadReady).toBe(false);
   expect(result.current.previewFailure.message).toContain("업데이트");
   expect(fixtures.loadServerBody).not.toHaveBeenCalled();
+});
+
+it("invalidates a completed local review immediately when only presentation rotation changes", async () => {
+  fixtures.prepare.mockImplementationOnce(async (_j, _m, _i, _s, binding) => ({
+    binding,
+    content: new Uint8Array([1]),
+  }));
+  const { result, rerender } = setup();
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  fixtures.prepare.mockImplementationOnce(() => new Promise(() => {}));
+  fixtures.item.candidate = {
+    ...fixtures.item.candidate,
+    presentationCamera: {
+      version: "candidate-camera-v2",
+      sourceBvhSha256: "a".repeat(64),
+      rotation: [
+        [0, 0, 1],
+        [0, 1, 0],
+        [-1, 0, 0],
+      ],
+    },
+  };
+  rerender();
+  expect(result.current.downloadReady).toBe(false);
+  expect(result.current.items[0]?.localFbx).toBeUndefined();
+  await waitFor(() => expect(fixtures.prepare).toHaveBeenCalledTimes(2));
 });
