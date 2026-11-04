@@ -28,7 +28,11 @@ const options = assets.map(a => ({
   ...(a.neutralPreview ? { neutralPreview: {
     ...a.neutralPreview, url: `/v1/models/${a.characterId}/body-preview/${a.neutralPreview.sha256}`,
   } } : {}),
-  // This layout fixture uses exact neutral PNGs. Numeric runtime editing is tested separately.
+  ...(a.shapeRuntime && fs.existsSync(a.shapeRuntime.path) ? { shapeRuntime: {
+    ...a.shapeRuntime,
+    url: `/v1/models/${a.characterId}/shape-runtime/${a.shapeRuntime.sha256}`,
+    ...(a.shapeSource ? { source:a.shapeSource } : {}),
+  } } : {}),
 }));
 const modelCatalog = { origin: 'server', defaultCharacterId: newMale.characterId, characters: assets.map(a => ({
   characterId: a.characterId, displayName: a.displayName, gender: a.gender,
@@ -46,17 +50,20 @@ let selected = { schemaVersion:'body-selection.v1', personIndex:0, intent:'inher
   shape:null, recommendation:{ status:'disabled', body:null, reasonCodes:[] }, resolvedBody:ref(newMale),
   resolvedSource:'catalog_default_fallback', resolutionStatus:'ready', selectionRevision:0,
 };
+let activePage;
 const calls = [], errors = [];
 (async () => {
   const browser = await chromium.launch({ executablePath:process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless:true });
   const page = await browser.newPage({ viewport:{width:1280,height:900} });
-  page.setDefaultTimeout(15000);
+  activePage = page;
+  page.setDefaultTimeout(30000);
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/*', async route => {
     const req = route.request(), url = new URL(req.url());
     if (url.origin === root && !url.pathname.startsWith('/v1/')) return route.continue();
-    calls.push({method:req.method(),path:url.pathname,body:req.method()==='PUT' ? req.postDataJSON() : undefined});
+    calls.push({method:req.method(),path:url.pathname,body:req.method()==='PUT' && /body-(selection|preferences)$/.test(url.pathname) ? req.postDataJSON() : undefined});
     const json = (v,status=200) => route.fulfill({status,contentType:'application/json',body:JSON.stringify(v)});
+    if (url.pathname.startsWith('/v1/replays')) return json({error:{code:'REPLAY_DISABLED'}},403);
     if (url.pathname === '/v1/models') return json(modelCatalog);
     if (url.pathname.endsWith('/body-preferences')) {
       if (req.method() === 'PUT') preferences = {...preferences, mode:req.postDataJSON().mode, revision:preferences.revision+1};
@@ -78,6 +85,13 @@ const calls = [], errors = [];
       assert.equal(hash(bytes),png.neutralPreview.sha256);
       assert.equal(png.neutralPreview.characterSha256,png.assetSha256);
       return route.fulfill({status:200,contentType:'image/png',body:bytes});
+    }
+    const runtime = assets.find(a => a.shapeRuntime && url.pathname === `/v1/models/${a.characterId}/shape-runtime/${a.shapeRuntime.sha256}`);
+    if (runtime) {
+      const bytes = fs.readFileSync(runtime.shapeRuntime.path);
+      assert.equal(bytes.length,runtime.shapeRuntime.bytes);
+      assert.equal(hash(bytes),runtime.shapeRuntime.sha256);
+      return route.fulfill({status:200,contentType:'application/octet-stream',body:bytes});
     }
     if (url.pathname.endsWith('/body-previews')) return json({error:{code:'PREVIEW_NOT_READY'}},503);
     if (url.pathname.endsWith('/quality-consent')) return json({personalData:false,contentLicense:false,revision:0});
@@ -107,9 +121,11 @@ const calls = [], errors = [];
   await page.getByRole('button',{name:'새 체형 만들기',exact:true}).click();
   await page.getByRole('radiogroup',{name:'시작 체형'}).waitFor();
   assert.ok(await page.getByRole('radio',{name:new RegExp(newMale.displayName.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))}).isChecked());
+  if (newMale.shapeRuntime && fs.existsSync(newMale.shapeRuntime.path)) await page.locator('canvas').first().waitFor({state:'visible'});
   await shot('02-new-male-editor.png');
   await page.getByRole('button',{name:'여성',exact:true}).click();
   await page.waitForFunction(id => document.querySelector('[role="radiogroup"][aria-label="시작 체형"] [aria-checked="true"]')?.textContent.includes(id),newFemale.displayName);
+  if (newFemale.shapeRuntime && fs.existsSync(newFemale.shapeRuntime.path)) await page.locator('canvas').first().waitFor({state:'visible'});
   await shot('03-new-female-editor.png');
   // Explicit old base and an existing personal card must keep the old identity.
   await navigate('/app/models/custom?base='+oldFemale.characterId);
@@ -154,7 +170,7 @@ const calls = [], errors = [];
   assert.ok(overflow.scrollWidth<=overflow.width+1);
   assert.equal(calls.filter(c=>c.method==='PUT'&&c.path.endsWith('/body-preferences')).length,0);
   assert.equal(errors.length,0,errors.join('\n'));
-  fs.writeFileSync(path.join(out,'ui-result.json'),JSON.stringify({catalogRevision:catalog.version,catalogSha256:hash(fs.readFileSync(process.env.BODY_UI_CATALOG)),assets:assets.map(a=>({characterId:a.characterId,assetSha256:a.assetSha256,neutralSha:a.neutralPreview?.sha256})),selected,calls,errors,overflow,evidence:'product components + API fixtures + exact catalog neutral PNGs; no real job conversion/download',screenshots:fs.readdirSync(out).filter(f=>f.endsWith('.png'))},null,2));
+  fs.writeFileSync(path.join(out,'ui-result.json'),JSON.stringify({catalogRevision:catalog.version,catalogSha256:hash(fs.readFileSync(process.env.BODY_UI_CATALOG)),assets:assets.map(a=>({characterId:a.characterId,assetSha256:a.assetSha256,neutralSha:a.neutralPreview?.sha256,runtimeSha:options.find(o=>o.characterId===a.characterId)?.shapeRuntime?.sha256})),selected,calls,errors,overflow,evidence:'product components + API fixtures + exact neutral PNGs + available source-bound sampled runtime; no real job conversion/download',screenshots:fs.readdirSync(out).filter(f=>f.endsWith('.png'))},null,2));
   await browser.close();
   console.log('UI fixture passed: '+out);
-})().catch(e=>{console.error(e);process.exit(1)});
+})().catch(async e=>{if(activePage){fs.writeFileSync(path.join(out,'failure.json'),JSON.stringify({error:String(e),errors,calls,text:await activePage.locator('body').innerText()},null,2)); await activePage.screenshot({path:path.join(out,'failure.png')});}console.error(e);process.exit(1)});
