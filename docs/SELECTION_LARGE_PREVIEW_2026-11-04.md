@@ -22,7 +22,7 @@ Basic and flesh tint (#FADFCA) plus 0–2 CSS-pixel silhouette outline update on
 
 ## Protocol and lifecycle
 
-New capability `selectionPreview: true` is read only when the existing client `VITE_INTERACTIVE_POSE_PREVIEW` opt-in is enabled. Server capability requires the existing private interactive feature flag and transport. Defaults remain off.
+New capability `selectionPreview: true` is read only when the existing client `VITE_INTERACTIVE_POSE_PREVIEW` opt-in is enabled. Server capability requires the existing private interactive feature flag and transport. Defaults remain off. Without either the negotiated read-only capability or a supported static asset, the existing selection layout and neutral body preview remain in place; no empty large pane is shown.
 
 `POST /v1/analysis/jobs/{jobId}/people/{personIndex}/selection-preview`
 
@@ -32,7 +32,7 @@ Each fullscreen preview owns at most its current prepared surface plus an incomi
 
 ## Verification
 
-- Client full suite: **1,291 passed / 3 optional artifact skips**. New tests cover response races, abort/disposal, previous-preview labelling, appearance without reloading, canonical corruption/body/candidate/revision fences, and material isolation. Existing selection/save/person/app/bar regressions pass.
+- Client full suite: **1,293 passed / 3 optional artifact skips**. New tests cover response races, abort/disposal, previous-preview labelling, appearance without reloading, canonical corruption/body/candidate/revision fences, and material isolation. Existing selection/save/person/app/bar regressions pass.
 - BFF full suite: **1,005 passed / 2 optional skips**, including preview resolver/HTTP/cleanup/race/permission tests. Typecheck/build pass.
 - Client typecheck/lint/build pass (existing BodyCandidates Fast Refresh and large chunk/dynamic-import warnings). Dedicated strict check also covers `samples/selection.tsx`.
 - Actual shared local Converter solve + new BFF validation: approved male/full packet, 9,430,240 response bytes, zero export calls and two cleanup calls. Two consecutive runs **6,506 / 4,122 ms**, injected owned-selection resolver. This is real solve evidence, not a production database, complete HTTP/native save or fleet latency claim. Cold body preparation is not instantaneous; unchanged FBX dependencies remain.

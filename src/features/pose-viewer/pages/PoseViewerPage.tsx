@@ -14,7 +14,7 @@ import {
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import { cn } from "@/shared/lib/cn";
 import type { PersonResult } from "../api/pose.contract";
-import { RoughOverview } from "../components/RoughPanel";
+import { RoughOverview, RoughPanel } from "../components/RoughPanel";
 import { PersonIndexRow } from "../components/PersonIndexRow";
 import { CandidateRerunTile } from "../components/CandidateRerun";
 import { useCandidateRerun } from "../hooks/useCandidateRerun";
@@ -204,20 +204,29 @@ export function PoseViewerPage() {
     );
   }
 
+  const largePreviewEnabled =
+    !!active &&
+    ((data.capabilities.selectionPreview === true &&
+      bodies.enabled &&
+      active.candidates.length > 0) ||
+      active.candidates.some((candidate) => !!candidate.interactivePreview?.asset));
+
   if (data.source === "semantic")
     return (
       <AppShell title="문장 검색 결과">
-        <div className="selection-workspace">
+        <div
+          className={largePreviewEnabled ? "selection-workspace" : "flex min-h-full flex-col gap-3"}
+        >
           <div className="sticky -top-6 z-10 border-b border-border bg-surface-0 p-3">
             <SemanticSearchBar resultKey={data.jobId} initialQuery={data.semantic?.query ?? ""} />
           </div>
-          <div className="selection-split">
-            <div className="selection-list">
+          <div className={largePreviewEnabled ? "selection-split" : undefined}>
+            <div className={largePreviewEnabled ? "selection-list" : "flex flex-col gap-4"}>
               {data.people.map((person) => (
                 <div key={person.index} className="flex flex-col gap-3">
                   {person.posePresentation ? (
                     <PosePresentationPanel
-                      persistentPreview
+                      persistentPreview={largePreviewEnabled}
                       telemetryJob={data.jobId}
                       presentation={person.posePresentation}
                       bodyPreviewJob={
@@ -237,7 +246,7 @@ export function PoseViewerPage() {
                 </div>
               ))}
             </div>
-            {active && active.candidates.length > 0 && (
+            {largePreviewEnabled && active && active.candidates.length > 0 && (
               <SelectionPreview
                 key={`${data.jobId}:${active.index}`}
                 job={data.jobId}
@@ -249,7 +258,14 @@ export function PoseViewerPage() {
               />
             )}
           </div>
-          <div className="selection-footer flex flex-wrap items-center justify-between gap-3">
+          <div
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-3",
+              largePreviewEnabled
+                ? "selection-footer"
+                : "sticky bottom-0 border-t border-border bg-surface-0 p-3",
+            )}
+          >
             <p className="text-sm" aria-live="polite">
               포즈 선택 {selectedCount}/{includedPeople.length} · 저장 전 확인
             </p>
@@ -295,9 +311,17 @@ export function PoseViewerPage() {
 
   return (
     <AppShell title="포즈 후보">
-      <div className="selection-workspace">
-        <div className="selection-split">
-          <div ref={continuity.contentRef} className="selection-list [overflow-anchor:none]">
+      <div
+        className={largePreviewEnabled ? "selection-workspace" : "flex min-h-full flex-col gap-3"}
+      >
+        <div className={largePreviewEnabled ? "selection-split" : undefined}>
+          <div
+            ref={continuity.contentRef}
+            className={cn(
+              "[overflow-anchor:none]",
+              largePreviewEnabled ? "selection-list" : "flex flex-col gap-3",
+            )}
+          >
             {restoreOnly && (
               <div className="flex items-start gap-2 rounded-xl border border-brand-sky/40 bg-brand-sky/10 p-3">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-sky" aria-hidden />
@@ -309,7 +333,12 @@ export function PoseViewerPage() {
 
             {/* 원본: 인물 상자를 함께 그린다. 상자를 누르면 그 인물이 펼쳐진다. */}
             <div className="flex items-center gap-4 rounded-xl border border-border bg-surface-0 p-3">
-              <div className="flex h-[90px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-2 bg-white">
+              <div
+                className={cn(
+                  "flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-2 bg-white",
+                  largePreviewEnabled ? "h-[90px] w-[132px]" : "h-[150px] w-[220px]",
+                )}
+              >
                 {roughUrl ? (
                   <RoughOverview
                     url={roughUrl}
@@ -346,6 +375,10 @@ export function PoseViewerPage() {
                 key={active.index}
                 jobId={data.jobId}
                 person={active}
+                people={people}
+                excluded={excludedPeople}
+                onPick={pick}
+                persistentPreview={largePreviewEnabled}
                 roughUrl={roughUrl}
                 bodiesEnabled={bodies.enabled}
                 presentationBodyPreviews={data.capabilities.presentationBodyPreviews}
@@ -401,7 +434,7 @@ export function PoseViewerPage() {
               ))}
             </nav>
           </div>
-          {active && active.fallbackMode !== "hard" && (
+          {largePreviewEnabled && active && active.fallbackMode !== "hard" && (
             <SelectionPreview
               key={`${data.jobId}:${active.index}`}
               job={data.jobId}
@@ -413,8 +446,7 @@ export function PoseViewerPage() {
             />
           )}
         </div>
-        <div className="selection-footer">
-          {" "}
+        <div className={largePreviewEnabled ? "selection-footer" : "border-t border-border pt-3"}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             {/* "다른 후보 찾기"가 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
               안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
@@ -483,6 +515,10 @@ export function PoseViewerPage() {
 function ActivePersonCard({
   jobId,
   person,
+  people,
+  excluded,
+  onPick,
+  persistentPreview,
   roughUrl,
   bodiesEnabled,
   presentationBodyPreviews,
@@ -497,6 +533,10 @@ function ActivePersonCard({
 }: {
   jobId: string;
   person: PersonResult;
+  people: PersonResult[];
+  excluded: Readonly<Record<number, unknown>>;
+  onPick(index: number): void;
+  persistentPreview: boolean;
   roughUrl?: string;
   bodiesEnabled: boolean;
   presentationBodyPreviews?: boolean;
@@ -558,7 +598,7 @@ function ActivePersonCard({
           entry={entry}
           rough={{ url: roughUrl, box: person.box }}
           variant="app"
-          hideLivePreview
+          hideLivePreview={persistentPreview}
         />
       ) : (
         <>
@@ -580,12 +620,26 @@ function ActivePersonCard({
             }}
           />
           {!hard && gridCandidates.length > 0 && (
-            <div className="min-w-0">
+            <div
+              className={
+                persistentPreview ? "min-w-0" : "grid grid-cols-[190px_minmax(0,1fr)] gap-3"
+              }
+            >
+              {!persistentPreview && (
+                <RoughPanel
+                  url={roughUrl}
+                  people={people}
+                  person={person}
+                  excluded={excluded}
+                  onPick={onPick}
+                  showCaption={false}
+                />
+              )}
               <div className="relative">
                 <div
                   {...tourAnchor("jobs.candidates")}
                   className={cn(
-                    "selection-candidates",
+                    persistentPreview ? "selection-candidates" : "grid grid-cols-5 gap-3",
                     !included && "pointer-events-none opacity-40 grayscale",
                   )}
                 >
