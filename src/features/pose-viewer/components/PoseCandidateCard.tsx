@@ -61,13 +61,20 @@ function InteractiveCandidateCard({
       <div className={cn("w-full", fill ? "min-h-0 flex-1" : "aspect-square")}>
         <ExpandablePose
           showControls={false}
+          showExpandButton
           asset={candidate.interactivePreview?.asset}
           viewKey={`${jobId ?? "sample"}:${candidate.id}`}
         />
       </div>
-      <div
+      <button
+        type="button"
+        data-pose-selection
+        disabled={disabled || !canRelease(candidate)}
+        aria-label={isSelected ? "선택됨" : "이 포즈 선택"}
+        aria-pressed={isSelected}
+        onClick={onSelect}
         className={cn(
-          "relative z-[20] flex shrink-0 flex-col bg-surface-0",
+          "relative z-[20] flex w-full shrink-0 flex-col bg-surface-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-sky disabled:opacity-40",
           fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3",
         )}
       >
@@ -77,21 +84,17 @@ function InteractiveCandidateCard({
         {!fill && (
           <span className="text-[11px] text-text-secondary">{candidate.tags.join(" · ")}</span>
         )}
-        <button
-          type="button"
-          disabled={disabled || !canRelease(candidate)}
-          aria-pressed={isSelected}
-          onClick={onSelect}
+        <span
           className={cn(
-            "w-full rounded-md border py-1 text-[12px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:opacity-40",
+            "w-full rounded-md border py-1 text-center text-[12px] font-semibold",
             isSelected
               ? "border-brand-coral bg-brand-coral text-white"
               : "border-border hover:bg-surface-2",
           )}
         >
           {isSelected ? "선택됨" : "이 포즈 선택"}
-        </button>
-      </div>
+        </span>
+      </button>
     </div>
   );
 }
