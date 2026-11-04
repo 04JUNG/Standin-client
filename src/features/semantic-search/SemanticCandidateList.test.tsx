@@ -4,11 +4,11 @@ import { SemanticCandidateList } from "./SemanticCandidateList";
 beforeEach(() => {
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
     top: 10000,
-    bottom: 10020,
+    bottom: 10000,
     left: 0,
     right: 1,
     width: 1,
-    height: 20,
+    height: 0,
     x: 0,
     y: 10000,
     toJSON: () => ({}),
@@ -106,5 +106,6 @@ it("a fast scroll past the sentinel still fills every skipped batch", () => {
     toJSON: () => ({}),
   });
   fireEvent.scroll(window);
-  expect(screen.getAllByTestId("card")).toHaveLength(65);
+  expect(screen.getAllByTestId("card")).toHaveLength(60);
+  expect(screen.getByText("검색 후보 65 / 65개")).toBeInTheDocument();
 });

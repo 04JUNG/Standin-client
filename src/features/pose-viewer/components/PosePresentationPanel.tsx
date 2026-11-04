@@ -15,7 +15,7 @@ import { DefaultPoseImage } from "./DefaultPoseImage";
 import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selection/BodyCandidates";
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
-import { SemanticCandidateList } from "@/features/semantic-search/SemanticCandidateList";
+import { SemanticResultList } from "@/features/semantic-search/SemanticResultList";
 import { CandidatePages } from "./CandidatePages";
 import { isBasicCloseup } from "../api/basicCloseup";
 import { BasicCloseupReference } from "./BasicCloseupReference";
@@ -198,13 +198,15 @@ function PresentationContent({
           />
         </div>
       ) : (
-        groups.map(([label, rows]) => (
+        groups.map(([label, rows], groupIndex) => (
           <div key={label}>
             <h3 className="text-xs font-semibold">
               {label} {rows.length}개
             </h3>
-            <SemanticCandidateList
-              key={rows.map((c) => c.candidate_id).join(",")}
+            <SemanticResultList
+              key={`${telemetryJob}:${label}`}
+              jobId={telemetryJob}
+              lastGroup={groupIndex === groups.length - 1}
               rows={rows}
               label={label}
               gridClass={gridClass}

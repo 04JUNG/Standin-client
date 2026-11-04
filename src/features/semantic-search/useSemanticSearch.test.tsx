@@ -175,3 +175,20 @@ it("records zero results and repeated attempts with shared IDs, without search t
     vi.mocked(featureAction).mock.calls.filter((c) => c[1] === "search_started")[1][3],
   ).toMatchObject({ searchOrdinal: 2 });
 });
+
+it.each(["app", "bar"] as const)(
+  "negotiates the progressive first batch on %s without narrowing topK",
+  async (surface) => {
+    api.searchCapabilities.mockResolvedValue({
+      available: true,
+      maxTopK: 20,
+      supportsAllResults: true,
+      supportsProgressiveResults: true,
+    });
+    const { result } = setup(surface);
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    act(() => result.current.edit("앉은 자세"));
+    await act(async () => result.current.submit());
+    expect(api.searchPoses).toHaveBeenCalledWith("앉은 자세", expect.any(AbortSignal), null, true);
+  },
+);
