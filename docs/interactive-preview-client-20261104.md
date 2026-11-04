@@ -54,3 +54,7 @@ Local diagnostic hooks record cold/warm download, parse, first-frame, render, pa
 2. Supply exact search matrices/framing plus approved full library/scope inventory; bind BFF capability/asset metadata and packet frame to it. Supply owner-authorized verified hand tables before registering any local capability.
 3. Exercise actual app/native save, multi-person/reselection/refine-hand races, expiry/deletion/permissions/context loss, server/private history storage and CSP on supported OS/device combinations.
 4. Record real cold/warm/render/GPU/solve/file metrics and complete the user's product UI review before Ready/activation/deployment.
+
+## Product feedback — Top-5 overlay controls
+
+The user requested removal of the visible enlargement/reset icons over Top-5 cards. Both app and bar now hide those overlays through the shared card/viewer interface. Drag observation, explicit pose selection and keyboard access remain; review/enlarged-view controls are unchanged. This presentation edit does not activate real model assets or certify refine/hand/FBX equivalence. The procedural sample is still a fixture and the real integration gates above remain unresolved.

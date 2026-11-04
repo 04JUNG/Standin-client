@@ -21,6 +21,7 @@ export function InteractivePose({
   surface,
   viewKey,
   large = false,
+  showControls = true,
   onExpand,
   onFrame,
 }: {
@@ -28,6 +29,7 @@ export function InteractivePose({
   surface?: SurfaceView;
   viewKey: string;
   large?: boolean;
+  showControls?: boolean;
   onExpand?: () => void;
   onFrame?: (element: HTMLElement) => void;
 }) {
@@ -227,27 +229,29 @@ export function InteractivePose({
           )}
         </div>
       )}
-      <div className="absolute right-2 top-2 z-[20] flex gap-1">
-        <button
-          type="button"
-          aria-label="처음 시점"
-          title="처음 시점 (R)"
-          className="rounded-md border bg-surface-0 p-1.5"
-          onClick={reset}
-        >
-          <RotateCcw size={15} />
-        </button>
-        {onExpand && (
+      {showControls && (
+        <div className="absolute right-2 top-2 z-[20] flex gap-1">
           <button
             type="button"
-            aria-label="크게 보기"
+            aria-label="처음 시점"
+            title="처음 시점 (R)"
             className="rounded-md border bg-surface-0 p-1.5"
-            onClick={onExpand}
+            onClick={reset}
           >
-            <Maximize2 size={15} />
+            <RotateCcw size={15} />
           </button>
-        )}
-      </div>
+          {onExpand && (
+            <button
+              type="button"
+              aria-label="크게 보기"
+              className="rounded-md border bg-surface-0 p-1.5"
+              onClick={onExpand}
+            >
+              <Maximize2 size={15} />
+            </button>
+          )}
+        </div>
+      )}
       {large && (
         <div className="absolute bottom-3 left-1/2 z-[20] flex -translate-x-1/2 items-center gap-3 rounded-lg border bg-surface-0 p-2 text-xs">
           <button
@@ -276,11 +280,13 @@ export function ExpandablePose({
   asset,
   surface,
   viewKey,
+  showControls = true,
   onFrame,
 }: {
   asset?: StaticAsset;
   surface?: SurfaceView;
   viewKey: string;
+  showControls?: boolean;
   onFrame?: (e: HTMLElement) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -303,6 +309,7 @@ export function ExpandablePose({
         asset={asset}
         surface={surface}
         viewKey={viewKey}
+        showControls={showControls}
         onExpand={() => setExpanded(true)}
         onFrame={onFrame}
       />
