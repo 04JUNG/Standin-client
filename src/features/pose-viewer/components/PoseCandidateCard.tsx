@@ -1,3 +1,4 @@
+import { ExpandablePose } from "../interactive/InteractivePose";
 import { useThumbnailJourney } from "@/features/analytics/useThumbnailJourney";
 import { reviewOnly, canRelease } from "../api/routedSearch";
 import { useDefaultPosePoster } from "../api/posePoster";
@@ -33,7 +34,67 @@ type PoseCandidateCardProps = {
   disabled?: boolean;
 };
 
-export function PoseCandidateCard({
+export function PoseCandidateCard(props: PoseCandidateCardProps) {
+  if (props.candidate.interactivePreview && !props.candidate.semantic)
+    return <InteractiveCandidateCard {...props} />;
+  return <PosterCandidateCard {...props} />;
+}
+function InteractiveCandidateCard({
+  candidate,
+  jobId,
+  isSelected,
+  onSelect,
+  layout,
+  disabled,
+}: PoseCandidateCardProps) {
+  const fill = layout === "fill";
+  return (
+    <div
+      data-pose-candidate
+      id={`pose-candidate-${candidate.id}`}
+      className={cn(
+        "flex w-full flex-col overflow-hidden rounded-xl border-2 bg-surface-0",
+        isSelected ? "border-brand-coral" : "border-border",
+        fill && "h-full min-h-0",
+      )}
+    >
+      <div className={cn("w-full", fill ? "min-h-0 flex-1" : "aspect-square")}>
+        <ExpandablePose
+          asset={candidate.interactivePreview?.asset}
+          viewKey={`${jobId ?? "sample"}:${candidate.id}`}
+        />
+      </div>
+      <div
+        className={cn(
+          "relative z-[20] flex shrink-0 flex-col bg-surface-0",
+          fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3",
+        )}
+      >
+        <span className="text-[12px] font-semibold">
+          {candidate.rank}. {candidate.title}
+        </span>
+        {!fill && (
+          <span className="text-[11px] text-text-secondary">{candidate.tags.join(" · ")}</span>
+        )}
+        <button
+          type="button"
+          disabled={disabled || !canRelease(candidate)}
+          aria-pressed={isSelected}
+          onClick={onSelect}
+          className={cn(
+            "w-full rounded-md border py-1 text-[12px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:opacity-40",
+            isSelected
+              ? "border-brand-coral bg-brand-coral text-white"
+              : "border-border hover:bg-surface-2",
+          )}
+        >
+          {isSelected ? "선택됨" : "이 포즈 선택"}
+        </button>
+      </div>
+    </div>
+  );
+}
+function PosterCandidateCard({
   jobId,
   candidate,
   bodyPreview,

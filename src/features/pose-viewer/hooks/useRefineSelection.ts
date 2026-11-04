@@ -74,9 +74,10 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
             jobId: result.jobId,
             personIndex: next.personIndex,
             candidateId: next.candidateId,
-            ...(result.capabilities.modelPreview &&
-            modelRenderingAvailable() &&
-            result.capabilities.outputScopeCropping &&
+            ...((result.capabilities.interactivePreview?.operations ||
+              (result.capabilities.modelPreview &&
+                modelRenderingAvailable() &&
+                result.capabilities.outputScopeCropping)) &&
             result.capabilities.fbxExport &&
             useExportStore.getState().format === "fbx"
               ? { deferPreview: true }

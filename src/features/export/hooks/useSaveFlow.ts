@@ -1,3 +1,4 @@
+import { interactiveController } from "@/features/pose-viewer/interactive/session";
 import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
 import {
   prepareOriginalScene,
@@ -603,7 +604,24 @@ export function useSaveFlow(jobId: string | undefined) {
             );
             let content: Uint8Array;
             let downloadPath = "";
-            if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
+            if (
+              env.interactivePreview &&
+              analysisResult.capabilities.interactivePreview?.operations &&
+              format === "fbx"
+            ) {
+              const owner = useInstallationStore.getState().credentials?.installationId ?? "";
+              const current = interactiveController(owner, analysisResult.jobId, personIndex);
+              const interactiveBinding = current.snapshot().binding;
+              if (
+                !owner ||
+                !interactiveBinding ||
+                current.snapshot().operation?.candidateId !== candidateId
+              )
+                throw new ApiError(409, "PREVIEW_CHANGED", "");
+              const verified = await current.download(interactiveBinding, controller.signal);
+              content = verified.bytes;
+              downloadPath = current.snapshot().operation!.fileUrl!;
+            } else if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
               if (options.forceDefaultCharacter) throw new ApiError(409, "BODY_PREVIEW_STALE", "");
               const owner = useInstallationStore.getState().credentials?.installationId ?? "";
               const body = qc.getQueryData<BodySelection>(
@@ -867,6 +885,21 @@ export function useSaveFlow(jobId: string | undefined) {
         controller.signal.throwIfAborted();
         // A late response must never write an older selection to disk.
         if (
+          (env.interactivePreview &&
+            analysisResult.capabilities.interactivePreview?.operations &&
+            files.some((f) => {
+              const current = interactiveController(
+                useInstallationStore.getState().credentials?.installationId ?? "",
+                analysisResult.jobId,
+                f.personIndex,
+              );
+              const currentBinding = current.snapshot().binding;
+              return (
+                !currentBinding ||
+                !current.ready(currentBinding) ||
+                current.snapshot().operation?.fileUrl !== f.downloadPath
+              );
+            })) ||
           snapshot() !== bindingAtStart ||
           qc.isMutating({ mutationKey: ["hand-change"] }) ||
           qc.isMutating({ mutationKey: ["body-change"] })

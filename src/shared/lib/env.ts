@@ -17,6 +17,7 @@ export const env = {
   // 기본값은 랜딩의 Vite dev 서버 포트다.
   webBaseUrl: (import.meta.env.VITE_WEB_BASE_URL ?? "http://localhost:5173").replace(/\/+$/, ""),
   useMockApi,
+  interactivePreview: readBool(import.meta.env.VITE_INTERACTIVE_POSE_PREVIEW, false),
   // 포즈 분석 서버만 먼저 붙는 과도기 지원: 미설정이면 useMockApi를 그대로 따른다.
   useMockPoseApi: readBool(import.meta.env.VITE_USE_MOCK_POSE_API, useMockApi),
   appEnv: (import.meta.env.VITE_APP_ENV as AppEnv | undefined) ?? "development",

@@ -1,0 +1,6 @@
+Upstream: 04JUNG/Standin-server
+Path: converter/shared/interactive_pose_v1.mjs
+Implementation commit: 3fa41e71fc51b4aa696a2855c858dc5a73d36265
+SHA256: 0484cc1ded584faf7beccd62b6fcc75e594084023cc67f1ea2ec0a3776f3f287
+Copied byte-for-byte. No independent hand kinematics implementation.
+Draft contract; actual approved variant table has not been published.

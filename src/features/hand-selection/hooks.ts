@@ -1,3 +1,4 @@
+import { applyLocalHands } from "@/features/pose-viewer/interactive/hands";
 import { replayObservation } from "@/shared/lib/replayBridge";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
@@ -53,8 +54,16 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
         throw new Error("이 출력 범위에는 손이 포함되지 않습니다.");
       return putHandSelection(job, selection, patch);
     },
-    onMutate: async ({ selection }) => {
+    onMutate: async ({ selection, patch }) => {
       invalidateFinalReview(qc, job);
+      if (result?.capabilities.interactivePreview?.operations)
+        applyLocalHands(
+          owner,
+          job,
+          selection.personIndex,
+          patch.left ?? selection.left,
+          patch.right ?? selection.right,
+        );
       await qc.cancelQueries({ queryKey: handKeys.selection(owner, job, selection.personIndex) });
       await qc.cancelQueries({
         queryKey: ["body", owner, job, selection.personIndex],
