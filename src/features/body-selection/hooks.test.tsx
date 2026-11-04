@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
 import { useBodies, useBodyControls } from "./hooks";
+import { bodyDraftKey, useBodyDrafts } from "./bodyDrafts";
 import { bodyKeys } from "./api";
 import type { BodySelection } from "./contract";
 import { readOutputScope } from "@/features/pose-viewer/api/outputScope";
@@ -60,6 +61,7 @@ function setup() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  useBodyDrafts.setState({ pending: {} });
   useInstallationStore.setState({
     credentials: { installationId: "owner", deviceToken: "test", consentVersion: "2026-08-02" },
   });
@@ -79,6 +81,22 @@ beforeEach(() => {
   );
 });
 describe("server body groups", () => {
+  it("blocks confirmation throughout the slider debounce, excluding people not exported", async () => {
+    const { wrapper } = setup();
+    const hook = renderHook(({ excluded }) => useBodies(result, excluded), {
+      wrapper,
+      initialProps: { excluded: {} as Record<number, boolean> },
+    });
+    await waitFor(() => expect(hook.result.current.ready).toBe(true));
+    const key = bodyDraftKey("owner", "server-job", 0);
+    act(() => useBodyDrafts.getState().setPending(key, true));
+    expect(hook.result.current.ready).toBe(false);
+    hook.rerender({ excluded: { 0: true } });
+    expect(hook.result.current.ready).toBe(true);
+    hook.rerender({ excluded: {} });
+    act(() => useBodyDrafts.getState().setPending(key, false));
+    expect(hook.result.current.ready).toBe(true);
+  });
   it("scope and body/shape changes commit one consistent group and discard a late half render", async () => {
     const { wrapper, qc } = setup();
     let currentScope = "half";

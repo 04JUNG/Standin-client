@@ -16,7 +16,7 @@ import type {
   PersonResult,
   PoseCandidate,
 } from "@/features/pose-viewer/api/pose.contract";
-import { useBodyControls, type BodyEntry } from "./hooks";
+import { useBodyControls, useBodyOwner, type BodyEntry } from "./hooks";
 import {
   BODY_KIND_LABEL,
   bodyKind,
@@ -25,6 +25,7 @@ import {
   useBodyPanel,
   type BodyKind,
 } from "./bodyPanel";
+import { bodyDraftKey, useBodyDrafts } from "./bodyDrafts";
 import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
 import { ShapeControlGrid } from "./ShapeControls";
 import { shapeDefaults as defaults } from "./shapeValues";
@@ -313,6 +314,8 @@ export function BodyExpand({
   const spec = current?.shape;
   const saved = spec ? { ...defaults(spec), ...(selection?.shape?.controls ?? {}) } : {};
   const [draft, setDraft] = useState<Record<string, number> | null>(null);
+  const draftKey = bodyDraftKey(useBodyOwner(), job, person.index);
+  const markDraft = (value: boolean) => useBodyDrafts.getState().setPending(draftKey, value);
   const values = draft ?? saved;
   const latest = useRef<Record<string, number> | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -322,10 +325,17 @@ export function BodyExpand({
   useEffect(() => {
     // 다른 체형을 고르면 손대던 값은 버린다.
     setDraft(null);
+    useBodyDrafts.getState().setPending(draftKey, false);
     latest.current = null;
     clearTimeout(timer.current);
-  }, [currentId]);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  }, [currentId, draftKey]);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      useBodyDrafts.getState().setPending(draftKey, false);
+    },
+    [draftKey],
+  );
   function sendShape() {
     if (!currentId || !latest.current) return;
     if (pendingRef.current) {
@@ -351,6 +361,7 @@ export function BodyExpand({
           if (latest.current === controls) {
             latest.current = null;
             setDraft(null);
+            markDraft(false);
           } else if (latest.current) {
             // 저장하는 사이 더 움직였다. 새 revision을 받은 다음 렌더에서 보낸다.
             setFlush(true);
@@ -369,6 +380,7 @@ export function BodyExpand({
   function changeControl(key: string, value: number) {
     const next = { ...values, [key]: value };
     setDraft(next);
+    markDraft(true);
     latest.current = next;
     clearTimeout(timer.current);
     timer.current = setTimeout(sendShape, 600);
