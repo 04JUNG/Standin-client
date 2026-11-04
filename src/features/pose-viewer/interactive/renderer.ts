@@ -3,7 +3,6 @@ import { PREVIEW_BACKGROUND } from "../preview/previewStyle";
 import { searchCamera, type Observation } from "./camera";
 import type { SearchCamera } from "./contract";
 import { measure } from "./metrics";
-import { clearUnusedAssets } from "./assets";
 
 type View = {
   element: HTMLElement;
@@ -205,7 +204,7 @@ export function shutdown() {
     output.forceContextLoss();
     output = undefined;
   }
-  clearUnusedAssets();
+  // GPU resources are gone; keep the bounded immutable CPU cache warm across main↔bar remounts.
 }
 /** Primitive display-only camera metadata for auxiliary frame provenance. */
 export function observationForView(element: HTMLElement) {

@@ -70,7 +70,7 @@ function InteractiveCandidateCard({
           fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3",
         )}
       >
-        <span className="text-[12px] font-semibold">
+        <span className="shrink-0 whitespace-nowrap text-[12px] font-semibold">
           {candidate.rank}. {candidate.title}
         </span>
         {!fill && (
