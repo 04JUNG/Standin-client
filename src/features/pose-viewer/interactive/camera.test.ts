@@ -97,3 +97,17 @@ it("keeps rightward drag and pan screen-relative with ordinary or mirrored searc
         );
       }
 });
+
+it("keeps pan in screen axes after orbiting around the model", () => {
+  for (const perspective of [false, true])
+    for (const horizontalSign of [1, -1])
+      for (const yaw of [-2.1, 0.8, 2.1]) {
+        const s = spec(0.27, perspective);
+        s.projectionMatrix[0] *= horizontalSign;
+        const observation = { ...initialObservation(), yaw, pitch: 0.45 };
+        const reference = searchCamera(s, 1.3, observation);
+        const point = new THREE.Vector3(...s.target);
+        const panned = searchCamera(s, 1.3, { ...observation, panX: -0.12 });
+        expect(screenX(point, panned)).toBeGreaterThan(screenX(point, reference));
+      }
+});

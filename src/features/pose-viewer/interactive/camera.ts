@@ -35,7 +35,8 @@ export function searchCamera(raw: SearchCamera, aspect: number, observation: Obs
     );
   const pan = right
     .multiplyScalar(observation.panX * horizontalDirection)
-    .add(up.multiplyScalar(observation.panY));
+    .add(up.multiplyScalar(observation.panY))
+    .applyQuaternion(orbit);
   const offset = position.clone().sub(target).applyQuaternion(orbit);
   const rotation = new THREE.Quaternion().setFromRotationMatrix(world).premultiply(orbit);
   camera.matrixWorld.compose(

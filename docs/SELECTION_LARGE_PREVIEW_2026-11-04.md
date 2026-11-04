@@ -32,7 +32,7 @@ Owner/job/person changes remount the pane and dispose the former canonical surfa
 
 ## Verification
 
-- Client full suite: **1,294 passed / 3 optional artifact skips**. New tests cover response races, abort/disposal, previous-preview labelling, appearance without reloading, canonical corruption/body/candidate/revision fences, and material isolation. Existing selection/save/person/app/bar regressions pass.
+- Client full suite: **1,295 passed / 3 optional artifact skips**. New tests cover response races, abort/disposal, previous-preview labelling, appearance without reloading, canonical corruption/body/candidate/revision fences, and material isolation. Existing selection/save/person/app/bar regressions pass.
 - BFF full suite: **1,005 passed / 2 optional skips**, including preview resolver/HTTP/cleanup/race/permission tests. Typecheck/build pass.
 - Client typecheck/lint/build pass (existing BodyCandidates Fast Refresh and large chunk/dynamic-import warnings). Dedicated strict check also covers `samples/selection.tsx`.
 - Actual shared local Converter solve + new BFF validation: approved male/full packet, 9,430,240 response bytes, zero export calls and two cleanup calls. Two consecutive runs **6,506 / 4,122 ms**, injected owned-selection resolver. This is real solve evidence, not a production database, complete HTTP/native save or fleet latency claim. Cold body preparation is not instantaneous; unchanged FBX dependencies remain.
@@ -43,7 +43,7 @@ Local samples: `/samples/real.html` (real Top5) and `/samples/selection.html` (t
 
 ## Screen-relative orbit correction
 
-Real search camera projections have a negative horizontal scale. The shared camera now accounts for that sign when applying observation yaw and horizontal pan, so rightward drag and arrow controls stay screen-relative. Canonical view/projection matrices, the exact initial/reset frame and export identity are unchanged. A regression first failed on the mirrored projection; it now passes for eight camera directions, both projection types, ordinary/mirrored horizontal scales, orbit and pan. Actual Top5 rightward/leftward drag and reset were exercised, confirmation stayed disabled and browser error logs were empty. Full suite: **1,294 passed / 3 optional skips**, using the documented `NODE_OPTIONS=--no-experimental-webstorage` on this host Node runtime; typecheck and lint pass (existing warning only).
+Real search camera projections have a negative horizontal scale. The shared camera now accounts for that sign when applying observation yaw and horizontal pan, so rightward drag and arrow controls stay screen-relative. Pan also follows the current camera axes after orbiting beyond a quarter turn. Canonical view/projection matrices, the exact initial/reset frame and export identity are unchanged. A regression first failed on the mirrored projection; it now passes for eight camera directions, both projection types, ordinary/mirrored horizontal scales, orbit and pan. Actual Top5 rightward/leftward drag and reset were exercised, confirmation stayed disabled and browser error logs were empty. Full suite: **1,295 passed / 3 optional skips**, using the documented `NODE_OPTIONS=--no-experimental-webstorage` on this host Node runtime; typecheck and lint pass (existing warning only).
 
 ## Integration conflicts
 
