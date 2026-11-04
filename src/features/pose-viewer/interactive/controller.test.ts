@@ -138,3 +138,49 @@ it("retries uncertain POST using identical revision and mutation id", async () =
   );
   client.invalidate();
 });
+
+it("bounds prepared hand atlases across people and releases them on disposal", () => {
+  const controllers = Array.from(
+    { length: 4 },
+    (_, personIndex) => new InteractiveController({ jobId: "job-budget", personIndex }),
+  );
+  const releases = controllers.map(() => vi.fn());
+  controllers.forEach((controller, i) =>
+    controller.installHandAtlas({
+      table: {},
+      surfaces: new Map(),
+      bytes: 8 * 1024 * 1024,
+      gpuBytes: 8 * 1024 * 1024,
+      release: releases[i],
+    }),
+  );
+  expect(releases[0]).toHaveBeenCalledOnce();
+  expect(releases.slice(1).every((release) => release.mock.calls.length === 0)).toBe(true);
+  controllers.forEach((controller) => controller.dispose());
+  expect(releases.every((release) => release.mock.calls.length === 1)).toBe(true);
+});
+
+it("revokes ready after upstream artifact expiry and recovers a fresh operation on retry", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(270);
+  const previous = client.snapshot().operation!;
+  vi.mocked(transport.file).mockRejectedValueOnce({ code: "INTERACTIVE_EXPIRED" });
+  await expect(client.download("one", new AbortController().signal)).rejects.toEqual({
+    code: "INTERACTIVE_EXPIRED",
+  });
+  expect(client.ready("one")).toBe(false);
+  expect(client.snapshot().exportState).toBe("failed");
+  vi.mocked(transport.head).mockResolvedValueOnce({
+    currentRevision: previous.revision,
+    currentStateHash: previous.stateHash,
+    operation: null,
+  });
+  client.retry();
+  await vi.advanceTimersByTimeAsync(20);
+  expect(vi.mocked(transport.prepare).mock.calls[1][1].expectedRevision).toBe(previous.revision);
+  expect(client.snapshot().operation?.revision).toBe(previous.revision + 1);
+  expect(client.ready("one")).toBe(true);
+  client.dispose();
+});

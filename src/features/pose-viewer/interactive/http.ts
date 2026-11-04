@@ -2,7 +2,13 @@ import { z } from "zod";
 import { apiFetch, apiFetchResponse } from "@/shared/api/client";
 import { digest, ownedPath } from "./contract";
 import { boundedBytes, verifyBytes, BoundedQueue } from "./assets";
-import { frameSchema, identitySchema, loadSolvedPacket } from "./solved";
+import {
+  frameSchema,
+  identitySchema,
+  loadSolvedPacket,
+  prepareHandVariants,
+  type LoadedVariants,
+} from "./solved";
 export const exportReceiptSchema = z
   .object({
     schema: z.literal("interactive-fbx-receipt-v1"),
@@ -125,6 +131,7 @@ export type ModelResult = Awaited<ReturnType<typeof loadSolvedPacket>> & {
   frame?: z.infer<typeof frameSchema>;
 };
 export interface InteractiveTransport {
+  variants?(target: Target, op: Operation, signal: AbortSignal): Promise<LoadedVariants>;
   head(
     target: Target,
     candidateId: string,
@@ -167,6 +174,25 @@ const jsonOptions = (signal?: AbortSignal) => ({
   ...(signal ? { signal } : {}),
 });
 export const interactiveHttp: InteractiveTransport = {
+  async variants(target, op, signal) {
+    return packetDownloads.run(async () => {
+      const response = await apiFetchResponse(
+        `${operationPath(target, op.operationId)}/variants`,
+        jsonOptions(signal),
+      );
+      if (
+        response.headers.get("Content-Type")?.split(";")[0] !==
+          "application/vnd.standin.hand-variants-v1+json" ||
+        response.headers.get("X-Standin-State-Hash") !== op.stateHash ||
+        response.headers.get("X-Standin-Revision") !== String(op.revision)
+      )
+        throw Error("stale hand atlas");
+      const sha = digest.parse(response.headers.get("X-Standin-Atlas-SHA256"));
+      const bytes = await boundedBytes(response, 64 * 1024 * 1024, signal);
+      signal.throwIfAborted();
+      return packetParses.run(() => prepareHandVariants(new Uint8Array(bytes), sha), signal);
+    }, signal);
+  },
   async head(target, candidateId, signal) {
     const raw = z
       .object({
@@ -243,7 +269,20 @@ export const interactiveHttp: InteractiveTransport = {
           personIndex: target.personIndex,
           candidateId,
         });
-        return result;
+        // v2 Converter owns a fixed square, hip-origin frame. Its projection
+        // already contains continuous search orientation, focal length and
+        // scope centering. Legacy packets still need their explicit adapter.
+        return result.state.identity.solver.adapterVersion ===
+          "post-frozen-file-canonical-snapshot-v2"
+          ? {
+              ...result,
+              frame: frameSchema.parse({
+                target: [0, 0, 0],
+                referenceAspect: 1,
+                projectionIncludesCenterScaleCrop: true,
+              }),
+            }
+          : result;
       }, signal);
     }, signal);
   },

@@ -15,7 +15,7 @@ function observationFor(key: string) {
   if (!observations.has(key)) observations.set(key, initialObservation());
   return observations.get(key)!;
 }
-export type SurfaceView = { body: THREE.Group; camera: SearchCamera };
+export type SurfaceView = { body: THREE.Group; camera: SearchCamera; onFirstFrame?: () => void };
 export function InteractivePose({
   asset,
   surface,
@@ -80,6 +80,7 @@ export function InteractivePose({
                 setStatus("ready");
                 measure("first-frame", started);
                 frame.current?.(target);
+                surface?.onFirstFrame?.();
               }
             },
             failed() {

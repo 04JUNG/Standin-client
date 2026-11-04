@@ -1,5 +1,6 @@
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
+import { localHandSurface, solvedCamera, type LoadedVariants } from "./solved";
 import {
   interactiveHttp,
   type Operation,
@@ -9,6 +10,10 @@ import {
   type Prepare,
 } from "./http";
 export type PreviewState = "loading" | "local-draft" | "solving" | "authoritative" | "error";
+// Aggregate session budgets, not one full budget for every selected person.
+const preparedAtlases = new Map<InteractiveController, LoadedVariants>();
+const expiredError = (error: unknown) =>
+  !!error && typeof error === "object" && "code" in error && error.code === "INTERACTIVE_EXPIRED";
 export type ExportState =
   "not-requested" | "queued" | "building" | "validating" | "ready" | "failed" | "superseded";
 export type InteractiveSnapshot = {
@@ -52,6 +57,7 @@ export class InteractiveController {
   private creating: Promise<Operation> | undefined;
   private desired?: { binding: string; candidateId: string; ready: boolean };
   private mutation?: Prepare;
+  private handAtlas?: LoadedVariants;
   constructor(
     readonly target: Target,
     private readonly transport: InteractiveTransport = interactiveHttp,
@@ -91,7 +97,11 @@ export class InteractiveController {
         void this.run(this.generation);
       }, this.debounceMs);
   }
-  invalidate() {
+  invalidate(preserveLocalHands = false) {
+    if (!preserveLocalHands) {
+      this.clearDraft();
+      this.releaseHandAtlas();
+    }
     this.generation++;
     this.desired = undefined;
     this.mutation = undefined;
@@ -109,6 +119,65 @@ export class InteractiveController {
   }
   localDraft(surface: SurfaceView) {
     this.publish({ localSurface: surface, previewState: "local-draft", exportState: "superseded" });
+  }
+  installHandAtlas(atlas: LoadedVariants) {
+    this.clearDraft();
+    this.releaseHandAtlas();
+    const total = (field: "bytes" | "gpuBytes") =>
+      [...preparedAtlases.values()].reduce((sum, a) => sum + a[field], 0) + atlas[field];
+    while (
+      preparedAtlases.size >= 3 ||
+      total("bytes") > 64 * 1024 * 1024 ||
+      total("gpuBytes") > 64 * 1024 * 1024
+    ) {
+      const oldest = preparedAtlases.keys().next().value;
+      if (!oldest) {
+        atlas.release();
+        return;
+      }
+      oldest.clearDraft();
+      oldest.releaseHandAtlas();
+    }
+    this.handAtlas = atlas;
+    preparedAtlases.set(this, atlas);
+  }
+  private releaseHandAtlas() {
+    preparedAtlases.delete(this);
+    this.handAtlas?.release();
+    this.handAtlas = undefined;
+  }
+  private expire() {
+    this.generation++;
+    this.controller?.abort();
+    clearTimeout(this.timer);
+    clearTimeout(this.expiry);
+    this.recovered = false;
+    this.mutation = undefined;
+    this.clearDraft();
+    this.releaseHandAtlas();
+    this.publish({
+      previewState: "error",
+      exportState: "failed",
+      operation: undefined,
+      error: true,
+    });
+  }
+  applyHands(left: string | null, right: string | null) {
+    const started = performance.now();
+    const model = this.value.model;
+    if (!model?.frame || !this.handAtlas) return false;
+    try {
+      const surface = localHandSurface(this.handAtlas, model.state.identity, left, right);
+      if (!surface) return false;
+      this.localDraft({
+        body: surface.body,
+        camera: solvedCamera(model.state, model.frame),
+        onFirstFrame: () => measure("hand-frame", started),
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
   clearDraft() {
     if (this.value.localSurface) this.publish({ localSurface: undefined });
@@ -226,9 +295,11 @@ export class InteractiveController {
               this.publish({ model, modelError: false, localSurface: undefined });
               measure("packet", inputAt);
             })
-            .catch(() => {
-              if (!signal.aborted && generation === this.generation)
-                this.publish({ modelError: true });
+            .catch((error) => {
+              if (!signal.aborted && generation === this.generation) {
+                if (expiredError(error)) this.expire();
+                else this.publish({ modelError: true });
+              }
             });
         }
         if (
@@ -243,12 +314,34 @@ export class InteractiveController {
           continue;
         }
         if (op.exportState === "ready") {
+          if (this.transport.variants) {
+            const immutable = op;
+            void this.transport
+              .variants(this.target, immutable, signal)
+              .then((atlas) => {
+                if (
+                  generation !== this.generation ||
+                  signal.aborted ||
+                  this.value.operation?.stateHash !== immutable.stateHash ||
+                  Date.parse(immutable.expiresAt) <= Date.now()
+                ) {
+                  atlas.release();
+                  return;
+                }
+                this.installHandAtlas(atlas);
+              })
+              .catch(() => {
+                /* Uncached hands keep the authoritative surface. */
+              });
+          }
           measure("file-ready", inputAt);
           const expiresIn = Date.parse(op.expiresAt) - Date.now();
           this.expiry = setTimeout(
             () => {
-              if (generation === this.generation)
+              if (generation === this.generation) {
+                this.releaseHandAtlas();
                 this.publish({ exportState: "superseded", operation: undefined });
+              }
             },
             Math.min(expiresIn, 2147483647),
           );
@@ -300,7 +393,13 @@ export class InteractiveController {
     if (!this.ready(binding)) throw Error("current file unavailable");
     const generation = this.generation,
       operation = this.value.operation!;
-    const result = await this.transport.file(this.target, operation, signal);
+    let result: Awaited<ReturnType<InteractiveTransport["file"]>>;
+    try {
+      result = await this.transport.file(this.target, operation, signal);
+    } catch (error) {
+      if (generation === this.generation && expiredError(error)) this.expire();
+      throw error;
+    }
     signal.throwIfAborted();
     if (
       generation !== this.generation ||

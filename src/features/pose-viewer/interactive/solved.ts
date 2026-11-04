@@ -306,7 +306,9 @@ export function prepareSurface(input: PoseModel) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
       geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-      body.add(new THREE.Mesh(geometry, libraryPreviewMaterial()));
+      const material = libraryPreviewMaterial();
+      material.side = THREE.DoubleSide;
+      body.add(new THREE.Mesh(geometry, material));
     }
     return {
       body,
@@ -330,6 +332,8 @@ export function prepareSurface(input: PoseModel) {
   }
 }
 export type LoadedVariants = {
+  bytes: number;
+  gpuBytes: number;
   table: unknown;
   surfaces: Map<string, ReturnType<typeof prepareSurface>>;
   release(): void;
@@ -366,7 +370,17 @@ export async function prepareHandVariants(bytes: Uint8Array, sha: string): Promi
     release();
     throw error;
   }
-  return { table, surfaces, release };
+  return {
+    table,
+    surfaces,
+    release,
+    bytes: bytes.byteLength,
+    gpuBytes: entries.reduce(
+      (sum, entry) =>
+        sum + entry.state.model.meshes.reduce((n, m) => n + m.triangles.length * 72, 0),
+      0,
+    ),
+  };
 }
 /** Synchronous: all exact server variants have already been parsed/uploaded. Debounce applies only to HTTP preparation. */
 export function localHandSurface(

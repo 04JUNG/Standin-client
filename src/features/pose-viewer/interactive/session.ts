@@ -18,11 +18,11 @@ export function interactiveController(owner: string, jobId: string, personIndex:
   }
   return controllers.get(key)!.controller;
 }
-export function invalidateInteractiveJob(jobId: string) {
+export function invalidateInteractiveJob(jobId: string, preserveLocalHands = false) {
   for (const entry of controllers.values())
     if (entry.jobId === jobId) {
       entry.controller.clearDraft();
-      entry.controller.invalidate();
+      entry.controller.invalidate(preserveLocalHands);
     }
 }
 export function forgetInteractiveJob(jobId: string) {

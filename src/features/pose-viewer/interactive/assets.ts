@@ -177,6 +177,9 @@ export async function acquireAsset(asset: StaticAsset, signal: AbortSignal) {
                     throw Error("invalid geometry");
                 for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose();
                 o.material = libraryPreviewMaterial();
+                // Search projection can reverse screen winding. Preserve the
+                // actual outer surface, including open edges of cropped scopes.
+                o.material.side = THREE.DoubleSide;
               });
               if (!vertices || vertices > 500000) throw Error("geometry budget");
               const result = { body, refs: 0, size: data.byteLength, used: performance.now() };

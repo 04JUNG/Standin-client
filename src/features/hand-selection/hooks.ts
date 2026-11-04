@@ -55,7 +55,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       return putHandSelection(job, selection, patch);
     },
     onMutate: async ({ selection, patch }) => {
-      invalidateFinalReview(qc, job);
+      invalidateFinalReview(qc, job, true);
       if (result?.capabilities.interactivePreview?.operations)
         applyLocalHands(
           owner,
