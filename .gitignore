@@ -30,3 +30,6 @@ public/mock/*.ssr
 
 # Private local sample posters
 /samples/local/
+
+# Local licensed model / recorded QA artifacts; never commit.
+/samples/.local-real/

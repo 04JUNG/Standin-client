@@ -1,3 +1,4 @@
+import { InteractiveReview, type InteractiveReviewData } from "../interactive/InteractiveReview";
 import { usePreviewJourney } from "@/features/analytics/usePreviewJourney";
 import { useState } from "react";
 import { ImageOff, Loader2 } from "lucide-react";
@@ -7,6 +8,7 @@ import { ReviewModelPreview } from "./ReviewModelPreview";
 /** A review stays visibly busy until its actual image or model is on screen. */
 export function ReviewPosePreview({
   model,
+  interactive,
   src,
   label,
   title,
@@ -17,6 +19,7 @@ export function ReviewPosePreview({
 }: {
   telemetryJobId?: string;
   model?: ReviewModel;
+  interactive?: InteractiveReviewData;
   src?: string;
   label: string;
   title?: string;
@@ -43,7 +46,9 @@ export function ReviewPosePreview({
       aria-busy={pending}
       title={title}
     >
-      {model ? (
+      {interactive ? (
+        <InteractiveReview data={interactive} />
+      ) : model ? (
         <ReviewModelPreview
           model={model}
           label={label}
@@ -69,7 +74,7 @@ export function ReviewPosePreview({
           }}
         />
       ) : null}
-      {pending && (
+      {pending && !interactive && (
         <div className="absolute inset-0 flex items-center justify-center" role="status">
           <Loader2
             className="h-8 w-8 animate-spin text-brand-sky motion-reduce:animate-none"
@@ -78,7 +83,7 @@ export function ReviewPosePreview({
           <span className="sr-only">{label} 불러오는 중</span>
         </div>
       )}
-      {failed && (
+      {failed && !interactive && (
         <div
           className="absolute inset-0 flex items-center justify-center text-text-secondary"
           role="img"

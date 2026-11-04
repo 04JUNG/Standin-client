@@ -125,6 +125,7 @@ export function useSelectionReview(jobId: string | undefined) {
             }
           : legacy),
         enabled:
+          !data?.capabilities.interactivePreview?.operations &&
           !framed &&
           !item.refined &&
           !item.previewUrl &&

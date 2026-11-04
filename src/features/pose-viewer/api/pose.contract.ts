@@ -23,6 +23,10 @@ export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
   deferredThumbnailUrl?: string;
   /** Already rendered library JPEG; its view may only approximate the camera. */
   quickThumbnailUrl?: string;
+  interactivePreview?: {
+    version: "interactive-preview-v1";
+    asset?: import("../interactive/contract").StaticAsset;
+  };
   previewModel?: import("../preview/modelContract").CandidateModel;
   previewImages: Array<{ view: string; url: string }>;
   modelUrl?: string | null;
@@ -113,6 +117,7 @@ export type AnalysisResult = {
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
+    interactivePreview?: import("../interactive/contract").InteractiveCapability;
     /**
      * 같은 인물의 다음 후보 묶음을 서버가 줄 수 있는가. 아직 어떤 서버도 켜지 않는다 —
      * 켜지기 전에는 "후보 다시 찾기" 자리를 그리지 않는다(없는 기능을 보이지 않는다).
