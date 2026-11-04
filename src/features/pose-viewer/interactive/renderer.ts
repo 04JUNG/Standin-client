@@ -78,6 +78,8 @@ function draw() {
   scheduled = 0;
   if (!output || !views.size || output.getContext().isContextLost()) return;
   const started = performance.now();
+  const pixelRatio = Math.min(devicePixelRatio || 1, 2);
+  if (output.getPixelRatio() !== pixelRatio) output.setPixelRatio(pixelRatio);
   output.setSize(innerWidth, innerHeight, false);
   output.setScissorTest(false);
   output.setClearColor(0, 0);
