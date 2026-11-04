@@ -279,12 +279,14 @@ export function BodyExpand({
   entry,
   rough,
   variant,
+  hideLivePreview = false,
 }: {
   job: string;
   person: Pick<PersonResult, "index">;
   entry?: BodyEntry;
   rough?: { url?: string; box?: PersonBox | null };
   variant: "bar" | "app";
+  hideLivePreview?: boolean;
 }) {
   const selection = entry?.selection;
   useFeatureView("body_selection", !!selection, "open", job, String(person.index));
@@ -477,17 +479,24 @@ export function BodyExpand({
       ) : (
         <div className="flex min-w-0 shrink-0 items-stretch gap-2">
           {/* 왼쪽: 지금 고른 체형. 조절 바를 움직이면 여기만 다시 그린다. */}
-          <LiveBodyView
-            option={current}
-            name={currentCard?.name ?? name(currentId)}
-            controls={spec ? values : null}
-            edited={!currentCard && !!spec && (!!draft || !!selection?.shape)}
-            rough={rough}
-            personIndex={person.index}
-            variant={variant}
-          />
+          {!hideLivePreview && (
+            <LiveBodyView
+              option={current}
+              name={currentCard?.name ?? name(currentId)}
+              controls={spec ? values : null}
+              edited={!currentCard && !!spec && (!!draft || !!selection?.shape)}
+              rough={rough}
+              personIndex={person.index}
+              variant={variant}
+            />
+          )}
           {/* 오른쪽: 프리셋. 고정 그림이라 조절 바와 무관하다 — 고른 것에 표시만 한다. */}
-          <div className="flex min-w-0 flex-1 flex-col gap-1 border-l border-border pl-2">
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 flex-col gap-1",
+              !hideLivePreview && "border-l border-border pl-2",
+            )}
+          >
             <span className="text-[11px] font-semibold text-text-secondary">
               내 체형 · 프리셋 — 누르면 그 체형으로 바뀌어요
               {variant === "bar" && visibleCards.length === 0 && (

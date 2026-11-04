@@ -1,3 +1,5 @@
+import "./selectionWorkspace.css";
+import { SelectionPreview } from "../components/SelectionPreview";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
@@ -12,7 +14,7 @@ import {
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import { cn } from "@/shared/lib/cn";
 import type { PersonResult } from "../api/pose.contract";
-import { RoughOverview, RoughPanel } from "../components/RoughPanel";
+import { RoughOverview } from "../components/RoughPanel";
 import { PersonIndexRow } from "../components/PersonIndexRow";
 import { CandidateRerunTile } from "../components/CandidateRerun";
 import { useCandidateRerun } from "../hooks/useCandidateRerun";
@@ -205,33 +207,49 @@ export function PoseViewerPage() {
   if (data.source === "semantic")
     return (
       <AppShell title="문장 검색 결과">
-        <div className="flex flex-col gap-4 p-4">
+        <div className="selection-workspace">
           <div className="sticky -top-6 z-10 border-b border-border bg-surface-0 p-3">
             <SemanticSearchBar resultKey={data.jobId} initialQuery={data.semantic?.query ?? ""} />
           </div>
-          {data.people.map((person) => (
-            <div key={person.index} className="flex flex-col gap-3">
-              {person.posePresentation ? (
-                <PosePresentationPanel
-                  telemetryJob={data.jobId}
-                  presentation={person.posePresentation}
-                  bodyPreviewJob={
-                    data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
-                      ? data.jobId
-                      : undefined
-                  }
-                  selection={{
-                    candidates: person.candidates,
-                    selected: selectedByPerson[person.index],
-                    onSelect: (id) => selectCandidate(person.index, id),
-                  }}
-                />
-              ) : (
-                <PersonFallbackNotice person={person} />
-              )}
+          <div className="selection-split">
+            <div className="selection-list">
+              {data.people.map((person) => (
+                <div key={person.index} className="flex flex-col gap-3">
+                  {person.posePresentation ? (
+                    <PosePresentationPanel
+                      persistentPreview
+                      telemetryJob={data.jobId}
+                      presentation={person.posePresentation}
+                      bodyPreviewJob={
+                        data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
+                          ? data.jobId
+                          : undefined
+                      }
+                      selection={{
+                        candidates: person.candidates,
+                        selected: selectedByPerson[person.index],
+                        onSelect: (id) => selectCandidate(person.index, id),
+                      }}
+                    />
+                  ) : (
+                    <PersonFallbackNotice person={person} />
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-          <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border bg-surface-0 p-3">
+            {active && active.candidates.length > 0 && (
+              <SelectionPreview
+                key={`${data.jobId}:${active.index}`}
+                job={data.jobId}
+                person={active}
+                selectedId={selectedByPerson[active.index]}
+                entry={bodies.entries.find((e) => e.personIndex === active.index)}
+                bodiesEnabled={bodies.enabled}
+                canonicalPreview={data.capabilities.selectionPreview}
+              />
+            )}
+          </div>
+          <div className="selection-footer flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm" aria-live="polite">
               포즈 선택 {selectedCount}/{includedPeople.length} · 저장 전 확인
             </p>
@@ -277,114 +295,127 @@ export function PoseViewerPage() {
 
   return (
     <AppShell title="포즈 후보">
-      <div
-        ref={continuity.contentRef}
-        className="flex min-h-full flex-col gap-3 [overflow-anchor:none]"
-      >
-        {restoreOnly && (
-          <div className="flex items-start gap-2 rounded-xl border border-brand-sky/40 bg-brand-sky/10 p-3">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-sky" aria-hidden />
-            <p className="text-[13px] text-text-primary">
-              이전 분석 결과입니다. 다른 후보를 고르면 포즈 파일을 다시 저장할 수 있습니다.
-            </p>
-          </div>
-        )}
-
-        {/* 원본: 인물 상자를 함께 그린다. 상자를 누르면 그 인물이 펼쳐진다. */}
-        <div className="flex items-center gap-4 rounded-xl border border-border bg-surface-0 p-3">
-          <div className="flex h-[150px] w-[220px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-2 bg-white">
-            {roughUrl ? (
-              <RoughOverview
-                url={roughUrl}
-                people={people}
-                current={active?.index}
-                excluded={excludedPeople}
-                onPick={pick}
-                className="h-full w-full"
-              />
-            ) : (
-              <p className="p-3 text-center text-[12px] text-text-secondary">
-                {restoreOnly
-                  ? "이 작업의 원본 이미지가 없거나 보관 기간이 지나 제공되지 않습니다."
-                  : "원본 미리보기가 없습니다."}
-              </p>
+      <div className="selection-workspace">
+        <div className="selection-split">
+          <div ref={continuity.contentRef} className="selection-list [overflow-anchor:none]">
+            {restoreOnly && (
+              <div className="flex items-start gap-2 rounded-xl border border-brand-sky/40 bg-brand-sky/10 p-3">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-sky" aria-hidden />
+                <p className="text-[13px] text-text-primary">
+                  이전 분석 결과입니다. 다른 후보를 고르면 포즈 파일을 다시 저장할 수 있습니다.
+                </p>
+              </div>
             )}
-          </div>
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-[13px] font-semibold text-text-primary">
-              원본 · 인물 {people.length}명을 찾았어요
-            </span>
-            <p className="text-[12.5px] text-text-secondary">인물을 선택해 포즈를 골라 주세요.</p>
-            <p className="text-[12.5px] text-text-secondary">
-              내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈 고름{" "}
-              <b className="text-text-primary">{selectedCount}</b>
-            </p>
-          </div>
-        </div>
 
-        {active && (
-          <ActivePersonCard
-            key={active.index}
-            jobId={data.jobId}
-            person={active}
-            people={people}
-            roughUrl={roughUrl}
-            bodiesEnabled={bodies.enabled}
-            presentationBodyPreviews={data.capabilities.presentationBodyPreviews}
-            entry={bodies.entries.find((e) => e.personIndex === active.index)}
-            expanded={expanded}
-            excluded={excludedPeople}
-            included={!(active.index in excludedPeople)}
-            selectedId={selectedByPerson[active.index]}
-            onSelect={(id) => selectCandidate(active.index, id)}
-            onPick={pick}
-            onRerun={onRerun}
-            modelSelect={
-              <ModelSelect
-                variant="compact"
-                label={`인물 ${active.index + 1}의 모델`}
-                value={characterByPerson[active.index] ?? jobCharacterId}
-                onChange={(characterId) => setPersonCharacter(active.index, characterId)}
-              />
-            }
-            characterId={characterByPerson[active.index] ?? jobCharacterId}
-          />
-        )}
+            {/* 원본: 인물 상자를 함께 그린다. 상자를 누르면 그 인물이 펼쳐진다. */}
+            <div className="flex items-center gap-4 rounded-xl border border-border bg-surface-0 p-3">
+              <div className="flex h-[90px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-surface-2 bg-white">
+                {roughUrl ? (
+                  <RoughOverview
+                    url={roughUrl}
+                    people={people}
+                    current={active?.index}
+                    excluded={excludedPeople}
+                    onPick={pick}
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <p className="p-3 text-center text-[12px] text-text-secondary">
+                    {restoreOnly
+                      ? "이 작업의 원본 이미지가 없거나 보관 기간이 지나 제공되지 않습니다."
+                      : "원본 미리보기가 없습니다."}
+                  </p>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-col gap-1">
+                <span className="text-[13px] font-semibold text-text-primary">
+                  원본 · 인물 {people.length}명을 찾았어요
+                </span>
+                <p className="text-[12.5px] text-text-secondary">
+                  인물을 선택해 포즈를 골라 주세요.
+                </p>
+                <p className="text-[12.5px] text-text-secondary">
+                  내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈
+                  고름 <b className="text-text-primary">{selectedCount}</b>
+                </p>
+              </div>
+            </div>
 
-        {failedPeople.length > 0 && selectablePeople.length === 0 && (
-          <p className="flex items-center gap-2 text-[13px] text-brand-coral">
-            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />이 장면에서 저장할 수 있는
-            포즈를 찾지 못했어요. 다른 러프로 다시 시도해 주세요.
-          </p>
-        )}
-        <div className="border-t border-border pt-3">
-          <nav
-            ref={continuity.indexRef}
-            aria-label="인물 목록"
-            className="rounded-xl border border-border bg-surface-0 px-4 py-1.5"
-          >
-            {people.map((person, i) => (
-              <PersonIndexRow
-                key={person.index}
-                first={i === 0}
+            {active && (
+              <ActivePersonCard
+                key={active.index}
                 jobId={data.jobId}
-                person={person}
+                person={active}
                 roughUrl={roughUrl}
                 bodiesEnabled={bodies.enabled}
-                entry={bodies.entries.find((entry) => entry.personIndex === person.index)}
-                active={person.index === active?.index}
-                included={!(person.index in excludedPeople)}
-                onIncluded={(value) => setPersonIncluded(person.index, value)}
-                selectedTitle={
-                  person.candidates.find(
-                    (candidate) => candidate.id === selectedByPerson[person.index],
-                  )?.title
+                presentationBodyPreviews={data.capabilities.presentationBodyPreviews}
+                entry={bodies.entries.find((e) => e.personIndex === active.index)}
+                expanded={expanded}
+                included={!(active.index in excludedPeople)}
+                selectedId={selectedByPerson[active.index]}
+                onSelect={(id) => selectCandidate(active.index, id)}
+                onRerun={onRerun}
+                modelSelect={
+                  <ModelSelect
+                    variant="compact"
+                    label={`인물 ${active.index + 1}의 모델`}
+                    value={characterByPerson[active.index] ?? jobCharacterId}
+                    onChange={(characterId) => setPersonCharacter(active.index, characterId)}
+                  />
                 }
-                onOpen={() => pick(person.index)}
+                characterId={characterByPerson[active.index] ?? jobCharacterId}
               />
-            ))}
-          </nav>
-          <div className="flex items-center justify-between gap-4 pt-3">
+            )}
+
+            {failedPeople.length > 0 && selectablePeople.length === 0 && (
+              <p className="flex items-center gap-2 text-[13px] text-brand-coral">
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />이 장면에서 저장할 수 있는
+                포즈를 찾지 못했어요. 다른 러프로 다시 시도해 주세요.
+              </p>
+            )}
+
+            <nav
+              ref={continuity.indexRef}
+              aria-label="인물 목록"
+              className="rounded-xl border border-border bg-surface-0 px-4 py-1.5"
+            >
+              {people.map((person, i) => (
+                <PersonIndexRow
+                  key={person.index}
+                  first={i === 0}
+                  jobId={data.jobId}
+                  person={person}
+                  roughUrl={roughUrl}
+                  bodiesEnabled={bodies.enabled}
+                  entry={bodies.entries.find((entry) => entry.personIndex === person.index)}
+                  active={person.index === active?.index}
+                  included={!(person.index in excludedPeople)}
+                  onIncluded={(value) => setPersonIncluded(person.index, value)}
+                  selectedTitle={
+                    person.candidates.find(
+                      (candidate) => candidate.id === selectedByPerson[person.index],
+                    )?.title
+                  }
+                  onOpen={() => pick(person.index)}
+                />
+              ))}
+            </nav>
+          </div>
+          {active && active.fallbackMode !== "hard" && (
+            <SelectionPreview
+              key={`${data.jobId}:${active.index}`}
+              job={data.jobId}
+              person={active}
+              selectedId={selectedByPerson[active.index]}
+              entry={bodies.entries.find((e) => e.personIndex === active.index)}
+              bodiesEnabled={bodies.enabled}
+              canonicalPreview={data.capabilities.selectionPreview}
+            />
+          )}
+        </div>
+        <div className="selection-footer">
+          {" "}
+          <div className="flex flex-wrap items-center justify-between gap-2">
             {/* "다른 후보 찾기"가 있던 자리다. 서버 rerun이 없어 누르면 "지원하지 않는다"는
               안내만 나왔다 — 없는 기능을 버튼으로 보여주지 않는다(CLAUDE.md §10).
               대신 후보가 마음에 들지 않거나 전원 검색 실패일 때 빠져나갈 길을 둔다. */}
@@ -452,34 +483,28 @@ export function PoseViewerPage() {
 function ActivePersonCard({
   jobId,
   person,
-  people,
   roughUrl,
   bodiesEnabled,
   presentationBodyPreviews,
   entry,
   expanded,
-  excluded,
   included,
   selectedId,
   onSelect,
-  onPick,
   onRerun,
   modelSelect,
   characterId,
 }: {
   jobId: string;
   person: PersonResult;
-  people: PersonResult[];
   roughUrl?: string;
   bodiesEnabled: boolean;
   presentationBodyPreviews?: boolean;
   entry?: BodyEntry;
   expanded: boolean;
-  excluded: Readonly<Record<number, unknown>>;
   included: boolean;
   selectedId?: string;
   onSelect(id: string): void;
-  onPick(index: number): void;
   onRerun: (() => void) | null;
   modelSelect: ReactNode;
   characterId: string | null;
@@ -533,6 +558,7 @@ function ActivePersonCard({
           entry={entry}
           rough={{ url: roughUrl, box: person.box }}
           variant="app"
+          hideLivePreview
         />
       ) : (
         <>
@@ -554,20 +580,12 @@ function ActivePersonCard({
             }}
           />
           {!hard && gridCandidates.length > 0 && (
-            <div className="grid grid-cols-[190px_minmax(0,1fr)] gap-3">
-              <RoughPanel
-                url={roughUrl}
-                people={people}
-                person={person}
-                excluded={excluded}
-                onPick={onPick}
-                showCaption={false}
-              />
+            <div className="min-w-0">
               <div className="relative">
                 <div
                   {...tourAnchor("jobs.candidates")}
                   className={cn(
-                    "grid grid-cols-5 gap-3",
+                    "selection-candidates",
                     !included && "pointer-events-none opacity-40 grayscale",
                   )}
                 >
