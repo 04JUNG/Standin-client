@@ -90,6 +90,7 @@ impl RuntimeCache {
             )?;
             if hello["cameraContractVersion"] != "personal-camera/1"
                 || hello["modelStorageVersion"] != "personal-fbx/1"
+                || hello["materialContractVersion"] != "personal-solid-specular/1"
             {
                 return Err(err("RUNTIME_MISMATCH"));
             }
@@ -307,7 +308,7 @@ for line in sys.stdin:
     if r['action']=='die': sys.exit(0)
     event={'protocolVersion':'standin.local-converter/1','requestId':r['requestId'],'event':'result'}
     if r['action']=='fail': event.update(event='error',error={'code':'SOURCE_CHANGED'})
-    else: event['result']={'cameraContractVersion':'personal-camera/1','modelStorageVersion':'personal-fbx/1','pid':os.getpid()}
+    else: event['result']={'cameraContractVersion':'personal-camera/1','modelStorageVersion':'personal-fbx/1','materialContractVersion':'personal-solid-specular/1','pid':os.getpid()}
     print(json.dumps(event),flush=True)
 "##).unwrap();
         fs::set_permissions(&launcher, fs::Permissions::from_mode(0o755)).unwrap();
@@ -363,6 +364,14 @@ for line in sys.stdin:
             .unwrap();
         assert_ne!(pid, other);
         runtime.clear();
+        let old_host = fs::read_to_string(&launcher)
+            .unwrap()
+            .replace(",'materialContractVersion':'personal-solid-specular/1'", "");
+        fs::write(&launcher, old_host).unwrap();
+        let stale: Result<(), LocalError> =
+            runtime.with_session(&launcher, &root, context(), |_, _| Ok(()));
+        assert_eq!(stale.unwrap_err().code, "RUNTIME_MISMATCH");
+        assert!(runtime.cached.is_none());
         fs::remove_dir_all(root).unwrap();
     }
 

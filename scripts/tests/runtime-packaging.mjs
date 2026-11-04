@@ -20,11 +20,12 @@ test("standard build entry: absent capability, pin, contract, target, integrity,
     const source = path.join(temp, "source");
     await mkdir(source);
     const contract = JSON.stringify({
-      contractRevision: 4,
+      contractRevision: 5,
       results: {
         hello: {
           cameraContractVersion: "personal-camera/1",
           modelStorageVersion: "personal-fbx/1",
+          materialContractVersion: "personal-solid-specular/1",
         },
       },
     });
