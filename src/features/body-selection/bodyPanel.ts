@@ -38,10 +38,37 @@ export const BODY_KIND_LABEL: Record<BodyKind, string> = {
   female: "여성",
   child: "아동",
 };
-/** 카탈로그에 종류 필드가 없어 id·이름으로 나눈다. 모르면 남성 쪽에 둔다. */
-export function bodyKind(option: Pick<BodyOption, "characterId" | "displayName">): BodyKind {
+/** 명시 성별을 우선하고, 구 카탈로그만 id·이름으로 나눈다. */
+export function bodyKind(
+  option: Pick<BodyOption, "characterId" | "displayName" | "gender">,
+): BodyKind {
+  if (option.gender) return option.gender;
   const text = `${option.characterId} ${option.displayName ?? ""}`.toLowerCase();
   if (/child|kid|아동|어린이/.test(text)) return "child";
   if (/female|woman|girl|여성|여자/.test(text)) return "female";
   return "male";
+}
+
+/** Roles make defaults deterministic even if the original BASE is listed first. */
+export function sortBodyLooks<T extends Pick<BodyOption, "role" | "order" | "characterId">>(
+  looks: T[],
+): T[] {
+  return [...looks].sort(
+    (a, b) =>
+      (a.role === "default" ? 0 : 1) - (b.role === "default" ? 0 : 1) ||
+      (a.order ?? 100) - (b.order ?? 100),
+  );
+}
+export function initialBodyLook<
+  T extends Pick<BodyOption, "characterId" | "displayName" | "gender" | "role">,
+>(looks: T[], kind?: string | null): T | undefined {
+  const matching = kind ? looks.filter((look) => bodyKind(look) === kind) : looks;
+  return matching.find((look) => look.role === "default") ?? matching[0];
+}
+export function bodyRoleLabel(look: Pick<BodyOption, "role">): string | undefined {
+  return look.role === "default"
+    ? "기본"
+    : look.role === "previous_default"
+      ? "기존 기본형"
+      : undefined;
 }
