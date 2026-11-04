@@ -30,6 +30,8 @@ export type ModelCharacter = {
   availability: ModelAvailability;
   source: ModelSource;
   isDefault: boolean;
+  role?: "default" | "previous_default" | "preset";
+  order?: number;
   rigProfile: string | null;
   revision: string | null;
   /** 서버가 주는 인증 필요 상대 경로. 없으면 앱이 커밋한 PNG를 쓴다. */

@@ -1025,3 +1025,11 @@ Server acknowledgement clears pending deletion, not the local withdrawn state.
 감지된 인물 중 저장 대상에서 빠진 인물이 있으면 부분 저장 확인은 계속 필요하다.
 통합 저장이 켜져 있지만 선택한 포즈나 배치/자산 조건으로 사용할 수 없을 때는
 개별 파일로 변경할지 기존 확인을 유지한다.
+
+## 기본형 역할 메타데이터 (2026-11-04, 활성화 없음)
+
+BFF body-options 및 body-preferences.shapeEditable는 선택적으로 `gender: male|female|child`, `role: default|previous_default|preset`, `order: nonnegative integer`를 보낸다. `/models`는 기존 표시 성별과 role/order를 보낸다. 명시 성별이 있으면 ID/이름 추정 대신 사용한다. 기본 프리셋을 먼저 정렬하며 표시 이름과 ‘기본’/‘기존 기본형’ 배지를 모든 체형 화면에서 공유한다.
+
+새 커스텀 카드의 성별별 시작값은 그 성별의 default 자산이다. `?base`, 기존 개인 카드, 후보 화면의 기존 선택은 유지한다. 후보 화면에서 성별 탭을 바꾸는 동작은 조회 필터이며 카드 클릭 전까지 PUT하지 않는다. 새 기본값은 기존 last_used/auto 정책·사용자 설정 revision·Job snapshot을 바꾸지 않는다. role 없는 서버와도 호환된다. 새 모델 PNG/3D가 없으면 준비 안 된 상태를 표시하고 다른 체형의 그림을 새 기본형으로 제시하지 않는다.
+
+[기본형 통합 계약과 검증 범위](BODY_DEFAULT_ROLLOUT_20261104.md).
