@@ -17,7 +17,14 @@ import type {
   PoseCandidate,
 } from "@/features/pose-viewer/api/pose.contract";
 import { useBodyControls, type BodyEntry } from "./hooks";
-import { BODY_KIND_LABEL, bodyKind, useBodyPanel, type BodyKind } from "./bodyPanel";
+import {
+  BODY_KIND_LABEL,
+  bodyKind,
+  bodyRoleLabel,
+  sortBodyLooks,
+  useBodyPanel,
+  type BodyKind,
+} from "./bodyPanel";
 import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
 import { ShapeControlGrid } from "./ShapeControls";
 import { shapeDefaults as defaults } from "./shapeValues";
@@ -292,7 +299,7 @@ export function BodyExpand({
   const cards = cardsOf(useBodyPreferences().data);
   const navigate = useNavigate();
   const name = useBodyName(job, person, selection);
-  const characters = options.data?.characters ?? [];
+  const characters = sortBodyLooks(options.data?.characters ?? []);
   const currentId = selection?.resolvedBody?.characterId;
   const current = characters.find((c) => c.characterId === currentId);
   const kinds = (["male", "female", "child"] as const).filter((k) =>
@@ -596,6 +603,11 @@ export function BodyExpand({
                     <span className="truncate px-1 text-[11.5px] font-semibold">
                       {name(option.characterId)}
                     </span>
+                    {bodyRoleLabel(option) && (
+                      <span className="px-1 text-[10px] font-semibold text-brand-coral">
+                        {bodyRoleLabel(option)}
+                      </span>
+                    )}
                     <span className="px-1 pb-0.5 text-[10px] text-text-secondary">
                       {!option.selectable
                         ? "현재 포즈에 사용 불가"
