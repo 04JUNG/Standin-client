@@ -164,7 +164,74 @@ it("keeps viewport dragging separate from expand and card selection", async () =
   expect(view.observation().yaw).not.toBe(before.yaw);
   expect(select).not.toHaveBeenCalled();
   expect(screen.queryByRole("dialog")).toBeNull();
+  const identity = JSON.stringify(asset);
+  await userEvent.click(screen.getByRole("button", { name: "포즈 크게 보기" }));
+  const dialog = await screen.findByRole("dialog");
+  await waitFor(() => expect(registerView).toHaveBeenCalledTimes(2));
+  const large = within(dialog).getByRole("application");
+  const beforeLarge = { ...view.observation() };
+  large.setPointerCapture = vi.fn();
+  large.releasePointerCapture = vi.fn();
+  await userEvent.pointer([
+    { target: large, keys: "[MouseLeft>]", coords: { clientX: 100, clientY: 100 } },
+    { target: large, coords: { clientX: 150, clientY: 120 } },
+    { target: large, keys: "[/MouseLeft]" },
+  ]);
+  expect(view.observation().yaw).not.toBe(beforeLarge.yaw);
+  const rotated = { ...view.observation() };
+  await userEvent.click(within(dialog).getByRole("button", { name: "닫기" }));
+  expect(view.observation()).toEqual(rotated);
+  expect(select).not.toHaveBeenCalled();
+  expect(JSON.stringify(asset)).toBe(identity);
 });
+
+it.each([undefined, "fill"] as const)(
+  "selects once from title, surrounding padding or keyboard in %s layout",
+  async (layout) => {
+    const select = vi.fn();
+    const { container } = render(
+      <PoseCandidateCard
+        candidate={candidate}
+        layout={layout}
+        isSelected={false}
+        onSelect={select}
+      />,
+    );
+    const selection = screen.getByRole("button", { name: "이 포즈 선택" });
+    await userEvent.click(screen.getByText("2. 포즈 2"));
+    expect(select).toHaveBeenCalledTimes(1);
+    // The footer button itself includes the title, tags and surrounding padding.
+    fireEvent.click(selection);
+    expect(select).toHaveBeenCalledTimes(2);
+    selection.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(select).toHaveBeenCalledTimes(3);
+    await userEvent.keyboard(" ");
+    expect(select).toHaveBeenCalledTimes(4);
+    expect(container.querySelector("button button")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  },
+);
+
+it.each(["disabled", "unavailable"])(
+  "keeps the entire selection area inactive when %s",
+  async (reason) => {
+    const select = vi.fn();
+    render(
+      <PoseCandidateCard
+        candidate={{ ...candidate, releaseAllowed: reason !== "unavailable" }}
+        disabled={reason === "disabled"}
+        isSelected={false}
+        onSelect={select}
+      />,
+    );
+    const selection = screen.getByRole("button", { name: "이 포즈 선택" });
+    expect(selection).toBeDisabled();
+    await userEvent.click(screen.getByText("2. 포즈 2"));
+    await userEvent.click(selection);
+    expect(select).not.toHaveBeenCalled();
+  },
+);
 
 it("expands the exact supplied edited surface without acquiring a different asset", async () => {
   const body = new THREE.Group(),
