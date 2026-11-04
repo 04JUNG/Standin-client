@@ -1,3 +1,4 @@
+import { forgetInteractiveJob } from "@/features/pose-viewer/interactive/session";
 import { apiFetch } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
 import type {
@@ -73,6 +74,7 @@ export const historyHttp: HistoryService = {
   },
 
   async remove({ jobId }): Promise<void> {
+    forgetInteractiveJob(jobId);
     await apiFetch(endpoints.analysis.job(jobId), { method: "DELETE", auth: false });
   },
 };
