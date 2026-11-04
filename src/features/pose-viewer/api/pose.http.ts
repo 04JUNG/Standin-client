@@ -341,7 +341,7 @@ export function readPersonBox(value: unknown): PersonBox | null {
   return x2 > x1 && y2 > y1 ? [x1, y1, x2, y2] : null;
 }
 
-async function toAnalysisResult(
+export async function toAnalysisResult(
   raw: BffAnalysisResult,
   signal: AbortSignal,
 ): Promise<AnalysisResult> {
