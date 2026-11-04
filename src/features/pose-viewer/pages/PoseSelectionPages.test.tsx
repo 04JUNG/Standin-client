@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -624,6 +624,22 @@ it.each([false, true])(
     expect(!!screen.queryByRole("region", { name: "인물 1 큰 미리보기" })).toBe(enabled);
     expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({});
     expect(confirmSelections).not.toHaveBeenCalled();
+    if (enabled) {
+      const previous = screen.getByRole("region", { name: "인물 1 큰 미리보기" });
+      await act(async () =>
+        useInstallationStore.setState({
+          credentials: {
+            installationId: "other-owner",
+            deviceToken: "other",
+            consentVersion: "test",
+          },
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.getByRole("region", { name: "인물 1 큰 미리보기" })).not.toBe(previous),
+      );
+      expect(previous.isConnected).toBe(false);
+    }
     r.unmount();
     client.clear();
   },

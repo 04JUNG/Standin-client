@@ -222,7 +222,9 @@ export function InteractivePose({
         }}
       />
       <span id={controlId} className="sr-only">
-        방향키로 회전, R로 처음 시점. 큰 미리보기는 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동
+        {large
+          ? "방향키로 회전, R로 처음 시점. 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동"
+          : "방향키로 회전, R로 처음 시점, Enter로 크게 보기"}
       </span>
       {status !== "ready" && (
         <div

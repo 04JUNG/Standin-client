@@ -20,7 +20,7 @@ import { CandidateRerunTile } from "../components/CandidateRerun";
 import { useCandidateRerun } from "../hooks/useCandidateRerun";
 import { usePersonScrollContinuity } from "../hooks/usePersonScrollContinuity";
 import { useEffect, useState, type ReactNode } from "react";
-import type { BodyEntry } from "@/features/body-selection/hooks";
+import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ChevronLeft, Info, RotateCw } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
@@ -43,6 +43,7 @@ import { ModelSelect } from "@/features/models/components/ModelSelect";
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
   const { jobId } = useParams<{ jobId: string }>();
+  const previewOwner = useBodyOwner();
   const navigate = useNavigate();
   const draft = useUploadStore((s) => s.draft);
   const setJobId = usePoseSelectionStore((s) => s.setJobId);
@@ -214,9 +215,7 @@ export function PoseViewerPage() {
   if (data.source === "semantic")
     return (
       <AppShell title="문장 검색 결과">
-        <div
-          className={largePreviewEnabled ? "selection-workspace" : "flex min-h-full flex-col gap-3"}
-        >
+        <div className={largePreviewEnabled ? "selection-workspace" : "flex flex-col gap-4 p-4"}>
           <div className="sticky -top-6 z-10 border-b border-border bg-surface-0 p-3">
             <SemanticSearchBar resultKey={data.jobId} initialQuery={data.semantic?.query ?? ""} />
           </div>
@@ -248,7 +247,7 @@ export function PoseViewerPage() {
             </div>
             {largePreviewEnabled && active && active.candidates.length > 0 && (
               <SelectionPreview
-                key={`${data.jobId}:${active.index}`}
+                key={`${previewOwner}:${data.jobId}:${active.index}`}
                 job={data.jobId}
                 person={active}
                 selectedId={selectedByPerson[active.index]}
@@ -436,7 +435,7 @@ export function PoseViewerPage() {
           </div>
           {largePreviewEnabled && active && active.fallbackMode !== "hard" && (
             <SelectionPreview
-              key={`${data.jobId}:${active.index}`}
+              key={`${previewOwner}:${data.jobId}:${active.index}`}
               job={data.jobId}
               person={active}
               selectedId={selectedByPerson[active.index]}
