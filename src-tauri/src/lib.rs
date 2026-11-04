@@ -146,15 +146,23 @@ pub fn run() {
             .build(tauri::generate_context!())
             .expect("error building QA application");
         update_e2e::trace("build-complete");
-        app.run(|_, event| match event {
+        app.run(|handle, event| match event {
             tauri::RunEvent::Ready => update_e2e::trace("event-loop-ready"),
             tauri::RunEvent::ExitRequested { .. } => update_e2e::trace("exit-requested-event"),
-            tauri::RunEvent::Exit => update_e2e::trace("exit-event"),
+            tauri::RunEvent::Exit => {
+                commands::personal_body::shutdown(handle);
+                update_e2e::trace("exit-event");
+            }
             _ => {}
         });
     }
     #[cfg(not(feature = "update-e2e"))]
     builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|handle, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                commands::personal_body::shutdown(handle);
+            }
+        });
 }

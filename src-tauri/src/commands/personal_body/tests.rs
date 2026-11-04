@@ -82,9 +82,21 @@ fn exercise_packaged_model(runtime: PathBuf, source: PathBuf) {
             .request(None, "hello", &cancel, json!({"action":"hello"}))
             .unwrap();
         assert_eq!(hello["formats"]["fbx"], true);
+        assert_eq!(hello["modelStorageVersion"], "personal-fbx/1");
         let imported=session.request(None,"import",&cancel,json!({"action":"import","localModelId":model_id,"sourcePath":source,"sourceHash":source_hash})).unwrap();
         assert_eq!(imported["sourceHash"], source_hash);
         assert_eq!(imported["capabilities"]["bodyPose"], true);
+        assert_eq!(imported["normalizedFormat"], "fbx");
+        let normalized = PathBuf::from(imported["normalizedPath"].as_str().unwrap());
+        assert_eq!(normalized.extension().unwrap(), "fbx");
+        assert_eq!(
+            hash(&fs::read(normalized).unwrap()),
+            imported["normalizedHash"]
+        );
+        assert_eq!(
+            hash(&fs::read(imported["archivePath"].as_str().unwrap()).unwrap()),
+            imported["archiveHash"]
+        );
         let mut saved = fixture();
         saved.worker_model_id = model_id.into();
         saved.source_hash = source_hash.clone();

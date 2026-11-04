@@ -20,8 +20,13 @@ test("standard build entry: absent capability, pin, contract, target, integrity,
     const source = path.join(temp, "source");
     await mkdir(source);
     const contract = JSON.stringify({
-      contractRevision: 3,
-      results: { hello: { cameraContractVersion: "personal-camera/1" } },
+      contractRevision: 4,
+      results: {
+        hello: {
+          cameraContractVersion: "personal-camera/1",
+          modelStorageVersion: "personal-fbx/1",
+        },
+      },
     });
     await writeFile(path.join(source, "converter-client-contract.v1.json"), contract);
     await writeFile(path.join(source, "launcher"), "vetted bytes");

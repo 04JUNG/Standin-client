@@ -42,10 +42,78 @@ pub(super) struct Session {
     events: mpsc::Receiver<Result<Value, LocalError>>,
     sequence: u64,
 }
-impl Session {
-    pub(super) fn start(app: &AppHandle, root: &Path) -> Result<Self, LocalError> {
-        Self::start_from(&launcher(app)?, root)
+/// One verified host per app-owned library. Blender jobs remain isolated children.
+/// Never retry a mutating request after a transport error: its commit may have won.
+#[derive(Default)]
+pub(super) struct RuntimeCache {
+    cached: Option<CachedRuntime>,
+}
+struct CachedRuntime {
+    launcher: PathBuf,
+    root: PathBuf,
+    session: Session,
+    hello: Value,
+}
+pub(super) struct RequestContext<'a> {
+    pub app: Option<&'a AppHandle>,
+    pub job: &'a str,
+    pub cancel: &'a AtomicBool,
+}
+impl RuntimeCache {
+    pub(super) fn clear(&mut self) {
+        self.cached.take();
     }
+    pub(super) fn with_session<T>(
+        &mut self,
+        launcher: &Path,
+        root: &Path,
+        context: RequestContext<'_>,
+        work: impl FnOnce(&mut Session, &Value) -> Result<T, LocalError>,
+    ) -> Result<T, LocalError> {
+        if context.cancel.load(Ordering::SeqCst) {
+            return Err(err("CANCELLED"));
+        }
+        let reusable = self.cached.as_mut().is_some_and(|cached| {
+            cached.launcher == launcher
+                && cached.root == root
+                && cached.session.sequence < 9000
+                && matches!(cached.session.child.try_wait(), Ok(None))
+        });
+        if !reusable {
+            self.clear();
+            let mut session = Session::start_from(launcher, root)?;
+            let hello = session.request(
+                context.app,
+                context.job,
+                context.cancel,
+                json!({"action":"hello"}),
+            )?;
+            if hello["cameraContractVersion"] != "personal-camera/1"
+                || hello["modelStorageVersion"] != "personal-fbx/1"
+            {
+                return Err(err("RUNTIME_MISMATCH"));
+            }
+            self.cached = Some(CachedRuntime {
+                launcher: launcher.to_path_buf(),
+                root: root.to_path_buf(),
+                session,
+                hello,
+            });
+        }
+        let cached = self
+            .cached
+            .as_mut()
+            .ok_or_else(|| err("RUNTIME_UNAVAILABLE"))?;
+        let result = work(&mut cached.session, &cached.hello);
+        // A cancelled/error session can still be cleaning up a child. Close it
+        // before the next operation instead of reusing uncertain protocol state.
+        if result.is_err() {
+            self.clear();
+        }
+        result
+    }
+}
+impl Session {
     pub(super) fn start_from(launcher: &Path, root: &Path) -> Result<Self, LocalError> {
         let mut command = Command::new(launcher);
         command
@@ -218,5 +286,152 @@ impl Drop for Session {
         }
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn retained_host_reuses_process_and_recovers_without_replaying_failed_requests() {
+        use std::{fs, os::unix::fs::PermissionsExt};
+        let root = std::env::temp_dir().join(format!("personal-runtime-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        let launcher = root.join("fixture-runtime");
+        fs::write(&launcher, r##"#!/usr/bin/env python3
+import json, os, sys
+for line in sys.stdin:
+    r=json.loads(line)
+    if r['action']=='die': sys.exit(0)
+    event={'protocolVersion':'standin.local-converter/1','requestId':r['requestId'],'event':'result'}
+    if r['action']=='fail': event.update(event='error',error={'code':'SOURCE_CHANGED'})
+    else: event['result']={'cameraContractVersion':'personal-camera/1','modelStorageVersion':'personal-fbx/1','pid':os.getpid()}
+    print(json.dumps(event),flush=True)
+"##).unwrap();
+        fs::set_permissions(&launcher, fs::Permissions::from_mode(0o755)).unwrap();
+        let cancel = AtomicBool::new(false);
+        let context = || RequestContext {
+            app: None,
+            job: "fixture",
+            cancel: &cancel,
+        };
+        let mut runtime = RuntimeCache::default();
+        let first = runtime
+            .with_session(&launcher, &root, context(), |_, h| Ok(h["pid"].clone()))
+            .unwrap();
+        let second = runtime
+            .with_session(&launcher, &root, context(), |s, _| {
+                s.request(None, "fixture", &cancel, json!({"action":"inspect"}))
+            })
+            .unwrap();
+        assert_eq!(first, second["pid"]);
+        let failure = runtime.with_session(&launcher, &root, context(), |s, _| {
+            s.request(None, "fixture", &cancel, json!({"action":"fail"}))
+        });
+        assert_eq!(failure.unwrap_err().code, "SOURCE_CHANGED");
+        assert!(runtime.cached.is_none());
+        let recovered = runtime
+            .with_session(&launcher, &root, context(), |_, h| Ok(h["pid"].clone()))
+            .unwrap();
+        assert_ne!(first, recovered);
+        let died = runtime.with_session(&launcher, &root, context(), |s, _| {
+            s.request(None, "fixture", &cancel, json!({"action":"die"}))
+        });
+        assert_eq!(died.unwrap_err().code, "CONVERSION_FAILED");
+        assert!(runtime.cached.is_none());
+        let restarted = runtime
+            .with_session(&launcher, &root, context(), |_, h| Ok(h["pid"].clone()))
+            .unwrap();
+        assert_ne!(recovered, restarted);
+        let cancelled: Result<(), LocalError> =
+            runtime.with_session(&launcher, &root, context(), |_, _| Err(err("CANCELLED")));
+        assert_eq!(cancelled.unwrap_err().code, "CANCELLED");
+        assert!(runtime.cached.is_none());
+        let next_root = root.join("other-library");
+        let pid = runtime
+            .with_session(&launcher, &root, context(), |_, h| Ok(h["pid"].clone()))
+            .unwrap();
+        let other = runtime
+            .with_session(
+                &launcher,
+                &next_root,
+                context(),
+                |_, h| Ok(h["pid"].clone()),
+            )
+            .unwrap();
+        assert_ne!(pid, other);
+        runtime.clear();
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[ignore = "Requires an actual pinned packaged runtime; measures native retained-host IPC"]
+    fn real_packaged_runtime_reuse_timing() {
+        let launcher =
+            PathBuf::from(std::env::var("STANDIN_TEST_LAUNCHER").expect("packaged launcher"));
+        let root =
+            std::env::temp_dir().join(format!("personal-warm-runtime-{}", uuid::Uuid::new_v4()));
+        let cancel = AtomicBool::new(false);
+        let mut runtime = RuntimeCache::default();
+        let context = || RequestContext {
+            app: None,
+            job: "timing",
+            cancel: &cancel,
+        };
+        let started = Instant::now();
+        runtime
+            .with_session(&launcher, &root, context(), |_, _| Ok(()))
+            .unwrap();
+        let startup_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let pid = runtime.cached.as_ref().unwrap().session.child.id();
+        let mut warm_ms = Vec::new();
+        for _ in 0..3 {
+            let started = Instant::now();
+            runtime
+                .with_session(&launcher, &root, context(), |session, _| {
+                    session.request(None, "timing", &cancel, json!({"action":"hello"}))
+                })
+                .unwrap();
+            warm_ms.push(started.elapsed().as_secs_f64() * 1000.0);
+            assert_eq!(runtime.cached.as_ref().unwrap().session.child.id(), pid);
+        }
+        let source = PathBuf::from(std::env::var("STANDIN_TEST_CS3C").expect("original CS3C"));
+        let pose = PathBuf::from(std::env::var("STANDIN_TEST_BVH").expect("BVH"));
+        let hash_file = |path: &Path| super::super::hash(&std::fs::read(path).unwrap());
+        let started = Instant::now();
+        let model = runtime.with_session(&launcher,&root,context(),|session,_| session.request(None,"timing",&cancel,json!({"action":"import","localModelId":"timed-model","sourcePath":source,"sourceHash":hash_file(&source)}))).unwrap();
+        let registration_ms = started.elapsed().as_secs_f64() * 1000.0;
+        assert_eq!(model["normalizedFormat"], "fbx");
+        let request = json!({"action":"apply","localModelId":"timed-model","sourceHash":model["sourceHash"],"posePath":pose,"poseHash":hash_file(&pose),"selectionId":"timing","camera":{"version":"personal-camera/1","sourceBvhSha256":null,"rotation":null},"hands":{"left":null,"right":null}});
+        let started = Instant::now();
+        let applied = runtime
+            .with_session(&launcher, &root, context(), |session, _| {
+                session.request(None, "timing", &cancel, request.clone())
+            })
+            .unwrap();
+        let apply_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let started = Instant::now();
+        let cached = runtime
+            .with_session(&launcher, &root, context(), |session, _| {
+                session.request(None, "timing", &cancel, request)
+            })
+            .unwrap();
+        let cache_ms = started.elapsed().as_secs_f64() * 1000.0;
+        assert_eq!(cached["cacheHit"], true);
+        assert_eq!(cached["artifactHash"], applied["artifactHash"]);
+        let destination = root.join("reviewed.fbx");
+        let started = Instant::now();
+        runtime.with_session(&launcher,&root,context(),|session,_|session.request(None,"timing",&cancel,json!({"action":"export","localModelId":"timed-model","snapshotHash":applied["snapshotHash"],"destinationPath":destination}))).unwrap();
+        let export_ms = started.elapsed().as_secs_f64() * 1000.0;
+        assert_eq!(hash_file(&destination), applied["artifactHash"]);
+        assert_eq!(runtime.cached.as_ref().unwrap().session.child.id(), pid);
+        let report = json!({"startupMs":startup_ms,"warmHelloMs":warm_ms,"registrationMs":registration_ms,"applyFromFbxMs":apply_ms,"cacheApplyMs":cache_ms,"exportMs":export_ms,"sameProcess":true,"workingFormat":"fbx","modelConversionIncluded":true,"networkAndUiIncluded":false});
+        if let Ok(path) = std::env::var("STANDIN_TEST_RUNTIME_TIMING_REPORT") {
+            std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        runtime.clear();
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

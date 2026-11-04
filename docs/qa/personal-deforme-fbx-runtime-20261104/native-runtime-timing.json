@@ -1,0 +1,16 @@
+{
+  "applyFromFbxMs": 1679.0320410000002,
+  "cacheApplyMs": 18.817292,
+  "exportMs": 17.48725,
+  "modelConversionIncluded": true,
+  "networkAndUiIncluded": false,
+  "registrationMs": 2207.4330830000004,
+  "sameProcess": true,
+  "startupMs": 5997.266292,
+  "warmHelloMs": [
+    6.6930000000000005,
+    6.734249999999999,
+    6.909875
+  ],
+  "workingFormat": "fbx"
+}

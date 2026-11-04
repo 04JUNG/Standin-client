@@ -43,8 +43,9 @@ export async function prepareLocalRuntime({ target: requestedTarget, development
     await readFile(path.join(source, "converter-client-contract.v1.json"), "utf8"),
   );
   if (
-    contract.contractRevision !== 3 ||
-    contract.results?.hello?.cameraContractVersion !== "personal-camera/1"
+    contract.contractRevision !== 4 ||
+    contract.results?.hello?.cameraContractVersion !== "personal-camera/1" ||
+    contract.results?.hello?.modelStorageVersion !== "personal-fbx/1"
   )
     throw new Error("Runtime camera contract mismatch.");
   async function verifyFiles(directory) {

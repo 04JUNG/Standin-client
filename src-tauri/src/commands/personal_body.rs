@@ -19,7 +19,7 @@ mod storage;
 mod worker;
 pub use storage::Card;
 use storage::*;
-use worker::{launcher, Session};
+use worker::{launcher, RequestContext, RuntimeCache, Session};
 #[cfg(test)]
 mod tests;
 const SOURCE_LIMIT: u64 = 128 * 1024 * 1024;
@@ -37,6 +37,38 @@ fn io<T>(r: std::io::Result<T>) -> Result<T, LocalError> {
 pub struct PersonalBodyState {
     jobs: Mutex<HashMap<String, Arc<AtomicBool>>>,
     operation: Mutex<()>,
+    runtime: Mutex<RuntimeCache>,
+}
+fn with_runtime<T>(
+    app: &AppHandle,
+    root: &Path,
+    job: &str,
+    cancel: &AtomicBool,
+    work: impl FnOnce(&mut Session, &Value) -> Result<T, LocalError>,
+) -> Result<T, LocalError> {
+    let state = app.state::<PersonalBodyState>();
+    let mut runtime = state.runtime.lock().map_err(|_| err("BUSY"))?;
+    runtime.with_session(
+        &launcher(app)?,
+        root,
+        RequestContext {
+            app: Some(app),
+            job,
+            cancel,
+        },
+        work,
+    )
+}
+pub fn shutdown(app: &AppHandle) {
+    let state = app.state::<PersonalBodyState>();
+    if let Ok(jobs) = state.jobs.lock() {
+        for cancel in jobs.values() {
+            cancel.store(true, Ordering::SeqCst);
+        }
+    }
+    if let Ok(mut runtime) = state.runtime.lock() {
+        runtime.clear();
+    };
 }
 fn sweep(root: &Path) -> Result<(), LocalError> {
     let referenced: std::collections::HashSet<String> = cards(root)?
@@ -112,16 +144,13 @@ pub async fn personal_body_capabilities(app: AppHandle) -> Result<Value, LocalEr
             return Ok(json!({"available":false,"formats":[],"reason":"RUNTIME_UNAVAILABLE"}));
         }
         let root = root(&app)?;
-        let mut session = Session::start(&app, &root.join("capability"))?;
-        let hello = session.request(
-            Some(&app),
+        let hello = with_runtime(
+            &app,
+            &root,
             "capability",
             &AtomicBool::new(false),
-            json!({"action":"hello"}),
+            |_, hello| Ok(hello.clone()),
         )?;
-        if hello["cameraContractVersion"] != "personal-camera/1" {
-            return Ok(json!({"available":false,"formats":[],"reason":"CAMERA_UNSUPPORTED"}));
-        }
         let formats: Vec<&str> = ["fbx", "cs3c"]
             .into_iter()
             .filter(|f| hello["formats"][*f] == true)
@@ -228,86 +257,88 @@ fn import_source(
         return Err(err("LIMIT_EXCEEDED"));
     }
     let source_hash = hash(&bytes);
-    let mut session = Session::start(app, root)?;
-    let hello = session.request(Some(app), job, cancel, json!({"action":"hello"}))?;
-    let existing = cards(root)?;
-    if let Some(duplicate) = existing.iter().find(|c| {
-        c.source_hash == source_hash
-            && hello["versions"]["importerVersion"] == c.importer_version
-            && hello["versions"]["normalizationVersion"] == c.normalization_version
-            && hello["versions"]["rigMappingVersion"] == c.rig_mapping_version
-            && hello["versions"]["converterVersion"] == c.converter_version
-            && hello["versions"]["converterFingerprint"] == c.converter_fingerprint
-    }) {
-        return Ok(Some(duplicate.clone()));
-    }
-    let previous = replace_id.map(|id| card(root, id)).transpose()?;
-    let stage = root.join("staging").join(job);
-    io(fs::create_dir_all(&stage))?;
-    let result = (|| {
-        let staged_source = stage.join(format!("source.{format}"));
-        io(fs::write(&staged_source, bytes))?;
-        let manifest = session.request(
-            Some(app),
-            job,
-            cancel,
-            json!({
-                "action":"import", "localModelId":job,
-                "sourcePath":staged_source, "sourceHash":source_hash,
-            }),
-        )?;
-        if manifest["sourceHash"] != source_hash
-            || manifest["localModelId"] != job
-            || manifest["capabilities"]["bodyPose"] != true
-        {
-            return Err(err("UNSUPPORTED_MODEL"));
+    with_runtime(app, root, job, cancel, |session, hello| {
+        let existing = cards(root)?;
+        if let Some(duplicate) = existing.iter().find(|c| {
+            c.source_hash == source_hash
+                && hello["versions"]["importerVersion"] == c.importer_version
+                && hello["versions"]["normalizationVersion"] == c.normalization_version
+                && hello["versions"]["rigMappingVersion"] == c.rig_mapping_version
+                && hello["versions"]["converterVersion"] == c.converter_version
+                && hello["versions"]["converterFingerprint"] == c.converter_fingerprint
+        }) {
+            return Ok(Some(duplicate.clone()));
         }
-        let version = |key: &str| {
-            manifest["versions"][key]
-                .as_str()
-                .map(String::from)
-                .ok_or_else(|| err("PROTOCOL_MISMATCH"))
-        };
-        let record = Card {
-            local_model_id: previous
-                .as_ref()
-                .map_or_else(|| job.to_string(), |c| c.local_model_id.clone()),
-            name: previous
-                .as_ref()
-                .map_or_else(|| name.to_string(), |c| c.name.clone()),
-            source_hash,
-            format,
-            version: previous.as_ref().map_or(1, |c| c.version + 1),
-            importer_version: version("importerVersion")?,
-            normalization_version: version("normalizationVersion")?,
-            rig_mapping_version: version("rigMappingVersion")?,
-            converter_version: version("converterVersion")?,
-            converter_fingerprint: version("converterFingerprint")?,
-            created_at: previous.as_ref().map_or(now(), |c| c.created_at),
-            updated_at: now(),
-            capabilities: json!({"bodyPose":true,
-                "leftHand":manifest["capabilities"]["hands"]["left"]["supported"] == true,
-                "rightHand":manifest["capabilities"]["hands"]["right"]["supported"] == true}),
-            worker_model_id: job.to_string(),
-        };
-        if cancel.load(Ordering::SeqCst) {
-            return Err(err("CANCELLED"));
-        }
-        save_card(root, &record)?;
-        if let Some(old) = previous {
-            let _ = session.request(
+        let previous = replace_id.map(|id| card(root, id)).transpose()?;
+        let stage = root.join("staging").join(job);
+        io(fs::create_dir_all(&stage))?;
+        let result = (|| {
+            let staged_source = stage.join(format!("source.{format}"));
+            io(fs::write(&staged_source, bytes))?;
+            let manifest = session.request(
                 Some(app),
                 job,
-                &AtomicBool::new(false),
+                cancel,
                 json!({
-                    "action":"delete", "localModelId":old.worker_model_id,
+                    "action":"import", "localModelId":job,
+                    "sourcePath":staged_source, "sourceHash":source_hash,
                 }),
-            );
-        }
-        Ok(Some(record))
-    })();
-    let _ = fs::remove_dir_all(stage);
-    result
+            )?;
+            if manifest["sourceHash"] != source_hash
+                || manifest["localModelId"] != job
+                || manifest["capabilities"]["bodyPose"] != true
+                || manifest["normalizedFormat"] != "fbx"
+                || !manifest["normalizedHash"].as_str().is_some_and(valid_hash)
+            {
+                return Err(err("UNSUPPORTED_MODEL"));
+            }
+            let version = |key: &str| {
+                manifest["versions"][key]
+                    .as_str()
+                    .map(String::from)
+                    .ok_or_else(|| err("PROTOCOL_MISMATCH"))
+            };
+            let record = Card {
+                local_model_id: previous
+                    .as_ref()
+                    .map_or_else(|| job.to_string(), |c| c.local_model_id.clone()),
+                name: previous
+                    .as_ref()
+                    .map_or_else(|| name.to_string(), |c| c.name.clone()),
+                source_hash,
+                format,
+                version: previous.as_ref().map_or(1, |c| c.version + 1),
+                importer_version: version("importerVersion")?,
+                normalization_version: version("normalizationVersion")?,
+                rig_mapping_version: version("rigMappingVersion")?,
+                converter_version: version("converterVersion")?,
+                converter_fingerprint: version("converterFingerprint")?,
+                created_at: previous.as_ref().map_or(now(), |c| c.created_at),
+                updated_at: now(),
+                capabilities: json!({"bodyPose":true,
+                "leftHand":manifest["capabilities"]["hands"]["left"]["supported"] == true,
+                "rightHand":manifest["capabilities"]["hands"]["right"]["supported"] == true}),
+                worker_model_id: job.to_string(),
+            };
+            if cancel.load(Ordering::SeqCst) {
+                return Err(err("CANCELLED"));
+            }
+            save_card(root, &record)?;
+            if let Some(old) = previous {
+                let _ = session.request(
+                    Some(app),
+                    job,
+                    &AtomicBool::new(false),
+                    json!({
+                        "action":"delete", "localModelId":old.worker_model_id,
+                    }),
+                );
+            }
+            Ok(Some(record))
+        })();
+        let _ = fs::remove_dir_all(stage);
+        result
+    })
 }
 
 #[tauri::command]
@@ -385,9 +416,7 @@ pub async fn personal_body_apply(
         let stage = root.join("staging").join(&job_id);io(fs::create_dir_all(&stage))?;
         let result=(|| {
             let pose_path=stage.join("pose.bvh");io(fs::write(&pose_path,bytes))?;
-            let mut session=Session::start(&app,root)?;
-            let hello=session.request(Some(&app),&job_id,cancel,json!({"action":"hello"}))?;
-            if hello["cameraContractVersion"] != "personal-camera/1" { return Err(err("CAMERA_UNSUPPORTED")); }
+            with_runtime(&app,root,&job_id,cancel, |session,_hello| {
             let applied=session.request(Some(&app),&job_id,cancel,json!({"action":"apply","localModelId":model.worker_model_id,"sourceHash":source_hash,"posePath":pose_path,"poseHash":pose_hash,"selectionId":selection_id,"camera":camera,"hands":{"left":null,"right":null}}))?;
             if applied["localModelId"] != model.worker_model_id || applied["snapshot"]["sourceHash"] != source_hash || applied["snapshot"]["poseHash"] != pose_hash { return Err(err("SNAPSHOT_MISMATCH")); }
             validate_snapshot(&model, &pose_hash, &camera, &applied["snapshot"])?;
@@ -400,6 +429,7 @@ pub async fn personal_body_apply(
             if Some(hash(&fbx).as_str()) != exported["artifactHash"].as_str() { return Err(err("SNAPSHOT_MISMATCH")); }
             if cancel.load(Ordering::SeqCst) {return Err(err("CANCELLED"));}
             Ok(json!({"snapshotHash":snapshot,"artifactHash":exported["artifactHash"],"contentBase64":BASE64.encode(fbx)}))
+            })
         })();let _=fs::remove_dir_all(stage);result
     })).await.map_err(|_|err("CONVERSION_FAILED"))?
 }

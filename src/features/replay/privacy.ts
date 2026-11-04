@@ -14,7 +14,7 @@ export function safeReplayText(value: string): string {
     .replace(/https?:\/\/[^\s"'<>]+/gi, "[url]");
 }
 const forbiddenKeys =
-  /^(?:password|token|deviceToken|accessToken|refreshToken|authorization|cookie|localPath|fullPath|__TAURI_INTERNALS__|path|folder|fileName|originalName|sourcePath|sourceHash|modelName|localName|localModelId|workerModelId|converterFingerprint|contentBase64|poseBase64|normalizedPath|artifactPath|previewPath)$/i;
+  /^(?:password|token|deviceToken|accessToken|refreshToken|authorization|cookie|localPath|fullPath|__TAURI_INTERNALS__|path|folder|fileName|originalName|sourcePath|sourceHash|modelName|localName|localModelId|workerModelId|converterFingerprint|contentBase64|poseBase64|normalizedPath|normalizedHash|archivePath|archiveHash|artifactPath|previewPath)$/i;
 export function sanitizeReplay(value: unknown): unknown {
   if (typeof value === "string") return safeReplayText(value);
   if (Array.isArray(value)) return value.map(sanitizeReplay);

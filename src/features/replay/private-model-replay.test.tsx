@@ -174,6 +174,10 @@ it("actual product cards + rrweb recorder + sanitizer + queue and upload contain
         name: secret,
         sourcePath: "/Users/private/character.cs3c",
         sourceHash: "private-hash",
+        normalizedPath: "PRIVATE_FBX_WORKING_PATH",
+        normalizedHash: "PRIVATE_FBX_WORKING_HASH",
+        archivePath: "PRIVATE_BLEND_ARCHIVE_PATH",
+        archiveHash: "PRIVATE_BLEND_ARCHIVE_HASH",
         contentBase64: "PRIVATE_BYTES",
       },
     },
@@ -186,7 +190,7 @@ it("actual product cards + rrweb recorder + sanitizer + queue and upload contain
     const body = q.body as { data: string };
     const decoded = strFromU8(gunzipSync(Uint8Array.from(atob(body.data), (c) => c.charCodeAt(0))));
     expect(decoded).not.toMatch(
-      /PRIVATE_CHARACTER|private-id|private-hash|PRIVATE_BYTES|\/Users\/private|character\.cs3c/,
+      /PRIVATE_CHARACTER|PRIVATE_FBX|PRIVATE_BLEND|private-id|private-hash|PRIVATE_BYTES|\/Users\/private|character\.cs3c/,
     );
   }
   const outbound = requests.filter(
@@ -196,7 +200,7 @@ it("actual product cards + rrweb recorder + sanitizer + queue and upload contain
   for (const body of outbound) {
     const decoded = strFromU8(gunzipSync(Uint8Array.from(atob(body.data), (c) => c.charCodeAt(0))));
     expect(decoded).not.toMatch(
-      /PRIVATE_CHARACTER|private-id|private-hash|PRIVATE_BYTES|\/Users\/private|character\.cs3c/,
+      /PRIVATE_CHARACTER|PRIVATE_FBX|PRIVATE_BLEND|private-id|private-hash|PRIVATE_BYTES|\/Users\/private|character\.cs3c/,
     );
   }
   expect(JSON.stringify(requests)).not.toContain(secret);
