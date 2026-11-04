@@ -78,7 +78,11 @@ export type PersonResult = {
 
 export type AnalysisResult = {
   source?: "image" | "semantic";
-  semantic?: { query: string; index: Record<string, string> };
+  semantic?: {
+    query: string;
+    index: Record<string, string>;
+    paging?: import("@/features/semantic-search/api").SemanticPaging;
+  };
   jobId: string;
   inputPreviewUrl?: string;
   sourceImage?: import("@/features/export/api/sceneMetadata").SceneManifest["sourceImage"];
