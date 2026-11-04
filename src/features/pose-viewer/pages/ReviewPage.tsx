@@ -47,7 +47,7 @@ export function ReviewPage() {
   return (
     <AppShell title="저장할 포즈 확인">
       <div className="mx-auto flex h-full w-full max-w-[760px] flex-col gap-4">
-        {isRefining ? (
+        {isRefining && !items.some((item) => item.interactivePreview) ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-text-secondary">
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
             <p className="text-[14px]">포즈를 러프에 맞춰 조정하고 있습니다…</p>
@@ -64,6 +64,7 @@ export function ReviewPage() {
                 >
                   <ReviewPosePreview
                     telemetryJobId={hands?.jobId}
+                    interactive={item.interactivePreview}
                     model={item.previewModel}
                     src={item.previewUrl}
                     label={

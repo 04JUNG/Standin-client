@@ -1,3 +1,5 @@
+import { capabilitySchema, readAsset } from "../interactive/contract";
+import { env } from "@/shared/lib/env";
 import { rememberAnalysisFailure } from "@/features/analytics/analysisContext";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { rememberJobSource } from "@/features/analytics/analyticsClient";
@@ -63,6 +65,7 @@ type BffCandidate = CandidatePolicy & {
   posterUrl?: string;
   quickThumbnailUrl?: string;
   previewModelUrl?: string;
+  interactivePreview?: unknown;
   camera?: { version?: string; rotation?: unknown; source_bvh_sha256?: string } | null;
 };
 
@@ -92,6 +95,7 @@ type BffAnalysisResult = {
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
+    interactivePreview?: unknown;
     candidateRerun?: boolean;
   };
   candidatesByPerson: Array<{
@@ -251,6 +255,7 @@ async function toPoseCandidate(
   personIndex: number,
   signal: AbortSignal,
   posterScope: import("./outputScope").BodyScope = "full",
+  interactive = false,
 ): Promise<PoseCandidate> {
   const semantic =
     raw.semantic === undefined ? undefined : semanticCandidateSchema.parse(raw.semantic);
@@ -325,6 +330,14 @@ async function toPoseCandidate(
           },
         }
       : {}),
+    ...(interactive && !semantic
+      ? {
+          interactivePreview: {
+            version: "interactive-preview-v1" as const,
+            asset: readAsset(raw.interactivePreview, policy.sourceBvhSha256, posterScope),
+          },
+        }
+      : {}),
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
     bvhAvailable: downloadable,
@@ -367,6 +380,9 @@ async function toAnalysisResult(
             person.personIndex,
             signal,
             readOutputScope(person.outputScope).resolved,
+            env.interactivePreview &&
+              raw.source !== "semantic" &&
+              capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success,
           ),
         ),
       );
@@ -455,6 +471,10 @@ async function toAnalysisResult(
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
       modelPreview: raw.capabilities?.modelPreview === true,
+      ...(env.interactivePreview &&
+      capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success
+        ? { interactivePreview: capabilitySchema.parse(raw.capabilities?.interactivePreview) }
+        : {}),
       candidateRerun: raw.capabilities?.candidateRerun === true,
     },
   };
