@@ -13,7 +13,13 @@ import { cn } from "@/shared/lib/cn";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog";
-import { BODY_KIND_LABEL, bodyKind, type BodyKind } from "./bodyPanel";
+import {
+  BODY_KIND_LABEL,
+  bodyKind,
+  initialBodyLook,
+  bodyRoleLabel,
+  type BodyKind,
+} from "./bodyPanel";
 import { LiveBodyView, NeutralImage } from "./LiveBodyView";
 import { ShapeControlGrid } from "./ShapeControls";
 import { sameShape, shapeDefaults } from "./shapeValues";
@@ -89,7 +95,7 @@ export function BodyCustomPage() {
     } else {
       const base = editable.find((l) => l.characterId === search.get("base"));
       const kind = search.get("kind");
-      const first = base ?? editable.find((l) => bodyKind(l) === kind) ?? editable[0]!;
+      const first = base ?? initialBodyLook(editable, kind) ?? initialBodyLook(editable)!;
       start = { characterId: first.characterId, controls: null, name: nextCardName(cards) };
     }
     if (!start) return;
@@ -122,7 +128,7 @@ export function BodyCustomPage() {
     setDraft({ ...draft, characterId, controls: null });
   }
   function pickKind(k: BodyKind) {
-    const first = editable.find((l) => bodyKind(l) === k);
+    const first = initialBodyLook(editable, k);
     if (first) pickBase(first.characterId);
   }
   function toggleExpert() {
@@ -342,6 +348,11 @@ export function BodyCustomPage() {
                             <span className="truncate px-1 text-[11.5px] font-semibold">
                               {l.displayName ?? "기본 체형"}
                             </span>
+                            {bodyRoleLabel(l) && (
+                              <span className="px-1 text-[10px] text-text-secondary">
+                                {bodyRoleLabel(l)}
+                              </span>
+                            )}
                           </button>
                         );
                       })}
