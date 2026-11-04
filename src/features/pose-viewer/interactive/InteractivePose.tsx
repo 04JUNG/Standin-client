@@ -22,6 +22,7 @@ export function InteractivePose({
   viewKey,
   large = false,
   showControls = true,
+  showExpandButton = false,
   onExpand,
   onFrame,
 }: {
@@ -30,6 +31,7 @@ export function InteractivePose({
   viewKey: string;
   large?: boolean;
   showControls?: boolean;
+  showExpandButton?: boolean;
   onExpand?: () => void;
   onFrame?: (element: HTMLElement) => void;
 }) {
@@ -230,6 +232,23 @@ export function InteractivePose({
           )}
         </div>
       )}
+      {showExpandButton && onExpand && (
+        <button
+          type="button"
+          aria-label="포즈 크게 보기"
+          title="포즈 크게 보기"
+          className="absolute bottom-1 right-1 z-[20] flex h-10 w-10 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onExpand();
+          }}
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface-0/95 shadow-sm hover:bg-surface-0">
+            <ZoomIn size={15} aria-hidden="true" />
+          </span>
+        </button>
+      )}
       {showControls && (
         <div className="absolute right-2 top-2 z-[20] flex gap-1">
           <button
@@ -282,12 +301,14 @@ export function ExpandablePose({
   surface,
   viewKey,
   showControls = true,
+  showExpandButton = false,
   onFrame,
 }: {
   asset?: StaticAsset;
   surface?: SurfaceView;
   viewKey: string;
   showControls?: boolean;
+  showExpandButton?: boolean;
   onFrame?: (e: HTMLElement) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -298,10 +319,10 @@ export function ExpandablePose({
     restore.current = document.activeElement as HTMLElement;
     const priorOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    dialog.current?.querySelector<HTMLElement>("button")?.focus();
+    dialog.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
     return () => {
       document.body.style.overflow = priorOverflow;
-      restore.current?.focus();
+      restore.current?.focus({ preventScroll: true });
     };
   }, [expanded]);
   return (
@@ -311,6 +332,7 @@ export function ExpandablePose({
         surface={surface}
         viewKey={viewKey}
         showControls={showControls}
+        showExpandButton={showExpandButton}
         onExpand={() => setExpanded(true)}
         onFrame={onFrame}
       />
@@ -329,7 +351,11 @@ export function ExpandablePose({
               className="flex h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-surface-0 shadow-xl"
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
-                if (e.key === "Escape") setExpanded(false);
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExpanded(false);
+                }
                 if (e.key === "Tab") {
                   const nodes =
                     dialog.current!.querySelectorAll<HTMLElement>("button,[tabindex='0']");

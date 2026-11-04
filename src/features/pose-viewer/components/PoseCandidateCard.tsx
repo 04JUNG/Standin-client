@@ -61,6 +61,7 @@ function InteractiveCandidateCard({
       <div className={cn("w-full", fill ? "min-h-0 flex-1" : "aspect-square")}>
         <ExpandablePose
           showControls={false}
+          showExpandButton
           asset={candidate.interactivePreview?.asset}
           viewKey={`${jobId ?? "sample"}:${candidate.id}`}
         />
