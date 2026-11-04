@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { create } from "zustand";
 import { z } from "zod";
 import { apiFetch } from "@/shared/api/client";
@@ -84,6 +85,7 @@ export const useQualityConsentStore = create<State>((set, get) => ({
   async save(choices) {
     if (get().saving) return false;
     const current = ++revision;
+    if (!choices.personalData || !choices.contentLicense) replayObservation("replay_withdraw", {});
     // Stop collecting immediately, even when withdrawal needs a network retry.
     setAnalyticsConsent(null);
     set({ saving: true, pendingChoices: { ...choices }, error: null });

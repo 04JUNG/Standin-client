@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import {
   featureAction,
   useFeatureView,
@@ -134,6 +135,7 @@ export function useSemanticSearch(
     [owner, context, initialQuery],
   );
   function edit(text: string) {
+    replayObservation("search_input", { query: text.slice(0, 500), surface });
     saveSearchDraft(owner, context, { seed: initialQuery, query: text });
     generation.current++;
     controller.current?.abort();
@@ -147,6 +149,7 @@ export function useSemanticSearch(
   useFeatureView("semantic_search", !!ready, "open", undefined, context);
   const submit = useCallback(() => {
     const text = query.trim();
+    replayObservation("search_submitted", { query: text.slice(0, 500), surface });
     if (!text || text.length > 500 || !ready || composing || activeText.current === text) return;
     const draftVersion = saveSearchDraft(owner, context, {
       seed: initialQuery,

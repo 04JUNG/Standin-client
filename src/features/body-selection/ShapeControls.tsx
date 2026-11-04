@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { useRef } from "react";
 import { cn } from "@/shared/lib/cn";
 import { formatShapeValue, shapeLabel } from "./shapeLabels";
@@ -53,6 +54,11 @@ export function ShapeSlider({
         value={value}
         disabled={disabled}
         onChange={(e) => {
+          replayObservation("body_control", {
+            control: control.key,
+            value: Number(e.target.value),
+            controlId: id,
+          });
           changed.current = true;
           onChange(Number(e.target.value));
         }}

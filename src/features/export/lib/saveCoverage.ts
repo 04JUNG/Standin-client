@@ -88,3 +88,14 @@ export function sceneSelectionAvailable(
     return candidate.source !== "generation";
   });
 }
+
+/** Disabled/legacy deployments retain individual autosave; failed scene prerequisites need consent. */
+export function sceneFallbackNeedsConfirmation(
+  analysis: AnalysisResult | undefined,
+  picks: Record<number, string>,
+) {
+  if (sceneSelectionAvailable(analysis, picks)) return false;
+  const availability = analysis?.capabilities.sceneAvailability;
+  if (availability) return !availability.originalSelection.reasons.includes("feature_disabled");
+  return analysis?.capabilities.sceneExport === true;
+}

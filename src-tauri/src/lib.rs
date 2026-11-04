@@ -91,6 +91,9 @@ pub fn run() {
             }
             let handler: fn(tauri::ipc::Invoke) -> bool = tauri::generate_handler![
                 commands::capture::grab_screen,
+                commands::replay::replay_session,
+                commands::csp_result::list_csp_windows,
+                commands::csp_result::capture_csp_result,
                 commands::export::default_save_dir,
                 commands::export::choose_save_folder,
                 commands::export::folder_exists,

@@ -10,7 +10,7 @@ import { Button } from "@/shared/components/Button";
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog";
 import { bodyKeys, putPreferences } from "./api";
 import { useBodyOwner } from "./hooks";
-import { BODY_KIND_LABEL, bodyKind, type BodyKind } from "./bodyPanel";
+import { BODY_KIND_LABEL, bodyKind, bodyRoleLabel, type BodyKind } from "./bodyPanel";
 import { NeutralImage, ShapeThumb } from "./LiveBodyView";
 import { useBodyLooks } from "./looks";
 import { CARD_NAME_MAX, cleanCardName, matchCard, useBodyCards } from "./preferences";
@@ -415,6 +415,9 @@ function PresetTile({ look, onCustomize }: { look: BodyLook; onCustomize?: () =>
         <span className="truncate text-[14px] font-semibold text-text-primary">
           {look.displayName ?? "기본 체형"}
         </span>
+        {bodyRoleLabel(look) && (
+          <span className="text-[11px] font-semibold text-brand-coral">{bodyRoleLabel(look)}</span>
+        )}
         <span className="text-[12px] text-text-secondary">
           {kind} · {onCustomize ? "눌러서 커스텀" : "고정 체형"}
         </span>

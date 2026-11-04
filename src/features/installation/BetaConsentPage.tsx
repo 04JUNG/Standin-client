@@ -38,7 +38,7 @@ export function BetaConsentPage() {
   }
 
   return (
-    <main className="h-full overflow-y-auto bg-brand-paper p-6">
+    <main data-replay-private className="h-full overflow-y-auto bg-brand-paper p-6">
       <section className="mx-auto w-full max-w-[640px] rounded-2xl border border-border bg-surface-0 p-8 shadow-sm">
         <h1 className="text-xl font-bold text-text-primary">Standin 오픈베타 시작하기</h1>
         <div className="mt-5 space-y-4 text-sm leading-6 text-text-secondary">

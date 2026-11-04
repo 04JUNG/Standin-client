@@ -1007,3 +1007,30 @@ CSP에서 ZIP을 풀어 model.vrm을 가져오고 pose.bvh를 적용한다. 손 
 장면은 이 별도 저장의 대상이 아니며 기존 FBX 저장을 유지한다. 수동 변경한 손
 선택이 있으면 서버가 저장을 거절한다. 네이티브 관절 제한과 고정 지속 여부는
 CSP 검증 사항이며 ZIP 또는 VRM에 고정값이 내장됐다고 표시하지 않는다.
+
+### Replay retry control (2026-10-31)
+
+Failed `DELETE /v1/replays` is retained as installation-owned IDB control work, separate from
+the bounded payload queue, and retried at startup/online/timer while collection remains
+stopped. Device tokens are attached at send time and never persisted in replay controls.
+Pending deletion is never sent with another installation's credentials. Exact asset bytes
+may retain multiple immutable semantic/version/expiry bindings during offline retry.
+Server acknowledgement clears pending deletion, not the local withdrawn state.
+
+### 통합 저장 비활성 배포의 개별 저장
+
+`sceneAvailability.originalSelection.reasons`에 `feature_disabled`가 있는 작업은
+저장 화면 진입 시 기존 인물별 자동 저장을 사용한다. 상세 가용성 계약이 없는 구 응답은
+`capabilities.sceneExport`가 `false`이거나 없을 때 같은 방식으로 저장한다. 별도의 통합 저장 비활성 안내·개별 저장 확인 단계는 표시하지 않는다.
+전체화면과 플로팅 바에 함께 적용되며 저장 완료 후 파일 목록과 경로·폴더 동작은 유지한다.
+감지된 인물 중 저장 대상에서 빠진 인물이 있으면 부분 저장 확인은 계속 필요하다.
+통합 저장이 켜져 있지만 선택한 포즈나 배치/자산 조건으로 사용할 수 없을 때는
+개별 파일로 변경할지 기존 확인을 유지한다.
+
+## 기본형 역할 메타데이터 (2026-11-04, 활성화 없음)
+
+BFF body-options 및 body-preferences.shapeEditable는 선택적으로 `gender: male|female|child`, `role: default|previous_default|preset`, `order: nonnegative integer`를 보낸다. `/models`는 기존 표시 성별과 role/order를 보낸다. 명시 성별이 있으면 ID/이름 추정 대신 사용한다. 기본 프리셋을 먼저 정렬하며 표시 이름과 ‘기본’/‘기존 기본형’ 배지를 모든 체형 화면에서 공유한다.
+
+새 커스텀 카드의 성별별 시작값은 그 성별의 default 자산이다. `?base`, 기존 개인 카드, 후보 화면의 기존 선택은 유지한다. 후보 화면에서 성별 탭을 바꾸는 동작은 조회 필터이며 카드 클릭 전까지 PUT하지 않는다. 새 기본값은 기존 last_used/auto 정책·사용자 설정 revision·Job snapshot을 바꾸지 않는다. role 없는 서버와도 호환된다. 새 모델 PNG/3D가 없으면 준비 안 된 상태를 표시하고 다른 체형의 그림을 새 기본형으로 제시하지 않는다.
+
+[기본형 통합 계약과 검증 범위](BODY_DEFAULT_ROLLOUT_20261104.md).
