@@ -1,3 +1,9 @@
+import { queueRepresentativeFrame } from "../interactive/history";
+import { historyUpload } from "../interactive/historyHttp";
+import { solvedCamera } from "../interactive/solved";
+import { useInteractiveReviews } from "../interactive/useInteractiveReviews";
+import { env } from "@/shared/lib/env";
+import type { InteractiveReviewData } from "../interactive/InteractiveReview";
 import { useReviewJourney } from "@/features/analytics/useReviewJourney";
 import { requestExport } from "@/features/analytics/journeyAttempts";
 import { downloadBinding, downloadRevision } from "@/features/export/lib/downloadRevisions";
@@ -53,7 +59,13 @@ export function useFramedReview(jobId: string | undefined) {
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const preferred = useModelStore((s) => s.preferredCharacterId);
   const catalog = useModelCatalog();
+  const interactiveEnabled =
+    env.interactivePreview &&
+    review.data?.capabilities.interactivePreview?.operations === true &&
+    review.data?.capabilities.fbxExport === true &&
+    format === "fbx";
   const enabled =
+    !interactiveEnabled &&
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
@@ -116,6 +128,17 @@ export function useFramedReview(jobId: string | undefined) {
   const requestReady = (request: (typeof requests)[number]) =>
     !review.isRefining && request.handReady && (bodyMode ? review.bodies.ready : catalog.isSuccess);
   const selectionsReady = requests.every(requestReady);
+  const interactive = useInteractiveReviews({
+    enabled: interactiveEnabled,
+    owner,
+    jobId: review.data?.jobId,
+    requests: requests.map((r, i) => ({
+      binding: r.binding,
+      personIndex: review.items[i].personIndex,
+      candidateId: review.items[i].candidate.id,
+      ready: requestReady(r),
+    })),
+  });
   const queries = useQueries({
     queries: requests.map((request, index) => ({
       queryKey: bodyMode
@@ -216,21 +239,22 @@ export function useFramedReview(jobId: string | undefined) {
     })),
   });
   const preparationError =
-    generatedReviewUnavailable ||
+    (!interactiveEnabled && generatedReviewUnavailable) ||
     (enabled &&
       (!!hands.error ||
         (bodyMode ? review.bodies.entries.some((e) => e.error) : catalog.isError) ||
         requests.some((r) => !r.url) ||
         queries.some((q) => q.isError)));
-  const downloadReady =
-    !requiresFbx &&
-    !generatedReviewUnavailable &&
-    !review.isRefining &&
-    (!enabled ||
-      (selectionsReady &&
-        requests.length > 0 &&
-        !preparationError &&
-        queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+  const downloadReady = interactiveEnabled
+    ? interactive.ready
+    : !requiresFbx &&
+      !generatedReviewUnavailable &&
+      !review.isRefining &&
+      (!enabled ||
+        (selectionsReady &&
+          requests.length > 0 &&
+          !preparationError &&
+          queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
   useReviewJourney({
     jobId: review.data?.jobId,
     binding: JSON.stringify([
@@ -238,7 +262,7 @@ export function useFramedReview(jobId: string | undefined) {
       requests.map((r) => r.binding),
     ]),
     ready: downloadReady,
-    failed: !!preparationError || requiresFbx,
+    failed: (interactiveEnabled ? interactive.failed : !!preparationError) || requiresFbx,
     error:
       queries.find((q) => q.error)?.error ??
       hands.entries.find((e) => e.error)?.error ??
@@ -278,7 +302,9 @@ export function useFramedReview(jobId: string | undefined) {
       review.items.map((item, i) => ({
         personIndex: item.personIndex,
         candidateId: item.candidate.id,
-        downloadPath: currentData[i]?.downloadUrl ?? "",
+        downloadPath: interactiveEnabled
+          ? (interactive.snapshots[i]?.operation?.fileUrl ?? "")
+          : (currentData[i]?.downloadUrl ?? ""),
       })),
     ),
   );
@@ -298,6 +324,46 @@ export function useFramedReview(jobId: string | undefined) {
               ? (images[index]?.data?.image ?? "")
               : ""
             : item.previewUrl,
+      interactivePreview: interactiveEnabled
+        ? ({
+            model:
+              interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
+              item.candidate.id
+                ? interactive.snapshots[index]?.model
+                : undefined,
+            asset: item.candidate.interactivePreview?.asset,
+            viewKey: `${review.data?.jobId}:${item.personIndex}:review`,
+            failed: interactive.snapshots[index]?.modelError === true,
+            localSurface: interactive.snapshots[index]?.localSurface,
+            onFrame:
+              index === 0
+                ? (element: HTMLElement) => {
+                    const controller = interactive.controllers[index];
+                    const snapshot = controller?.snapshot();
+                    const model = snapshot?.model;
+                    const operation = snapshot?.operation;
+                    if (!controller || !model?.frame || !operation) return;
+                    queueRepresentativeFrame(
+                      controller,
+                      element,
+                      solvedCamera(model.state, model.frame),
+                      historyUpload(controller.target, operation),
+                    );
+                  }
+                : undefined,
+            notice: review.isRefining
+              ? "포즈 보정 중"
+              : interactive.snapshots[index]?.localSurface
+                ? "변경 적용 중"
+                : interactive.snapshots[index]?.binding !== requests[index]?.binding
+                  ? "변경 적용 중"
+                  : interactive.snapshots[index]?.modelError
+                    ? "3D를 다시 준비해 주세요. 파일은 준비되면 다운로드할 수 있어요."
+                    : interactive.ready
+                      ? ""
+                      : "파일 준비 중",
+          } as InteractiveReviewData)
+        : undefined,
       previewModel: undefined as ReviewModel | undefined,
       previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
       onModelStatus: () => {},
@@ -305,10 +371,14 @@ export function useFramedReview(jobId: string | undefined) {
     })),
     requiresFbx,
     downloadReady,
-    preparationLoading,
-    preparationError,
+    preparationLoading: interactiveEnabled
+      ? !interactive.ready && !interactive.failed
+      : preparationLoading,
+    preparationError: interactiveEnabled ? interactive.failed : preparationError,
     previewLoading,
-    previewError,
+    previewError: interactiveEnabled
+      ? interactive.snapshots.some((s) => s.modelError)
+      : previewError,
     downloadLabel: revision.repeated
       ? "다시 다운로드"
       : revision.changed || handsChanged
@@ -333,6 +403,10 @@ export function useFramedReview(jobId: string | undefined) {
           ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
           : "",
     retryPreview: async () => {
+      if (interactiveEnabled) {
+        interactive.retry();
+        return;
+      }
       if (generatedReviewUnavailable) {
         await review.refetch();
         return;

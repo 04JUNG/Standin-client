@@ -44,7 +44,7 @@ export function BarReviewPage() {
     <BarShell title="저장할 포즈 확인">
       <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
-          {isRefining ? (
+          {isRefining && !items.some((item) => item.interactivePreview) ? (
             <>
               <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
               <span className="text-[12px]">포즈를 조정하는 중…</span>
@@ -62,6 +62,7 @@ export function BarReviewPage() {
                 >
                   <ReviewPosePreview
                     telemetryJobId={hands?.jobId}
+                    interactive={item.interactivePreview}
                     model={item.previewModel}
                     src={item.previewUrl}
                     label={
