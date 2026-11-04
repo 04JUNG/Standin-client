@@ -1,3 +1,4 @@
+import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
 import {
   prepareOriginalScene,
   validateSceneManifest,
@@ -9,6 +10,7 @@ import {
   saveCoverage,
   sceneUnavailableMessage,
   sceneSelectionAvailable,
+  sceneFallbackNeedsConfirmation,
 } from "../lib/saveCoverage";
 import { saveConsentBinding } from "../lib/saveBinding";
 import { jobFileName } from "../lib/jobFileName";
@@ -165,6 +167,7 @@ async function resolvePoseBytes(
  */
 export function useSaveFlow(jobId: string | undefined) {
   const queryClient = useQueryClient();
+  const [savedSceneManifest, setSavedSceneManifest] = useState<SceneManifest>();
   const draft = useUploadStore((s) => s.draft);
   const clearDraft = useUploadStore((s) => s.clearDraft);
   const excludedPeople = usePoseSelectionStore((s) => s.excludedPeople);
@@ -309,10 +312,12 @@ export function useSaveFlow(jobId: string | undefined) {
   const partialConsent = useExportStore((s) => s.partialConsentBinding);
   const individualConsent = useExportStore((s) => s.individualConsentBinding);
   const partialRequired = coverage.omitted.length > 0;
+  // 기능 자체가 꺼진 배포는 기존 개별 자동 저장을 쓴다.
+  // 켜진 기능이 선택/자산 조건으로 불가능할 때만 저장 방식 변경을 확인한다.
   const individualRequired =
     preferredFormat === "fbx" &&
     analysis?.source !== "semantic" &&
-    !isSceneExport &&
+    sceneFallbackNeedsConfirmation(analysis, selectedByPerson) &&
     !env.useMockPoseApi;
   const needsPartialConfirmation = partialRequired && partialConsent !== consentBinding;
   const needsIndividualConfirmation = individualRequired && individualConsent !== consentBinding;
@@ -471,7 +476,7 @@ export function useSaveFlow(jobId: string | undefined) {
         (currentCoverage.omitted.length > 0 && currentConsent.current.partialConsent !== binding) ||
         ((format === "fbx" || preferredFormat === "fbx") &&
           currentAnalysis?.source !== "semantic" &&
-          !sceneSelectionAvailable(currentAnalysis, currentState.selectedByPerson) &&
+          sceneFallbackNeedsConfirmation(currentAnalysis, currentState.selectedByPerson) &&
           !env.useMockPoseApi &&
           currentConsent.current.individualConsent !== binding)
       ) {
@@ -904,8 +909,10 @@ export function useSaveFlow(jobId: string | undefined) {
           },
           serverJob,
         );
+        void rememberSavedArtifacts(serverJob, format, saveFiles, binding).catch(() => {});
         rememberDownload(id, binding);
         if (useExportStore.getState().jobId !== id) return;
+        setSavedSceneManifest(sceneMetadata);
         const paths = results.map((r) => r.path);
         if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
         else setSaved(paths);
@@ -1111,6 +1118,7 @@ export function useSaveFlow(jobId: string | undefined) {
 
   /** 저장을 마치고 새 장면을 시작한다. 목적지는 호출부가 정한다. */
   function newScene() {
+    setSavedSceneManifest(undefined);
     reset();
     clearSelection();
     clearDraft();
@@ -1127,6 +1135,7 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    savedSceneManifest,
     coverage,
     needsPartialConfirmation,
     needsIndividualConfirmation,

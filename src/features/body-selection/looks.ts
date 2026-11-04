@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
 import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
+import { sortBodyLooks } from "./bodyPanel";
 import type { BodyLook } from "./contract";
 import { useBodyPreferences } from "./preferences";
 
@@ -24,9 +25,12 @@ export function useBodyLooks() {
           characterId: c.characterId,
           displayName: known?.displayName ?? c.displayName,
           bodyRef: c.bodyRef,
+          gender: known?.gender ?? (c.gender === "unspecified" ? undefined : c.gender),
+          role: known?.role ?? c.role,
+          order: known?.order ?? c.order,
         });
       }
-    return [...out.values()].filter((look) => !isRetiredCharacter(look.characterId));
+    return sortBodyLooks([...out.values()].filter((look) => !isRetiredCharacter(look.characterId)));
   }, [prefs.data, catalog.data]);
   const find = (id?: string) => looks.find((l) => l.characterId === id);
   return {

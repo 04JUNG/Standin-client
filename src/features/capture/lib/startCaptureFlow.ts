@@ -1,3 +1,4 @@
+import { beginCaptureReplay } from "@/features/replay/captureReplay";
 import { failureProperties } from "@/features/analytics/featureJourney";
 import { startInputAttempt, finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { router } from "@/app/router";
@@ -47,12 +48,13 @@ export async function startCaptureFlow(origin: FlowOrigin = "app"): Promise<void
   if (router.state.location.pathname === "/app/capture") return;
 
   // 오버레이가 끝난 뒤 돌아갈 곳을 기억한다(바에서 시작했으면 바로 복귀).
-  startInputAttempt("capture", origin);
+  const replayInputAttemptId = startInputAttempt("capture", origin);
   capture.setOrigin(origin);
   capture.setError(null);
   capture.setStatus("grabbing");
   try {
     const frame = await captureService.grabScreen();
+    beginCaptureReplay(frame, replayInputAttemptId);
     useCaptureStore.getState().setFrame(frame);
     useCaptureStore.getState().setStatus("selecting");
     await router.navigate("/app/capture");
