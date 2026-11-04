@@ -1,3 +1,4 @@
+import { runPosterRequest } from "@/shared/lib/requestPool";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api/errors";
 import { apiFetchResponse } from "@/shared/api/client";
@@ -198,54 +199,55 @@ export function useDefaultPosePoster({
       directional,
     ],
     enabled: enabled && !!owner && (!!url || !!fallbackUrl || !!candidate),
-    queryFn: async ({ signal }): Promise<PosePoster> => {
-      if (posterUrl) {
-        try {
-          const controller = new AbortController();
-          const onAbort = () => controller.abort(signal.reason);
-          signal.throwIfAborted();
-          signal.addEventListener("abort", onAbort, { once: true });
-          const timer = directional ? setTimeout(() => controller.abort(), 2500) : undefined;
-          let poster: PosePoster;
+    queryFn: ({ signal }): Promise<PosePoster> =>
+      runPosterRequest(signal, async () => {
+        if (posterUrl) {
           try {
-            poster = await loadPosePoster(
-              scopedUrl!,
-              controller.signal,
-              source ?? candidate?.asset.bvh_sha256,
-              scope,
-              !savedOnly,
-              directional,
-            );
-          } finally {
-            clearTimeout(timer);
-            signal.removeEventListener("abort", onAbort);
+            const controller = new AbortController();
+            const onAbort = () => controller.abort(signal.reason);
+            signal.throwIfAborted();
+            signal.addEventListener("abort", onAbort, { once: true });
+            const timer = directional ? setTimeout(() => controller.abort(), 2500) : undefined;
+            let poster: PosePoster;
+            try {
+              poster = await loadPosePoster(
+                scopedUrl!,
+                controller.signal,
+                source ?? candidate?.asset.bvh_sha256,
+                scope,
+                !savedOnly,
+                directional,
+              );
+            } finally {
+              clearTimeout(timer);
+              signal.removeEventListener("abort", onAbort);
+            }
+            if (poster.kind === "default-body") return poster;
+          } catch (error) {
+            signal.throwIfAborted();
+            if (directional) throw error;
+            if (!(error instanceof ApiError) || [401, 403, 409].includes(error.status)) throw error;
           }
-          if (poster.kind === "default-body") return poster;
-        } catch (error) {
-          signal.throwIfAborted();
-          if (directional) throw error;
-          if (!(error instanceof ApiError) || [401, 403, 409].includes(error.status)) throw error;
         }
-      }
-      if (directional || savedOnly) throw Error("저장된 포즈 이미지를 불러오지 못했어요.");
-      // A pose-only image is not completed human preview. Use the shared real
-      // human mesh with this exact owned BVH, never a card-triggered Converter.
-      const sourceUrl =
-        candidate?.asset.preview_bvh_url ??
-        (scopedUrl ? scopedUrl.replace(/\/poster\?/, "/poster-source?") : undefined);
-      if (!sourceUrl) throw Error("인체 포즈 참고 원본이 없습니다.");
-      const { loadHumanReference } = await import("./humanReference");
-      const image = await loadHumanReference(
-        sourceUrl,
-        source ?? candidate?.asset.bvh_sha256,
-        scope,
-        signal,
-        !!candidate,
-      );
-      return { url: image, kind: "default-body", method: "reference-skinning-v1" };
-    },
+        if (directional || savedOnly) throw Error("저장된 포즈 이미지를 불러오지 못했어요.");
+        // A pose-only image is not completed human preview. Use the shared real
+        // human mesh with this exact owned BVH, never a card-triggered Converter.
+        const sourceUrl =
+          candidate?.asset.preview_bvh_url ??
+          (scopedUrl ? scopedUrl.replace(/\/poster\?/, "/poster-source?") : undefined);
+        if (!sourceUrl) throw Error("인체 포즈 참고 원본이 없습니다.");
+        const { loadHumanReference } = await import("./humanReference");
+        const image = await loadHumanReference(
+          sourceUrl,
+          source ?? candidate?.asset.bvh_sha256,
+          scope,
+          signal,
+          !!candidate,
+        );
+        return { url: image, kind: "default-body", method: "reference-skinning-v1" };
+      }),
     retry: false,
     staleTime: 600_000,
-    gcTime: 600_000,
+    gcTime: savedOnly ? 30_000 : 600_000,
   });
 }
