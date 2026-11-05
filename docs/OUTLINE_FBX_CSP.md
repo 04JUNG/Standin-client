@@ -1,69 +1,81 @@
-# 최종 FBX 외곽선 연결과 CSP 검수 — 2026-11-05
+# 최종 FBX 외곽선과 CSP 검증 — 2026-11-06
 
-현재 최종 FBX 외곽선의 CSP 수용은 **실패**다. 웹뷰의 선을 FBX 성공으로 보고하지 않는다. `skinned-inverted-hull-fbx-culling-v1`은 실제 CSP 자동 가져오기에서 검은 몸 전체를 표시하므로 거부한다. 제품의 비0 지원은 꺼져 있고 클라이언트 표현 허용 목록도 비어 있다. 새 표현과 별도 수용 검수가 필요하다. PR #162는 Draft를 유지한다.
+**v2 최종 FBX를 CSP에 자동으로 가져오면 회색 몸체와 검은 외곽선이 함께 표시된다.** 최종 남성 파일의 정면·사선·측면·후면, 여성 파일의 정면·측면·후방 사선, 포즈가 적용된 최종 남성 발 동작·여성 crouch에서 확인했다. CSP 외곽선/컬링 설정을 수동으로 켜지 않았다.
 
-## 클라이언트 변경
+현재 제품 범위는 **포즈 적용 → 개별 FBX 내보내기 → CSP 가져오기**다. 사용자 확인에 따라 `.clip` 저장·재열기와 CSP 내부 관절 재편집은 지원 범위 밖이며 완료의 필수 조건이 아니다. 과거 opaque inverted-hull v1의 검은 몸 실패는 이 v2의 현재 결과와 구분한다.
 
-인물별 0~2 논리 굵기를 작업 선택 상태에 보관한다. 포즈·체형·스킨 전환과 앱↔플로팅 바 이동에서 유지하며 작업/소유자가 바뀌면 격리한다. 화면 렌더러에는 optional 선폭 getter/prop을 추가했다. 기존 `ReviewModelPreview`, `InteractivePose`, `ExpandablePose`, `registerView` 호출은 기본 0으로 호환된다. 인물/뷰별 stencil pass는 별도 재질을 소유하고 원본 재질/geometry/cache를 바꾸지 않는다.
+## 현재 표현과 저장 계약
 
-포인터/키보드 제스처 중에는 GPU만 갱신한다. 저장 준비는 조작이 끝난 뒤 기존 비동기 coordinator에서 debounce한다. 로컬 변경 시작 즉시 이전 준비 결과와 진행 중인 저장을 무효화하며 늦은 응답은 generation/appearance/revision/stateHash로 막는다. 선택·body/shape·손·refine의 기존 차단도 유지한다.
+논리 appearance는 `{version:"fbx-outline-v1",width}`를 유지한다. 표현은 `skinned-outward-transparent-native-outline-v2`, 매핑은 `csp-native-scope-stature-v2-experimental`, CullingOff + outward-transparent guide다. 원본 표면을 보존한 skinned guide와 CSP의 자동 native contour 표시를 이용한다. CSP native contour가 꺼진 환경이나 다른 3D 앱의 동일 표시를 보증하지 않는다. 물리 guide 폭은 Converter가 full stature와 출력 범위로 계산하며 고정 화면 픽셀 약속은 없다.
 
-0은 appearance를 전송하지 않고 기존 BFF 요청/바이트 경로를 유지한다. 비0은 `interactive-state`의 `{version:"fbx-outline-v1",width}`만 사용하며 CSS px를 물리 길이로 바꾸지 않는다. owned head의 `appearanceExport:{version,available}` 명시 지원 때만 조절 UI를 노출한다. 미지원 형식/서버에 비0이 남으면 저장을 차단하고 0으로 되돌릴 수 있다. `/framed`, BVH, scene/VRM ZIP, 개인 모델 지원을 확장하지 않는다. 환경 플래그·배포 설정을 켜지 않았다.
+클라이언트는 v2 표현/매핑/guide surface/culling을 명시적으로 검사하고 v1을 계속 거부한다. 현재 #168 남녀 기본 모델의 정확한 SHA만 수용한다. 실제 CSP 표본은 full .5/.65/1/2이고, v2 매핑 계약에 따라 full은0<width≤2 연속 값을 지원한다. cropped half/bust/shoulder_head/head는 현재 검사한2만 수용한다. 범위 밖 모델·선폭·증명은 거부한다. 서버의 명시적 capability, 최종 receipt의 true 인증과 파일/원본/선택 binding/runtime/appearance/SHA/길이 검증을 모두 요구한다. allowlist 연결은 배포·전역 feature flag 활성화가 아니다.
 
-최종 다운로드는 operation의 appearance, 최종 receipt의 appearance와 파일 SHA/길이, 원본/최종/선택 binding 및 runtime lineage를 검증한다. 현재 거부된 표현은 서버가 인증을 주장해도 허용하지 않는다. 미지원 서버에서 외곽선 없는 파일을 성공 처리하지 않는다. native 파일 쓰기는 기존 exportTauri 경로이며 마지막 상태 검증 전에는 호출하지 않는다.
+인물별0~2 설정은 선택 상태에 보관한다. 제스처 동안 GPU만 갱신하고 끝난 뒤 서버 준비를 진행한다. 설정·포즈·체형·손·refine이 달라지면 이전 준비/저장을 즉시 무효화하고 늦은 응답을 차단한다.0은 appearance 생략으로 기존 요청/바이트 경로를 유지한다. 미지원 서버·형식에서 외곽선 없는 파일을 비0 성공으로 저장하지 않는다. scene/VRM ZIP/개인 모델 지원은 넓히지 않는다. native 쓰기는 기존 exportTauri 경로다.
 
-## 실제 CSP 결과
+## 실제 CSP 성공 증거
 
-CLIP STUDIO PAINT EX 5.1.1 build 202607291835, **Unregistered**. 새 `Standin outline FBX CSP QA 20261105` 1000×768 캔버스만 사용했다. 기존 열려 있는 문서를 수정하지 않았다. File → Import → 3D Data, 자동 기본값. CSP 외곽선/뒷면 옵션은 켜지 않았다.
+CSP EX5.1.1 build202607291835. 새1000×768px72dpi 테스트 캔버스만 사용했다. File→Import→3D Data 자동 가져오기이며 Basic/Realistic의 정확한 속성은 읽지 못했다. 모드 선택 창은 없었다.
 
-| 실제 입력 | 초기 표시 | 결과 |
+| 최종 파일 | SHA256 |
+| --- | --- |
+| 현재 남성 full2 | `02799598d9f60899e83627446c80bf9c6f7f737a47b8b2de7e7f92612200a4e3` |
+| 현재 여성 full2 | `07295db35bb6a148f14da4fad91d459ee05d1f5859225b29638b71dce9754e3b` |
+| 남성 발 동작 full2 | `81a559fb4279440858a62a73f7abb6c3304039c01095ed3160c772d7ffcaa84d` |
+| 여성 crouch full2 | `c47f586d0bebfeaa05f2334338734fe0d0de7b315c2d490d0a3aee5d3e35aa5e` |
+
+![최종 남성 정면](qa/outline-fbx-csp-20261105/csp-v2/implementation-male-final-w2-front.jpg)
+![최종 여성 정면 확대](qa/outline-fbx-csp-20261105/csp-v2/implementation-female-w2-front200.jpg)
+
+최종 남성 파일의 실제 카메라 회전이다. 기존 후보 SHA505a... 사진을 최종 파일의 증거로 바꾸지 않았다. 정확한 각도·고도 보증은 없다.
+
+| 사선 | 측면에 가까운 시점 | 후면에 가까운 시점 |
 | --- | --- | --- |
-| 작은 2-bone 0 대조 | 원본 흰 표면 | 표시됨 |
-| 작은 CullingOff/OnCCW/OnCW, width 2 | 전체 검은 표면 | 3개 실패 |
-| 승인 남녀 T-pose 원본 0 | 정상 흰/회색 표면 | 표시됨 |
-| 승인 남녀 OnCCW width 2 | 검은 몸 전체 | 2개 실패 |
-| 승인 남성 공유 bend-side, width 0/.5/1/2 | 0 정상, 비0 검은 몸 전체 | 비0 3개 실패 |
-| 승인 여성 공유 sit90-side, width 0/.5/1/2 | 0 정상, 비0 검은 몸 전체 | 비0 3개 실패 |
+| ![사선](qa/outline-fbx-csp-20261105/csp-v2/implementation-male-final-w2-orbit1.jpg) | ![측면](qa/outline-fbx-csp-20261105/csp-v2/implementation-male-final-w2-side.jpg) | ![후면](qa/outline-fbx-csp-20261105/csp-v2/implementation-male-final-w2-back.jpg) |
 
-추가 실제 변환 0 native 저장본까지 총 17개 실제 가져오기는 완료됐다. 초기 화면은 정면이며 파일 이름의 side를 UI 시점 검증으로 해석하지 않는다. 본창 회전 드래그 및 Raise는 CUA `-10005 noWindowsAvailable`로 막혔다. 여러 시점·CSP 관절 편집·얼굴/손가락 내부 확대 수용은 **미검증**이다. Save As는 라이선스 취득/등록 안내로 막힌다. **.clip 파일은 없으며 저장→닫기→재열기 성공을 주장하지 않는다.** 기존 라이선스 등록이 가능한 환경에서 새 표현 수용 후 재검사해야 한다. 구매/설정 초기화는 하지 않았다.
+| 최종 포즈 원본0 | 최종 포즈 외곽선2 |
+| --- | --- |
+| ![남성 발동작0](qa/outline-fbx-csp-20261105/csp-v2/final-pose-male-foot-tap-w0.jpg) | ![남성 발동작2](qa/outline-fbx-csp-20261105/csp-v2/final-pose-male-foot-tap-w2.jpg) |
+| ![여성crouch0](qa/outline-fbx-csp-20261105/csp-v2/final-pose-female-crouch-w0.jpg) | ![여성crouch2](qa/outline-fbx-csp-20261105/csp-v2/final-pose-female-crouch-w2.jpg) |
 
-[각 입력의 경로·SHA·화면·실패 기록](qa/outline-fbx-csp-20261105/validation.json).
+두 포즈 모두 자세·회색 표면을 유지하고 손가락·팔·굽힌 무릎 경계의 검은 선이 표시됐다. 테스트 배율에서 큰 검은 면 채움·뚜렷한 흰 틈·이중 외곽선은 관찰되지 않았다. 남녀 full0/.5/1/2 및8개 cropped0/2비교도 완료했다. cropped head0에도 native contour가 있어2의 차이는 완만하다. 남성 bust/shoulder_head의 옆 절단면 요철은0에도 존재한다.
 
-![남성 원본](qa/outline-fbx-csp-20261105/csp/approved-male-zero.png)
-![남성 외곽선 후보 실패](qa/outline-fbx-csp-20261105/csp/approved-male-outline.png)
-![여성 원본](qa/outline-fbx-csp-20261105/csp/approved-female-zero.png)
-![여성 외곽선 후보 실패](qa/outline-fbx-csp-20261105/csp/approved-female-outline.png)
-![CSP 저장 라이선스 차단](qa/outline-fbx-csp-20261105/csp/save-license-block.png)
+잔여 제한: 남성 측면 종아리/여성 측면 무릎·정강이 안쪽에 가는 점선 형태 가림 경계가 보인다. 임의의 모든 포즈/시점에서 결함 없음, 고정 화면 선폭, CSP 안에서 관절을 재조작한 성공은 주장하지 않는다. [정확한 해시·검사 범위·관찰 JSON](qa/outline-fbx-csp-20261105/csp-v2/evidence.json).
 
-## 실제 Tauri와 fixture 범위
+## 과거 검증과 현재 앱 연결
 
-별도 identifier/keychain service `app.standin.desktop.outline-qa-20261105`, 별도 app bundle/독립 복제 target을 사용했다. 실제 Tauri WebView에서 승인 원본 FBX를 평가한 표면의 0/.65/1.2/2, 남녀 인물별 유지, AppShell/BarShell/WindowModeSync의 앱↔플로팅 바, exportTauri native 쓰기를 검사했다. diagnostic normal material로 렌더했으며 제품 재질 검수와 구별한다. native 0 저장본의 SHA는 남성 `809a131510434089888429605bf7cd2e3bc75b63109e4ac5c9734b211ee52365`, 여성 `e6947d8e2aeb1014e9505a61d2f42e6bd9d34965cc7bb3a6c2fcd2722d4f280a`로 입력과 같다. 중복 저장은 `(1)` 새 파일이며 기존 파일을 덮지 않았다. 비0 harness 저장은 파일을 쓰지 않는다.
+이전 v1 표현은 CSP에서 검은 몸으로 실패했고 계속 거부한다. [과거17개 가져오기 기록](qa/outline-fbx-csp-20261105/validation.json)은 역사적 회귀 증거다. 이전 noWindowsAvailable/Mac잠금은 해소되어 위 실제 orbit을 완료했다. 이전 Save As 라이선스 창은 현재 지원 범위 밖인 .clip에 관한 기록이다.
 
-이것은 **로컬 UI/native harness**다. 실제 BFF 전체 save flow의 비0 성공을 mock으로 대체하지 않는다. 실제 제품 `useSaveFlow`의 미지원 비0 거부와 다운로드 중 외곽선 변경 후 native 호출 0회는 별도 회귀 검사다. `tools/outline-native-qa`는 제품 라우터에 연결하지 않은 재현 도구다.
+이전 로컬 Tauri WebView에서는 인물별 UI/앱↔바와 실제 native0 저장을 확인했다. client adapter→BFF Hono/PGlite→실제 Converter TCP/Blender의0검사도 통과했다. 그0파일을 별도 단계에서 native 저장하고 CSP에 가져왔다. 이는 비0 전체 앱 저장 성공의 증거가 아니다. tools/outline-native-qa는 로컬 재현 도구이며 제품 라우터에 연결하지 않았다. 원본 모델·토큰·패킷은 commit하지 않는다.
 
-![Tauri 앱](qa/outline-fbx-csp-20261105/native/app-female-thin.png)
-![Tauri 플로팅 바](qa/outline-fbx-csp-20261105/native/bar-female-mid.png)
-![Tauri 0 저장](qa/outline-fbx-csp-20261105/native/bar-zero-saved.png)
+현재 후속 v2 BFF→client→native 비0 연결 검증은 아래 결과에서 구분해 기록한다. 서버 default-off, 병합·배포·전역 활성화·유료 추론은 수행하지 않는다.
 
-## 검증 명령과 제한
+## 검사와 companion
 
-`NODE_OPTIONS=--no-experimental-webstorage npm test`, typecheck/lint/build, icons:check --windows, release:check. Node 25 기본 Web Storage는 기존 zustand 검사에서 실패하므로 기존 검수와 같은 opt-out을 쓴다. macOS 실기이며 Windows 실기는 미검증이다.
+`NODE_OPTIONS=--no-experimental-webstorage npm test`, `npm run typecheck`, `npm run lint`, `npm run build`. Opt-in 실제 BFF/Converter wire는 `scripts/interactive-bff-wire.test.mjs`. Production installation auth/PostgreSQL advisory locking/S3와 Windows 실기는 이 로컬 검증 범위가 아니다.
 
-`STANDIN_BFF_WORKTREE=... npm test -- scripts/interactive-bff-wire.test.mjs`는 새 BFF 실제 Hono routes/PGlite SQL과 실제 client adapter를 연결한다. 기본 worker는 synthetic이며 Blender/native/CSP 증거가 아니다. 선택적으로 `STANDIN_REAL_PACKET_DIR`, `STANDIN_REAL_BVH_FILE`, `STANDIN_REAL_CONVERTER_URL`, `STANDIN_REAL_CONVERTER_TOKEN_FILE`을 지정하면 기존 허용 BVH와 로컬 Converter/Blender를 쓴다. 새 유료 추론은 없다. production installation auth/PostgreSQL advisory locking/S3는 이 검사 범위가 아니다. 토큰/원본/패킷은 commit하지 않는다.
+- [Client #162](https://github.com/04JUNG/Standin-client/pull/162)
+- [BFF #161](https://github.com/04JUNG/Standin-app-server/pull/161)
+- [Converter #170](https://github.com/04JUNG/Standin-server/pull/170)
 
-컨버터 파일 무결성/변형 추종 검사는 별도 companion PR 증거이며 CSP 성공을 대신하지 않는다. 관련 PR 링크와 최종 CI는 아래에 기록한다. main/develop push, merge, 스테이징/운영 배포, 전역 활성화는 하지 않는다.
+실제 로컬 HTTP에서 새로 생성된 남녀 full0.65도 자동 CSP 초기 가져오기에서 회색 표면·가는 검은 외곽선이 유지됐다. [두 정확한 SHA와 사진](qa/outline-fbx-csp-20261105/csp-v2/midpoint-results.json). 이 검사는 정면 초기 표시이며 BFF/native 저장과 구분한다.
 
-## Companion PR
+## 후속 실제 native 저장 결과
 
-- BFF: https://github.com/04JUNG/Standin-app-server/pull/161 — 선택/appearance revision·capability·캐시·다운로드 경계.
-- Converter: https://github.com/04JUNG/Standin-server/pull/170 — 실제 파일 표현 실험·엄격한 원본/외곽선 검사·현재 표현 거부.
-- Client: https://github.com/04JUNG/Standin-client/pull/162 — 기존 PR에 통합. #177/#174/#158은 수정·병합하지 않았다.
+BFF의 실제 `/outline-fbx` HTTP 처리·증명·바이트 검증을 통과한 남성 full0.65 기록을 클라이언트 receipt parser와 SHA/길이 검사에 통과시켰다. 별도 식별자 Tauri QA 앱이 기존 `exportTauri.saveCandidates`로 실제 파일을 저장했다. 저장본은 BFF 최종 파일과 바이트 단위로 같고 SHA `0d7eb8befd90ccc3203265c3527e85c2cb6ce4c222552cc2d24af7eb638cd87b`,3,896,396bytes다. [결과 JSON](qa/outline-fbx-csp-20261105/csp-v2/native-v2-results.json).
 
-## 실제 client adapter + BFF + Converter 검사 결과
+![실제 Tauri 비0 기록본 저장](qa/outline-fbx-csp-20261105/csp-v2/native-bff-v2-recorded-saved.jpg)
 
-옵션을 켠 `interactive-bff-wire` 검사 통과: 실제 client adapter → 새 BFF Hono routes/PGlite(SQL, in-process HTTP fixture auth) → 전용 localhost:18491 Converter TCP HTTP → 실제 Blender solve/export/독립 import → 최종 receipt/SHA 검증. 기존 허용 BVH·기존 master FBX를 사용했고 추론 호출은 없다. 0 파일을 받았고 .5/1/2 준비는 `OUTLINE_DISABLED`로 거부됐다(BFF outline dependency 미구성). 거부 후 기존 0 바이트를 그대로 다시 받았고 취소 후 다운로드도 거부됐다. 전체 18.33초의 단일 로컬 표본이며 production 성능 수치가 아니다.
+**이는 기록된 검증 원본을 이용한 BFF 실제 postprocess → client 검증 → 별도 기록 단계 → native 쓰기다. 단일 실시간 제품 저장 트랜잭션은 아니다.** BFF source/operation proof·edge auth·메모리 저장은 로컬 fixture 범위다. WebView의 diagnostic normal material을 CSP 표면 증거로 쓰지 않는다.
 
-검증 바이트를 `live.fbx`로 기록한 뒤 별도 Tauri harness가 읽어 native-zero-2.fbx로 실제 저장했다. live receipt → 기록 파일 → native 저장본의 SHA/길이가 일치한다. 이 실제 저장본도 CSP에서 정상 표면을 표시했다. 네이티브 단계는 기록 파일을 읽는 별도 단계이며 하나의 실시간 앱/BFF 트랜잭션으로 과장하지 않는다. raw API receipt의 `nativeSaved:false`는 수정하지 않는다. .clip 저장/재열기는 라이선스 차단이 그대로다.
+## 새 runtime 실제 전체 로컬 wire + native + CSP 통과
 
-![실제 컨버터 0 native 저장](qa/outline-fbx-csp-20261105/native/bar-real-zero-saved.png)
-![실제 저장본 CSP 가져오기](qa/outline-fbx-csp-20261105/csp/actual-converter-native-zero.png)
+초기 실제 연결에서 발생한 head 누락은 Converter 담당의 승인 모델 import 호환 수정으로 해결됐다. 새 interactive runtime63e24eb8...에서 기존 BVH를 실제 solve/model/export하고, BFF의 v2 HTTP postprocess(별도 outline runtime292a41a2...)와 독립 Blender 검사·정규화 영수증·다운로드를 통과했다. 실제 client adapter가 head/prepare/model/export/poll/file을 수행했으며 full0.65와 BFF가 만든 선택 binding, 최종 헤더/SHA/길이를 검사했다.0도 실제 생성·검증했고 취소 후 파일은 거부됐다. `scripts/outline-v2-bff-wire.test.mjs`1검사41.26초 통과다.
+
+이 새로운 포즈 파일을 격리된 Tauri 앱에서 다시 parser/hash검증 후 실제 저장했고, 저장본을 새 CSP 캔버스에 자동으로 가져왔다. 자세·회색 표면·가는 검은 외곽선이 유지됐으며 큰 검은 면 채움은 관찰되지 않았다. 최종 SHA `133b9d83aece9076907618d932e16e9df3c80fc2a5904f0415e239adf3be3def`,3,932,364bytes가 다운로드→native 저장에서 같다. [실제 단계·두 runtime·제한 JSON](qa/outline-fbx-csp-20261105/csp-v2/full-wire-v2-results.json).
+
+![새 full wire 실제 native 저장](qa/outline-fbx-csp-20261105/csp-v2/native-full-wire-v2-saved.jpg)
+![그 native 저장본의 실제 CSP 표시](qa/outline-fbx-csp-20261105/csp-v2/native-full-wire-v2-csp.jpg)
+
+로컬 API wire는 실제 client/Hono/PGlite/Converter TCP/Blender다. 선택·edge auth는 controlled fixture, advisory lock은 PGlite대체, private outline storage는 메모리다. Native 저장과 CSP 가져오기는 뒤따르는 기록 단계이므로 한 번의 실시간 제품 UI 트랜잭션이나 production auth/PostgreSQL/S3 검증으로 과장하지 않는다. 기본 서버 플래그는 계속 off이고 merge/deploy하지 않았다.
+
+최종 로컬 검사: 전체1,327통과/opt-in4skip, 실제 v2wire1통과(별도실행), typecheck/lint/build/icon/release/diff 통과. 기존fast-refresh경고1건과 bundle경고만 남는다.
