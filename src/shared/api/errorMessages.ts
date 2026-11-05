@@ -8,6 +8,14 @@
  * 코드 목록은 BFF(`Standin-app-server`)의 실제 errorEnvelope 호출부 기준이다.
  */
 const MESSAGES: Record<string, string> = {
+  INVALID_OUTLINE: "외곽선 굵기를 다시 선택해 주세요.",
+  OUTLINE_UNSUPPORTED: "이 저장 형식은 외곽선을 아직 지원하지 않아요.",
+  OUTLINE_DISABLED: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_NOT_CSP_CERTIFIED: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_UNAVAILABLE: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_INTEGRITY_ERROR: "외곽선 파일을 확인하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_BINDING_MISMATCH: "선택한 외곽선이 바뀌었어요. 다시 확인해 주세요.",
+  OUTLINE_TIMEOUT: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
   UPDATE_REQUIRED: "새 버전으로 업데이트해야 Standin을 사용할 수 있습니다.",
   SCENE_CONTRACT_UNSUPPORTED:
     "지금은 이 저장 방식을 사용할 수 없어요. 작업을 다시 열어 확인해 주세요.",

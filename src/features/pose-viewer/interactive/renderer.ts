@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { BodyOutlineRenderer } from "../outline/BodyOutlineRenderer";
 import { PREVIEW_BACKGROUND } from "../preview/previewStyle";
 import { searchCamera, type Observation } from "./camera";
 import type { SearchCamera } from "./contract";
@@ -10,6 +11,9 @@ type View = {
   camera: SearchCamera;
   observation: () => Observation;
   layer: number;
+  body: THREE.Group;
+  outlineWidth?: () => number;
+  outline: BodyOutlineRenderer;
   ready(): void;
   failed(): void;
 };
@@ -30,6 +34,7 @@ function getOutput() {
   if (!output) {
     output = new THREE.WebGLRenderer({
       antialias: true,
+      stencil: true,
       alpha: true,
       preserveDrawingBuffer: false,
     });
@@ -100,7 +105,8 @@ function draw() {
       output.setScissor(left, innerHeight - top - height, width, height);
       output.setClearColor(PREVIEW_BACKGROUND, 1);
       output.clear();
-      output.render(view.scene, camera);
+      view.outline.setWidth(view.body, view.outlineWidth?.() ?? 0);
+      view.outline.render(view.scene, camera);
       view.ready();
     } catch {
       view.failed();
@@ -112,16 +118,17 @@ function draw() {
 export function invalidate() {
   if (!scheduled) scheduled = requestAnimationFrame(draw);
 }
-export function registerView(view: Omit<View, "scene"> & { body: THREE.Group }) {
+export function registerView(view: Omit<View, "scene" | "outline">) {
   getOutput();
   const scene = new THREE.Scene();
   scene.add(view.body);
-  const registered: View = { ...view, scene };
+  const registered: View = { ...view, scene, outline: new BodyOutlineRenderer(getOutput()) };
   views.add(registered);
   observer!.observe(view.element);
   invalidate();
   return () => {
     views.delete(registered);
+    registered.outline.dispose();
     observer?.unobserve(view.element);
     scene.clear();
     if (!views.size) shutdown();

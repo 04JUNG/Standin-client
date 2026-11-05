@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  appearanceSchema,
+  appearanceCapabilitySchema,
+  outlineReceiptSchema,
+  sameAppearance,
+  type Appearance,
+} from "../outline/appearance";
 import { apiFetch, apiFetchResponse } from "@/shared/api/client";
 import { digest, ownedPath } from "./contract";
 import { boundedBytes, verifyBytes, BoundedQueue } from "./assets";
@@ -27,6 +34,8 @@ export const exportReceiptSchema = z
     validationVersion: z.literal("final-fbx-v1"),
     initialFbxRequired: z.literal(true),
     nativeSaved: z.literal(false),
+    appearance: appearanceSchema.optional(),
+    outline: outlineReceiptSchema.optional(),
   })
   .strict();
 export const operationSchema = z.object({
@@ -36,6 +45,7 @@ export const operationSchema = z.object({
   revision: z.number().int().positive(),
   stateHash: digest.nullable(),
   selectionHash: digest,
+  appearance: appearanceSchema.optional(),
   previewState: z.enum(["solving", "authoritative", "error", "superseded", "cancelled"]),
   exportState: z.enum([
     "not-requested",
@@ -63,6 +73,7 @@ export type Prepare = {
   expectedRevision: number;
   expectedStateHash: string | null;
   mutationId: string;
+  appearance?: Appearance;
 };
 export type Target = { jobId: string; personIndex: number };
 export function operationBase(target: Target) {
@@ -93,6 +104,18 @@ export function checkOperation(raw: unknown, target: Target): Operation {
       op.exportReceipt.stateHash !== op.stateHash)
   )
     throw Error("export receipt binding changed");
+  const receipt = op.exportReceipt;
+  if (
+    op.appearance?.width === 0 ||
+    (receipt &&
+      (!sameAppearance(op.appearance, receipt.appearance) ||
+        !!op.appearance !== !!receipt.outline ||
+        (receipt.outline &&
+          (!sameAppearance(op.appearance, receipt.outline.appearance) ||
+            receipt.artifactSha256 !== receipt.outline.artifactSha256 ||
+            receipt.artifactBytes !== receipt.outline.artifactBytes))))
+  )
+    throw Error("appearance receipt changed");
   return op;
 }
 export const receiptSchema = z
@@ -136,7 +159,9 @@ export interface InteractiveTransport {
     target: Target,
     candidateId: string,
     signal: AbortSignal,
+    appearance?: Appearance,
   ): Promise<{
+    appearanceExport?: z.infer<typeof appearanceCapabilitySchema>;
     currentRevision: number;
     currentStateHash: string | null;
     operation: Operation | null;
@@ -193,17 +218,19 @@ export const interactiveHttp: InteractiveTransport = {
       return packetParses.run(() => prepareHandVariants(new Uint8Array(bytes), sha), signal);
     }, signal);
   },
-  async head(target, candidateId, signal) {
+  async head(target, candidateId, signal, appearance) {
     const raw = z
       .object({
         schemaVersion: z.literal("standin.interactive-http.v1"),
         currentRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
         currentStateHash: digest.nullable(),
         operation: z.unknown().nullable(),
+        // Unknown/malformed future capability stays unavailable on old clients.
+        appearanceExport: z.unknown().optional(),
       })
       .parse(
         await apiFetch(
-          `${operationBase(target)}?candidateId=${encodeURIComponent(candidateId)}`,
+          `${operationBase(target)}?candidateId=${encodeURIComponent(candidateId)}${appearance ? `&appearance=${encodeURIComponent(JSON.stringify(appearance))}` : ""}`,
           jsonOptions(signal),
         ),
       );
@@ -212,10 +239,16 @@ export const interactiveHttp: InteractiveTransport = {
       operation &&
       (operation.candidateId !== candidateId ||
         operation.revision !== raw.currentRevision ||
-        operation.stateHash !== raw.currentStateHash)
+        operation.stateHash !== raw.currentStateHash ||
+        !sameAppearance(operation.appearance, appearance))
     )
       throw Error("head binding changed");
-    return { ...raw, operation };
+    const capability = appearanceCapabilitySchema.safeParse(raw.appearanceExport);
+    return {
+      ...raw,
+      operation,
+      appearanceExport: capability.success ? capability.data : undefined,
+    };
   },
   async prepare(target, body) {
     // Do not abort a create on route remount: learn its id before cancellation, avoiding orphan work.
@@ -286,12 +319,14 @@ export const interactiveHttp: InteractiveTransport = {
       }, signal);
     }, signal);
   },
-  async file(_target, op, signal) {
+  async file(target, op, signal) {
+    checkOperation(op, target);
     if (!op.stateHash || !op.fileUrl || op.exportState !== "ready") throw Error("file not ready");
     const response = await apiFetchResponse(op.fileUrl, jsonOptions(signal));
     if (
       response.headers.get("Content-Type")?.split(";")[0] !== "application/octet-stream" ||
-      response.headers.get("X-Standin-Artifact-Contract") !== "interactive-fbx-receipt-v1" ||
+      response.headers.get("X-Standin-Artifact-Contract") !==
+        (op.appearance ? "outlined-fbx-v1" : "interactive-fbx-receipt-v1") ||
       response.headers.get("X-Standin-State-Hash") !== op.stateHash ||
       response.headers.get("X-Standin-Revision") !== String(op.revision)
     )

@@ -1,3 +1,4 @@
+import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
@@ -64,6 +65,7 @@ export function ReviewPage() {
                     telemetryJobId={hands?.jobId}
                     interactive={item.interactivePreview}
                     model={item.previewModel}
+                    outlineWidth={item.outlineWidth}
                     src={item.previewUrl}
                     label={
                       item.previewReference
@@ -74,6 +76,9 @@ export function ReviewPage() {
                     error={previewError}
                     onModelStatus={item.onModelStatus}
                   />
+                  {(item.outlineAvailable || item.outlineWidth > 0) && (
+                    <OutlineControl personIndex={item.personIndex} />
+                  )}
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">
                       인물 {item.personIndex + 1}
