@@ -1,6 +1,12 @@
 import { localBinding, prepareLocal } from "@/features/personal-body/prepare";
 import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import { localError } from "@/features/personal-body/contract";
+import { queueRepresentativeFrame } from "../interactive/history";
+import { historyUpload } from "../interactive/historyHttp";
+import { solvedCamera } from "../interactive/solved";
+import { useInteractiveReviews } from "../interactive/useInteractiveReviews";
+import { env } from "@/shared/lib/env";
+import type { InteractiveReviewData } from "../interactive/InteractiveReview";
 import { useReviewJourney } from "@/features/analytics/useReviewJourney";
 import { requestExport } from "@/features/analytics/journeyAttempts";
 import { downloadBinding, downloadRevision } from "@/features/export/lib/downloadRevisions";
@@ -62,7 +68,13 @@ export function useFramedReview(jobId: string | undefined) {
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const preferred = useModelStore((s) => s.preferredCharacterId);
   const catalog = useModelCatalog();
+  const interactiveEnabled =
+    env.interactivePreview &&
+    review.data?.capabilities.interactivePreview?.operations === true &&
+    review.data?.capabilities.fbxExport === true &&
+    format === "fbx";
   const enabled =
+    !interactiveEnabled &&
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
@@ -148,6 +160,18 @@ export function useFramedReview(jobId: string | undefined) {
       retry: false,
       staleTime: 0,
       gcTime: 600_000,
+    })),
+  });
+  const interactive = useInteractiveReviews({
+    enabled: interactiveEnabled,
+    owner,
+    jobId: review.data?.jobId,
+    requests: requests.map((r, i) => ({
+      binding: r.binding,
+      personIndex: review.items[i].personIndex,
+      candidateId: review.items[i].candidate.id,
+      ready: requestReady(r),
+      active: !r.local,
     })),
   });
   const queries = useQueries({
@@ -251,7 +275,7 @@ export function useFramedReview(jobId: string | undefined) {
   });
   const preparationError =
     localQueries.some((q, i) => !!requests[i]?.local && q.isError) ||
-    generatedReviewUnavailable ||
+    (!interactiveEnabled && generatedReviewUnavailable) ||
     (enabled &&
       ((requests.some((r) => !r.local) &&
         (!!hands.error ||
@@ -266,9 +290,9 @@ export function useFramedReview(jobId: string | undefined) {
         queries.some((q, i) => !requests[i]?.local && q.isError)));
   const downloadReady =
     !requiresFbx &&
-    !generatedReviewUnavailable &&
+    (!generatedReviewUnavailable || interactiveEnabled) &&
     !review.isRefining &&
-    (!enabled ||
+    (!(enabled || interactiveEnabled) ||
       (selectionsReady &&
         requests.length > 0 &&
         !preparationError &&
@@ -277,7 +301,9 @@ export function useFramedReview(jobId: string | undefined) {
             ? localQueries[i]?.data?.binding === requests[i]?.localBinding &&
               localQueries[i]?.isSuccess &&
               !localQueries[i]?.isFetching
-            : !!currentData[i] && q.isSuccess && !q.isFetching,
+            : interactiveEnabled
+              ? interactive.controllers[i]?.ready(requests[i].binding) === true
+              : !!currentData[i] && q.isSuccess && !q.isFetching,
         ))) &&
     requests.every(
       (r, i) =>
@@ -294,8 +320,9 @@ export function useFramedReview(jobId: string | undefined) {
       requests.map((r) => (r.local ? r.localBinding : r.binding)),
     ]),
     ready: downloadReady,
-    failed: !!preparationError || requiresFbx,
+    failed: !!preparationError || interactive.failed || requiresFbx,
     error:
+      localQueries.find((q, i) => requests[i]?.local && q.error)?.error ??
       queries.find((q) => q.error)?.error ??
       hands.entries.find((e) => e.error)?.error ??
       review.bodies.entries.find((e) => e.error)?.error ??
@@ -337,7 +364,11 @@ export function useFramedReview(jobId: string | undefined) {
       review.items.map((item, i) => ({
         personIndex: item.personIndex,
         candidateId: item.candidate.id,
-        downloadPath: currentData[i]?.downloadUrl ?? "",
+        downloadPath: requests[i]?.local
+          ? (localQueries[i]?.data?.snapshotHash ?? "")
+          : interactiveEnabled
+            ? (interactive.snapshots[i]?.operation?.fileUrl ?? "")
+            : (currentData[i]?.downloadUrl ?? ""),
       })),
     ),
   );
@@ -360,6 +391,47 @@ export function useFramedReview(jobId: string | undefined) {
               ? (images[index]?.data?.image ?? "")
               : ""
             : item.previewUrl,
+      interactivePreview:
+        interactiveEnabled && !requests[index]?.local
+          ? ({
+              model:
+                interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
+                item.candidate.id
+                  ? interactive.snapshots[index]?.model
+                  : undefined,
+              asset: item.candidate.interactivePreview?.asset,
+              viewKey: `${review.data?.jobId}:${item.personIndex}:review`,
+              failed: interactive.snapshots[index]?.modelError === true,
+              localSurface: interactive.snapshots[index]?.localSurface,
+              onFrame:
+                index === 0
+                  ? (element: HTMLElement) => {
+                      const controller = interactive.controllers[index];
+                      const snapshot = controller?.snapshot();
+                      const model = snapshot?.model;
+                      const operation = snapshot?.operation;
+                      if (!controller || !model?.frame || !operation) return;
+                      queueRepresentativeFrame(
+                        controller,
+                        element,
+                        solvedCamera(model.state, model.frame),
+                        historyUpload(controller.target, operation),
+                      );
+                    }
+                  : undefined,
+              notice: review.isRefining
+                ? "포즈 보정 중"
+                : interactive.snapshots[index]?.localSurface
+                  ? "변경 적용 중"
+                  : interactive.snapshots[index]?.binding !== requests[index]?.binding
+                    ? "변경 적용 중"
+                    : interactive.snapshots[index]?.modelError
+                      ? "3D를 다시 준비해 주세요. 파일은 준비되면 다운로드할 수 있어요."
+                      : interactive.ready
+                        ? ""
+                        : "파일 준비 중",
+            } as InteractiveReviewData)
+          : undefined,
       previewModel: undefined as ReviewModel | undefined,
       previewReference:
         !requests[index]?.local &&
@@ -371,10 +443,14 @@ export function useFramedReview(jobId: string | undefined) {
     })),
     requiresFbx,
     downloadReady,
-    preparationLoading,
-    preparationError,
+    preparationLoading:
+      preparationLoading ||
+      (interactiveEnabled && !downloadReady && !interactive.failed && !preparationError),
+    preparationError: preparationError || interactive.failed,
     previewLoading,
-    previewError,
+    previewError: interactiveEnabled
+      ? interactive.snapshots.some((s) => s?.modelError)
+      : previewError,
     downloadLabel: revision.repeated
       ? "다시 다운로드"
       : revision.changed || handsChanged
@@ -411,6 +487,9 @@ export function useFramedReview(jobId: string | undefined) {
             : "",
     retryPreview: async () => {
       await Promise.all(localQueries.filter((_, i) => requests[i]?.local).map((q) => q.refetch()));
+      if (interactiveEnabled) {
+        interactive.retry();
+      }
       if (generatedReviewUnavailable) {
         await review.refetch();
         return;

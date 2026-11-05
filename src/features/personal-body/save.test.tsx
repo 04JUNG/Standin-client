@@ -16,7 +16,9 @@ vi.mock("./prepare", async (original) => ({
   ...(await original<typeof import("./prepare")>()),
   finalPose: mock.pose,
 }));
-vi.mock("@/shared/lib/env", () => ({ env: { useMockPoseApi: false, isProduction: false } }));
+vi.mock("@/shared/lib/env", () => ({
+  env: { useMockPoseApi: false, isProduction: false, interactivePreview: true },
+}));
 vi.mock("@/features/export/api/export.service", () => ({
   exportService: { saveCandidates: mock.save },
 }));
@@ -93,6 +95,7 @@ function mount() {
     jobId: "job",
     capabilities: {
       fbxExport: true,
+      interactivePreview: { operations: true },
       sceneExport: false,
       handSelection: false,
       bodyPreviews: false,

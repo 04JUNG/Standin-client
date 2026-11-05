@@ -7,6 +7,9 @@ import type { PoseCandidate } from "@/features/pose-viewer/api/pose.contract";
 import type { LocalModel } from "./contract";
 const fixtures = vi.hoisted(() => ({
   prepare: vi.fn(),
+  interactive: false,
+  interactiveReady: false,
+  interactiveRequests: [] as { active?: boolean; binding: string }[],
   loadServerBody: vi.fn(),
   item: {
     personIndex: 0,
@@ -14,6 +17,27 @@ const fixtures = vi.hoisted(() => ({
     refined: false,
     exportUrl: "/v1/pose-candidates/p/export?jobId=job&personIndex=0&candidateId=p",
     previewUrl: "",
+  },
+}));
+vi.mock("@/shared/lib/env", () => ({
+  env: {
+    get interactivePreview() {
+      return fixtures.interactive;
+    },
+  },
+}));
+vi.mock("@/features/pose-viewer/interactive/useInteractiveReviews", () => ({
+  useInteractiveReviews: ({ requests }: { requests: { active?: boolean; binding: string }[] }) => {
+    fixtures.interactiveRequests = requests;
+    return {
+      controllers: requests.map((r) =>
+        r.active === false ? undefined : { ready: () => fixtures.interactiveReady },
+      ),
+      snapshots: [],
+      ready: fixtures.interactiveReady,
+      failed: false,
+      retry: vi.fn(),
+    };
   },
 }));
 vi.mock("./prepare", async (original) => ({
@@ -25,7 +49,11 @@ vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" 
 vi.mock("@/features/pose-viewer/hooks/useSelectionReview", () => ({
   useSelectionReview: () => ({
     bodies: { enabled: true, ready: false, entries: [] },
-    data: { jobId: "job", capabilities: { fbxExport: true }, people: [{ index: 0 }] },
+    data: {
+      jobId: "job",
+      capabilities: { fbxExport: true, interactivePreview: { operations: fixtures.interactive } },
+      people: [{ index: 0 }],
+    },
     items: [fixtures.item],
     isRefining: false,
   }),
@@ -67,6 +95,8 @@ function setup() {
 }
 beforeEach(() => {
   fixtures.item.candidate = { id: "p", title: "pose" } as PoseCandidate;
+  fixtures.interactive = false;
+  fixtures.interactiveReady = false;
   fixtures.prepare.mockReset();
   fixtures.loadServerBody.mockReset();
   useLocalBodies.setState({
@@ -141,4 +171,30 @@ it("invalidates a completed local review immediately when only presentation rota
   expect(result.current.downloadReady).toBe(false);
   expect(result.current.items[0]?.localFbx).toBeUndefined();
   await waitFor(() => expect(fixtures.prepare).toHaveBeenCalledTimes(2));
+});
+
+it("keeps a personal model on native preparation when server interactive operations are advertised", async () => {
+  fixtures.interactive = true;
+  fixtures.prepare.mockImplementation(async (_j, _m, _i, _s, binding) => ({
+    binding,
+    content: new Uint8Array([9]),
+  }));
+  const { result } = setup();
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  expect(fixtures.interactiveRequests[0].active).toBe(false);
+  expect(result.current.items[0].interactivePreview).toBeUndefined();
+  expect(fixtures.loadServerBody).not.toHaveBeenCalled();
+});
+it("does not release an unprepared interactive body after switching away from a personal model", async () => {
+  fixtures.interactive = true;
+  fixtures.prepare.mockImplementation(async (_j, _m, _i, _s, binding) => ({
+    binding,
+    content: new Uint8Array([9]),
+  }));
+  const { result } = setup();
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  act(() => useLocalBodies.getState().select(localSelectionKey("job", 0)));
+  expect(result.current.downloadReady).toBe(false);
+  expect(result.current.items[0].localFbx).toBeUndefined();
+  expect(fixtures.interactiveRequests[0].active).toBe(true);
 });

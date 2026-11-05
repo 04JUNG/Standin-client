@@ -31,3 +31,8 @@ public/mock/*.ssr
 # Personal-body runtime is a build artifact, never source or user assets.
 src-tauri/resources/local-converter/
 work/
+# Private local sample posters
+/samples/local/
+
+# Local licensed model / recorded QA artifacts; never commit.
+/samples/.local-real/

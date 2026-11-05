@@ -173,3 +173,45 @@ it("keeps the personal feature inactive in a normal build without a reviewed run
   expect(screen.queryByRole("button", { name: "내 데포르메" })).toBeNull();
   expect(screen.queryByRole("button", { name: "내 데포르메 불러오기" })).toBeNull();
 });
+
+it("shows separate new and previous presets while preserving the personal card and last-used mode", async () => {
+  prefs.current = base({
+    shapeEditable: [
+      {
+        characterId: "female-base",
+        displayName: "기존 기본형",
+        gender: "female",
+        role: "previous_default",
+        order: 30,
+        shape: spec,
+      },
+      {
+        characterId: "new-female",
+        displayName: "기본형 · 8등신",
+        gender: "female",
+        role: "default",
+        order: 20,
+        shape: spec,
+      },
+      {
+        characterId: "new-male",
+        displayName: "기본형 · 8.3등신",
+        gender: "male",
+        role: "default",
+        order: 10,
+        shape: spec,
+      },
+    ],
+  });
+  show();
+  expect(screen.getByRole("radio", { name: /마지막으로 쓴 체형/ })).toBeChecked();
+  expect(await screen.findByRole("button", { name: "주인공 A 이름 변경" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "여성" }));
+  expect(screen.queryByRole("button", { name: /8.3등신/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /기존 기본형.*여성/ }));
+  expect(navigate).toHaveBeenCalledWith("/app/models/custom?base=female-base");
+  fireEvent.click(screen.getByRole("button", { name: /8등신/ }));
+  expect(navigate).toHaveBeenCalledWith("/app/models/custom?base=new-female");
+  expect(putPreferences).not.toHaveBeenCalled();
+  expect(changeCard).not.toHaveBeenCalled();
+});

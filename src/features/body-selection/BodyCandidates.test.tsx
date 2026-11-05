@@ -8,7 +8,7 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import { BodyChip, BodyExpand, BodyLabel } from "./BodyCandidates";
 import type { BodyEntry } from "./hooks";
-import type { BodyPreferences, ShapeSpec } from "./contract";
+import type { BodyPreferences, BodyOption, ShapeSpec } from "./contract";
 
 /**
  * #84의 의도(미리보기가 느리거나 실패해도 체형 패널이 사용자를 가두지 않는다)를 새 패널에서 지킨다.
@@ -20,6 +20,7 @@ vi.mock("@/features/personal-body/api", () => ({
     preview: async () => new Uint8Array(),
   },
 }));
+const options = vi.hoisted(() => ({ current: null as BodyOption[] | null }));
 const mutate = vi.hoisted(() => vi.fn());
 const prefs = vi.hoisted(() => ({ current: null as BodyPreferences | null }));
 const spec: ShapeSpec = {
@@ -36,7 +37,7 @@ vi.mock("./hooks", async (importOriginal) => ({
       isError: false,
       isPending: false,
       data: {
-        characters: [
+        characters: options.current ?? [
           { characterId: "female-base", displayName: "기본형", selectable: true, shape: spec },
           { characterId: "female-muscular", displayName: "근육형", selectable: true },
         ],
@@ -107,6 +108,7 @@ beforeEach(() => {
   vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "true");
   useLocalBodies.setState({ models: [], selected: {}, scroll: {} });
   mutate.mockClear();
+  options.current = null;
   prefs.current = null;
   useInstallationStore.setState({
     credentials: {
@@ -261,3 +263,52 @@ for (const variant of ["app", "bar"] as const) {
     expect(screen.getAllByRole("slider").length).toBeGreaterThan(0);
   });
 }
+it.each(["app", "bar"] as const)(
+  "%s uses separate new and previous IDs and gender navigation does not select a body",
+  (variant) => {
+    options.current = [
+      {
+        characterId: "female-base",
+        displayName: "기존 기본형",
+        gender: "female",
+        role: "previous_default",
+        selectable: true,
+        shape: spec,
+      },
+      {
+        characterId: "new-female",
+        displayName: "기본형 · 8등신",
+        gender: "female",
+        role: "default",
+        selectable: true,
+        shape: spec,
+      },
+      {
+        characterId: "new-male",
+        displayName: "기본형 · 8.3등신",
+        gender: "male",
+        role: "default",
+        selectable: true,
+        shape: spec,
+      },
+    ] as BodyOption[];
+    prefs.current = withCard();
+    wrap(createElement(BodyExpand, { job: "job-default-" + variant, person, entry, variant }));
+    const radios = screen.getAllByRole("radio");
+    expect(radios.findIndex((r) => r.textContent?.includes("8등신"))).toBeLessThan(
+      radios.findIndex((r) => r.textContent?.includes("기존 기본형")),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "남성" }));
+    expect(mutate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "여성" }));
+    fireEvent.click(screen.getByRole("radio", { name: /8등신/ }));
+    expect(mutate).toHaveBeenLastCalledWith(
+      { intent: "manual", characterId: "new-female" },
+      expect.any(Object),
+    );
+    const previous = screen.getByRole("radio", { name: /기존 기본형/ });
+    expect(previous).toHaveAttribute("aria-checked", "true");
+    // The original asset is still separately selectable when the current body is new.
+    expect(screen.getByRole("radio", { name: "내 체형 주인공 A" })).toBeInTheDocument();
+  },
+);
