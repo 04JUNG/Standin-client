@@ -7,9 +7,8 @@ import { useBodyOwner } from "@/features/body-selection/hooks";
 import type { PersonResult } from "../api/pose.contract";
 import { previewScope } from "../api/outputScope";
 import { InteractivePose } from "../interactive/InteractivePose";
-import type { PreviewAppearance } from "../interactive/renderer";
+import { usePreviewAppearance } from "../interactive/previewAppearanceStore";
 
-const appearances = new Map<string, PreviewAppearance>();
 export function SelectionPreview({
   job,
   person,
@@ -30,13 +29,7 @@ export function SelectionPreview({
   const owner = useBodyOwner();
   const candidate = person.candidates.find((c) => c.id === selectedId) ?? person.candidates[0];
   const appearanceKey = JSON.stringify([owner, job, person.index]);
-  const [appearance, setAppearance] = useState<PreviewAppearance>(
-    () => appearances.get(appearanceKey) ?? { skin: "default", outlineWidth: 0 },
-  );
-  useEffect(() => {
-    appearances.set(appearanceKey, appearance);
-    while (appearances.size > 64) appearances.delete(appearances.keys().next().value!);
-  }, [appearanceKey, appearance]);
+  const [appearance, setAppearance] = usePreviewAppearance(appearanceKey);
   const selection = entry?.selection;
   const scope = previewScope(person);
   const binding = JSON.stringify([
