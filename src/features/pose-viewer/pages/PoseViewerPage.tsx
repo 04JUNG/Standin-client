@@ -1,3 +1,4 @@
+import { PreparationBarrier, PreparationNotice } from "../preparation/PreparationBarrier";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
@@ -60,6 +61,7 @@ export function PoseViewerPage() {
   // 조회·파생은 바 모드와 공유한다(뷰만 다르다).
   const {
     data,
+    preparation,
     bodies,
     isPending,
     isError,
@@ -202,6 +204,13 @@ export function PoseViewerPage() {
     );
   }
 
+  if (preparation.blocked)
+    return (
+      <AppShell title="포즈 후보 준비">
+        <PreparationBarrier preparation={preparation} onLeave={() => navigate("/app/home")} />
+      </AppShell>
+    );
+
   if (data.source === "semantic")
     return (
       <AppShell title="문장 검색 결과">
@@ -281,6 +290,7 @@ export function PoseViewerPage() {
         ref={continuity.contentRef}
         className="flex min-h-full flex-col gap-3 [overflow-anchor:none]"
       >
+        <PreparationNotice preparation={preparation} />
         {restoreOnly && (
           <div className="flex items-start gap-2 rounded-xl border border-brand-sky/40 bg-brand-sky/10 p-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-sky" aria-hidden />

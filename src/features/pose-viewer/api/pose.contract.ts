@@ -9,6 +9,9 @@ import type { UpstreamAnalysisCode } from "@/shared/api/analysisJobFailure";
 export type MatchLevel = "high" | "medium" | "low";
 
 export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
+  /** Opaque source camera identity; never a target/body or product label. */
+  sourceCameraKey?: string;
+  prepared?: import("../preparation/contract").PreparedCandidate;
   semantic?: { familyId: string; alternate: boolean; description: string };
   id: string;
   poseId: string | null;
@@ -84,6 +87,7 @@ export type AnalysisResult = {
     paging?: import("@/features/semantic-search/api").SemanticPaging;
   };
   jobId: string;
+  candidateSetRevision?: string;
   inputPreviewUrl?: string;
   sourceImage?: import("@/features/export/api/sceneMetadata").SceneManifest["sourceImage"];
   people: PersonResult[];
@@ -92,6 +96,7 @@ export type AnalysisResult = {
    * false가 오고, 클라이언트는 그걸 따른다(자기 판단으로 호출하지 않는다).
    */
   capabilities: {
+    candidatePreparation?: boolean;
     handSelection?: boolean;
     refine: boolean;
     /**

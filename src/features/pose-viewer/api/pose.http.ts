@@ -73,12 +73,14 @@ type BffAnalysisResult = {
   source?: "image" | "semantic";
   semantic?: unknown;
   jobId: string;
+  candidateSetRevision?: string;
   notes: string[];
   /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
   inputUrl?: string | null;
   sourceImage?: unknown;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: {
+    candidatePreparation?: boolean;
     handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
@@ -301,6 +303,7 @@ async function toPoseCandidate(
     matchLevel: raw.matchLevel,
     thumbnailUrl,
     posterScope,
+    ...(raw.camera ? { sourceCameraKey: JSON.stringify(raw.camera) } : {}),
     ...(policy.source === "generation" && raw.poseId === null
       ? {
           posterUrl: `/v1/analysis/jobs/${encodeURIComponent(jobId)}/people/${personIndex}/pose-previews/${encodeURIComponent(raw.id)}/${policy.sourceBvhSha256}/poster`,
@@ -420,6 +423,7 @@ export async function toAnalysisResult(
 
   return {
     jobId: raw.jobId,
+    candidateSetRevision: raw.candidateSetRevision,
     ...(semantic ? { source: "semantic" as const, semantic } : {}),
     // 라이브 분석에서도 원본 미리보기가 draft의 blob URL에 의존하지 않게 된다.
     inputPreviewUrl: raw.inputUrl ?? undefined,
@@ -430,6 +434,9 @@ export async function toAnalysisResult(
         : undefined,
     people,
     capabilities: {
+      ...(typeof raw.capabilities?.candidatePreparation === "boolean"
+        ? { candidatePreparation: !semantic && raw.capabilities.candidatePreparation }
+        : {}),
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
       semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,

@@ -2,6 +2,8 @@ import { ApiError } from "./errors";
 import { messageForCode } from "./errorMessages";
 
 const CHOOSE = new Set([
+  "PREPARATION_EXPIRED",
+  "PREPARATION_SUPERSEDED",
   "GENERATED_INDIVIDUAL_ONLY",
   "SCENE_UNSUPPORTED_BODY",
   "SCENE_OBSERVATION_MISSING",

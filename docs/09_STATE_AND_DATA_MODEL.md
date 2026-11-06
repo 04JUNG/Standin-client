@@ -371,3 +371,7 @@ UploadDraft
 서버 변경 내역 비교 및 동일 SHA 저장은 [SCENE_SAVE_UI.md](SCENE_SAVE_UI.md)를 따른다.
 자동 보정은 명시적으로 선택하고 최종 장면을 확인해야 한다. 기존 자동 저장 규칙보다
 이 확장이 우선한다. 구 계약은 기본 통합 저장을 유지하며 v4 기본 꺼짐도 유지한다.
+
+## Top5 source 후보별 세션 (2026-11-06)
+
+선택 전 source 결과는 후보별 context/result/SHA를 보관하는 별도 preparation session이 소유한다. `refineByPerson` 하나에 후보5개를 덮어쓰지 않으며 실제 선택을 재검증한 뒤에만 기존 저장 화면용 projection을 만든다. body/shape/hand/범위/appearance는 source identity 밖이고 선택 후 target 상태만 갱신한다. [세션 수명·취소·캐시와 테스트](PRETOP5_SOURCE_PREPARATION.md).

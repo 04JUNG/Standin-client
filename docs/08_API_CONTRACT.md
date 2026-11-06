@@ -1033,3 +1033,7 @@ BFF body-options 및 body-preferences.shapeEditable는 선택적으로 `gender: 
 새 커스텀 카드의 성별별 시작값은 그 성별의 default 자산이다. `?base`, 기존 개인 카드, 후보 화면의 기존 선택은 유지한다. 후보 화면에서 성별 탭을 바꾸는 동작은 조회 필터이며 카드 클릭 전까지 PUT하지 않는다. 새 기본값은 기존 last_used/auto 정책·사용자 설정 revision·Job snapshot을 바꾸지 않는다. role 없는 서버와도 호환된다. 새 모델 PNG/3D가 없으면 준비 안 된 상태를 표시하고 다른 체형의 그림을 새 기본형으로 제시하지 않는다.
 
 [기본형 통합 계약과 검증 범위](BODY_DEFAULT_ROLLOUT_20261104.md).
+
+## Top5 사전 source 준비 (선택 후 target 적용)
+
+선택 기능 `standin.candidate-preparation.v1`은 작업별 capability 확인 → batch POST/status GET → 실제 선택 확정 → reuse POST 순서다. 공개 DTO는 후보별 source/result/context/hash와 exact BVH만 제공하며 체형·손·target 인증을 제출/반환하지 않는다. [구현 계약과 검증](PRETOP5_SOURCE_PREPARATION.md)을 따른다. capability 미지원 시 기존 API 흐름을 유지한다.

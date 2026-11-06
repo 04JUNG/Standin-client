@@ -22,19 +22,19 @@ export type RefineStatus = "idle" | "running" | "done";
  * 실패해도 저장 흐름을 멈추지 않는다. refine은 "좋아지거나, 그대로"이지 성공해야만 하는
  * 단계가 아니다. 호출이 실패하면 그 인물은 베이스 후보 URL로 저장된다.
  */
-export function useRefineSelection(data: AnalysisResult | undefined) {
+export function useRefineSelection(data: AnalysisResult | undefined, disabled = false) {
   const selectedByPerson = usePoseSelectionStore((s) => s.selectedByPerson);
   const refineByPerson = usePoseSelectionStore((s) => s.refineByPerson);
   const setRefineOutcome = usePoseSelectionStore((s) => s.setRefineOutcome);
   const [status, setStatus] = useState<RefineStatus>("idle");
 
   // effect가 선택 객체의 정체성 변화마다 재실행되지 않게 최신 값만 참조한다.
-  const latest = useRef({ data, selectedByPerson });
-  latest.current = { data, selectedByPerson };
+  const latest = useRef({ data, selectedByPerson, disabled });
+  latest.current = { data, selectedByPerson, disabled };
 
   const run = useCallback(async () => {
     const { data: result, selectedByPerson: picks } = latest.current;
-    if (!result) return;
+    if (!result || latest.current.disabled) return;
 
     // 서버가 refine을 노출하지 않으면 클라이언트는 호출하지 않는다(OPS-02).
     const targets =
@@ -102,10 +102,10 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
 
   const started = useRef(false);
   useEffect(() => {
-    if (started.current || !data) return;
+    if (disabled || started.current || !data) return;
     started.current = true;
     void run();
-  }, [data, run]);
+  }, [data, run, disabled]);
 
   const outcomes: RefineOutcome[] = Object.values(refineByPerson);
   return {

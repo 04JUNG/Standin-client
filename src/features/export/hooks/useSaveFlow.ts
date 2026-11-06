@@ -1,3 +1,6 @@
+import { preparationSession } from "@/features/pose-viewer/preparation/session";
+import { loadPreparedSource } from "@/features/pose-viewer/preparation/sourcePreview";
+import { isServerJobId } from "@/features/pose-viewer/lib/serverJobId";
 import { interactiveController } from "@/features/pose-viewer/interactive/session";
 import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
 import {
@@ -597,6 +600,26 @@ export function useSaveFlow(jobId: string | undefined) {
               outcome.candidateId === candidateId
                 ? outcome
                 : undefined;
+            const sourceOwner = useInstallationStore.getState().credentials?.installationId ?? "";
+            const sourceBatch =
+              (analysisResult.capabilities.candidatePreparation || currentOutcome?.prepared) &&
+              !isServerJobId(jobId)
+                ? preparationSession(sourceOwner, analysisResult.jobId).snapshot()
+                : undefined;
+            const preparedSource = sourceBatch?.batch?.candidates.find(
+              (c) => c.personIndex === personIndex && c.candidateId === candidateId,
+            );
+            if (
+              sourceBatch &&
+              (sourceBatch.status !== "ready" ||
+                !currentOutcome?.prepared ||
+                !preparedSource?.previewAsset ||
+                preparedSource.contextHash !== currentOutcome.prepared.contextHash ||
+                preparedSource.resultId !== currentOutcome.prepared.resultId ||
+                preparedSource.outputSha256 !== currentOutcome.prepared.outputSha256 ||
+                Date.parse(currentOutcome.prepared.expiresAt) <= Date.now())
+            )
+              throw new ApiError(409, "PREVIEW_CHANGED", "");
             const exportUrl = currentOutcome?.exportUrl ?? candidate.bvhUrl;
             const handOwner = useInstallationStore.getState().credentials?.installationId ?? "";
             const handSelection = qc.getQueryData<HandSelection>(
@@ -604,7 +627,15 @@ export function useSaveFlow(jobId: string | undefined) {
             );
             let content: Uint8Array;
             let downloadPath = "";
-            if (
+            if (sourceBatch && format === "bvh") {
+              // Download the same checked source bytes used by Top5, never a new solve.
+              const source = await loadPreparedSource(
+                preparedSource!.previewAsset!,
+                controller.signal,
+              );
+              content = new TextEncoder().encode(source.text);
+              downloadPath = preparedSource!.previewAsset!.url;
+            } else if (
               env.interactivePreview &&
               analysisResult.capabilities.interactivePreview?.operations &&
               format === "fbx"
@@ -1038,7 +1069,17 @@ export function useSaveFlow(jobId: string | undefined) {
         settle();
       }
     },
-    [startSaving, setPhase, setSaved, addSaved, setError, queryClient, sceneMode, preferredFormat],
+    [
+      startSaving,
+      setPhase,
+      setSaved,
+      addSaved,
+      setError,
+      queryClient,
+      sceneMode,
+      preferredFormat,
+      jobId,
+    ],
   );
 
   /**

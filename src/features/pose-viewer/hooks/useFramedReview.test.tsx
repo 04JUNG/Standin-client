@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   refining: false,
   generated: false,
   available: true,
+  reuseFailed: false,
   ready: vi.fn(),
   image: vi.fn(),
   reload: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@/features/hand-selection/hooks", () => ({
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
     refetch: m.reload,
+    sourceReuse: { error: m.reuseFailed ? Error("source expired") : null },
     bodies: { enabled: false, entries: [], ready: true },
     data: {
       jobId: "job",
@@ -98,6 +100,7 @@ beforeEach(() => {
     scope: "full",
     format: "fbx",
     refining: false,
+    reuseFailed: false,
     generated: false,
     available: true,
   });
@@ -194,4 +197,12 @@ it("generated poses still require FBX and converter readiness", () => {
   const { result } = mount();
   expect(result.current.downloadReady).toBe(false);
   expect(result.current.preparationError).toBe(true);
+});
+
+it("blocks BVH download when prepared source reuse fails", () => {
+  m.format = "bvh";
+  m.reuseFailed = true;
+  const h = mount();
+  expect(h.result.current.downloadReady).toBe(false);
+  expect(h.result.current.preparationError).toBe(true);
 });
