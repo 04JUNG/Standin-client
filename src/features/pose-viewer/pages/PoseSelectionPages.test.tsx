@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -562,5 +562,85 @@ it.each(["app", "bar"] as const)(
     expect(screen.getByText("참고용 미리보기")).toBeVisible();
     if (mode === "app") expect(screen.getByText("참고 포즈 펼치기")).toBeVisible();
     expect(screen.queryByRole("switch")).toBeNull();
+  },
+);
+
+vi.mock("../components/SelectionPreview", () => ({
+  SelectionPreview: () => <section aria-label="인물 1 큰 미리보기">큰 미리보기</section>,
+}));
+it.each([false, true])(
+  "fullscreen large preview follows its read-only capability (enabled=%s)",
+  async (enabled) => {
+    useInstallationStore.setState({
+      credentials: { installationId: "owner", deviceToken: "test", consentVersion: "test" },
+    });
+    const client = new QueryClient();
+    const data: AnalysisResult = {
+      jobId: "job-click",
+      capabilities: {
+        refine: false,
+        fbxExport: true,
+        characterSelection: false,
+        bodyPreviews: true,
+        selectionPreview: enabled,
+      },
+      people: [
+        {
+          index: 0,
+          confidence: "high",
+          skeletonState: "valid",
+          skeletonSource: "full_image",
+          coverageClass: "full",
+          fallbackMode: "none",
+          refineAllowed: false,
+          refinableLimbs: [],
+          candidates: [
+            {
+              id: "pick-0",
+              poseId: "pose-0",
+              rank: 1,
+              title: "포즈 1",
+              tags: [],
+              matchLevel: "high",
+              thumbnailUrl: "data:image/png;base64,AA==",
+              previewImages: [],
+              bvhAvailable: true,
+            },
+          ],
+        },
+      ],
+    };
+    client.setQueryData(poseQueryKeys.result("click-test"), data);
+    const r = render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/app/jobs/click-test"]}>
+          <Routes>
+            <Route path="/app/jobs/:jobId" element={<PoseViewerPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("region", { name: "인물 1 후보" });
+    expect(!!screen.queryByRole("region", { name: "인물 1 큰 미리보기" })).toBe(enabled);
+    expect(usePoseSelectionStore.getState().selectedByPerson).toEqual({});
+    expect(confirmSelections).not.toHaveBeenCalled();
+    if (enabled) {
+      const previous = screen.getByRole("region", { name: "인물 1 큰 미리보기" });
+      await act(async () =>
+        useInstallationStore.setState({
+          credentials: {
+            installationId: "other-owner",
+            deviceToken: "other",
+            consentVersion: "test",
+          },
+        }),
+      );
+      await waitFor(() =>
+        expect(screen.getByRole("region", { name: "인물 1 큰 미리보기" })).not.toBe(previous),
+      );
+      expect(previous.isConnected).toBe(false);
+    }
+    r.unmount();
+    client.clear();
   },
 );

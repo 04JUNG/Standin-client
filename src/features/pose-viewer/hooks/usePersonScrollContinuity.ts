@@ -14,7 +14,7 @@ export function usePersonScrollContinuity(scope: string, activeIndex: number | u
   const pending = useRef<Transition | null>(null);
 
   function beforeSwitch(target: number) {
-    const scroller = contentRef.current?.closest("main");
+    const scroller = contentRef.current?.closest<HTMLElement>(".selection-list,main");
     const index = indexRef.current;
     if (!scroller || !index || target === activeIndex) return;
     const viewport = scroller.getBoundingClientRect();
@@ -33,7 +33,7 @@ export function usePersonScrollContinuity(scope: string, activeIndex: number | u
     const transition = pending.current;
     const content = contentRef.current;
     const index = indexRef.current;
-    const scroller = content?.closest("main");
+    const scroller = content?.closest<HTMLElement>(".selection-list,main");
     if (
       !transition ||
       transition.scope !== scope ||
@@ -56,14 +56,15 @@ export function usePersonScrollContinuity(scope: string, activeIndex: number | u
           : scroller.scrollTop + offset - transition.offset;
       if (Math.abs(target - scroller.scrollTop) > 0.5) scroller.scrollTop = Math.max(0, target);
     };
-    const observer = new ResizeObserver(restore);
+    const observer =
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(restore);
     const stop = () => {
       stopped = true;
-      observer.disconnect();
+      observer?.disconnect();
       if (pending.current === transition) pending.current = null;
     };
     restore();
-    observer.observe(content);
+    observer?.observe(content);
     const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
     for (const event of events) scroller.addEventListener(event, stop, { passive: true });
     return () => {

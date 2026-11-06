@@ -25,6 +25,8 @@ export function InteractivePose({
   showExpandButton = false,
   onExpand,
   onFrame,
+  appearance,
+  renderLayer,
   outlineWidth = 0,
   loading = false,
 }: {
@@ -34,6 +36,8 @@ export function InteractivePose({
   surface?: SurfaceView;
   viewKey: string;
   large?: boolean;
+  renderLayer?: number;
+  appearance?: import("./renderer").PreviewAppearance;
   showControls?: boolean;
   showExpandButton?: boolean;
   onExpand?: () => void;
@@ -47,6 +51,9 @@ export function InteractivePose({
   const observation = useRef(observationFor(viewKey));
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
   const [retry, setRetry] = useState(0);
+  const style = useRef(appearance);
+  style.current = appearance;
+  useEffect(() => invalidate(), [appearance]);
   const frame = useRef(onFrame);
   frame.current = onFrame;
   const gesture = useRef<{ x: number; y: number; pan: boolean; pointer: number }>();
@@ -83,7 +90,8 @@ export function InteractivePose({
             body: result.body,
             camera: surface?.camera ?? asset!.camera,
             observation: () => observation.current,
-            layer: large ? 1 : 0,
+            layer: renderLayer ?? (large ? 1 : 0),
+            appearance: () => style.current,
             ready() {
               if (first) {
                 first = false;
@@ -109,7 +117,14 @@ export function InteractivePose({
       unregister?.();
       release?.();
     };
-  }, [asset, surface, large, retry, viewKey]);
+  }, [asset, surface, large, retry, viewKey, renderLayer]);
+  useEffect(() => {
+    const target = element.current;
+    if (!large || !target) return;
+    const preventPageScroll = (event: WheelEvent) => event.preventDefault();
+    target.addEventListener("wheel", preventPageScroll, { passive: false });
+    return () => target.removeEventListener("wheel", preventPageScroll);
+  }, [large]);
   const update = (fn: (value: Observation) => Observation) => {
     Object.assign(observation.current, fn(observation.current));
     observations.delete(viewKey);
@@ -217,7 +232,9 @@ export function InteractivePose({
         }}
       />
       <span id={controlId} className="sr-only">
-        방향키로 회전, R로 처음 시점, Enter로 크게 보기
+        {large
+          ? "방향키로 회전, R로 처음 시점. 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동"
+          : "방향키로 회전, R로 처음 시점, Enter로 크게 보기"}
       </span>
       {(loading || status !== "ready") && (
         <div
