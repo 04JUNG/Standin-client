@@ -96,6 +96,33 @@ function wrap(node: ReturnType<typeof createElement>) {
   return render(createElement(QueryClientProvider, { client: qc }, node));
 }
 
+it.each(["app", "bar"] as const)(
+  "%s hides internal CSP aliases and excluded entries without changing the selected body",
+  (variant) => {
+    prefs.current = {
+      ...withCard(),
+      pickerVisibility: { hiddenPresetIds: ["female-base"], hiddenCardIds: ["card_1"] },
+    };
+    options.current = [
+      { characterId: "female-base", displayName: "기본형", selectable: true, shape: spec },
+      { characterId: "female-muscular", displayName: "근육형", selectable: true },
+      {
+        characterId: "female-base-v0-3-9",
+        displayName: "여성 · 기본형 · CSP",
+        selectable: true,
+        shape: spec,
+      },
+    ] as BodyOption[];
+    const previous = structuredClone(entry.selection);
+    wrap(createElement(BodyExpand, { job: "visibility-" + variant, person, entry, variant }));
+    expect(screen.queryByRole("radio", { name: "내 체형 주인공 A" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /CSP/ })).toBeNull();
+    expect(screen.getAllByRole("radio")).toHaveLength(1);
+    expect(mutate).not.toHaveBeenCalled();
+    expect(entry.selection).toEqual(previous);
+  },
+);
+
 beforeEach(() => {
   mutate.mockClear();
   options.current = null;
