@@ -1,0 +1,327 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-11-06T09:42:19.575075+00:00",
+  "scope": "real v11 app native registration/final-BVH apply/disk-save against controlled loopback HTTP; not live BFF, CSP or deformation-quality acceptance",
+  "outputs": [
+    {
+      "file": "standin_job_personal_connection_v11_local_fixture_standin_pose.fbx",
+      "model": "male",
+      "camera": "identity",
+      "sha256": "04961228c2acd4532adc4066b0962bd402f2d51f1380dfd226f447d7a67500ea",
+      "bytes": 2247788,
+      "snapshot": {
+        "sourceHash": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+        "importerVersion": "personal-import/4",
+        "normalizationVersion": "personal-normalize/5",
+        "rigMappingVersion": "personal-rig/2",
+        "converterVersion": "personal-converter/11",
+        "converterFingerprint": "5fdc61c7775279392171e8002aece0e87744fe6187855746fe7411b4004458d1",
+        "poseHash": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "hands": {
+          "left": null,
+          "right": null
+        },
+        "orientation": "candidate-y-up-about-hips/1",
+        "camera": {
+          "version": "personal-camera/1",
+          "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ]
+        },
+        "outputMode": "rigged_rest"
+      },
+      "snapshotHash": "11c03423f21df36f3c4231e8f255968515848bdcc4bb13907e8198a540ec0f19",
+      "cspCompatibility": {
+        "version": "personal-csp-names/1",
+        "applied": true,
+        "nameAliases": [
+          {
+            "objectId": 356537267,
+            "original": "root_group_",
+            "exported": "StandinBase"
+          }
+        ],
+        "allOtherBytesExact": true,
+        "weightsTruncated": false,
+        "beforeSha256": "b0dbda8ec5009923d453cc1323b6e66319e333822ce041fb420ee39410bde706",
+        "outputSha256": "04961228c2acd4532adc4066b0962bd402f2d51f1380dfd226f447d7a67500ea"
+      },
+      "independentAliasReversalShaMatchesPreimage": true,
+      "nativeRoundtripPassed": true
+    },
+    {
+      "file": "standin_job_personal_connection_v11_local_fixture_standin_pose_v2.fbx",
+      "model": "male",
+      "camera": "yaw35",
+      "sha256": "6ffe3b3b79e61725f0145919ff6328c15266af98b40ef8f5fa69d4d76e99864c",
+      "bytes": 2247884,
+      "snapshot": {
+        "sourceHash": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+        "importerVersion": "personal-import/4",
+        "normalizationVersion": "personal-normalize/5",
+        "rigMappingVersion": "personal-rig/2",
+        "converterVersion": "personal-converter/11",
+        "converterFingerprint": "5fdc61c7775279392171e8002aece0e87744fe6187855746fe7411b4004458d1",
+        "poseHash": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "hands": {
+          "left": null,
+          "right": null
+        },
+        "orientation": "candidate-y-up-about-hips/1",
+        "camera": {
+          "version": "personal-camera/1",
+          "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+          "rotation": [
+            [
+              0.8191520442889918,
+              0,
+              0.573576436351046
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              -0.573576436351046,
+              0,
+              0.8191520442889918
+            ]
+          ]
+        },
+        "outputMode": "rigged_rest"
+      },
+      "snapshotHash": "31b896e3d2ce34e24c89d8cefdb5ff07db7307942fcb616e0c8d5e92638c9055",
+      "cspCompatibility": {
+        "version": "personal-csp-names/1",
+        "applied": true,
+        "nameAliases": [
+          {
+            "objectId": 805612411,
+            "original": "root_group_",
+            "exported": "StandinBase"
+          }
+        ],
+        "allOtherBytesExact": true,
+        "weightsTruncated": false,
+        "beforeSha256": "073167a7e5d2270f7788b5f21711f8625aa5f546c048de1e8f237de011693457",
+        "outputSha256": "6ffe3b3b79e61725f0145919ff6328c15266af98b40ef8f5fa69d4d76e99864c"
+      },
+      "independentAliasReversalShaMatchesPreimage": true,
+      "nativeRoundtripPassed": true
+    },
+    {
+      "file": "standin_job_personal_connection_v11_local_fixture_standin_pose_v3.fbx",
+      "model": "female",
+      "camera": "yaw35",
+      "sha256": "e9a7500df3fed7f1e27b1e92918599cefc67424dc08d89354b6a29a1c9b9021d",
+      "bytes": 6110604,
+      "snapshot": {
+        "sourceHash": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+        "importerVersion": "personal-import/4",
+        "normalizationVersion": "personal-normalize/5",
+        "rigMappingVersion": "personal-rig/2",
+        "converterVersion": "personal-converter/11",
+        "converterFingerprint": "5fdc61c7775279392171e8002aece0e87744fe6187855746fe7411b4004458d1",
+        "poseHash": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "hands": {
+          "left": null,
+          "right": null
+        },
+        "orientation": "candidate-y-up-about-hips/1",
+        "camera": {
+          "version": "personal-camera/1",
+          "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+          "rotation": [
+            [
+              0.8191520442889918,
+              0,
+              0.573576436351046
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              -0.573576436351046,
+              0,
+              0.8191520442889918
+            ]
+          ]
+        },
+        "outputMode": "rigged_rest"
+      },
+      "snapshotHash": "206e35af73dd513b8ef2f414ffe296d1fd1ece8dedee5e1214f827bf37bb3b1c",
+      "cspCompatibility": {
+        "version": "personal-csp-names/1",
+        "applied": false,
+        "nameAliases": [],
+        "allOtherBytesExact": true,
+        "weightsTruncated": false,
+        "beforeSha256": "e9a7500df3fed7f1e27b1e92918599cefc67424dc08d89354b6a29a1c9b9021d",
+        "outputSha256": "e9a7500df3fed7f1e27b1e92918599cefc67424dc08d89354b6a29a1c9b9021d"
+      },
+      "independentAliasReversalShaMatchesPreimage": true,
+      "nativeRoundtripPassed": true
+    },
+    {
+      "file": "standin_job_personal_connection_v11_local_fixture_standin_pose_v4.fbx",
+      "model": "female",
+      "camera": "identity",
+      "sha256": "016211a2800c6e1da70213e991ff30680de3fcade5cffe9408bf67b8d607d9f6",
+      "bytes": 6110508,
+      "snapshot": {
+        "sourceHash": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+        "importerVersion": "personal-import/4",
+        "normalizationVersion": "personal-normalize/5",
+        "rigMappingVersion": "personal-rig/2",
+        "converterVersion": "personal-converter/11",
+        "converterFingerprint": "5fdc61c7775279392171e8002aece0e87744fe6187855746fe7411b4004458d1",
+        "poseHash": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "hands": {
+          "left": null,
+          "right": null
+        },
+        "orientation": "candidate-y-up-about-hips/1",
+        "camera": {
+          "version": "personal-camera/1",
+          "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+          "rotation": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              1
+            ]
+          ]
+        },
+        "outputMode": "rigged_rest"
+      },
+      "snapshotHash": "b57c178fc1ebd5ccd891158ec8a594101928ec9d47be0ea9cb426097205c5d01",
+      "cspCompatibility": {
+        "version": "personal-csp-names/1",
+        "applied": false,
+        "nameAliases": [],
+        "allOtherBytesExact": true,
+        "weightsTruncated": false,
+        "beforeSha256": "016211a2800c6e1da70213e991ff30680de3fcade5cffe9408bf67b8d607d9f6",
+        "outputSha256": "016211a2800c6e1da70213e991ff30680de3fcade5cffe9408bf67b8d607d9f6"
+      },
+      "independentAliasReversalShaMatchesPreimage": true,
+      "nativeRoundtripPassed": true
+    }
+  ],
+  "inputHashesUnchanged": true,
+  "http": {
+    "records": 104,
+    "privateLeak": false,
+    "production": false
+  },
+  "releaseReady": false,
+  "noDeployment": true,
+  "app": {
+    "binarySha256": "265d37b474084916da59ecf6638228aed3b0f7f924b0473f29ec0351fe85b5f7",
+    "treeSha256": "3fe201675c9f551066ef4a9f7cbfcc45506de3dae5e2645cdb502e38b049ef3d",
+    "identifier": "app.standin.desktop.personal-connection-v11-qa-20261106",
+    "environment": {
+      "STANDIN_KEYRING_SERVICE": "app.standin.desktop.personal-connection-v11-qa-20261106",
+      "VITE_API_BASE_URL": "http://localhost:8000",
+      "VITE_USE_MOCK_API": "false",
+      "VITE_USE_MOCK_POSE_API": "false",
+      "VITE_INTERACTIVE_POSE_PREVIEW": "true",
+      "VITE_APP_ENV": "development",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "keyringService": "app.standin.desktop.personal-connection-v11-qa-20261106",
+    "deepLinkSchemes": [
+      "standin-personal-connection-v11-qa-20261106"
+    ],
+    "updaterEndpoints": []
+  },
+  "builtSourceCommit": "35e0136cf9cd230b18f0772116bd955f4228bf68",
+  "integrationCommit": "bed1d85",
+  "appSourceEquality": "git diff empty for src,src-tauri,scripts,package manifests at 75577ef; fixture/docs differ",
+  "runtimeManifestSha256": "2540a161e19fa34ad1d9c38bcc79751d471b938f6de5b0757923e303def5789b",
+  "contractRevision": 6,
+  "runtimeFiles": 6606,
+  "postUiAppFiles": 6610,
+  "cameraAudits": {
+    "male": {
+      "sourceSha256": "04961228c2acd4532adc4066b0962bd402f2d51f1380dfd226f447d7a67500ea",
+      "yaw35Sha256": "6ffe3b3b79e61725f0145919ff6328c15266af98b40ef8f5fa69d4d76e99864c",
+      "meshCount": 1,
+      "vertices": 24988,
+      "maxRequestedRigidRotationErrorM": 1.0081161424865036e-06,
+      "hipsPivotErrorM": 2.4316897380064017e-07,
+      "thresholdM": 2e-05,
+      "pass": true,
+      "scope": "independent reimport camera rigid rotation; not deformation quality or CSP acceptance"
+    },
+    "female": {
+      "sourceSha256": "016211a2800c6e1da70213e991ff30680de3fcade5cffe9408bf67b8d607d9f6",
+      "yaw35Sha256": "e9a7500df3fed7f1e27b1e92918599cefc67424dc08d89354b6a29a1c9b9021d",
+      "meshCount": 1,
+      "vertices": 90143,
+      "maxRequestedRigidRotationErrorM": 7.957833959352189e-07,
+      "hipsPivotErrorM": 2.27380298563675e-07,
+      "thresholdM": 2e-05,
+      "pass": true,
+      "scope": "independent reimport camera rigid rotation; not deformation quality or CSP acceptance"
+    }
+  },
+  "uiChecks": [
+    "actual native picker maleCS3C/femaleFBX",
+    "4 applied previews and saved FBXs",
+    "registered large preview label/no builtin appearance controls",
+    "app male -> bar female -> app female selection retained",
+    "quit/reopen persisted cards",
+    "inline rename",
+    "delete confirmation cancelled, both cards retained"
+  ],
+  "checks": {
+    "frontend": "1418pass6optinskip",
+    "nativeUnit": "20pass6optinignored",
+    "packaging": "5pass",
+    "platformActualNative": "4pass",
+    "typecheck": "PASS",
+    "lint": "0errors1preexistingwarning",
+    "webBuild": "PASS",
+    "httpWire": "1PASS",
+    "iconsRelease": "PASS"
+  },
+  "cspExactAppOutputs": "pending separate crash-owner recheck",
+  "geometryQuality": "NOT QUALIFIED",
+  "limits": [
+    "geometry not qualified",
+    "exact app outputs CSP recheck pending",
+    "production BFF/live inferred fitted camera unverified",
+    "CSP license save/reopen unverified",
+    "Windows/Intel/signing/decoder redistribution unverified",
+    "v10 revisit preview failure remains historical; no all-revisit guarantee"
+  ]
+}

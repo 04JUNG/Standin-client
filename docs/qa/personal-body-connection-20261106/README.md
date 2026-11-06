@@ -1,5 +1,7 @@
 # 개인 FBX·CS3C 연결 / 최신 develop 통합 — 2026-11-06
 
+> 이 문서는 v10 시점의 보존 기록이다. 이후의 별도 v11 앱·호환 계약·새 저장본 검증은 [v11 연결 검증](../personal-body-v11-connection-20261106/README.md)을 따른다.
+
 **최신 develop 충돌을 해결했고, 실제 앱에서 기록 final BVH → 개인 모델 → 최종 FBX 저장 4건을 확인했다.** 비용 없는 localhost 소유권 fixture를 사용했다. Production/live BFF 인증·분석, 변형 품질, CSP 및 다른 OS의 수용과 구분한다. Draft / default-off / `releaseReady:false` 유지이며 병합·배포·유료 호출은 없다.
 
 ## 통합한 동작
