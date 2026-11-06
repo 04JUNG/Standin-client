@@ -4,6 +4,7 @@ import { prepareSurface, solvedCamera } from "./solved";
 import type { ModelResult } from "./http";
 import type { StaticAsset } from "./contract";
 export type InteractiveReviewData = {
+  outlineWidth?: number;
   model?: ModelResult;
   asset?: StaticAsset;
   viewKey: string;
@@ -49,6 +50,7 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
         asset={data.model ? undefined : data.asset}
         surface={data.localSurface ?? surface}
         viewKey={data.viewKey}
+        outlineWidth={data.outlineWidth}
         onFrame={data.onFrame}
       />
       {data.notice && (

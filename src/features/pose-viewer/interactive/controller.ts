@@ -1,3 +1,5 @@
+import { sameAppearance, type Appearance } from "../outline/appearance";
+import { ApiError } from "@/shared/api/errors";
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
 import { localHandSurface, solvedCamera, type LoadedVariants } from "./solved";
@@ -17,6 +19,7 @@ const expiredError = (error: unknown) =>
 export type ExportState =
   "not-requested" | "queued" | "building" | "validating" | "ready" | "failed" | "superseded";
 export type InteractiveSnapshot = {
+  appearanceAvailable?: boolean;
   binding?: string;
   previewState: PreviewState;
   exportState: ExportState;
@@ -24,6 +27,7 @@ export type InteractiveSnapshot = {
   model?: ModelResult;
   modelError?: boolean;
   error?: boolean;
+  failure?: unknown;
   localSurface?: SurfaceView;
 };
 function wait(ms: number, signal: AbortSignal) {
@@ -55,7 +59,12 @@ export class InteractiveController {
   private recovered = false;
   private fence = { revision: 0, stateHash: null as string | null };
   private creating: Promise<Operation> | undefined;
-  private desired?: { binding: string; candidateId: string; ready: boolean };
+  private desired?: {
+    binding: string;
+    candidateId: string;
+    ready: boolean;
+    appearance?: Appearance;
+  };
   private mutation?: Prepare;
   private handAtlas?: LoadedVariants;
   constructor(
@@ -75,10 +84,15 @@ export class InteractiveController {
     this.value = { ...this.value, ...patch };
     for (const listener of this.listeners) listener();
   }
-  select(binding: string, candidateId: string, ready: boolean) {
-    if (this.desired?.binding === binding && this.desired.ready === ready) return;
+  select(binding: string, candidateId: string, ready: boolean, appearance?: Appearance) {
+    if (
+      this.desired?.binding === binding &&
+      this.desired.ready === ready &&
+      sameAppearance(this.desired.appearance, appearance)
+    )
+      return;
     const changed = this.desired?.binding !== binding;
-    this.desired = { binding, candidateId, ready };
+    this.desired = { binding, candidateId, ready, appearance };
     this.generation++;
     this.controller?.abort();
     clearTimeout(this.timer);
@@ -90,6 +104,7 @@ export class InteractiveController {
       exportState: "superseded",
       operation: undefined,
       error: false,
+      failure: undefined,
       modelError: false,
     });
     if (ready)
@@ -193,6 +208,7 @@ export class InteractiveController {
       op.candidateId !== previous.candidateId ||
       op.revision !== previous.revision ||
       op.selectionHash !== previous.selectionHash ||
+      !sameAppearance(op.appearance, previous.appearance) ||
       op.eventSequence < previous.eventSequence ||
       (previous.stateHash !== null && op.stateHash !== previous.stateHash)
     )
@@ -218,13 +234,22 @@ export class InteractiveController {
       if (generation !== this.generation) return;
       let resumed: Operation | null = null;
       if (!this.recovered) {
-        const recovery = await this.transport.head(this.target, desired.candidateId, signal);
+        const recovery = await this.transport.head(
+          this.target,
+          desired.candidateId,
+          signal,
+          desired.appearance,
+        );
         if (generation !== this.generation) return;
         this.fence = { revision: recovery.currentRevision, stateHash: recovery.currentStateHash };
         this.head = recovery.operation ?? undefined;
+        this.publish({ appearanceAvailable: recovery.appearanceExport?.available === true });
         resumed = recovery.operation;
+        if (resumed && !sameAppearance(resumed.appearance, desired.appearance)) resumed = null;
         this.recovered = true;
       }
+      if (desired.appearance && this.value.appearanceAvailable !== true)
+        throw new ApiError(503, "OUTLINE_DISABLED", "");
       let op: Operation;
       if (resumed) op = resumed;
       else {
@@ -236,10 +261,15 @@ export class InteractiveController {
             expectedStateHash: this.head?.stateHash ?? this.fence.stateHash,
             revision: (this.head?.revision ?? this.fence.revision) + 1,
             mutationId: crypto.randomUUID(),
+            ...(desired.appearance ? { appearance: desired.appearance } : {}),
           };
         const request = this.mutation;
         const creating = this.transport.prepare(this.target, request).then((next) => {
-          if (next.revision !== request.revision || next.candidateId !== request.candidateId)
+          if (
+            next.revision !== request.revision ||
+            next.candidateId !== request.candidateId ||
+            !sameAppearance(next.appearance, request.appearance)
+          )
             throw Error("prepare binding mismatch");
           this.head = next;
           this.fence = { revision: next.revision, stateHash: next.stateHash };
@@ -279,6 +309,7 @@ export class InteractiveController {
               ? "superseded"
               : op.exportState,
           error: inactive || op.previewState === "error",
+          failure: op.errorCode ? new ApiError(409, op.errorCode, "") : undefined,
         });
         if (inactive || op.previewState === "error") return;
         if (op.previewState === "authoritative" && op.stateHash && !requestedModel) {
@@ -360,14 +391,19 @@ export class InteractiveController {
         error &&
         typeof error === "object" &&
         "code" in error &&
-        ["REVISION_CONFLICT", "INTERACTIVE_SUPERSEDED", "INTERACTIVE_EXPIRED"].includes(
-          String(error.code),
-        )
+        [
+          "REVISION_CONFLICT",
+          "INTERACTIVE_SUPERSEDED",
+          "INTERACTIVE_EXPIRED",
+          "OUTLINE_DISABLED",
+          "OUTLINE_NOT_CSP_CERTIFIED",
+          "OUTLINE_UNAVAILABLE",
+        ].includes(String(error.code))
       ) {
         this.recovered = false;
         this.mutation = undefined;
       }
-      this.publish({ error: true, exportState: "failed" });
+      this.publish({ error: true, failure: error, exportState: "failed" });
       measure("error", performance.now());
     }
   }

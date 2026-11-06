@@ -1,3 +1,4 @@
+import type { Appearance } from "../outline/appearance";
 import { useEffect, useSyncExternalStore } from "react";
 import { interactiveController, interactiveVersion, subscribeInteractive } from "./session";
 export function useInteractiveReviews({
@@ -9,7 +10,13 @@ export function useInteractiveReviews({
   enabled: boolean;
   owner: string;
   jobId?: string;
-  requests: { binding: string; personIndex: number; candidateId: string; ready: boolean }[];
+  requests: {
+    binding: string;
+    personIndex: number;
+    candidateId: string;
+    ready: boolean;
+    appearance?: Appearance;
+  }[];
 }) {
   useSyncExternalStore(subscribeInteractive, interactiveVersion, interactiveVersion);
   const controllers =
@@ -20,7 +27,7 @@ export function useInteractiveReviews({
   useEffect(() => {
     controllers.forEach((controller, i) => {
       const r = requests[i];
-      controller.select(r.binding, r.candidateId, r.ready);
+      controller.select(r.binding, r.candidateId, r.ready, r.appearance);
     });
     // Controller identity is session-scoped. Main↔bar remount is not cancellation.
     // eslint-disable-next-line react-hooks/exhaustive-deps

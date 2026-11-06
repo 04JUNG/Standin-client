@@ -12,7 +12,7 @@ import { setInstallationCredentials } from "../src/shared/api/client";
 const root = process.env.STANDIN_BFF_WORKTREE;
 const realDirectory = process.env.STANDIN_REAL_PACKET_DIR;
 const networkFetch = globalThis.fetch;
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 it.skipIf(!root)(
@@ -113,8 +113,14 @@ it.skipIf(!root)(
         model: identity.model,
       };
       realWorker = createInteractiveWorker({
-        baseUrl: "http://127.0.0.1:18436",
-        token: (await readFile(path.join(realDirectory, "service-token"), "utf8")).trim(),
+        baseUrl: process.env.STANDIN_REAL_CONVERTER_URL || "http://127.0.0.1:18436",
+        token: (
+          await readFile(
+            process.env.STANDIN_REAL_CONVERTER_TOKEN_FILE ||
+              path.join(realDirectory, "service-token"),
+            "utf8",
+          )
+        ).trim(),
         fetch: networkFetch,
         timeoutMs: 300000,
       });
@@ -163,6 +169,10 @@ it.skipIf(!root)(
       });
       await service.tick("preview");
       op = await interactiveHttp.poll(target, op, signal);
+      expect(
+        op.previewState,
+        JSON.stringify({ previewState: op.previewState, errorCode: op.errorCode }),
+      ).toBe("authoritative");
       const model = await interactiveHttp.model(target, op, "candidate", signal);
       expect(model.state.model.meshes[0].positions.length).toBeGreaterThan(
         realDirectory ? 1000 : 2,
@@ -178,6 +188,44 @@ it.skipIf(!root)(
         expect(file.receipt.artifactSha256).toBe(op.exportReceipt.artifactSha256);
         expect(Buffer.from(file.bytes).subarray(0, 18).toString()).toBe("Kaydara FBX Binary");
       } else expect(Buffer.from(file.bytes).equals(fixture.syntheticFbx)).toBe(true);
+      const head = await interactiveHttp.head(target, "candidate", signal);
+      expect(head.appearanceExport?.available).not.toBe(true);
+      for (const width of [0.5, 1, 2]) {
+        await expect(
+          interactiveHttp.prepare(target, {
+            schemaVersion: "standin.interactive-http.v1",
+            candidateId: "candidate",
+            revision: op.revision + 1,
+            expectedRevision: op.revision,
+            expectedStateHash: op.stateHash,
+            mutationId: `outline-blocked-${String(width).replace(".", "_")}`,
+            appearance: { version: "fbx-outline-v1", width },
+          }),
+        ).rejects.toMatchObject({ code: "OUTLINE_DISABLED" });
+      }
+      // Refused nonzero settings neither supersede nor replace the last good zero file.
+      const retained = await interactiveHttp.file(target, op, signal);
+      expect(retained.receipt.artifactSha256).toBe(file.receipt.artifactSha256);
+      if (realDirectory && process.env.STANDIN_CLIENT_WIRE_OUTPUT) {
+        await writeFile(process.env.STANDIN_CLIENT_WIRE_OUTPUT, file.bytes);
+        await writeFile(
+          process.env.STANDIN_CLIENT_WIRE_OUTPUT + ".json",
+          JSON.stringify(
+            {
+              kind: "actual client adapter + Hono in-process routes/PGlite + live Converter TCP/Blender; fixture selection/edge auth",
+              artifactSha256: file.receipt.artifactSha256,
+              artifactBytes: file.bytes.length,
+              zeroReady: true,
+              nonzeroRefused: [0.5, 1, 2],
+              outlineCapability: head.appearanceExport ?? null,
+              noCspCertification: true,
+              nativeSaved: false,
+            },
+            null,
+            2,
+          ),
+        );
+      }
       await interactiveHttp.cancel(target, op);
       await expect(interactiveHttp.file(target, op, signal)).rejects.toBeDefined();
     } finally {

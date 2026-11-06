@@ -1,3 +1,4 @@
+import { outlineAppearance } from "../outline/appearance";
 import { queueRepresentativeFrame } from "../interactive/history";
 import { historyUpload } from "../interactive/historyHttp";
 import { solvedCamera } from "../interactive/solved";
@@ -55,6 +56,8 @@ export function useFramedReview(jobId: string | undefined) {
     review.items.map((i) => i.personIndex),
     format === "fbx",
   );
+  const outlines = usePoseSelectionStore((s) => s.outlineByPerson);
+  const outlineEditing = usePoseSelectionStore((s) => s.outlineEditingByPerson);
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const preferred = useModelStore((s) => s.preferredCharacterId);
@@ -101,6 +104,7 @@ export function useFramedReview(jobId: string | undefined) {
         /* Invalid server URLs fail closed. */
       }
     }
+    const appearance = outlineAppearance(outlines?.[item.personIndex] ?? 0);
     const binding = JSON.stringify([
       owner,
       item.personIndex,
@@ -111,9 +115,12 @@ export function useFramedReview(jobId: string | undefined) {
       scope,
       bodyMode ? [body?.selectionRevision, body?.resolvedBody, body?.shape] : characterId,
       handEntry?.selection,
+      appearance,
     ]);
     return {
       binding,
+      appearance,
+      editing: outlineEditing?.[item.personIndex] === true,
       scope,
       characterId,
       body,
@@ -126,7 +133,10 @@ export function useFramedReview(jobId: string | undefined) {
     };
   });
   const requestReady = (request: (typeof requests)[number]) =>
-    !review.isRefining && request.handReady && (bodyMode ? review.bodies.ready : catalog.isSuccess);
+    !review.isRefining &&
+    !request.editing &&
+    request.handReady &&
+    (bodyMode ? review.bodies.ready : catalog.isSuccess);
   const selectionsReady = requests.every(requestReady);
   const interactive = useInteractiveReviews({
     enabled: interactiveEnabled,
@@ -137,6 +147,7 @@ export function useFramedReview(jobId: string | undefined) {
       personIndex: review.items[i].personIndex,
       candidateId: review.items[i].candidate.id,
       ready: requestReady(r),
+      appearance: r.appearance,
     })),
   });
   const queries = useQueries({
@@ -163,7 +174,7 @@ export function useFramedReview(jobId: string | undefined) {
             "verified-fbx-v1",
             request.binding,
           ],
-      enabled: enabled && requestReady(request) && !!request.url,
+      enabled: enabled && !request.appearance && requestReady(request) && !!request.url,
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<PreparedReview> => {
         const item = review.items[index]!;
         if (bodyMode) {
@@ -238,7 +249,9 @@ export function useFramedReview(jobId: string | undefined) {
       gcTime: 600_000,
     })),
   });
+  const outlineUnsupported = !interactiveEnabled && requests.some((r) => !!r.appearance);
   const preparationError =
+    outlineUnsupported ||
     (!interactiveEnabled && generatedReviewUnavailable) ||
     (enabled &&
       (!!hands.error ||
@@ -247,7 +260,8 @@ export function useFramedReview(jobId: string | undefined) {
         queries.some((q) => q.isError)));
   const downloadReady = interactiveEnabled
     ? interactive.ready
-    : !requiresFbx &&
+    : !outlineUnsupported &&
+      !requiresFbx &&
       !generatedReviewUnavailable &&
       !review.isRefining &&
       (!enabled ||
@@ -313,6 +327,9 @@ export function useFramedReview(jobId: string | undefined) {
     hands,
     items: review.items.map((item, index) => ({
       ...item,
+      outlineWidth: outlines?.[item.personIndex] ?? 0,
+      outlineAvailable:
+        interactiveEnabled && interactive.snapshots[index]?.appearanceAvailable === true,
       includesHands: scopeIncludesHands(requests[index]!.scope),
       previewUrl:
         generatedReviewUnavailable && item.candidate.source === "generation"
@@ -326,6 +343,7 @@ export function useFramedReview(jobId: string | undefined) {
             : item.previewUrl,
       interactivePreview: interactiveEnabled
         ? ({
+            outlineWidth: outlines?.[item.personIndex] ?? 0,
             model:
               interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
               item.candidate.id
@@ -389,7 +407,9 @@ export function useFramedReview(jobId: string | undefined) {
         ? "변경한 손을 적용하고 있어요…"
         : "다운로드할 파일을 준비하고 있어요…",
     previewFailure: poseRecovery(
-      queries.find((q) => q.isError)?.error ??
+      interactive.snapshots.find((s) => s.failure)?.failure ??
+        (outlineUnsupported ? new ApiError(422, "OUTLINE_UNSUPPORTED", "") : undefined) ??
+        queries.find((q) => q.isError)?.error ??
         review.bodies.entries.find((e) => e.error)?.error ??
         hands.entries.find((e) => e.error)?.error ??
         catalog.error,
