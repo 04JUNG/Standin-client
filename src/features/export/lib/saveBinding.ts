@@ -1,3 +1,5 @@
+import { selectedLocalModel } from "@/features/personal-body/store";
+import { modelIdentity } from "@/features/personal-body/contract";
 import type { QueryClient } from "@tanstack/react-query";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { useInstallationStore } from "@/features/installation/installationStore";
@@ -13,6 +15,10 @@ export function saveConsentBinding(qc: QueryClient, routeJob: string | undefined
     routeJob,
     owner,
     result,
+    local: Object.keys(state.selectedByPerson).map((index) => {
+      const model = selectedLocalModel(result?.jobId ?? "", Number(index));
+      return [index, model ? modelIdentity(model) : null];
+    }),
     job: state.jobId,
     selected: state.selectedByPerson,
     excluded: state.excludedPeople,

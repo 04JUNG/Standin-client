@@ -16,6 +16,8 @@ import {
 } from "../lib/saveCoverage";
 import { saveConsentBinding } from "../lib/saveBinding";
 import { jobFileName } from "../lib/jobFileName";
+import { localBinding, finalPose, type LocalArtifact } from "@/features/personal-body/prepare";
+import { selectedLocalModel, useLocalBodies } from "@/features/personal-body/store";
 import { failureProperties } from "@/features/analytics/featureJourney";
 import { isTauri } from "@tauri-apps/api/core";
 import {
@@ -211,8 +213,20 @@ export function useSaveFlow(jobId: string | undefined) {
   const serverSupportsFbx =
     queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
       .fbxExport === true;
-  const effectiveFormat: ExportFormat =
-    preferredFormat === "fbx" && !serverSupportsFbx ? "bvh" : preferredFormat;
+  const localChoices = useLocalBodies((s) => s.selected);
+  const hasLocal = selections.some(
+    ([index]) =>
+      !!selectedLocalModel(
+        queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.jobId ?? "",
+        Number(index),
+      ),
+  );
+  void localChoices;
+  const effectiveFormat: ExportFormat = hasLocal
+    ? "fbx"
+    : preferredFormat === "fbx" && !serverSupportsFbx
+      ? "bvh"
+      : preferredFormat;
   /** 사용자가 FBX를 골랐는데 서버가 못 주는 상태. 저장 화면이 이유를 알려 줘야 한다. */
   const formatDowngraded = preferredFormat === "fbx" && effectiveFormat === "bvh";
 
@@ -264,7 +278,14 @@ export function useSaveFlow(jobId: string | undefined) {
   const usedCharacterNames = [
     ...new Set(
       resolutions.map(
-        (r) => (r.characterId ? r.chosen?.displayName : defaultCharacterName) ?? null,
+        (r, index) =>
+          selectedLocalModel(
+            queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.jobId ??
+              "",
+            Number(selections[index]?.[0]),
+          )?.name ??
+          (r.characterId ? r.chosen?.displayName : defaultCharacterName) ??
+          null,
       ),
     ),
   ].filter((name): name is string => name !== null);
@@ -289,6 +310,7 @@ export function useSaveFlow(jobId: string | undefined) {
 
   const analysis = queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""));
   const isSceneExport =
+    !hasLocal &&
     effectiveFormat === "fbx" &&
     analysis?.source !== "semantic" &&
     sceneSelectionAvailable(analysis, selectedByPerson) &&
@@ -300,10 +322,12 @@ export function useSaveFlow(jobId: string | undefined) {
         const offCache = queryClient.getQueryCache().subscribe(changed);
         const offSelection = usePoseSelectionStore.subscribe(changed);
         const offOwner = useInstallationStore.subscribe(changed);
+        const offLocal = useLocalBodies.subscribe(changed);
         return () => {
           offCache();
           offSelection();
           offOwner();
+          offLocal();
         };
       },
       [queryClient],
@@ -505,6 +529,7 @@ export function useSaveFlow(jobId: string | undefined) {
       let unsubscribe = () => {};
       let unsubscribeQueries = () => {};
       let unsubscribeOwner = () => {};
+      let unsubscribeLocal = () => {};
       setServerOperationMayContinue(false);
       setErrorAllowedActions(undefined);
       setPhase("preparing");
@@ -515,6 +540,8 @@ export function useSaveFlow(jobId: string | undefined) {
         }
         const snapshot = () =>
           JSON.stringify({
+            localModels: useLocalBodies.getState().models,
+            localSelected: useLocalBodies.getState().selected,
             routeJob: latest.current.jobId,
             job: usePoseSelectionStore.getState().jobId,
             owner: useInstallationStore.getState().credentials?.installationId,
@@ -555,6 +582,7 @@ export function useSaveFlow(jobId: string | undefined) {
             if (sceneMounted.current) setSceneReview(null);
           }
         };
+        unsubscribeLocal = useLocalBodies.subscribe(checkSelection);
         unsubscribe = usePoseSelectionStore.subscribe(checkSelection);
         unsubscribeOwner = useInstallationStore.subscribe(checkSelection);
         unsubscribeQueries = qc.getQueryCache().subscribe(checkSelection);
@@ -579,8 +607,13 @@ export function useSaveFlow(jobId: string | undefined) {
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
-            const outline = selectionState.outlineByPerson[personIndex] ?? 0;
-            const skin = selectedSkin(selectionState.skinByPerson[personIndex] ?? "default");
+            const localModel = selectedLocalModel(analysisResult.jobId, personIndex);
+            // Server appearance choices remain available when returning to a built-in body.
+            // Personal FBX preserves its original appearance and never uses that server path.
+            const outline = localModel ? 0 : (selectionState.outlineByPerson[personIndex] ?? 0);
+            const skin = localModel
+              ? undefined
+              : selectedSkin(selectionState.skinByPerson[personIndex] ?? "default");
             if (
               skin &&
               (format !== "fbx" ||
@@ -589,7 +622,7 @@ export function useSaveFlow(jobId: string | undefined) {
             )
               throw new ApiError(422, "SKIN_UNSUPPORTED", "");
             if (
-              selectionState.outlineEditingByPerson[personIndex] ||
+              (!localModel && selectionState.outlineEditingByPerson[personIndex]) ||
               (outline > 0 &&
                 (format !== "fbx" ||
                   !env.interactivePreview ||
@@ -625,7 +658,37 @@ export function useSaveFlow(jobId: string | undefined) {
             );
             let content: Uint8Array;
             let downloadPath = "";
-            if (
+            if (localModel) {
+              if (format !== "fbx") throw new ApiError(409, "INVALID_EXPORT", "");
+              const item = {
+                personIndex,
+                candidate,
+                exportUrl,
+                refined: currentOutcome?.refined === true,
+                skipped: !currentOutcome,
+                previewUrl: "",
+              };
+              const binding = localBinding(
+                localModel,
+                item,
+                scope,
+                handApplicable ? handSelection : undefined,
+              );
+              const artifact = qc.getQueryData<LocalArtifact>([
+                "personal-body-result",
+                handOwner,
+                analysisResult.jobId,
+                binding,
+              ]);
+              if (!artifact || artifact.binding !== binding)
+                throw new ApiError(409, "BODY_REVIEW_REQUIRED", "");
+              const pose = await finalPose(analysisResult.jobId, item, controller.signal);
+              if (pose.hash !== artifact.poseHash) throw new ApiError(409, "PREVIEW_CHANGED", "");
+              content = artifact.content;
+              downloadPath = "local:" + artifact.snapshotHash;
+              // Private names and device IDs are never included in export telemetry.
+              bodyNames.add("personal-local");
+            } else if (
               env.interactivePreview &&
               analysisResult.capabilities.interactivePreview?.operations &&
               format === "fbx"
@@ -733,6 +796,7 @@ export function useSaveFlow(jobId: string | undefined) {
         let sceneBinding: string | undefined;
         let sceneMetadata: SceneManifest | undefined;
         if (
+          !picks.some(([index]) => !!selectedLocalModel(analysisResult.jobId, Number(index))) &&
           format === "fbx" &&
           analysisResult.source !== "semantic" &&
           sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
@@ -915,6 +979,7 @@ export function useSaveFlow(jobId: string | undefined) {
           (env.interactivePreview &&
             analysisResult.capabilities.interactivePreview?.operations &&
             files.some((f) => {
+              if (selectedLocalModel(analysisResult.jobId, f.personIndex)) return false;
               const current = interactiveController(
                 useInstallationStore.getState().credentials?.installationId ?? "",
                 analysisResult.jobId,
@@ -1060,6 +1125,7 @@ export function useSaveFlow(jobId: string | undefined) {
         unsubscribe();
         unsubscribeQueries();
         unsubscribeOwner();
+        unsubscribeLocal();
         writingFile.current = false;
         if (activeSave.current === controller) activeSave.current = undefined;
         settle();
@@ -1212,6 +1278,7 @@ export function useSaveFlow(jobId: string | undefined) {
     confirmPartial: () => useExportStore.setState({ partialConsentBinding: consentBinding }),
     confirmIndividual: () => useExportStore.setState({ individualConsentBinding: consentBinding }),
     cancelSave,
+    hasLocal,
     sceneMode,
     serverOperationMayContinue,
     sceneOutputLabel,

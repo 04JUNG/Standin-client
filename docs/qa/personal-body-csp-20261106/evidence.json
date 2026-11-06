@@ -1,0 +1,527 @@
+{
+  "schemaVersion": 1,
+  "dateKst": "2026-11-06",
+  "stage": "baseline-v10-prior-native-and-diagnostic-controls",
+  "os": {
+    "name": "macOS",
+    "version": "26.6.2",
+    "build": "25G83",
+    "arch": "arm64"
+  },
+  "client": {
+    "pr": "https://github.com/04JUNG/Standin-client/pull/159",
+    "qaBaseCommit": "a473b525b76b7ea3917b56c81346ea9cf7742f1e",
+    "freshDevelop": "65a43657194f87f244075d6ba24fa76d9b71b703",
+    "appSourceCommit": "c9021067ee1a34eef7d784455fa88dad0a773775",
+    "appBinarySha256": "27bc92544c235331b5b6d622d2b18c245f911d88e41dafe08fef33c53d251f21",
+    "provenance": "Prior 2026-11-05 QA app and native test exports; hashes rechecked 2026-11-06. NOT current merged client or live BFF product UI save."
+  },
+  "converterCommit": "1332d598be58aec68540137e887fea4dc5fb9991",
+  "runtime": {
+    "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+    "releaseReady": false,
+    "target": "darwin-arm64",
+    "filesChecked": 6591,
+    "versions": {
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "converterVersion": "personal-converter/10",
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254"
+    }
+  },
+  "csp": {
+    "version": "5.1.1",
+    "binarySha256": "40ff5d9a8519e9d9a09187f6a36f40f42a99745f6d2c4b981478fa0632d122c6",
+    "bundleId": "jp.co.celsys.CLIPSTUDIOPAINT",
+    "mode": "drawing trial; existing license unchanged"
+  },
+  "results": {
+    "total": 12,
+    "importDisplayPass": 8,
+    "crashFail": 4,
+    "geometryQuality": "not_qualified",
+    "cameraCausality": "not_established",
+    "clipSave": "blocked: actual Save As requested license acquisition/registration; selected No",
+    "reopen": "unverified: no clip produced",
+    "latestMergedAppOutputs": "checked separately in current-app-evidence.json; baseline not relabeled",
+    "liveBff": "unverified; recorded BVH only"
+  },
+  "cases": [
+    {
+      "id": "native-male-final",
+      "file": "client/native-male-final.fbx",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "sha256": "b3032354e16af115a7551c6e1d923d8076efe80f1e146a12e1a78ca033e88d3b",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": null,
+        "rotation": null
+      },
+      "rig": "original",
+      "materials": "original",
+      "kind": "prior-native-test-export",
+      "importResult": "fail",
+      "appearance": "not visible; CSP quit",
+      "bytes": 2247788,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable",
+      "crash": {
+        "file": "CLIP STUDIO PAINT-2026-11-06-143957.ips",
+        "sha256": "430a90b716f596e1ca0032f61c8a71a3d8459502bf055dad27c3fc4b92770fae",
+        "captureTime": "2026-11-06 14:39:54.3879 +0900",
+        "appVersion": "5.1.1",
+        "cpuType": "ARM-64",
+        "translated": false,
+        "exception": "EXC_BAD_ACCESS",
+        "signal": "SIGSEGV",
+        "message": "Thread stack size exceeded due to excessive recursion",
+        "faultingThread": 0,
+        "topImageOffsets": [
+          30123520,
+          30874856,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30873424,
+          30423580
+        ]
+      }
+    },
+    {
+      "id": "native-female-final",
+      "file": "client/native-female-final.fbx",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "sha256": "248f01a2d489eb90485d34498c1f242e320c1653176625b03df3c48b41125dc9",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": null,
+        "rotation": null
+      },
+      "rig": "original",
+      "materials": "original",
+      "kind": "prior-native-test-export",
+      "importResult": "pass",
+      "appearance": "seated mesh visible with gray shading; shape quality not qualified",
+      "bytes": 6110508,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    },
+    {
+      "id": "male-source-orientation",
+      "file": "converter/csp-male-seated/source-orientation.fbx",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "controlBaseSha256": "2075ae9d5546472054b7e7853bcaba2081d2764fe7cf26a5f9844d005e82960c",
+      "sha256": "2075ae9d5546472054b7e7853bcaba2081d2764fe7cf26a5f9844d005e82960c",
+      "camera": null,
+      "rig": "original",
+      "materials": "original",
+      "kind": "diagnostic-control",
+      "importResult": "fail",
+      "appearance": "not visible; CSP quit",
+      "geometryQuality": "not_qualified",
+      "bytes": 2247788,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable",
+      "crash": {
+        "file": "CLIP STUDIO PAINT-2026-11-06-144214.ips",
+        "sha256": "61e84395827d0c2550d6520023201970c4ffe8b4b690e567272ecb0167202626",
+        "captureTime": "2026-11-06 14:42:11.9205 +0900",
+        "appVersion": "5.1.1",
+        "cpuType": "ARM-64",
+        "translated": false,
+        "exception": "EXC_BAD_ACCESS",
+        "signal": "SIGSEGV",
+        "message": "Thread stack size exceeded due to excessive recursion",
+        "faultingThread": 0,
+        "topImageOffsets": [
+          30123520,
+          30874856,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30873424,
+          30423580
+        ]
+      }
+    },
+    {
+      "id": "male-camera-yaw35",
+      "file": "converter/csp-male-seated/camera-yaw35.fbx",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "controlBaseSha256": "2075ae9d5546472054b7e7853bcaba2081d2764fe7cf26a5f9844d005e82960c",
+      "sha256": "482305e5ba0f0d31281b8faf37dfa3302e3680846805acb0b6d6d03cadad7460",
+      "camera": {
+        "rotation": [
+          [
+            0.8191520442889918,
+            0,
+            0.573576436351046
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -0.573576436351046,
+            0,
+            0.8191520442889918
+          ]
+        ],
+        "validation": {
+          "version": "personal-camera/1",
+          "applied": true,
+          "maxRigidSurfaceError": 3.607189189466895e-07
+        }
+      },
+      "rig": "original",
+      "materials": "original",
+      "kind": "diagnostic-control",
+      "importResult": "fail",
+      "appearance": "not visible; CSP quit",
+      "geometryQuality": "not_qualified",
+      "bytes": 2263724,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable",
+      "crash": {
+        "file": "CLIP STUDIO PAINT-2026-11-06-144419.ips",
+        "sha256": "0773169d3c5044144f913d14669581aa93e9e1a6809371ab0d29cae16c05f734",
+        "captureTime": "2026-11-06 14:44:12.9575 +0900",
+        "appVersion": "5.1.1",
+        "cpuType": "ARM-64",
+        "translated": false,
+        "exception": "EXC_BAD_ACCESS",
+        "signal": "SIGSEGV",
+        "message": "Thread stack size exceeded due to excessive recursion",
+        "faultingThread": 0,
+        "topImageOffsets": [
+          30123520,
+          30874856,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30873424,
+          30423580
+        ]
+      }
+    },
+    {
+      "id": "male-minimal-rig",
+      "file": "converter/csp-male-seated/minimal-rig.fbx",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "controlBaseSha256": "2075ae9d5546472054b7e7853bcaba2081d2764fe7cf26a5f9844d005e82960c",
+      "sha256": "2ea940009968deb6ee6efe4b6697c3656a5b4a5f5ae7423ec6b9a84d5368b22b",
+      "camera": null,
+      "rig": "one identity root; original weights intentionally replaced",
+      "materials": "original",
+      "kind": "diagnostic-control",
+      "importResult": "pass",
+      "appearance": "posed mesh visible; gray original material",
+      "geometryQuality": "not_qualified",
+      "bytes": 1545436,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    },
+    {
+      "id": "male-single-material",
+      "file": "converter/csp-male-seated/single-material.fbx",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "controlBaseSha256": "2075ae9d5546472054b7e7853bcaba2081d2764fe7cf26a5f9844d005e82960c",
+      "sha256": "e6b5b2b7620fafa0392fb019512ff9a9d2c72bbf745c3c53dbf62af4c3f7d570",
+      "camera": null,
+      "rig": "original",
+      "materials": "one QA solid; original assignments intentionally replaced",
+      "kind": "diagnostic-control",
+      "importResult": "fail",
+      "appearance": "not visible; CSP quit",
+      "geometryQuality": "not_qualified",
+      "bytes": 2263628,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable",
+      "crash": {
+        "file": "CLIP STUDIO PAINT-2026-11-06-144322.ips",
+        "sha256": "7f7389d7a6c1ba0dabf3bc9f3e449145b36e28eaef22ce820362b5405fc5b6d4",
+        "captureTime": "2026-11-06 14:43:19.3700 +0900",
+        "appVersion": "5.1.1",
+        "cpuType": "ARM-64",
+        "translated": false,
+        "exception": "EXC_BAD_ACCESS",
+        "signal": "SIGSEGV",
+        "message": "Thread stack size exceeded due to excessive recursion",
+        "faultingThread": 0,
+        "topImageOffsets": [
+          30123520,
+          30874856,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30873424,
+          30423580
+        ]
+      }
+    },
+    {
+      "id": "male-minimal-rig-single-material",
+      "file": "converter/csp-male-seated/minimal-rig-single-material.fbx",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "controlBaseSha256": "2075ae9d5546472054b7e7853bcaba2081d2764fe7cf26a5f9844d005e82960c",
+      "sha256": "8d192db556bb5112fb20c93a0f5202f66cdf192f516cad640af6894b25816e19",
+      "camera": null,
+      "rig": "one identity root; original weights intentionally replaced",
+      "materials": "one QA solid; original assignments intentionally replaced",
+      "kind": "diagnostic-control",
+      "importResult": "pass",
+      "appearance": "posed mesh visible; glossy QA single solid",
+      "geometryQuality": "not_qualified",
+      "bytes": 1545436,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    },
+    {
+      "id": "female-source-orientation",
+      "file": "converter/csp-female-cmu/source-orientation.fbx",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "8a755eb24f8385d1f00ea985e1266e7bdc30ed55e4ab6c464e3dd903fca73780",
+      "controlBaseSha256": "617bce03b6a41db7027a6d0c55057d3953c8e8e66018d06d1da7f1eba7cb96f8",
+      "sha256": "617bce03b6a41db7027a6d0c55057d3953c8e8e66018d06d1da7f1eba7cb96f8",
+      "camera": null,
+      "rig": "original",
+      "materials": "original",
+      "kind": "diagnostic-control",
+      "importResult": "pass",
+      "appearance": "posed mesh visible; gray original material",
+      "geometryQuality": "not_qualified",
+      "bytes": 6111020,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    },
+    {
+      "id": "female-camera-yaw35",
+      "file": "converter/csp-female-cmu/camera-yaw35.fbx",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "8a755eb24f8385d1f00ea985e1266e7bdc30ed55e4ab6c464e3dd903fca73780",
+      "controlBaseSha256": "617bce03b6a41db7027a6d0c55057d3953c8e8e66018d06d1da7f1eba7cb96f8",
+      "sha256": "e8fbd241d18183ea93b193de27a97f3265725f1293d4e83282dd5798f19d9f38",
+      "camera": {
+        "rotation": [
+          [
+            0.8191520442889918,
+            0,
+            0.573576436351046
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -0.573576436351046,
+            0,
+            0.8191520442889918
+          ]
+        ],
+        "validation": {
+          "version": "personal-camera/1",
+          "applied": true,
+          "maxRigidSurfaceError": 1.737759081973225e-07
+        }
+      },
+      "rig": "original",
+      "materials": "original",
+      "kind": "diagnostic-control",
+      "importResult": "pass",
+      "appearance": "posed mesh visible; gray original material",
+      "geometryQuality": "not_qualified",
+      "bytes": 6126876,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    },
+    {
+      "id": "female-minimal-rig",
+      "file": "converter/csp-female-cmu/minimal-rig.fbx",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "8a755eb24f8385d1f00ea985e1266e7bdc30ed55e4ab6c464e3dd903fca73780",
+      "controlBaseSha256": "617bce03b6a41db7027a6d0c55057d3953c8e8e66018d06d1da7f1eba7cb96f8",
+      "sha256": "a1300c9db7560b5f87b82ddf4ae8503f17b5b0f029feabba5109e90aaad41db0",
+      "camera": null,
+      "rig": "one identity root; original weights intentionally replaced",
+      "materials": "original",
+      "kind": "diagnostic-control",
+      "importResult": "pass",
+      "appearance": "posed mesh visible; gray original material",
+      "geometryQuality": "not_qualified",
+      "bytes": 4672796,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    },
+    {
+      "id": "female-single-material",
+      "file": "converter/csp-female-cmu/single-material.fbx",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "8a755eb24f8385d1f00ea985e1266e7bdc30ed55e4ab6c464e3dd903fca73780",
+      "controlBaseSha256": "617bce03b6a41db7027a6d0c55057d3953c8e8e66018d06d1da7f1eba7cb96f8",
+      "sha256": "1ff338ba898d301c2bfc6f77a5c3d8a869bbbe6ffdc3f0ade550758e77318d85",
+      "camera": null,
+      "rig": "original",
+      "materials": "one QA solid; original assignments intentionally replaced",
+      "kind": "diagnostic-control",
+      "importResult": "pass",
+      "appearance": "posed mesh visible; glossy QA single solid",
+      "geometryQuality": "not_qualified",
+      "bytes": 6118428,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    },
+    {
+      "id": "female-minimal-rig-single-material",
+      "file": "converter/csp-female-cmu/minimal-rig-single-material.fbx",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "8a755eb24f8385d1f00ea985e1266e7bdc30ed55e4ab6c464e3dd903fca73780",
+      "controlBaseSha256": "617bce03b6a41db7027a6d0c55057d3953c8e8e66018d06d1da7f1eba7cb96f8",
+      "sha256": "464cad086b382a58e0cd81b3f7f6deff77f5e2f869d31f617e5a5218beb6e74c",
+      "camera": null,
+      "rig": "one identity root; original weights intentionally replaced",
+      "materials": "one QA solid; original assignments intentionally replaced",
+      "kind": "diagnostic-control",
+      "importResult": "pass",
+      "appearance": "posed mesh visible; glossy QA single solid",
+      "geometryQuality": "not_qualified",
+      "bytes": 4664444,
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "clipSave": "blocked-license",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: native canvas coordinate actions returned noWindowsAvailable"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "csp-female-cmu-minimal-rig-import.png",
+      "sha256": "2b5740e5ea97afc20c2aa6e882648862aa8bc1c9b1bcd7b3d377d33ffa1d2599",
+      "bytes": 311902,
+      "storage": "local shared only"
+    },
+    {
+      "file": "csp-female-cmu-minimal-single-import.png",
+      "sha256": "d25806b11dcf5e6b27c1e1d6eb8a7859ad9001086d92bc88351ec190d4aa6082",
+      "bytes": 300616,
+      "storage": "local shared only"
+    },
+    {
+      "file": "csp-female-cmu-single-material-import.png",
+      "sha256": "694a427797f235b87c9e809a4f81166792dc49fe5bafac812ed1c4d70b42e5be",
+      "bytes": 292524,
+      "storage": "local shared only"
+    },
+    {
+      "file": "csp-female-cmu-source-import.png",
+      "sha256": "eb7928f085316fe952d56824a0da28dfd37d34e0a0621b53e39cb84743740e51",
+      "bytes": 312308,
+      "storage": "local shared only"
+    },
+    {
+      "file": "csp-female-cmu-yaw35-import.png",
+      "sha256": "32e694b8722e21c71dcc89f5c4baa085f71b48b56eeae170a1d243b8579ad46f",
+      "bytes": 317199,
+      "storage": "local shared only"
+    },
+    {
+      "file": "csp-female-native-final-import.png",
+      "sha256": "2245769a3cd6065ddc8741c02770e2505160c04d47ebef339b95b4579f2f459c",
+      "bytes": 314614,
+      "storage": "repository representative and local shared"
+    },
+    {
+      "file": "csp-female-object-capability.png",
+      "sha256": "a7d87b8bf6f8c42a3356539e24fa3010c4ef416c5892079928c4e79827d6ef12",
+      "bytes": 127707,
+      "storage": "repository representative and local shared"
+    },
+    {
+      "file": "csp-male-minimal-rig-import.png",
+      "sha256": "1e2004de1a9c977174c4ae2082935bd7ef50e0d2196bfc6e0b8c34c5d1c74f09",
+      "bytes": 314747,
+      "storage": "repository representative and local shared"
+    },
+    {
+      "file": "csp-male-minimal-single-import.png",
+      "sha256": "32f9f17ca836c918bdac4e3351dd980fb07e828ce7019d36b492227867b47970",
+      "bytes": 312512,
+      "storage": "local shared only"
+    },
+    {
+      "file": "csp-save-license-required.png",
+      "sha256": "0dc9eefec7bae2879abe27c67129b9f58a7ecf07934e5712336446ae70f031a9",
+      "bytes": 27155,
+      "storage": "repository representative and local shared"
+    }
+  ],
+  "constraints": {
+    "draft": true,
+    "defaultOff": true,
+    "releaseReady": false,
+    "productionOrStagingDeployment": false,
+    "prMerge": false,
+    "remotePush": false,
+    "rawModelsOrCrashLogsCommitted": false
+  },
+  "hashProvenance": {
+    "sourceAndBvh": "prior owner manifests; originals not rehashed by CSP operator",
+    "importedFbxAndAppBinary": "independently rehashed before/after native checks",
+    "runtime": "immutable manifest pin rehashed; full tree audit supplied by connection/platform owner",
+    "crash": "raw logs retained only in local shared folder; JSON contains sanitized observations"
+  }
+}

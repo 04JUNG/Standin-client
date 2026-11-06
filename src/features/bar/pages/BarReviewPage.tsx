@@ -1,3 +1,4 @@
+import { LocalFbxPreview } from "@/features/personal-body/LocalFbxPreview";
 import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
 import { SkinControl } from "@/features/pose-viewer/skin/SkinControl";
 import { journeyExit } from "@/features/analytics/featureJourney";
@@ -62,21 +63,25 @@ export function BarReviewPage() {
                   key={item.personIndex}
                   className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[320px]" : "max-w-[256px]"}`}
                 >
-                  <ReviewPosePreview
-                    telemetryJobId={hands?.jobId}
-                    interactive={item.interactivePreview}
-                    model={item.previewModel}
-                    outlineWidth={item.outlineWidth}
-                    src={item.previewUrl}
-                    label={
-                      item.previewReference
-                        ? `인물 ${item.personIndex + 1}의 동작 미리보기`
-                        : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
-                    }
-                    loading={previewLoading}
-                    error={previewError}
-                    onModelStatus={item.onModelStatus}
-                  />
+                  {item.localName ? (
+                    <LocalFbxPreview content={item.localFbx} name={item.localName} />
+                  ) : (
+                    <ReviewPosePreview
+                      telemetryJobId={hands?.jobId}
+                      interactive={item.interactivePreview}
+                      model={item.previewModel}
+                      outlineWidth={item.outlineWidth}
+                      src={item.previewUrl}
+                      label={
+                        item.previewReference
+                          ? `인물 ${item.personIndex + 1}의 동작 미리보기`
+                          : `인물 ${item.personIndex + 1}에 저장될 포즈${item.scopeLabel ? ` · ${item.scopeLabel}` : ""}`
+                      }
+                      loading={previewLoading}
+                      error={previewError}
+                      onModelStatus={item.onModelStatus}
+                    />
+                  )}
                   {(item.outlineAvailable || item.outlineWidth > 0) && (
                     <OutlineControl personIndex={item.personIndex} />
                   )}

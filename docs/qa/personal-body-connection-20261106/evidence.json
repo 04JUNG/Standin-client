@@ -1,0 +1,326 @@
+{
+  "dateKst": "2026-11-06",
+  "pr": "https://github.com/04JUNG/Standin-client/pull/159",
+  "developCommit": "65a43657194f87f244075d6ba24fa76d9b71b703",
+  "connectionMergeCommit": "ae3224a3ab3d254658de5e6403d7007c41e25ecd",
+  "packagingCommit": "3d31f2e",
+  "appBuildLocalCommit": "7f3ff3565a424512b2f9eaed1baeb924a170cb0b",
+  "equivalentPublishedSourceCommit": "3d31f2e",
+  "equivalentEntireGitTree": true,
+  "app": {
+    "name": "Standin Personal Connection QA 20261106",
+    "binarySha256": "7af1288f9f2b6fbcf3d22042070405079712d503ddcc4b56bda096f316f63d6a",
+    "treeSha256": "af7486b8f1ff8b306ea4378a03e447cded1350ca159126d78cd96da880806b39",
+    "identifier": "app.standin.desktop.personal-connection-qa-20261106",
+    "version": "0.2.3",
+    "architecture": "Mach-O 64-bit executable arm64",
+    "environment": {
+      "VITE_API_BASE_URL": "http://localhost:8000",
+      "VITE_USE_MOCK_API": "false",
+      "VITE_USE_MOCK_POSE_API": "false",
+      "VITE_INTERACTIVE_POSE_PREVIEW": "true",
+      "VITE_APP_ENV": "development",
+      "STANDIN_KEYRING_SERVICE": "app.standin.desktop.personal-connection-qa-20261106"
+    },
+    "configSha256": "56ed3468953db2a66e27337fd6a60b4dcff717d7c667a952a441ebc08618325e",
+    "signing": "local debug; no signing/notarization qualification",
+    "keyringService": "app.standin.desktop.personal-connection-qa-20261106",
+    "keyringIsolationVerification": {
+      "status": "pass",
+      "compileEvidence": "rustc standin_desktop_lib.d line64: env-dep STANDIN_KEYRING_SERVICE=app.standin.desktop.personal-connection-qa-20261106",
+      "platformOwnerBuildEnvironmentConfirmed": true,
+      "binarySha256Rechecked": "7af1288f9f2b6fbcf3d22042070405079712d503ddcc4b56bda096f316f63d6a",
+      "credentialsOrKeychainValuesRead": false,
+      "newBuild": false,
+      "appOrRuntimeBytesChanged": false
+    }
+  },
+  "runtime": {
+    "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+    "files": 6591,
+    "changed": 0,
+    "extra": 0,
+    "target": "darwin-arm64",
+    "releaseReady": false
+  },
+  "actualOs": "macOS 26.6.2 (25G83) arm64",
+  "method": "Ordinary product app; both Mock flags false; minimal loopback HTTP ownership fixture serves authorized recorded BVH; actual file picker, native import/apply, production review and native save. Not production/live BFF auth/analysis/Hono/SQL.",
+  "recordedBvhProvenance": "Previously authorized 2026-10-31 staging selected-pose recording, reused offline via minimal loopback HTTP fixture. No new inference.",
+  "outputs": [
+    {
+      "model": "male-CS3C",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "outputSha256": "fd827d5fa720ff08b2aa328f3c15202eb689243f12c88511b3051ec4342e03f8",
+      "bytes": 2247788,
+      "candidateId": "recorded-source",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose.fbx"
+    },
+    {
+      "model": "male-CS3C",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "outputSha256": "d5b7453f3bbf4fa83aadccd53f32ee6fe10c0b42ba36e7e4bbf57d57849297d8",
+      "bytes": 2247884,
+      "candidateId": "recorded-yaw35",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            0.8191520442889918,
+            0,
+            0.573576436351046
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -0.573576436351046,
+            0,
+            0.8191520442889918
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose_v2.fbx"
+    },
+    {
+      "model": "female-FBX",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "outputSha256": "6d694a901a7eeca38a0fd3364fc9f1c28e1769bc647d0e19150647ca9598336b",
+      "bytes": 6110604,
+      "candidateId": "recorded-yaw35",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            0.8191520442889918,
+            0,
+            0.573576436351046
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -0.573576436351046,
+            0,
+            0.8191520442889918
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose_v3.fbx"
+    },
+    {
+      "model": "female-FBX",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "outputSha256": "80c1e94e5e4b1df5640c333a15f0001e5b4fdb73becc8980a533dac2f6a59462",
+      "bytes": 6110508,
+      "candidateId": "recorded-source",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose_v4.fbx"
+    }
+  ],
+  "cameraAudits": {
+    "male": {
+      "sourceSha256": "fd827d5fa720ff08b2aa328f3c15202eb689243f12c88511b3051ec4342e03f8",
+      "yaw35Sha256": "d5b7453f3bbf4fa83aadccd53f32ee6fe10c0b42ba36e7e4bbf57d57849297d8",
+      "meshCount": 1,
+      "vertices": 24988,
+      "maxRequestedRigidRotationErrorM": 1.0081161424865036e-06,
+      "hipsPivotErrorM": 2.4316897380064017e-07,
+      "thresholdM": 2e-05,
+      "pass": true,
+      "scope": "independent reimport camera rigid rotation; not deformation quality or CSP acceptance"
+    },
+    "female": {
+      "sourceSha256": "80c1e94e5e4b1df5640c333a15f0001e5b4fdb73becc8980a533dac2f6a59462",
+      "yaw35Sha256": "6d694a901a7eeca38a0fd3364fc9f1c28e1769bc647d0e19150647ca9598336b",
+      "meshCount": 1,
+      "vertices": 90143,
+      "maxRequestedRigidRotationErrorM": 7.957833959352189e-07,
+      "hipsPivotErrorM": 2.27380298563675e-07,
+      "thresholdM": 2e-05,
+      "pass": true,
+      "scope": "independent reimport camera rigid rotation; not deformation quality or CSP acceptance"
+    }
+  },
+  "checks": {
+    "frontend": {
+      "passed": 1418,
+      "skipped": 6,
+      "note": "Final run:187 test files passed,6 opt-in skipped;1418 tests passed,6 skipped. The new real HTTP opt-in was run separately and passed."
+    },
+    "typecheck": "pass",
+    "lint": "pass; one existing warning",
+    "webBuild": "pass",
+    "runtimePackaging": "4 pass; synthetic cross-target headers, not OS execution",
+    "localHttpFinalBvh": "pass; real HTTP owner/source/selection SHA, rejected stale selection and another owner, PUT revision",
+    "nativeUiSaves": "pass: four actual product review/save outputs",
+    "nativeLibraryRestart": "pass: app quit/reopened then both cards reused and inline rename saved",
+    "appBarSelection": "pass: app male -> bar female -> app female retained",
+    "uiDelete": "confirm/cancel pass; actual delete preserves output in platform native tests",
+    "sourcePreservation": "both original input hashes rechecked unchanged",
+    "selectedCamera": "pass only for fixture-controlled I/yaw35 matrices; real live fitted camera unverified",
+    "runtimeAfterUi": "6591 exact hash/file audit passed after actual conversion",
+    "CSP": "Latest ordinary app4: male identity/yaw35 crash; female identity/yaw35 display pass; actual Save As license-required; clip/reopen blocked. Separate CSP owner native evidence.",
+    "geometry": "not qualified; v10 unchanged",
+    "liveProductionBff": "unverified",
+    "Windows": "unverified actual runtime",
+    "IntelMac": "unverified actual runtime",
+    "savedOutputsAfterRestartRenameDeleteCancel": "pass: all four disk SHA unchanged"
+  },
+  "previewIncident": {
+    "observed": "one male source review revisit displayed preview failure while final FBX remained saveable; first male source/yaw35 and both female reviews rendered",
+    "reproducedConsistently": false,
+    "cause": "unverified",
+    "screenshot": "app-male-review-revisit-preview-failed.png",
+    "saveDoesNotCertifyPreviewReliability": true
+  },
+  "knownLimits": [
+    "one male preview revisit failure; initial source and yaw35 previews and both female previews rendered; no all-visits claim",
+    "base Top5 assets are absent in minimal HTTP fixture, so their render failure is expected and not certified",
+    "CSP/geometry remain unqualified",
+    "Windows/Intel actual runtime unverified",
+    "fixture yaw35 is controlled selected-camera transport, not a recovered production observation camera",
+    "source means explicit identity rotation, not prior baseline null camera",
+    "actual native command/IPC successes do not certify geometry or CSP"
+  ],
+  "screenshots": [
+    {
+      "file": "app-registered-cards.png",
+      "sha256": "0dbed95e21addfff88428aa0c61d607edd43b28369cf516fa2bf924adfa41c55"
+    },
+    {
+      "file": "app-male-source-review.png",
+      "sha256": "0fa19d448dd49f80489a2153e728b0e1e190bebee00cbd829846f10de357c6c8"
+    },
+    {
+      "file": "app-male-yaw35-review.png",
+      "sha256": "01cab3af649d4471268481608f6b04df7bfbbacbcb872f35c9518a33b6de5ec0"
+    },
+    {
+      "file": "app-female-yaw35-review.png",
+      "sha256": "3584e903dd89aee3cf1cb93805bc6474fd8d2c296c5d9f286c03c2d38f16a257"
+    },
+    {
+      "file": "app-four-saved-files.png",
+      "sha256": "eecdd60df9e9dda9c19d46f4fcdf7762d063f5a914bba7fc51522f152f72297b"
+    },
+    {
+      "file": "bar-female-selected.png",
+      "sha256": "655f88e4e58e67a3248b27f5afe522adf723a23450966d4284afe1eef1546472"
+    },
+    {
+      "file": "app-restarted-renamed-cards.png",
+      "sha256": "40bc7d0f56001766854130e696ca4b28427775e05c25b94ceb2b19ae8bf8c20a"
+    },
+    {
+      "file": "app-personal-large-registered-preview.png",
+      "sha256": "44ce1fc0ba655a1520a1b84512967bfa0db7809c76fe56b09c3fba55eeffbc0a"
+    },
+    {
+      "file": "app-male-review-revisit-preview-failed.png",
+      "sha256": "eacc6756ee848a3865db6809cec11dfde8732d9712c94cb8b950b084df7b0a9c"
+    }
+  ],
+  "constraints": {
+    "draft": true,
+    "featureEnabledByDefault": false,
+    "releaseReady": false,
+    "deploy": false,
+    "merge": false,
+    "newPaidCalls": false,
+    "rawModelsOrDecoderUploaded": false
+  },
+  "nativeLibraryVersions": [
+    {
+      "capabilities": {
+        "bodyPose": true,
+        "leftHand": false,
+        "rightHand": false
+      },
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254",
+      "converterVersion": "personal-converter/10",
+      "format": "cs3c",
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "sourceHash": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "version": 1
+    },
+    {
+      "capabilities": {
+        "bodyPose": true,
+        "leftHand": false,
+        "rightHand": false
+      },
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254",
+      "converterVersion": "personal-converter/10",
+      "format": "fbx",
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "sourceHash": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "version": 1
+    }
+  ],
+  "localHttpAudit": {
+    "requests": 135,
+    "finalBvhDeliveries": 18,
+    "privateInputRejectedOrDetected": 0,
+    "interactiveOperationRequests": 0,
+    "scope": "minimal fixture route/body-size observations; production replay filtering separately covered by regression tests; credentials and request bodies omitted"
+  }
+}

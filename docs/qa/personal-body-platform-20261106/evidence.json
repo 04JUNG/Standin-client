@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 1,
+  "dateKst": "2026-11-06",
+  "updatedAt": "2026-11-06T05:50:05.413519+00:00",
+  "role": "platforms",
+  "verdict": "macOS arm64 native runtime PASS within scope; Windows/Intel runtime UNVERIFIED; release not qualified",
+  "source": {
+    "clientPr": "https://github.com/04JUNG/Standin-client/pull/159",
+    "clientBaseline": "a473b525b76b7ea3917b56c81346ea9cf7742f1e",
+    "clientDevelop": "65a43657194f87f244075d6ba24fa76d9b71b703",
+    "connectionIntegration": "ae3224a3ab3d254658de5e6403d7007c41e25ecd",
+    "appSource": "7f3ff3565a424512b2f9eaed1baeb924a170cb0b",
+    "clientPackagingCommit": "ad149c4",
+    "serverPr": "https://github.com/04JUNG/Standin-server/pull/142",
+    "serverBaseline": "6a3296f552fbeb28a311e282331acb6217182cf2",
+    "serverDevelop": "d9e61df6d42a0ee65cfa7039e9c73f8305ce9df5",
+    "serverPackagingCommit": "49082929748175aca7289710813c572a9539169b"
+  },
+  "runtime": {
+    "version": "personal-converter/10",
+    "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+    "target": "darwin-arm64",
+    "releaseReady": false,
+    "versions": {
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "converterVersion": "personal-converter/10",
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254"
+    },
+    "manifestFiles": 6591,
+    "nativeBinaryInventory": {
+      "count": 195,
+      "allThinMachOArm64": true
+    },
+    "baselineAudit": {
+      "source": {
+        "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+        "files": 6591,
+        "extra": 0,
+        "changed": 0,
+        "target": "darwin-arm64",
+        "releaseReady": false,
+        "architecture": "Mach-O arm64: Blender and Python",
+        "status": "PASS"
+      },
+      "resources": {
+        "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+        "files": 6591,
+        "extra": 0,
+        "changed": 0,
+        "target": "darwin-arm64",
+        "releaseReady": false,
+        "architecture": "Mach-O arm64: Blender and Python",
+        "status": "PASS"
+      },
+      "app": {
+        "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+        "files": 6591,
+        "extra": 0,
+        "changed": 0,
+        "target": "darwin-arm64",
+        "releaseReady": false,
+        "architecture": "Mach-O arm64: Blender and Python",
+        "status": "PASS"
+      }
+    },
+    "newRuntimeAdopted": false,
+    "startupHardening": "Server source handoff only; requires new immutable version/manifest/fingerprint. Existing v10 entry is unchanged and does not include new exact-file/host-arch checks."
+  },
+  "targets": [
+    {
+      "target": "darwin-arm64",
+      "actualHost": "macOS26.6.2 arm64 Darwin25.6.0",
+      "build": "PASS: two debug QA .apps",
+      "packagedRuntime": "PASS: actual FBX and original CS3C",
+      "scope": "Rust native adapter and relocated public IPC with offline recorded pose; not product UI/live BFF/CSP",
+      "signing": "UNVERIFIED for release"
+    },
+    {
+      "target": "darwin-x64",
+      "actualHost": null,
+      "build": "UNVERIFIED in this follow-up; synthetic layout/native-header checks PASS",
+      "packagedRuntime": "UNVERIFIED: no target-specific pinned runtime or accessible Intel host",
+      "signing": "UNVERIFIED"
+    },
+    {
+      "target": "windows-x64",
+      "actualHost": "Historical PR159 CI: Windows Server2025 10.0.26100 AMD64",
+      "build": "PASS historical Rust compile/clippy/unit only; current patch final CI belongs to publisher",
+      "packagedRuntime": "UNVERIFIED: all five opt-in runtime tests ignored in historical job; no Windows pin/approved fixture execution",
+      "signing": "UNVERIFIED for personal runtime"
+    }
+  ],
+  "equipmentAvailability": {
+    "currentLocalHost": "macOS arm64",
+    "connectedProjectInventory": "Only local host projects exposed; no remote Windows/Intel host discovered",
+    "existingCi": "GitHub hosted Windows and arm64 jobs available through existing PR checks; earlier Intel updater CI is unrelated to personal converter",
+    "newMachinesOrPaidServicesProvisioned": false,
+    "crossCompile": "Not run: only aarch64-apple-darwin installed, and no Windows/Intel pinned runtime; synthetic headers are not cross-compile or native runtime evidence"
+  },
+  "apps": [
+    {
+      "name": "Standin Personal Platform QA 20261106",
+      "binarySha256": "91bf47b624514a7d70d42d382b570c44b1787412074f04caf450c42eb87ecb1d",
+      "files": 6595,
+      "treeSha256": "c89acce1153f6123feb84a0bc9738a438586ac2ba6ee32334758cb694405a0ff",
+      "identifier": "app.standin.desktop.personal-platform-qa-20261106",
+      "version": "0.2.3",
+      "architecture": "Mach-O 64-bit executable arm64",
+      "environment": {
+        "VITE_API_BASE_URL": "http://localhost:8000",
+        "VITE_USE_MOCK_API": "true",
+        "VITE_USE_MOCK_POSE_API": "true",
+        "VITE_APP_ENV": "development"
+      },
+      "configSha256": "8215c4c7720a3a9958c19dc44d5bff42db91e71718bb9e93e17b69ffe537589d",
+      "updaterEndpoints": [],
+      "signing": "local debug; no signing/notarization qualification",
+      "runtime": {
+        "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+        "files": 6591,
+        "changed": 0,
+        "extra": 0,
+        "target": "darwin-arm64",
+        "releaseReady": false,
+        "status": "PASS exact files/hash/native architecture"
+      }
+    },
+    {
+      "name": "Standin Personal Connection QA 20261106",
+      "binarySha256": "7af1288f9f2b6fbcf3d22042070405079712d503ddcc4b56bda096f316f63d6a",
+      "files": 6595,
+      "treeSha256": "af7486b8f1ff8b306ea4378a03e447cded1350ca159126d78cd96da880806b39",
+      "identifier": "app.standin.desktop.personal-connection-qa-20261106",
+      "version": "0.2.3",
+      "architecture": "Mach-O 64-bit executable arm64",
+      "environment": {
+        "VITE_API_BASE_URL": "http://localhost:8000",
+        "VITE_USE_MOCK_API": "false",
+        "VITE_USE_MOCK_POSE_API": "false",
+        "VITE_INTERACTIVE_POSE_PREVIEW": "true",
+        "VITE_APP_ENV": "development"
+      },
+      "configSha256": "56ed3468953db2a66e27337fd6a60b4dcff717d7c667a952a441ebc08618325e",
+      "updaterEndpoints": [],
+      "signing": "local debug; no signing/notarization qualification",
+      "runtime": {
+        "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+        "files": 6591,
+        "changed": 0,
+        "extra": 0,
+        "target": "darwin-arm64",
+        "releaseReady": false,
+        "status": "PASS exact files/hash/native architecture"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "label": "여성 원본.fbx",
+      "sha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f"
+    },
+    {
+      "label": "선택 포즈.bvh",
+      "sha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6"
+    },
+    {
+      "label": "남성 원본.cs3c",
+      "sha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c"
+    }
+  ],
+  "nativeAdapter": {
+    "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "arch": "arm64",
+    "adapterSourceCommit": "a473b525b76b7ea3917b56c81346ea9cf7742f1e",
+    "scope": "Rust native adapter; offline recorded pose; no product UI or live BFF; Korean/space TMPDIR/input/resource/output paths; inherited invalid Python/Blender settings",
+    "tests": [
+      {
+        "test": "real_packaged_worker_import_apply_export_restart_delete",
+        "returncode": 0,
+        "status": "PASS",
+        "seconds": 57.26094229199225,
+        "output": "female-native.fbx",
+        "outputSha256": "174cfd0b1d141402f0e2174053bc47688d6ff223093f3b255059d00694fbfb7f"
+      },
+      {
+        "test": "real_packaged_worker_with_decoder_imports_original_cs3c",
+        "returncode": 0,
+        "status": "PASS",
+        "seconds": 29.66178458300419,
+        "output": "male-native.fbx",
+        "outputSha256": "cb23f7054e06c1b0b762ef40fbaa758d1907ac79859566ec9595941ab576cc0b"
+      },
+      {
+        "test": "real_packaged_worker_cancel_does_not_publish_model",
+        "returncode": 0,
+        "status": "PASS",
+        "seconds": 8.76305616699392,
+        "output": null
+      }
+    ]
+  },
+  "relocatedRuntime": {
+    "startupSeconds": 10.703711333975662,
+    "restartReusePassed": true,
+    "staleSnapshotRejected": true,
+    "changedPoseRejected": true,
+    "noOverwritePassed": true,
+    "activeCancellationPassed": true,
+    "eofCancellationPassed": true,
+    "deletePreservesExportsPassed": true,
+    "cs3cConversionPassed": true,
+    "allPassed": true,
+    "packageIntegrityAfterRepeatedStarts": {
+      "manifestFiles": 6591,
+      "changed": 0,
+      "extra": 0
+    },
+    "copiedWithoutPreservingTimestamps": true
+  },
+  "relocatedOutputs": [
+    {
+      "fileLabel": "export-0.fbx",
+      "sha256": "9b086b5d116af7a7399bfd2e0204e8913acf29130ccf205dff3b0f057bf7ab3c",
+      "bytes": 6110508
+    },
+    {
+      "fileLabel": "additional-cs3c.fbx",
+      "sha256": "c9b7f051f7262b05f9bdc8123ad8f2ed854d321c3b2539e17394a2a1fc6fca7d",
+      "bytes": 2247788
+    }
+  ],
+  "pathCoverage": [
+    "app resource path contains spaces",
+    "input FBX/CS3C/BVH paths contain Korean and spaces",
+    "native TMPDIR/storage/export paths contain Korean and spaces",
+    "entire runtime relocated without preserving timestamps to Korean/space path"
+  ],
+  "isolation": "Actual Rust adapter run inherited invalid PYTHONHOME/PYTHONPATH/BLENDER_USER_SCRIPTS; bundled isolated Python and Blender completed. App data root itself is Tauri platform API + personal-body-v1; product UI/appdata test belongs to connection owner. Windows LocalAppData path is static inspection only.",
+  "tests": {
+    "clientPackaging": {
+      "passed": 4,
+      "scope": "synthetic Mach-O/PE headers; not execution"
+    },
+    "nativeUnits": {
+      "passed": 5,
+      "ignored": 5
+    },
+    "nativeOptInActual": {
+      "passed": 3
+    },
+    "serverLocal": {
+      "collected": 26,
+      "passed": 22,
+      "skipped": 4
+    },
+    "serverSmoke": {
+      "passed": 54,
+      "environment": "existing project .venv; system Python attempt lacked pydantic"
+    },
+    "processBoundary": "PASS: real POSIX children cancelled/killed on cancellation, timeout, memory limit; storage lock isolation; Windows runtime behavior UNVERIFIED",
+    "compileall": "PASS",
+    "clippyMerged": "PASS -D warnings",
+    "diffCheck": "PASS"
+  },
+  "failedAttempts": [
+    {
+      "scope": "restricted sandbox actual female import",
+      "status": "FAIL: CONVERSION_FAILED at import; no model saved",
+      "resolution": "same actual test passed after authorized local process execution outside sandbox; logs retained separately",
+      "productBugEstablished": false
+    },
+    {
+      "scope": "system Python smoke runner",
+      "status": "environment failure: missing pydantic",
+      "resolution": "54/54 passed with existing project .venv; no new installation"
+    }
+  ],
+  "historicalCi": {
+    "prHead": "a473b525b76b7ea3917b56c81346ea9cf7742f1e",
+    "runId": 41952084112,
+    "url": "https://github.com/04JUNG/Standin-client/actions/runs/41952084112",
+    "jobs": [
+      {
+        "jobId": 126998159267,
+        "selected": [
+          "2026-11-05T01:58:40.7027185Z ##[group]Operating System\r",
+          "2026-11-05T01:58:40.7027895Z Microsoft Windows Server 2025\r",
+          "2026-11-05T01:58:40.7028541Z 10.0.26100\r",
+          "2026-11-05T01:58:59.2170982Z host: x86_64-pc-windows-msvc\r",
+          "2026-11-05T02:00:51.5241535Z test commands::personal_body::tests::real_packaged_worker_cancel_does_not_publish_model ... ignored, Requires real packaged runtime and a permitted FBX via STANDIN_TEST_*; tests child cancellation/cleanup\r",
+          "2026-11-05T02:00:51.5243637Z test commands::personal_body::tests::real_packaged_worker_import_apply_export_restart_delete ... ignored, Requires packaged runtime and permitted FBX/BVH fixtures via STANDIN_TEST_*; executes the real native NDJSON adapter\r",
+          "2026-11-05T02:00:51.5245076Z test commands::personal_body::tests::real_packaged_worker_with_decoder_imports_original_cs3c ... ignored, Requires decoder-enabled packaged runtime, permitted original CS3C and BVH\r",
+          "2026-11-05T02:00:51.5246495Z test commands::personal_body::tests::real_packaged_worker_without_decoder_rejects_cs3c ... ignored, Requires packaged runtime and actual CS3C fixture via STANDIN_TEST_*; unsupported format must not publish a model\r",
+          "2026-11-05T02:00:51.5351826Z test commands::personal_body::worker::tests::real_packaged_runtime_reuse_timing ... ignored, Requires an actual pinned packaged runtime; measures native retained-host IPC\r",
+          "2026-11-05T02:00:51.5901114Z test result: ok. 18 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.09s\r",
+          "2026-11-05T02:00:51.6061644Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\r",
+          "2026-11-05T02:00:52.8511345Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\r"
+        ]
+      },
+      {
+        "jobId": 126998158920,
+        "selected": [
+          "2026-11-05T01:58:39.4733740Z ##[group]Operating System",
+          "2026-11-05T01:58:39.4736570Z Image: macos-26-arm64",
+          "2026-11-05T01:58:47.0238820Z host: aarch64-apple-darwin",
+          "2026-11-05T01:59:38.7073400Z test commands::personal_body::tests::real_packaged_worker_cancel_does_not_publish_model ... ignored, Requires real packaged runtime and a permitted FBX via STANDIN_TEST_*; tests child cancellation/cleanup",
+          "2026-11-05T01:59:38.7074840Z test commands::personal_body::tests::real_packaged_worker_import_apply_export_restart_delete ... ignored, Requires packaged runtime and permitted FBX/BVH fixtures via STANDIN_TEST_*; executes the real native NDJSON adapter",
+          "2026-11-05T01:59:38.7076410Z test commands::personal_body::tests::real_packaged_worker_with_decoder_imports_original_cs3c ... ignored, Requires decoder-enabled packaged runtime, permitted original CS3C and BVH",
+          "2026-11-05T01:59:38.7084150Z test commands::personal_body::tests::real_packaged_worker_without_decoder_rejects_cs3c ... ignored, Requires packaged runtime and actual CS3C fixture via STANDIN_TEST_*; unsupported format must not publish a model",
+          "2026-11-05T01:59:38.7087400Z test commands::personal_body::worker::tests::real_packaged_runtime_reuse_timing ... ignored, Requires an actual pinned packaged runtime; measures native retained-host IPC",
+          "2026-11-05T01:59:39.4531170Z test result: ok. 19 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 0.73s",
+          "2026-11-05T01:59:39.4691150Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "2026-11-05T01:59:40.0397690Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ]
+      }
+    ],
+    "scope": "Historical PR CI compile/unit only; 5 packaged runtime tests ignored in both jobs. macos runner is arm64, not Intel. No new private assets uploaded or new jobs dispatched."
+  },
+  "knownLimits": [
+    "No geometry-quality qualification: existing v10 female stretch and other defects remain; no solver/safety gate changes.",
+    "Missing-decoder actual run not performed against decoder-enabled v10; synthetic missing-file/hash and existing decoder parser gates remain separate.",
+    "No Windows/Intel private model/decoder/runtime upload; no actual target OS converter execution.",
+    "No live BFF, CSP import/joint/.clip save/reopen acceptance claimed here.",
+    "Release signing/notarization, Blender corresponding source/notices delivery, decoder redistribution remain open.",
+    "New server entry guards are source handoff only and require a new immutable runtime before execution acceptance."
+  ],
+  "handoff": {
+    "clientBranch": "codex/personal-body-platform-qa-20261106",
+    "clientPackagingCommit": "ad149c4",
+    "serverBranch": "codex/personal-body-platform-audit-20261106",
+    "serverCommit": "49082929748175aca7289710813c572a9539169b",
+    "publishers": {
+      "client": "01a1af5c-699e-73b2-95c2-51eb4e8fbe9f",
+      "server": "01a1a798-edac-7283-8aa4-78e64b8c56c9"
+    },
+    "directPrPushByPlatform": false
+  },
+  "constraints": {
+    "draft": true,
+    "enabledByDefault": false,
+    "releaseReady": false,
+    "deployment": false,
+    "merge": false,
+    "forcePush": false,
+    "signingKeyChanges": false,
+    "newPaidCalls": false,
+    "privateAssetsUploaded": false
+  }
+}

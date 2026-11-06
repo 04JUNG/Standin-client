@@ -52,6 +52,7 @@ export function SavePage() {
     returnToReview,
     folder,
     format,
+    hasLocal,
     formatDowngraded,
     characterName,
     requestedCharacterName,
@@ -84,7 +85,7 @@ export function SavePage() {
   // 이미 저장한 포맷의 반대. FBX를 못 주는 서버에서는 FBX를 권하지 않는다 — 눌러도
   // 실패할 버튼을 보여주는 건 안내가 아니라 함정이다.
   const alternateFormat = format === "fbx" ? "bvh" : "fbx";
-  const canSaveAlternate = alternateFormat === "bvh" || serverSupportsFbx;
+  const canSaveAlternate = !hasLocal && (alternateFormat === "bvh" || serverSupportsFbx);
 
   function handleNewScene() {
     newScene();
@@ -243,14 +244,20 @@ export function SavePage() {
                 </p>
               )}
               {formatDowngraded && (
-                <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
+                <p
+                  data-replay-private
+                  className="flex items-start gap-1.5 text-[12px] text-text-secondary"
+                >
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   지금은 FBX로 저장할 수 없어 BVH로 저장했어요. BVH에는 체형·손 모양 없이 동작만
                   들어가요.
                 </p>
               )}
               {modelNotice && (
-                <p className="flex items-start gap-1.5 text-[12px] text-text-secondary">
+                <p
+                  data-replay-private
+                  className="flex items-start gap-1.5 text-[12px] text-text-secondary"
+                >
                   {modelNotice.isDowngrade && (
                     <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                   )}

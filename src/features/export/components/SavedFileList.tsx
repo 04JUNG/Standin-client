@@ -71,7 +71,7 @@ export function SavedFileList({ paths, onCopy, dense = false }: Props) {
 
   return (
     <div className="flex flex-col gap-1">
-      <ul className={cn("flex flex-col", dense ? "gap-1" : "gap-1.5")}>
+      <ul data-replay-private className={cn("flex flex-col", dense ? "gap-1" : "gap-1.5")}>
         {paths.map((path) => {
           const copied = copiedPath === path;
           const failed = failedPath === path;

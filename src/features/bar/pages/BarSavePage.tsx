@@ -206,7 +206,9 @@ export function BarSavePage() {
               </p>
             )}
             {modelNotice && (
-              <p className="shrink-0 text-[10px] text-text-secondary">{modelNotice.text}</p>
+              <p data-replay-private className="shrink-0 text-[10px] text-text-secondary">
+                {modelNotice.text}
+              </p>
             )}
 
             <div className="min-h-0 flex-1 overflow-auto">

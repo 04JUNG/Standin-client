@@ -1,0 +1,297 @@
+{
+  "schemaVersion": 1,
+  "dateKst": "2026-11-06",
+  "stage": "current-merged-app-v10-real-local-http-native-ui-saves",
+  "os": {
+    "name": "macOS",
+    "version": "26.6.2",
+    "build": "25G83",
+    "arch": "arm64"
+  },
+  "csp": {
+    "version": "5.1.1",
+    "binarySha256": "40ff5d9a8519e9d9a09187f6a36f40f42a99745f6d2c4b981478fa0632d122c6",
+    "bundleId": "jp.co.celsys.CLIPSTUDIOPAINT",
+    "mode": "drawing trial; existing license unchanged"
+  },
+  "client": {
+    "pr": "https://github.com/04JUNG/Standin-client/pull/159",
+    "sourceCommit": "7f3ff3565a424512b2f9eaed1baeb924a170cb0b",
+    "connectionIntegrationCommit": "ae3224a3ab3d254658de5e6403d7007c41e25ecd",
+    "app": {
+      "binarySha256": "7af1288f9f2b6fbcf3d22042070405079712d503ddcc4b56bda096f316f63d6a",
+      "treeSha256": "af7486b8f1ff8b306ea4378a03e447cded1350ca159126d78cd96da880806b39",
+      "identifier": "app.standin.desktop.personal-connection-qa-20261106",
+      "architecture": "Mach-O 64-bit executable arm64",
+      "version": "0.2.3",
+      "environment": {
+        "VITE_API_BASE_URL": "http://localhost:8000",
+        "VITE_USE_MOCK_API": "false",
+        "VITE_USE_MOCK_POSE_API": "false",
+        "VITE_INTERACTIVE_POSE_PREVIEW": "true",
+        "VITE_APP_ENV": "development"
+      },
+      "configSha256": "56ed3468953db2a66e27337fd6a60b4dcff717d7c667a952a441ebc08618325e",
+      "signing": "local debug; no signing/notarization qualification"
+    }
+  },
+  "runtime": {
+    "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+    "files": 6591,
+    "changed": 0,
+    "extra": 0,
+    "target": "darwin-arm64",
+    "releaseReady": false,
+    "status": "PASS exact files/hash/native architecture"
+  },
+  "provenance": "Ordinary product app; both Mock flags false; minimal loopback HTTP ownership fixture serves authorized recorded BVH; actual file picker, native import/apply, production review and native save. Not production/live BFF auth/analysis/Hono/SQL.",
+  "cameraScope": "source is explicit identity; yaw35 is loopback fixture candidate observation, not live production search camera",
+  "hashProvenance": {
+    "sourceAndBvh": "prior owner manifests; originals not rehashed by CSP operator",
+    "importedFbxAndAppBinary": "independently rehashed before/after native checks",
+    "runtime": "immutable manifest pin rehashed; full tree audit supplied by connection/platform owner",
+    "crash": "raw logs retained only in local shared folder; JSON contains sanitized observations"
+  },
+  "cases": [
+    {
+      "id": "male-source",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose.fbx",
+      "sha256": "fd827d5fa720ff08b2aa328f3c15202eb689243f12c88511b3051ec4342e03f8",
+      "bytes": 2247788,
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "candidateId": "recorded-source",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "importResult": "fail",
+      "appearance": "CSP quit before model displayed",
+      "geometryQuality": "not_qualified",
+      "clipSave": "blocked-license; actual latest female source Save As retried",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: canvas coordinate API noWindowsAvailable in baseline; unchanged CSP environment",
+      "crash": {
+        "file": "CLIP STUDIO PAINT-2026-11-06-150108.ips",
+        "sha256": "64e4629d2d87b783c1bccfa4a207d06563b5586ac1240a2d4d3d9e7ca35af1c0",
+        "captureTime": "2026-11-06 15:01:05.9371 +0900",
+        "appVersion": "5.1.1",
+        "cpuType": "ARM-64",
+        "translated": false,
+        "exception": "EXC_BAD_ACCESS",
+        "signal": "SIGSEGV",
+        "message": "Thread stack size exceeded due to excessive recursion",
+        "faultingThread": 0,
+        "topImageOffsets": [
+          30123520,
+          30874856,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30873424,
+          30423580
+        ]
+      }
+    },
+    {
+      "id": "male-yaw35",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose_v2.fbx",
+      "sha256": "d5b7453f3bbf4fa83aadccd53f32ee6fe10c0b42ba36e7e4bbf57d57849297d8",
+      "bytes": 2247884,
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "candidateId": "recorded-yaw35",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            0.8191520442889918,
+            0,
+            0.573576436351046
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -0.573576436351046,
+            0,
+            0.8191520442889918
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "importResult": "fail",
+      "appearance": "CSP quit before model displayed",
+      "geometryQuality": "not_qualified",
+      "clipSave": "blocked-license; actual latest female source Save As retried",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: canvas coordinate API noWindowsAvailable in baseline; unchanged CSP environment",
+      "crash": {
+        "file": "CLIP STUDIO PAINT-2026-11-06-150152.ips",
+        "sha256": "f63f2a843f91178b5c4e4fa6d4770b3526f5138713636429b921dbbc32bf0e77",
+        "captureTime": "2026-11-06 15:01:49.5296 +0900",
+        "appVersion": "5.1.1",
+        "cpuType": "ARM-64",
+        "translated": false,
+        "exception": "EXC_BAD_ACCESS",
+        "signal": "SIGSEGV",
+        "message": "Thread stack size exceeded due to excessive recursion",
+        "faultingThread": 0,
+        "topImageOffsets": [
+          30123520,
+          30874856,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30875312,
+          30873424,
+          30423580
+        ]
+      }
+    },
+    {
+      "id": "female-yaw35",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose_v3.fbx",
+      "sha256": "6d694a901a7eeca38a0fd3364fc9f1c28e1769bc647d0e19150647ca9598336b",
+      "bytes": 6110604,
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "candidateId": "recorded-yaw35",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            0.8191520442889918,
+            0,
+            0.573576436351046
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            -0.573576436351046,
+            0,
+            0.8191520442889918
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "importResult": "pass",
+      "appearance": "posed seated gray mesh visible; source/yaw35 direction difference visible",
+      "geometryQuality": "not_qualified",
+      "clipSave": "blocked-license; actual latest female source Save As retried",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: canvas coordinate API noWindowsAvailable in baseline; unchanged CSP environment"
+    },
+    {
+      "id": "female-source",
+      "file": "standin_job_personal_connection_v10_local_fixture_standin_pose_v4.fbx",
+      "sha256": "80c1e94e5e4b1df5640c333a15f0001e5b4fdb73becc8980a533dac2f6a59462",
+      "bytes": 6110508,
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "candidateId": "recorded-source",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+        "rotation": [
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "nativeProductUiSave": "pass",
+      "fileSelection": "pass: exact filename preview and enabled Open confirmed",
+      "importResult": "pass",
+      "appearance": "posed seated gray mesh visible; source/yaw35 direction difference visible",
+      "geometryQuality": "not_qualified",
+      "clipSave": "blocked-license; actual latest female source Save As retried",
+      "reopen": "unverified-no-clip",
+      "jointRearticulation": "outside-current-FBX-support-contract",
+      "objectManipulation": "unverified: canvas coordinate API noWindowsAvailable in baseline; unchanged CSP environment"
+    }
+  ],
+  "results": {
+    "total": 4,
+    "importDisplayPass": 2,
+    "crashFail": 2,
+    "geometryQuality": "not_qualified",
+    "cameraCausality": "not_established",
+    "clipSave": "blocked: latest female source actual Save As license acquisition/registration required; No selected",
+    "reopen": "unverified-no-clip",
+    "liveBff": "unverified; authorized recorded BVH over loopback controlled fixture"
+  },
+  "screenshots": [
+    {
+      "file": "csp-current-app-female-source.png",
+      "sha256": "9d4d1f3e70afd431614094788403d318ecf8d7ddbffe7da0a668ed9e81dac4c6",
+      "storage": "repository representative and local shared"
+    },
+    {
+      "file": "csp-current-app-female-yaw35.png",
+      "sha256": "919ff428203a2846d3a7ffe739151d3d0684bd7f4f02b8b4fd078fc616d47cd3",
+      "storage": "repository representative and local shared"
+    },
+    {
+      "file": "csp-current-app-save-blocked.png",
+      "sha256": "0dc9eefec7bae2879abe27c67129b9f58a7ecf07934e5712336446ae70f031a9",
+      "storage": "local shared only"
+    }
+  ],
+  "constraints": {
+    "draft": true,
+    "defaultOff": true,
+    "releaseReady": false,
+    "productionOrStagingDeployment": false,
+    "prMerge": false,
+    "remotePush": false,
+    "rawModelsOrCrashLogsCommitted": false
+  }
+}

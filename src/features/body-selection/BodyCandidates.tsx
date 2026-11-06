@@ -1,3 +1,6 @@
+import { personalDeformeEnabled } from "@/features/personal-body/config";
+import { PersonalDeformCards } from "@/features/personal-body/PersonalDeformCards";
+import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import {
   featureAction,
   useFeatureView,
@@ -20,9 +23,10 @@ import { useBodyControls, type BodyEntry } from "./hooks";
 import {
   BODY_KIND_LABEL,
   bodyKind,
+  useBodyPanel,
+  useBodyCategory,
   bodyRoleLabel,
   sortBodyLooks,
-  useBodyPanel,
   type BodyKind,
 } from "./bodyPanel";
 import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
@@ -67,6 +71,9 @@ function useBodyName(job: string, person: Pick<PersonResult, "index">, selection
 
 /** 인물 줄에 적을 체형: 내 체형 카드와 같으면 카드 이름, 아니면 체형 이름(+ 수정). */
 function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selection?: BodySelection) {
+  const local = useLocalBodies((s) =>
+    s.models.find((m) => m.localModelId === s.selected[localSelectionKey(job, person.index)]),
+  );
   const { options } = useBodyControls(job, person, selection);
   const name = useBodyName(job, person, selection);
   const cards = cardsOf(useBodyPreferences().data);
@@ -74,8 +81,8 @@ function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selectio
   const spec = options.data?.characters.find((c) => c.characterId === id)?.shape;
   const card = matchCard(cards, id, selection?.shape?.controls ?? null, spec);
   return {
-    source: sourceLabel(selection, card),
-    title: card ? card.name : `${name(id)}${selection?.shape ? " 수정" : ""}`,
+    source: local ? "내 데포르메" : sourceLabel(selection, card),
+    title: local ? local.name : card ? card.name : `${name(id)}${selection?.shape ? " 수정" : ""}`,
   };
 }
 
@@ -108,7 +115,9 @@ export function BodyChip({
       )}
     >
       <span className="shrink-0 text-text-secondary">{source}</span>
-      <strong className="truncate font-semibold text-text-primary">{title}</strong>
+      <strong data-replay-private className="truncate font-semibold text-text-primary">
+        {title}
+      </strong>
       {/* 포즈 | 체형 더보기. 코랄 바탕이 고른 쪽으로 미끄러진다. 열고 닫는 버튼을 따로 두지 않는다. */}
       <span
         role="group"
@@ -166,7 +175,10 @@ export function BodyLabel({
   const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span className="truncate text-[12px] text-text-secondary">
-      {source} · <span className="font-semibold text-text-primary">{title}</span>
+      {source} ·{" "}
+      <span data-replay-private className="font-semibold text-text-primary">
+        {title}
+      </span>
     </span>
   );
 }
@@ -295,6 +307,8 @@ export function BodyExpand({
   variant: "bar" | "app";
   hideLivePreview?: boolean;
 }) {
+  const localSelected = useLocalBodies((s) => s.selected[localSelectionKey(job, person.index)]);
+  const clearLocal = () => useLocalBodies.getState().select(localSelectionKey(job, person.index));
   const selection = entry?.selection;
   useFeatureView("body_selection", !!selection, "open", job, String(person.index));
   const { options, mutation } = useBodyControls(job, person, selection);
@@ -307,8 +321,9 @@ export function BodyExpand({
   const kinds = (["male", "female", "child"] as const).filter((k) =>
     characters.some((c) => bodyKind(c) === k),
   );
-  const [kindView, setKindView] = useState<BodyKind | null>(null);
-  const kind: BodyKind = kindView ?? (current ? bodyKind(current) : (kinds[0] ?? "male"));
+  const { kindView, setKindView } = useBodyCategory(job, person.index);
+  const kind: BodyKind | "personal" =
+    kindView ?? (localSelected ? "personal" : current ? bodyKind(current) : (kinds[0] ?? "male"));
   const visible = characters.filter((c) => bodyKind(c) === kind);
 
   /* ---- 수치 조절: 손을 뗀 뒤 0.6초 쉬면 저장. 저장 중이면 끝난 뒤 마지막 값을 보낸다. */
@@ -326,10 +341,15 @@ export function BodyExpand({
     setDraft(null);
     latest.current = null;
     clearTimeout(timer.current);
-  }, [currentId]);
+  }, [currentId, localSelected]);
   useEffect(() => () => clearTimeout(timer.current), []);
   function sendShape() {
-    if (!currentId || !latest.current) return;
+    if (
+      !currentId ||
+      !latest.current ||
+      useLocalBodies.getState().selected[localSelectionKey(job, person.index)]
+    )
+      return;
     if (pendingRef.current) {
       setFlush(true);
       return;
@@ -386,7 +406,9 @@ export function BodyExpand({
   });
   function applyCard(card: BodyCard) {
     const base = baseOf(card);
-    if (busy || !base?.selectable || !base.shape || card === currentCard) return;
+    if (busy || !base?.selectable || !base.shape || (!localSelected && card === currentCard))
+      return;
+    clearLocal();
     setKindView(null);
     featureAction("body_custom", "selected", job, { personIndex: person.index });
     mutation.mutate(
@@ -404,6 +426,7 @@ export function BodyExpand({
   }
   function pick(option: BodyOption) {
     if (busy || !option.selectable) return;
+    clearLocal();
     if (option.characterId === currentId && !selection?.shape) return;
     featureAction("body_selection", "selected", job, { personIndex: person.index });
     mutation.mutate(
@@ -447,12 +470,19 @@ export function BodyExpand({
             aria-label="체형 종류"
             className="inline-flex rounded-full border border-border bg-surface-0 p-0.5"
           >
-            {(["male", "female", "child"] as const).map((k) => (
+            {(
+              [
+                "male",
+                "female",
+                "child",
+                ...(personalDeformeEnabled() ? ["personal" as const] : []),
+              ] as const
+            ).map((k) => (
               <button
                 key={k}
                 type="button"
                 aria-pressed={kind === k}
-                disabled={!kinds.includes(k)}
+                disabled={k !== "personal" && !kinds.includes(k)}
                 onClick={() => setKindView(k)}
                 className={cn(
                   "rounded-full px-3.5 py-0.5 text-[12px] font-semibold transition-colors",
@@ -463,7 +493,7 @@ export function BodyExpand({
                     : "text-text-secondary hover:text-text-primary",
                 )}
               >
-                {BODY_KIND_LABEL[k]}
+                {k === "personal" ? "내 데포르메" : BODY_KIND_LABEL[k]}
               </button>
             ))}
           </div>
@@ -472,7 +502,9 @@ export function BodyExpand({
       </div>
 
       {/* 내 체형(왼쪽, 실시간) | 프리셋(오른쪽, 고정) */}
-      {options.isError ? (
+      {kind === "personal" ? (
+        <PersonalDeformCards job={job} person={person.index} variant={variant} />
+      ) : options.isError ? (
         <div className="flex items-center gap-2 text-[12px] text-text-secondary" role="alert">
           체형 목록을 불러오지 못했습니다.
           <Button variant="secondary" size="sm" onClick={() => void options.refetch()}>
@@ -486,7 +518,7 @@ export function BodyExpand({
       ) : (
         <div className="flex min-w-0 shrink-0 items-stretch gap-2">
           {/* 왼쪽: 지금 고른 체형. 조절 바를 움직이면 여기만 다시 그린다. */}
-          {!hideLivePreview && (
+          {!localSelected && !hideLivePreview && (
             <LiveBodyView
               option={current}
               name={currentCard?.name ?? name(currentId)}
@@ -521,7 +553,7 @@ export function BodyExpand({
             >
               {visibleCards.map((card) => {
                 const base = baseOf(card)!;
-                const on = card === currentCard;
+                const on = !localSelected && card === currentCard;
                 return (
                   <button
                     type="button"
@@ -578,7 +610,7 @@ export function BodyExpand({
                 <span aria-hidden className="mx-0.5 w-px shrink-0 self-stretch bg-border" />
               )}
               {visible.map((option) => {
-                const on = option.characterId === currentId && !currentCard;
+                const on = !localSelected && option.characterId === currentId && !currentCard;
                 return (
                   <button
                     type="button"
@@ -632,85 +664,88 @@ export function BodyExpand({
         </div>
       )}
 
-      {selectionFallbackMessage(selection) && (
+      {!localSelected && kind !== "personal" && selectionFallbackMessage(selection) && (
         <p role="status" className="text-[11.5px] text-text-secondary">
           {selectionFallbackMessage(selection)}
         </p>
       )}
 
       {/* 조절 바 */}
-      <div className="flex shrink-0 flex-col gap-1.5 rounded-xl border border-border bg-surface-0 px-2.5 py-2">
-        <div className="flex items-center justify-between gap-2 text-[11.5px] text-text-secondary">
-          <span className="truncate">
-            체형 조절 ·{" "}
-            <strong className="text-text-primary">
-              {currentCard
-                ? currentCard.name
-                : `${name(currentId)}${selection?.shape || draft ? " 수정" : ""}`}
-            </strong>
-            {currentCard && (
-              <span className="ml-1.5 inline-flex items-center rounded-full bg-brand-ink/10 px-1.5 text-[10px] font-semibold text-brand-ink">
-                내 체형
+      {kind !== "personal" && !localSelected && (
+        <div className="flex shrink-0 flex-col gap-1.5 rounded-xl border border-border bg-surface-0 px-2.5 py-2">
+          <div className="flex items-center justify-between gap-2 text-[11.5px] text-text-secondary">
+            <span className="truncate">
+              체형 조절 ·{" "}
+              <strong className="text-text-primary">
+                {currentCard
+                  ? currentCard.name
+                  : `${name(currentId)}${selection?.shape || draft ? " 수정" : ""}`}
+              </strong>
+              {currentCard && (
+                <span className="ml-1.5 inline-flex items-center rounded-full bg-brand-ink/10 px-1.5 text-[10px] font-semibold text-brand-ink">
+                  내 체형
+                </span>
+              )}
+            </span>
+            {spec && status && <span aria-live="polite">{status}</span>}
+          </div>
+          {spec ? (
+            <>
+              <ShapeControlGrid
+                spec={spec}
+                values={values}
+                onChange={changeControl}
+                idPrefix={`shape-${person.index}`}
+                disabled={!selection || !!localSelected}
+                detailColumns={variant === "bar" ? 3 : 4}
+              />
+            </>
+          ) : (
+            <p className="text-[11.5px] text-text-secondary">
+              {current && bodyKind(current) !== "male"
+                ? `${BODY_KIND_LABEL[bodyKind(current)]} 체형은 아직 수치로 조절할 수 없어요 · 고정 체형`
+                : "이 체형은 아직 수치로 조절할 수 없어요 · 다른 체형을 골라 비교하세요"}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ToolButton
+              disabled={busy || !selection || selection.resolutionStatus === "not_applicable"}
+              onClick={() => {
+                clearLocal();
+                setKindView(null);
+                mutation.mutate({ intent: "auto" });
+              }}
+              title={
+                selection?.recommendation.status === "available"
+                  ? "러프에 맞춰 추천한 체형으로 바꿉니다"
+                  : "추천을 찾지 못하면 남성 기본형으로 바꿉니다"
+              }
+            >
+              <Sparkles className="h-3 w-3 text-brand-coral" aria-hidden />
+              자동 추천
+            </ToolButton>
+            <ToolButton
+              disabled={!!localSelected || busy || !currentId || (!selection?.shape && !draft)}
+              onClick={() => {
+                featureAction("body_selection", "reset", job, { personIndex: person.index });
+                clearTimeout(timer.current);
+                latest.current = null;
+                setDraft(null);
+                if (currentId) mutation.mutate({ intent: "manual", characterId: currentId });
+              }}
+              title="고른 체형의 처음 값으로 되돌립니다"
+            >
+              <RotateCcw className="h-3 w-3" aria-hidden />
+              초기화
+            </ToolButton>
+            {mutation.isError && (
+              <span role="alert" className="text-[11px] text-brand-coral">
+                체형을 저장하지 못했습니다. 현재 선택을 확인한 뒤 다시 시도해 주세요.
               </span>
             )}
-          </span>
-          {spec && status && <span aria-live="polite">{status}</span>}
+          </div>
         </div>
-        {spec ? (
-          <>
-            <ShapeControlGrid
-              spec={spec}
-              values={values}
-              onChange={changeControl}
-              idPrefix={`shape-${person.index}`}
-              disabled={!selection}
-              detailColumns={variant === "bar" ? 3 : 4}
-            />
-          </>
-        ) : (
-          <p className="text-[11.5px] text-text-secondary">
-            {current && bodyKind(current) !== "male"
-              ? `${BODY_KIND_LABEL[bodyKind(current)]} 체형은 아직 수치로 조절할 수 없어요 · 고정 체형`
-              : "이 체형은 아직 수치로 조절할 수 없어요 · 다른 체형을 골라 비교하세요"}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <ToolButton
-            disabled={busy || !selection || selection.resolutionStatus === "not_applicable"}
-            onClick={() => {
-              setKindView(null);
-              mutation.mutate({ intent: "auto" });
-            }}
-            title={
-              selection?.recommendation.status === "available"
-                ? "러프에 맞춰 추천한 체형으로 바꿉니다"
-                : "추천을 찾지 못하면 남성 기본형으로 바꿉니다"
-            }
-          >
-            <Sparkles className="h-3 w-3 text-brand-coral" aria-hidden />
-            자동 추천
-          </ToolButton>
-          <ToolButton
-            disabled={busy || !currentId || (!selection?.shape && !draft)}
-            onClick={() => {
-              featureAction("body_selection", "reset", job, { personIndex: person.index });
-              clearTimeout(timer.current);
-              latest.current = null;
-              setDraft(null);
-              if (currentId) mutation.mutate({ intent: "manual", characterId: currentId });
-            }}
-            title="고른 체형의 처음 값으로 되돌립니다"
-          >
-            <RotateCcw className="h-3 w-3" aria-hidden />
-            초기화
-          </ToolButton>
-          {mutation.isError && (
-            <span role="alert" className="text-[11px] text-brand-coral">
-              체형을 저장하지 못했습니다. 현재 선택을 확인한 뒤 다시 시도해 주세요.
-            </span>
-          )}
-        </div>
-      </div>
+      )}
     </section>
   );
 }

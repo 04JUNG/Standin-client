@@ -97,6 +97,7 @@ function show() {
 }
 
 beforeEach(() => {
+  vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "true");
   putPreferences.mockReset();
   changeCard.mockReset();
   navigate.mockReset();
@@ -155,6 +156,22 @@ it("starts new jobs with the last used body by default and can switch to auto", 
   expect(await screen.findByText("현재 체형: 주인공 A")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("radio", { name: /^자동 추천/ }));
   await waitFor(() => expect(putPreferences).toHaveBeenCalledWith({ mode: "auto" }, 2));
+});
+
+it("offers the personal library plus card even when server models are unavailable", async () => {
+  prefs.current = null;
+  show();
+  fireEvent.click(screen.getByRole("button", { name: "내 데포르메" }));
+  fireEvent.click(screen.getByRole("button", { name: "내 데포르메 불러오기" }));
+  expect(screen.getByRole("dialog", { name: "내 데포르메 불러오기" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "FBX·CS3C 파일 선택" })).toBeDisabled();
+});
+
+it("keeps the personal feature inactive in a normal build without a reviewed runtime", () => {
+  vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "false");
+  show();
+  expect(screen.queryByRole("button", { name: "내 데포르메" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "내 데포르메 불러오기" })).toBeNull();
 });
 
 it("shows separate new and previous presets while preserving the personal card and last-used mode", async () => {

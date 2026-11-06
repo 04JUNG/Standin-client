@@ -1,3 +1,7 @@
+import { useLocalBodies, localSelectionKey } from "@/features/personal-body/store";
+import type { LocalModel } from "@/features/personal-body/contract";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { localBodyApi } from "@/features/personal-body/api";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as THREE from "three";
@@ -5,6 +9,10 @@ import { SelectionPreview } from "./SelectionPreview";
 import { loadSelectionPacket } from "../interactive/selectionPacket";
 import type { BodyEntry } from "@/features/body-selection/hooks";
 import type { PersonResult } from "../api/pose.contract";
+vi.mock("@/features/personal-body/api", () => ({ localBodyApi: { preview: vi.fn() } }));
+vi.mock("@/features/personal-body/LocalFbxPreview", () => ({
+  LocalFbxPreview: () => <div>private registered model</div>,
+}));
 vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "test-owner" }));
 vi.mock("../interactive/selectionPacket", () => ({ loadSelectionPacket: vi.fn() }));
 vi.mock("../interactive/InteractivePose", () => ({
@@ -48,6 +56,7 @@ function surface(name: string) {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
+  useLocalBodies.setState({ models: [], selected: {} });
 });
 afterEach(() => vi.useRealTimers());
 it("late pose response is disposed and cannot overwrite the newer selection", async () => {
@@ -109,6 +118,43 @@ it("pending body changes retain an explicitly labelled previous view without iss
   expect(screen.getByText(/지금은 이전 미리보기/)).toBeInTheDocument();
   expect(model.release).not.toHaveBeenCalled();
   await act(() => vi.advanceTimersByTimeAsync(1000));
+  expect(loadSelectionPacket).toHaveBeenCalledOnce();
+  r.unmount();
+});
+
+it("unmounts server preview and suppresses server appearance controls for a personal selection", async () => {
+  const props = {
+    job: "local-preview",
+    person,
+    entry,
+    bodiesEnabled: true,
+    canonicalPreview: true,
+  };
+  const r = render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SelectionPreview {...props} />
+    </QueryClientProvider>,
+  );
+  const model = {
+    localModelId: "private-model",
+    name: "private body",
+    sourceHash: "a".repeat(64),
+    version: 1,
+  } as LocalModel;
+  vi.mocked(localBodyApi.preview).mockResolvedValue(new Uint8Array([1]));
+  act(() =>
+    useLocalBodies.setState({
+      models: [model],
+      selected: { [localSelectionKey(props.job, 0)]: model.localModelId },
+    }),
+  );
+  await act(() => vi.advanceTimersByTimeAsync(1000));
+  expect(loadSelectionPacket).not.toHaveBeenCalled();
+  expect(screen.getByText("private registered model")).toBeInTheDocument();
+  expect(screen.getByText(/등록한 모습/)).toBeInTheDocument();
+  expect(screen.queryByRole("slider", { name: "외곽선 두께" })).not.toBeInTheDocument();
+  act(() => useLocalBodies.getState().select(localSelectionKey(props.job, 0)));
+  await act(() => vi.advanceTimersByTimeAsync(120));
   expect(loadSelectionPacket).toHaveBeenCalledOnce();
   r.unmount();
 });
