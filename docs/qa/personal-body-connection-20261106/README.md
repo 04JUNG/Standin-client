@@ -16,6 +16,8 @@ PR159 `a473b525…`에서 새 독립 bare/worktree를 만들고 develop `65a4365
 
 앱 binary SHA `7af1288f9f2b6fbcf3d22042070405079712d503ddcc4b56bda096f316f63d6a`. 빌드한 로컬 commit `7f3ff3565a424512b2f9eaed1baeb924a170cb0b`의 전체 Git tree는 게시자의 `3d31f2e`와 같다. 정확한 tree/config/runtime SHA는 [evidence.json](evidence.json)에 있다. UI 변환 후에도 6,591개 runtime 파일의 정확한 집합·해시 검사를 통과했다.
 
+Keychain namespace도 별도로 격리했다. 빌드 환경 `STANDIN_KEYRING_SERVICE=app.standin.desktop.personal-connection-qa-20261106`을 플랫폼 담당이 확인했고, publisher도 rustc `standin_desktop_lib.d`64행의 `env-dep` 및 위 앱 binary SHA를 직접 재확인했다. 번들 식별자만으로 격리를 추정하지 않았다. Credential/Keychain 값은 조회하지 않았으며 이 metadata 보완을 위한 새 빌드나 앱/runtime 변경은 없다.
+
 공용 UI 락을 독점한 동안 일반 제품 화면만 사용했다. 최소 fixture는 신규 추론·원본 업로드·외부 연결을 허용하지 않고 기존 허용 기록 BVH SHA `756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6`만 소유한 선택 tuple에 반환한다. 설치 자격정보/소유권은 로컬 메모리 fixture다. Hono·SQL·S3·production 인증 구현 검사는 아니다. [재현 도구](../../../tools/personal-native-qa/README.md).
 
 1. 실제 picker로 이전부터 허용된 남성 CS3C와 여성 FBX를 등록했다. Native 명령·모델·파일 저장을 mock하지 않았다.

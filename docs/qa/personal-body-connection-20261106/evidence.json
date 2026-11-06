@@ -19,10 +19,21 @@
       "VITE_USE_MOCK_API": "false",
       "VITE_USE_MOCK_POSE_API": "false",
       "VITE_INTERACTIVE_POSE_PREVIEW": "true",
-      "VITE_APP_ENV": "development"
+      "VITE_APP_ENV": "development",
+      "STANDIN_KEYRING_SERVICE": "app.standin.desktop.personal-connection-qa-20261106"
     },
     "configSha256": "56ed3468953db2a66e27337fd6a60b4dcff717d7c667a952a441ebc08618325e",
-    "signing": "local debug; no signing/notarization qualification"
+    "signing": "local debug; no signing/notarization qualification",
+    "keyringService": "app.standin.desktop.personal-connection-qa-20261106",
+    "keyringIsolationVerification": {
+      "status": "pass",
+      "compileEvidence": "rustc standin_desktop_lib.d line64: env-dep STANDIN_KEYRING_SERVICE=app.standin.desktop.personal-connection-qa-20261106",
+      "platformOwnerBuildEnvironmentConfirmed": true,
+      "binarySha256Rechecked": "7af1288f9f2b6fbcf3d22042070405079712d503ddcc4b56bda096f316f63d6a",
+      "credentialsOrKeychainValuesRead": false,
+      "newBuild": false,
+      "appOrRuntimeBytesChanged": false
+    }
   },
   "runtime": {
     "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
