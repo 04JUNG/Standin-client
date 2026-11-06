@@ -464,9 +464,7 @@ export async function toAnalysisResult(
       characterSelection: raw.capabilities?.characterSelection === true,
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
-      ...(env.interactivePreview && raw.capabilities?.selectionPreview === true
-        ? { selectionPreview: true }
-        : {}),
+      ...(raw.capabilities?.selectionPreview === true ? { selectionPreview: true } : {}),
       modelPreview: raw.capabilities?.modelPreview === true,
       ...(env.interactivePreview &&
       capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success

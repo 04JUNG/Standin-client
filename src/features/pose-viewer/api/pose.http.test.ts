@@ -285,6 +285,31 @@ describe("poseHttp", () => {
     },
   );
 
+  it.each([undefined, false, true])(
+    "honors explicit read-only selection capability without enabling interactive operations (%s)",
+    async (selectionPreview) => {
+      const flag = env.interactivePreview;
+      Object.defineProperty(env, "interactivePreview", { value: false, configurable: true });
+      try {
+        fetchMock.mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_saved",
+            notes: [],
+            candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+            capabilities: { selectionPreview },
+          }),
+        );
+        const result = await poseHttp.loadResult({ jobId: "job_saved" });
+        expect(result.capabilities.selectionPreview).toBe(
+          selectionPreview === true ? true : undefined,
+        );
+        expect(result.capabilities.interactivePreview).toBeUndefined();
+      } finally {
+        Object.defineProperty(env, "interactivePreview", { value: flag, configurable: true });
+      }
+    },
+  );
+
   function semanticPayload(thumbnailUrl?: string) {
     return {
       jobId: "job_saved",

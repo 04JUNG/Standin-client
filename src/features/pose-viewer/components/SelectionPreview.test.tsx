@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { SelectionPreview } from "./SelectionPreview";
@@ -111,4 +111,56 @@ it("pending body changes retain an explicitly labelled previous view without iss
   await act(() => vi.advanceTimersByTimeAsync(1000));
   expect(loadSelectionPacket).toHaveBeenCalledOnce();
   r.unmount();
+});
+
+it("synchronizes appearance between persistent and enlarged views, retains it on reopen, and isolates other jobs", async () => {
+  const model = surface("shared");
+  vi.mocked(loadSelectionPacket).mockResolvedValue(model);
+  const props = {
+    job: "job_shared_style",
+    person,
+    entry,
+    bodiesEnabled: true,
+    canonicalPreview: true,
+  };
+  const view = (expanded: boolean) => (
+    <>
+      <div data-testid="persistent">
+        <SelectionPreview {...props} />
+      </div>
+      {expanded && (
+        <div data-testid="expanded">
+          <SelectionPreview {...props} renderLayer={1} />
+        </div>
+      )}
+      <div data-testid="other-job">
+        <SelectionPreview {...props} job="job_other_style" />
+      </div>
+    </>
+  );
+  const r = render(view(true));
+  await act(() => vi.advanceTimersByTimeAsync(120));
+  const requests = vi.mocked(loadSelectionPacket).mock.calls.length;
+  fireEvent.click(within(screen.getByTestId("expanded")).getByRole("button", { name: "살색" }));
+  fireEvent.change(
+    within(screen.getByTestId("expanded")).getByRole("slider", { name: "외곽선 두께" }),
+    { target: { value: "0.25" } },
+  );
+  expect(within(screen.getByTestId("persistent")).getByTestId("surface")).toHaveTextContent(
+    "shared:flesh:0.25",
+  );
+  expect(within(screen.getByTestId("other-job")).getByTestId("surface")).toHaveTextContent(
+    "shared:default:0",
+  );
+  expect(loadSelectionPacket).toHaveBeenCalledTimes(requests);
+  r.rerender(view(false));
+  r.rerender(view(true));
+  expect(
+    within(screen.getByTestId("expanded")).getByRole("button", { name: "살색" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(within(screen.getByTestId("expanded")).getByRole("slider")).toHaveValue("0.25");
+  fireEvent.click(within(screen.getByTestId("persistent")).getByRole("button", { name: "기본" }));
+  expect(
+    within(screen.getByTestId("expanded")).getByRole("button", { name: "기본" }),
+  ).toHaveAttribute("aria-pressed", "true");
 });

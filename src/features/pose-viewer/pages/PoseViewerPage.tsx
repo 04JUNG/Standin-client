@@ -1,3 +1,4 @@
+import { CandidatePreviewProvider } from "../components/CandidatePreviewContext";
 import "./selectionWorkspace.css";
 import { SelectionPreview } from "../components/SelectionPreview";
 import { journeyExit } from "@/features/analytics/featureJourney";
@@ -243,27 +244,37 @@ export function PoseViewerPage() {
           <div className={largePreviewEnabled ? "selection-split" : undefined}>
             <div className={largePreviewEnabled ? "selection-list" : "flex flex-col gap-4"}>
               {data.people.map((person) => (
-                <div key={person.index} className="flex flex-col gap-3">
-                  {person.posePresentation ? (
-                    <PosePresentationPanel
-                      persistentPreview={largePreviewEnabled}
-                      telemetryJob={data.jobId}
-                      presentation={person.posePresentation}
-                      bodyPreviewJob={
-                        data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
-                          ? data.jobId
-                          : undefined
-                      }
-                      selection={{
-                        candidates: person.candidates,
-                        selected: selectedByPerson[person.index],
-                        onSelect: (id) => selectCandidate(person.index, id),
-                      }}
-                    />
-                  ) : (
-                    <PersonFallbackNotice person={person} />
-                  )}
-                </div>
+                <CandidatePreviewProvider
+                  key={person.index}
+                  job={data.jobId}
+                  person={person}
+                  entry={bodies.entries.find((e) => e.personIndex === person.index)}
+                  bodiesEnabled={bodies.enabled}
+                  canonicalPreview={data.capabilities.selectionPreview}
+                >
+                  <div className="flex flex-col gap-3">
+                    {person.posePresentation ? (
+                      <PosePresentationPanel
+                        persistentPreview={largePreviewEnabled}
+                        telemetryJob={data.jobId}
+                        presentation={person.posePresentation}
+                        bodyPreviewJob={
+                          data.capabilities.bodyPreviews ||
+                          data.capabilities.presentationBodyPreviews
+                            ? data.jobId
+                            : undefined
+                        }
+                        selection={{
+                          candidates: person.candidates,
+                          selected: selectedByPerson[person.index],
+                          onSelect: (id) => selectCandidate(person.index, id),
+                        }}
+                      />
+                    ) : (
+                      <PersonFallbackNotice person={person} />
+                    )}
+                  </div>
+                </CandidatePreviewProvider>
               ))}
             </div>
             {largePreviewEnabled && active && active.candidates.length > 0 && (
@@ -401,33 +412,41 @@ export function PoseViewerPage() {
               </div>
 
               {active && (
-                <ActivePersonCard
-                  key={active.index}
-                  jobId={data.jobId}
+                <CandidatePreviewProvider
+                  job={data.jobId}
                   person={active}
-                  people={people}
-                  excluded={excludedPeople}
-                  onPick={pick}
-                  persistentPreview={largePreviewEnabled}
-                  roughUrl={roughUrl}
-                  bodiesEnabled={bodies.enabled}
-                  presentationBodyPreviews={data.capabilities.presentationBodyPreviews}
                   entry={bodies.entries.find((e) => e.personIndex === active.index)}
-                  expanded={expanded}
-                  included={!(active.index in excludedPeople)}
-                  selectedId={selectedByPerson[active.index]}
-                  onSelect={(id) => selectCandidate(active.index, id)}
-                  onRerun={onRerun}
-                  modelSelect={
-                    <ModelSelect
-                      variant="compact"
-                      label={`인물 ${active.index + 1}의 모델`}
-                      value={characterByPerson[active.index] ?? jobCharacterId}
-                      onChange={(characterId) => setPersonCharacter(active.index, characterId)}
-                    />
-                  }
-                  characterId={characterByPerson[active.index] ?? jobCharacterId}
-                />
+                  bodiesEnabled={bodies.enabled}
+                  canonicalPreview={data.capabilities.selectionPreview}
+                >
+                  <ActivePersonCard
+                    key={active.index}
+                    jobId={data.jobId}
+                    person={active}
+                    people={people}
+                    excluded={excludedPeople}
+                    onPick={pick}
+                    persistentPreview={largePreviewEnabled}
+                    roughUrl={roughUrl}
+                    bodiesEnabled={bodies.enabled}
+                    presentationBodyPreviews={data.capabilities.presentationBodyPreviews}
+                    entry={bodies.entries.find((e) => e.personIndex === active.index)}
+                    expanded={expanded}
+                    included={!(active.index in excludedPeople)}
+                    selectedId={selectedByPerson[active.index]}
+                    onSelect={(id) => selectCandidate(active.index, id)}
+                    onRerun={onRerun}
+                    modelSelect={
+                      <ModelSelect
+                        variant="compact"
+                        label={`인물 ${active.index + 1}의 모델`}
+                        value={characterByPerson[active.index] ?? jobCharacterId}
+                        onChange={(characterId) => setPersonCharacter(active.index, characterId)}
+                      />
+                    }
+                    characterId={characterByPerson[active.index] ?? jobCharacterId}
+                  />
+                </CandidatePreviewProvider>
               )}
 
               {failedPeople.length > 0 && selectablePeople.length === 0 && (
