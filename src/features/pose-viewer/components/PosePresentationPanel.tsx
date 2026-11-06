@@ -225,12 +225,14 @@ function SelectedBodyPresentation({
   compact,
   selectableLibrary,
   selection,
+  persistentPreview = false,
 }: {
   job: string;
   presentation: PosePresentation;
   compact: boolean;
   selectableLibrary: boolean;
   selection?: PresentationSelection;
+  persistentPreview?: boolean;
 }) {
   const owner = useBodyOwner();
   const state = useQuery({
@@ -255,7 +257,13 @@ function SelectedBodyPresentation({
     <div className="space-y-2">
       <BodyChip job={job} person={person} entry={entry} />
       {open ? (
-        <BodyExpand job={job} person={person} entry={entry} variant={compact ? "bar" : "app"} />
+        <BodyExpand
+          hideLivePreview={persistentPreview}
+          job={job}
+          person={person}
+          entry={entry}
+          variant={compact ? "bar" : "app"}
+        />
       ) : (
         <>
           <BodyRenderStatus entry={entry} />
@@ -279,6 +287,7 @@ export function PosePresentationPanel({
   bodyPreviewJob,
   renderCandidate,
   selection,
+  persistentPreview = false,
 }: {
   telemetryJob?: string;
   presentation: PosePresentation;
@@ -287,6 +296,7 @@ export function PosePresentationPanel({
   bodyPreviewJob?: string;
   renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
   selection?: PresentationSelection;
+  persistentPreview?: boolean;
 }) {
   const hasCandidates = [
     presentation.library_candidates,
@@ -295,6 +305,7 @@ export function PosePresentationPanel({
   ].some((g) => g.length > 0);
   return bodyPreviewJob && hasCandidates && !renderCandidate ? (
     <SelectedBodyPresentation
+      persistentPreview={persistentPreview}
       job={bodyPreviewJob}
       presentation={presentation}
       compact={compact}

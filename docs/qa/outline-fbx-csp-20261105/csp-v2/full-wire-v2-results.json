@@ -1,0 +1,29 @@
+{
+  "kind": "actual client adapter + real Hono/PGlite in-process + actual Converter TCP/Blender solve/export/postprocess; controlled source/selection/edge-auth and in-memory outline storage",
+  "appearance": {
+    "version": "fbx-outline-v1",
+    "width": 0.65
+  },
+  "artifactSha256": "133b9d83aece9076907618d932e16e9df3c80fc2a5904f0415e239adf3be3def",
+  "artifactBytes": 3932364,
+  "expression": "skinned-outward-transparent-native-outline-v2",
+  "zeroSha256": "26ff24baf3db47d06c0873ecbf04e0357d18d4fb8d31fa38dc7001ce2a03ea80",
+  "finalProofValidated": true,
+  "bindingNonzero": true,
+  "nativeSaved": true,
+  "globalEnabled": false,
+  "limits": [
+    "not production auth/PostgreSQL advisory locks/S3",
+    "native write is a separately recorded stage"
+  ],
+  "date": "2026-11-06 Asia/Seoul",
+  "nativeWriteStaged": true,
+  "singleLiveProductUiTransaction": false,
+  "nativeOutput": "native/native-bff-v2 (1).fbx",
+  "interactiveRuntime": "63e24eb8441e3a31f0186e60675d74517a01e3c677c1ab58faa3e6bb236f9859",
+  "outlineRuntime": "292a41a2bfa1e4398f0033be57004961161653a9f8e0114f325d9c3fcae281c4",
+  "cspObserved": true,
+  "cspResult": "Exact actual native saved bytes imported in new1000x76872dpi100%test canvas; pose and grey surface retained with thin black exterior/occlusion contours. No large black fill. No native outline/culling setting changed.",
+  "cspScreenshot": "native-full-wire-v2-csp.jpg",
+  "nativeScreenshot": "native-full-wire-v2-saved.jpg"
+}

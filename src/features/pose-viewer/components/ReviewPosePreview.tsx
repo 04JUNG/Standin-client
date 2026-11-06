@@ -15,8 +15,10 @@ export function ReviewPosePreview({
   loading,
   error,
   onModelStatus,
+  outlineWidth = 0,
   telemetryJobId,
 }: {
+  outlineWidth?: number;
   telemetryJobId?: string;
   model?: ReviewModel;
   interactive?: InteractiveReviewData;
@@ -51,6 +53,7 @@ export function ReviewPosePreview({
       ) : model ? (
         <ReviewModelPreview
           model={model}
+          outlineWidth={outlineWidth}
           label={label}
           onStatus={(status) => {
             reportPreview(status);

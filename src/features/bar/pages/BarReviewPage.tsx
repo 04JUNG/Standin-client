@@ -1,4 +1,6 @@
 import { LocalFbxPreview } from "@/features/personal-body/LocalFbxPreview";
+import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
+import { SkinControl } from "@/features/pose-viewer/skin/SkinControl";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
@@ -68,6 +70,7 @@ export function BarReviewPage() {
                       telemetryJobId={hands?.jobId}
                       interactive={item.interactivePreview}
                       model={item.previewModel}
+                      outlineWidth={item.outlineWidth}
                       src={item.previewUrl}
                       label={
                         item.previewReference
@@ -78,6 +81,12 @@ export function BarReviewPage() {
                       error={previewError}
                       onModelStatus={item.onModelStatus}
                     />
+                  )}
+                  {(item.outlineAvailable || item.outlineWidth > 0) && (
+                    <OutlineControl personIndex={item.personIndex} />
+                  )}
+                  {(item.skinAvailable || item.skin) && (
+                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
                   )}
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">

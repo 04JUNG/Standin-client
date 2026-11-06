@@ -22,15 +22,21 @@ export function searchCamera(raw: SearchCamera, aspect: number, observation: Obs
   const position = new THREE.Vector3().setFromMatrixPosition(world);
   const right = new THREE.Vector3().setFromMatrixColumn(world, 0).normalize();
   const up = new THREE.Vector3().setFromMatrixColumn(world, 1).normalize();
+  // Search projections may mirror X. Keep observation controls screen-relative
+  // without changing the canonical projection or its reset/search framing.
+  const horizontalDirection = projection.elements[0] < 0 ? -1 : 1;
   const orbit = new THREE.Quaternion()
-    .setFromAxisAngle(up, observation.yaw)
+    .setFromAxisAngle(up, observation.yaw * horizontalDirection)
     .multiply(
       new THREE.Quaternion().setFromAxisAngle(
         right,
         THREE.MathUtils.clamp(observation.pitch, -1.5, 1.5),
       ),
     );
-  const pan = right.multiplyScalar(observation.panX).add(up.multiplyScalar(observation.panY));
+  const pan = right
+    .multiplyScalar(observation.panX * horizontalDirection)
+    .add(up.multiplyScalar(observation.panY))
+    .applyQuaternion(orbit);
   const offset = position.clone().sub(target).applyQuaternion(orbit);
   const rotation = new THREE.Quaternion().setFromRotationMatrix(world).premultiply(orbit);
   camera.matrixWorld.compose(

@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { appearanceMaterial } from "./appearance";
+import { BodyOutlineRenderer } from "../outline/BodyOutlineRenderer";
+export type PreviewAppearance = { skin: "default" | "flesh"; outlineWidth: number };
 import { PREVIEW_BACKGROUND } from "../preview/previewStyle";
 import { searchCamera, type Observation } from "./camera";
 import type { SearchCamera } from "./contract";
@@ -10,6 +13,11 @@ type View = {
   camera: SearchCamera;
   observation: () => Observation;
   layer: number;
+  appearance?: () => PreviewAppearance | undefined;
+  body: THREE.Group;
+  materials: THREE.Material[];
+  outlineWidth?: () => number;
+  outline: BodyOutlineRenderer;
   ready(): void;
   failed(): void;
 };
@@ -30,6 +38,7 @@ function getOutput() {
   if (!output) {
     output = new THREE.WebGLRenderer({
       antialias: true,
+      stencil: true,
       alpha: true,
       preserveDrawingBuffer: false,
     });
@@ -100,7 +109,16 @@ function draw() {
       output.setScissor(left, innerHeight - top - height, width, height);
       output.setClearColor(PREVIEW_BACKGROUND, 1);
       output.clear();
-      output.render(view.scene, camera);
+      const appearance = view.appearance?.();
+      const color =
+        appearance?.skin === "flesh"
+          ? new THREE.Color("#FADFCA")
+          : new THREE.Color().setRGB(0.72, 0.72, 0.72);
+      for (const material of view.materials)
+        if (material instanceof THREE.ShaderMaterial)
+          material.uniforms.baseColor?.value.set(color.r, color.g, color.b);
+      view.outline.setWidth(view.body, appearance?.outlineWidth ?? view.outlineWidth?.() ?? 0);
+      view.outline.render(view.scene, camera);
       view.ready();
     } catch {
       view.failed();
@@ -112,17 +130,32 @@ function draw() {
 export function invalidate() {
   if (!scheduled) scheduled = requestAnimationFrame(draw);
 }
-export function registerView(view: Omit<View, "scene"> & { body: THREE.Group }) {
+export function registerView(view: Omit<View, "scene" | "materials" | "outline">) {
   getOutput();
   const scene = new THREE.Scene();
   scene.add(view.body);
-  const registered: View = { ...view, scene };
+  // Geometry remains shared. Per-view materials isolate appearance from cached assets/cards.
+  const materials: THREE.Material[] = [];
+  view.body.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const clone = (material: THREE.Material) => {
+      const owned = appearanceMaterial(material);
+      materials.push(owned);
+      return owned;
+    };
+    object.material = Array.isArray(object.material)
+      ? object.material.map(clone)
+      : clone(object.material);
+  });
+  const registered: View = { ...view, scene, materials, outline: new BodyOutlineRenderer(getOutput()) };
   views.add(registered);
   observer!.observe(view.element);
   invalidate();
   return () => {
     views.delete(registered);
+    registered.outline.dispose();
     observer?.unobserve(view.element);
+    for (const material of materials) material.dispose();
     scene.clear();
     if (!views.size) shutdown();
     else invalidate();
@@ -198,6 +231,7 @@ export function shutdown() {
   window.removeEventListener("resize", invalidate);
   window.removeEventListener("scroll", invalidate, true);
   window.removeEventListener("pagehide", shutdown);
+  for (const view of views) view.outline.dispose();
   if (output) {
     output.domElement.removeEventListener("webglcontextlost", lost);
     output.domElement.removeEventListener("webglcontextrestored", restored);

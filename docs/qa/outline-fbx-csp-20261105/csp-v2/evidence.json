@@ -1,0 +1,127 @@
+{
+  "date": "2026-11-06 Asia/Seoul",
+  "app": "CLIP STUDIO PAINT EX 5.1.1 build 202607291835",
+  "method": "New test-only 1000x768 72dpi canvases, File > Import > 3D Data; automatic import, no mode prompt, no manual Add outline or culling changes. Prior import undone before next comparison. 100% initial views, 200% explicitly labeled detail.",
+  "mode": "Exact Basic/Realistic property not confirmed. Do not call this a Basic-mode guarantee.",
+  "scope": "posed individual FBX export -> automatic CSP import; .clip and in-CSP joint editing outside current product support",
+  "expression": "skinned-outward-transparent-native-outline-v2",
+  "mapping": "csp-native-scope-stature-v2-experimental",
+  "final_neutral_files": [
+    {
+      "name": "male-current-neutral",
+      "width": 2,
+      "sha256": "02799598d9f60899e83627446c80bf9c6f7f737a47b8b2de7e7f92612200a4e3",
+      "screenshot": "implementation-male-w2-front200.jpg",
+      "stage": "implementation output",
+      "result": "PROMISING: final implementation bytes imported; normal grey surface plus black outline. 200% frontal detail shows no large internal black patches or obvious white halo/doubled contour.",
+      "csp_certified": false
+    },
+    {
+      "name": "female-current-neutral",
+      "width": 2,
+      "sha256": "07295db35bb6a148f14da4fad91d459ee05d1f5859225b29638b71dce9754e3b",
+      "screenshot": "implementation-female-w2-front200.jpg",
+      "stage": "implementation output",
+      "result": "PROMISING: final implementation bytes imported; normal grey surface plus black outline. 200% frontal detail shows no large internal black patches or obvious white halo/doubled contour.",
+      "csp_certified": false
+    }
+  ],
+  "final_male_orbit": {
+    "date": "2026-11-06 Asia/Seoul",
+    "sha256": "02799598d9f60899e83627446c80bf9c6f7f737a47b8b2de7e7f92612200a4e3",
+    "sha256_verified": true,
+    "width": 2,
+    "canvas": "test-only 일러스트 20261106,1000x768px72dpi100%",
+    "observed_views": [
+      "front",
+      "three-quarter",
+      "near-side",
+      "near-back"
+    ],
+    "evidence": [
+      "implementation-male-final-w2-front.jpg",
+      "implementation-male-final-w2-orbit1.jpg",
+      "implementation-male-final-w2-side.jpg",
+      "implementation-male-final-w2-back.jpg"
+    ],
+    "result": "PROMISING: grey body and black contours retained at all four observed views. Near-side calf has a fine/dotted interior occlusion boundary. No large black fill/obvious white halo/doubled silhouette at this framing.",
+    "settings": "Automatic import; no Add outline/culling or license changes. Basic/Realistic exact property unconfirmed.",
+    "limitations": "Camera orbit only. No CSP joint deformation or .clip persistence. One camera drag moved the figure outside the visible frame; undo restored the prior side view, then reselection and horizontal orbit reached the rear view. The off-frame intermediate is excluded from evidence. No exact angle/elevation guarantee.",
+    "csp_certified": false,
+    "product_enabled": false,
+    "screenshot_sha256": {
+      "implementation-male-final-w2-front.png": "b55d063c5664545920d4a7d2d8d70bd824816774da896a984bf59c9787b099bf",
+      "implementation-male-final-w2-orbit1.png": "28730d834a8a60a5c590a43c6cf93ef63e9c8acc3d3fc798f4ef092de110df9f",
+      "implementation-male-final-w2-side.png": "4147590b0b1bec5deabb9dcea876f9911582f6bcdb6a1ee0fa3e978b23a7a944",
+      "implementation-male-final-w2-back.png": "2c198513da3fdea57b0363606abd0d92e876ab3bf4b077a4ee5611b930b05d89"
+    }
+  },
+  "posed_fbx": {
+    "date": "2026-11-06 Asia/Seoul",
+    "method": "New test-only 일러스트20261106 2,1000x768px72dpi100%. Import each FBX separately, undo previous import between comparisons. No native outline/culling settings changed. Existing final implementation QA exports with pre-applied poses were used; no new runtime/source changes.",
+    "conclusion": "Both tested final implementation posed FBX files retain pose and grey surface, with automatic black exterior/occlusion contours in CSP.",
+    "coverage": "Pose applied before FBX export → CSP import. This is not evidence of changing a joint inside CSP after import.",
+    "clip": "Out of current product scope per user; not an acceptance blocker. Prior license observation remains historical only.",
+    "csp_joint_edit": "Not demonstrated. Current FBX Tool Detail identifies 3D object editing and has no Pose category. No humanoid mapping/Modeler conversion attempted.",
+    "references": [
+      {
+        "title": "Official 3D character setup with bones",
+        "url": "https://tips.clip-studio.com/en-us/articles/1166"
+      },
+      {
+        "title": "Official importing 3D files and BVH poses",
+        "url": "https://help.clip-studio.com/en-us/manual_en/660_3d/Importing_3D_Files.htm"
+      }
+    ],
+    "rows": [
+      {
+        "name": "male-current-foot-tap",
+        "width": 0,
+        "sha256": "0066a62aa4735b5da7b5340e82aede7d1dc446969aa8d6ef9abb8f5d83d308df",
+        "sha256_verified": true,
+        "screenshot": "final-pose-male-foot-tap-w0.jpg",
+        "screenshot_sha256": "1d41bd40a6b0d42aad7a1873b2b4b4391ad1d0b26d5d151341d7c777d63e0469",
+        "observed": "Pose retained; grey surfaces intact. Original control has faint/dotted contours.",
+        "stage": "posed source control",
+        "csp_certified": false
+      },
+      {
+        "name": "male-current-foot-tap",
+        "width": 2,
+        "sha256": "81a559fb4279440858a62a73f7abb6c3304039c01095ed3160c772d7ffcaa84d",
+        "sha256_verified": true,
+        "screenshot": "final-pose-male-foot-tap-w2.jpg",
+        "screenshot_sha256": "854846823ad826d2ff3423e3ad63dafac43cad9455f3ff988f385dbac7ad5bbd",
+        "observed": "Pose retained; grey surfaces intact. Clear black silhouette/occlusion contours, including fingers and bent limb boundaries; no large black surface fill/obvious white halo/doubled silhouette at initial100% framing.",
+        "stage": "final implementation posed FBX",
+        "csp_certified": false
+      },
+      {
+        "name": "female-current-crouch",
+        "width": 0,
+        "sha256": "d4fa440d5174eacc01b9cf82cbb4655c1381d0ac159302f0d8018c131b89cea2",
+        "sha256_verified": true,
+        "screenshot": "final-pose-female-crouch-w0.jpg",
+        "screenshot_sha256": "53b64673d938076245c304841c06c00359660a672405e82e6921409883823672",
+        "observed": "Pose retained; grey surfaces intact. Original control has faint/dotted contours.",
+        "stage": "posed source control",
+        "csp_certified": false
+      },
+      {
+        "name": "female-current-crouch",
+        "width": 2,
+        "sha256": "c47f586d0bebfeaa05f2334338734fe0d0de7b315c2d490d0a3aee5d3e35aa5e",
+        "sha256_verified": true,
+        "screenshot": "final-pose-female-crouch-w2.jpg",
+        "screenshot_sha256": "276e0909a93e19b902ce85013d3d468f42ce120af61b1694204dbe6e24722576",
+        "observed": "Pose retained; grey surfaces intact. Clear black silhouette/occlusion contours, including fingers and bent limb boundaries; no large black surface fill/obvious white halo/doubled silhouette at initial100% framing.",
+        "stage": "final implementation posed FBX",
+        "csp_certified": false
+      }
+    ]
+  },
+  "residual": "Fine/dotted interior occlusion lines are visible at final male near-side calf and female near-side knee/shin. No large black surface fill, obvious white halo or doubled silhouette seen at tested framing; no arbitrary-angle artifact-free guarantee. Physical size, broad poses, deformation and persistence require further acceptance.",
+  "scope_comparisons": "Male/female half,bust,shoulder_head,head: original0 vs calibrated2,16 exact files. All preserve grey surfaces and black contours. Zero head already has clear contours;2 modestly thicker. Cropped.5/1 untested. Male bust/shoulder jagged cuts exist in zero too.",
+  "historical_failure": "Opaque inverted hull v1 rejected; its photos/validation remain historical, not current v2 result.",
+  "deployment": "No merge/deploy/global enablement; BFF and Converter defaults remain off."
+}

@@ -82,6 +82,9 @@ beforeEach(() => {
     refineByPerson: {},
     characterByPerson: {},
     characterId: null,
+    outlineByPerson: {},
+    skinByPerson: {},
+    outlineEditingByPerson: {},
   });
   useLocalBodies.setState({
     models: [model],
@@ -187,4 +190,17 @@ it("invalidates an earlier save consent when a selected local model is replaced"
   const before = saveConsentBinding(qc, "job");
   act(() => useLocalBodies.getState().setModels([{ ...model, version: 2 }]));
   expect(saveConsentBinding(qc, "job")).not.toBe(before);
+});
+
+it("saves original personal bytes while retaining separate built-in skin and outline choices", async () => {
+  usePoseSelectionStore.setState({
+    outlineByPerson: { 0: 2 },
+    skinByPerson: { 0: "flesh" },
+    outlineEditingByPerson: { 0: true },
+  });
+  mock.pose.mockResolvedValue({ hash: "e".repeat(64), bytes: new Uint8Array([1]) });
+  const { result } = mount();
+  await waitFor(() => expect(result.current.status).toBe("saved"));
+  expect(mock.save.mock.calls[0][0].files[0].content).toEqual(new Uint8Array([7, 8, 9]));
+  expect(usePoseSelectionStore.getState().skinByPerson[0]).toBe("flesh");
 });

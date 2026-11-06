@@ -62,3 +62,52 @@ it("rejects singular/unknown camera framing instead of using a front view", () =
     searchCamera({ ...spec(0, true), viewMatrix: Array(16).fill(0) }, 1, initialObservation()),
   ).toThrow();
 });
+
+function screenX(point: THREE.Vector3, camera: THREE.Camera) {
+  const clip = new THREE.Vector4(...point.toArray(), 1)
+    .applyMatrix4(camera.matrixWorldInverse)
+    .applyMatrix4(camera.projectionMatrix);
+  return clip.x / clip.w;
+}
+it("keeps rightward drag and pan screen-relative with ordinary or mirrored search projections", () => {
+  for (const perspective of [false, true])
+    for (const angle of Array.from({ length: 8 }, (_, i) => (i * Math.PI) / 4))
+      for (const horizontalSign of [1, -1]) {
+        const s = spec(angle, perspective);
+        s.projectionMatrix[0] *= horizontalSign;
+        const reference = searchCamera(s, 1.3, initialObservation());
+        // A surface point on the side facing the camera should follow a rightward drag.
+        const point = new THREE.Vector3(...s.target).addScaledVector(
+          new THREE.Vector3().setFromMatrixColumn(reference.matrixWorld, 2).normalize(),
+          0.2,
+        );
+        const before = screenX(point, reference);
+        const rotated = searchCamera(s, 1.3, { ...initialObservation(), yaw: -0.12 });
+        const panned = searchCamera(s, 1.3, { ...initialObservation(), panX: -0.12 });
+        expect(
+          screenX(point, rotated),
+          `orbit: ${perspective}/${angle}/${horizontalSign}`,
+        ).toBeGreaterThan(before);
+        expect(
+          screenX(point, panned),
+          `pan: ${perspective}/${angle}/${horizontalSign}`,
+        ).toBeGreaterThan(before);
+        expect(searchCamera(s, 1.3, initialObservation()).projectionMatrix.toArray()).toEqual(
+          s.projectionMatrix,
+        );
+      }
+});
+
+it("keeps pan in screen axes after orbiting around the model", () => {
+  for (const perspective of [false, true])
+    for (const horizontalSign of [1, -1])
+      for (const yaw of [-2.1, 0.8, 2.1]) {
+        const s = spec(0.27, perspective);
+        s.projectionMatrix[0] *= horizontalSign;
+        const observation = { ...initialObservation(), yaw, pitch: 0.45 };
+        const reference = searchCamera(s, 1.3, observation);
+        const point = new THREE.Vector3(...s.target);
+        const panned = searchCamera(s, 1.3, { ...observation, panX: -0.12 });
+        expect(screenX(point, panned)).toBeGreaterThan(screenX(point, reference));
+      }
+});

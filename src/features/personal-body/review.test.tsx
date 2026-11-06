@@ -9,6 +9,8 @@ const fixtures = vi.hoisted(() => ({
   prepare: vi.fn(),
   interactive: false,
   interactiveReady: false,
+  outlines: {} as Record<number, number>,
+  skins: {} as Record<number, string>,
   interactiveRequests: [] as { active?: boolean; binding: string }[],
   loadServerBody: vi.fn(),
   item: {
@@ -65,7 +67,12 @@ vi.mock("@/features/export/store/exportStore", () => ({ useExportStore: () => "f
 vi.mock("@/features/models/store/modelStore", () => ({ useModelStore: () => null }));
 vi.mock("@/features/pose-viewer/store/poseSelectionStore", () => ({
   usePoseSelectionStore: (select: (s: unknown) => unknown) =>
-    select({ characterId: null, characterByPerson: {} }),
+    select({
+      characterId: null,
+      characterByPerson: {},
+      outlineByPerson: fixtures.outlines,
+      skinByPerson: fixtures.skins,
+    }),
 }));
 vi.mock("@/features/models/hooks/useModelCatalog", () => ({
   useModelCatalog: () => ({ data: undefined, isSuccess: false, isError: true, refetch: vi.fn() }),
@@ -97,6 +104,8 @@ beforeEach(() => {
   fixtures.item.candidate = { id: "p", title: "pose" } as PoseCandidate;
   fixtures.interactive = false;
   fixtures.interactiveReady = false;
+  fixtures.outlines = {};
+  fixtures.skins = {};
   fixtures.prepare.mockReset();
   fixtures.loadServerBody.mockReset();
   useLocalBodies.setState({
@@ -197,4 +206,22 @@ it("does not release an unprepared interactive body after switching away from a 
   expect(result.current.downloadReady).toBe(false);
   expect(result.current.items[0].localFbx).toBeUndefined();
   expect(fixtures.interactiveRequests[0].active).toBe(true);
+});
+
+it("retains original personal appearance when a built-in body had a skin and outline selected", async () => {
+  fixtures.interactive = true;
+  fixtures.outlines = { 0: 2 };
+  fixtures.skins = { 0: "flesh" };
+  fixtures.prepare.mockImplementation(async (_j, _m, _i, _s, binding) => ({
+    binding,
+    content: new Uint8Array([9]),
+  }));
+  const { result } = setup();
+  await waitFor(() => expect(result.current.downloadReady).toBe(true));
+  expect(result.current.items[0].outlineWidth).toBe(0);
+  expect(result.current.items[0].skin).toBeUndefined();
+  expect(result.current.items[0].skinAvailable).toBe(false);
+  expect(result.current.items[0].outlineAvailable).toBe(false);
+  expect(fixtures.outlines[0]).toBe(2);
+  expect(fixtures.skins[0]).toBe("flesh");
 });

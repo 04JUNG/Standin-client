@@ -8,6 +8,25 @@
  * 코드 목록은 BFF(`Standin-app-server`)의 실제 errorEnvelope 호출부 기준이다.
  */
 const MESSAGES: Record<string, string> = {
+  INVALID_OUTLINE: "외곽선 굵기를 다시 선택해 주세요.",
+  INVALID_SKIN: "스킨을 다시 선택해 주세요.",
+  SKIN_UNSUPPORTED:
+    "이 체형·출력 범위·외곽선 조합은 선택한 스킨을 아직 지원하지 않아요. 기본 스킨으로 바꾸거나 전체 인물과 외곽선 0 또는 2를 선택해 주세요.",
+  SKIN_DISABLED: "선택한 스킨을 준비할 수 없어요. 기본 스킨으로 바꾸거나 다시 시도해 주세요.",
+  SKIN_NOT_CSP_CERTIFIED:
+    "선택한 스킨을 준비할 수 없어요. 기본 스킨으로 바꾸거나 다시 시도해 주세요.",
+  SKIN_ASSETS_UNAVAILABLE: "스킨을 불러오지 못했어요. 다시 시도해 주세요.",
+  SKIN_INTEGRITY_ERROR: "선택한 스킨 파일을 확인하지 못했어요. 다시 시도해 주세요.",
+  SKIN_UV_INCOMPATIBLE: "선택한 체형에 이 스킨을 적용할 수 없어요. 기본 스킨으로 바꿔 주세요.",
+  SKIN_BINDING_MISMATCH: "선택한 스킨이 바뀌었어요. 다시 확인해 주세요.",
+  SKIN_TIMEOUT: "스킨 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_UNSUPPORTED: "이 저장 형식은 외곽선을 아직 지원하지 않아요.",
+  OUTLINE_DISABLED: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_NOT_CSP_CERTIFIED: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_UNAVAILABLE: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_INTEGRITY_ERROR: "외곽선 파일을 확인하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_BINDING_MISMATCH: "선택한 외곽선이 바뀌었어요. 다시 확인해 주세요.",
+  OUTLINE_TIMEOUT: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
   UPDATE_REQUIRED: "새 버전으로 업데이트해야 Standin을 사용할 수 있습니다.",
   SCENE_CONTRACT_UNSUPPORTED:
     "지금은 이 저장 방식을 사용할 수 없어요. 작업을 다시 열어 확인해 주세요.",

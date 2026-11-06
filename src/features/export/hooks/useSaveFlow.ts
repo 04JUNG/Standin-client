@@ -1,4 +1,5 @@
 import { interactiveController } from "@/features/pose-viewer/interactive/session";
+import { selectedSkin, sameSkin } from "@/features/pose-viewer/skin/skin";
 import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
 import {
   prepareOriginalScene,
@@ -548,6 +549,9 @@ export function useSaveFlow(jobId: string | undefined) {
             excluded: usePoseSelectionStore.getState().excludedPeople,
             character: usePoseSelectionStore.getState().characterId,
             characters: usePoseSelectionStore.getState().characterByPerson,
+            outlines: usePoseSelectionStore.getState().outlineByPerson,
+            skins: usePoseSelectionStore.getState().skinByPerson,
+            outlineEditing: usePoseSelectionStore.getState().outlineEditingByPerson,
             refine: usePoseSelectionStore.getState().refineByPerson,
             people: qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.people,
             body: qc
@@ -603,6 +607,28 @@ export function useSaveFlow(jobId: string | undefined) {
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
+            const localModel = selectedLocalModel(analysisResult.jobId, personIndex);
+            // Server appearance choices remain available when returning to a built-in body.
+            // Personal FBX preserves its original appearance and never uses that server path.
+            const outline = localModel ? 0 : (selectionState.outlineByPerson[personIndex] ?? 0);
+            const skin = localModel
+              ? undefined
+              : selectedSkin(selectionState.skinByPerson[personIndex] ?? "default");
+            if (
+              skin &&
+              (format !== "fbx" ||
+                !env.interactivePreview ||
+                !analysisResult.capabilities.interactivePreview?.operations)
+            )
+              throw new ApiError(422, "SKIN_UNSUPPORTED", "");
+            if (
+              (!localModel && selectionState.outlineEditingByPerson[personIndex]) ||
+              (outline > 0 &&
+                (format !== "fbx" ||
+                  !env.interactivePreview ||
+                  !analysisResult.capabilities.interactivePreview?.operations))
+            )
+              throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
             const person = analysisResult.people.find((p) => p.index === personIndex);
             const scope = previewScope(person);
             const handApplicable =
@@ -632,7 +658,6 @@ export function useSaveFlow(jobId: string | undefined) {
             );
             let content: Uint8Array;
             let downloadPath = "";
-            const localModel = selectedLocalModel(analysisResult.jobId, personIndex);
             if (localModel) {
               if (format !== "fbx") throw new ApiError(409, "INVALID_EXPORT", "");
               const item = {
@@ -674,7 +699,9 @@ export function useSaveFlow(jobId: string | undefined) {
               if (
                 !owner ||
                 !interactiveBinding ||
-                current.snapshot().operation?.candidateId !== candidateId
+                current.snapshot().operation?.candidateId !== candidateId ||
+                (current.snapshot().operation?.appearance?.width ?? 0) !== outline ||
+                !sameSkin(current.snapshot().operation?.skin, skin)
               )
                 throw new ApiError(409, "PREVIEW_CHANGED", "");
               const verified = await current.download(interactiveBinding, controller.signal);
@@ -775,6 +802,10 @@ export function useSaveFlow(jobId: string | undefined) {
           sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
           !env.useMockPoseApi
         ) {
+          if (Object.values(selectionState.outlineByPerson).some((width) => width > 0))
+            throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
+          if (Object.values(selectionState.skinByPerson).some((skin) => skin !== "default"))
+            throw new ApiError(422, "SKIN_UNSUPPORTED", "");
           sceneRequest = true;
           if (files.some((f) => !f.downloadPath))
             throw new Error("장면에 사용할 최종 파일을 확인하지 못했습니다.");

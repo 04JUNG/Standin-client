@@ -1,6 +1,8 @@
 import { localBinding, prepareLocal } from "@/features/personal-body/prepare";
 import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import { localError } from "@/features/personal-body/contract";
+import { outlineAppearance } from "../outline/appearance";
+import { selectedSkin } from "../skin/skin";
 import { queueRepresentativeFrame } from "../interactive/history";
 import { historyUpload } from "../interactive/historyHttp";
 import { solvedCamera } from "../interactive/solved";
@@ -64,6 +66,9 @@ export function useFramedReview(jobId: string | undefined) {
     review.items.map((i) => i.personIndex),
     format === "fbx",
   );
+  const outlines = usePoseSelectionStore((s) => s.outlineByPerson);
+  const skins = usePoseSelectionStore((s) => s.skinByPerson);
+  const outlineEditing = usePoseSelectionStore((s) => s.outlineEditingByPerson);
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const preferred = useModelStore((s) => s.preferredCharacterId);
@@ -115,6 +120,8 @@ export function useFramedReview(jobId: string | undefined) {
         /* Invalid server URLs fail closed. */
       }
     }
+    const appearance = local ? undefined : outlineAppearance(outlines?.[item.personIndex] ?? 0);
+    const skin = local ? undefined : selectedSkin(skins?.[item.personIndex] ?? "default");
     const binding = JSON.stringify([
       owner,
       item.personIndex,
@@ -125,11 +132,16 @@ export function useFramedReview(jobId: string | undefined) {
       scope,
       bodyMode ? [body?.selectionRevision, body?.resolvedBody, body?.shape] : characterId,
       handEntry?.selection,
+      appearance,
+      ...(skin ? [skin] : []),
     ]);
     return {
       local,
       localBinding: local ? localBinding(local, item, scope, handEntry?.selection) : "",
       binding,
+      appearance,
+      skin,
+      editing: !local && outlineEditing?.[item.personIndex] === true,
       scope,
       characterId,
       body,
@@ -142,7 +154,10 @@ export function useFramedReview(jobId: string | undefined) {
     };
   });
   const requestReady = (request: (typeof requests)[number]) =>
-    !review.isRefining && request.handReady && (bodyMode ? review.bodies.ready : catalog.isSuccess);
+    !review.isRefining &&
+    !request.editing &&
+    request.handReady &&
+    (bodyMode ? review.bodies.ready : catalog.isSuccess);
   const selectionsReady = requests.every((r) => (r.local ? !review.isRefining : requestReady(r)));
   const localQueries = useQueries({
     queries: requests.map((request, index) => ({
@@ -172,6 +187,8 @@ export function useFramedReview(jobId: string | undefined) {
       candidateId: review.items[i].candidate.id,
       ready: requestReady(r),
       active: !r.local,
+      appearance: r.appearance,
+      skin: r.skin,
     })),
   });
   const queries = useQueries({
@@ -198,7 +215,13 @@ export function useFramedReview(jobId: string | undefined) {
             "verified-fbx-v1",
             request.binding,
           ],
-      enabled: !request.local && enabled && requestReady(request) && !!request.url,
+      enabled:
+        !request.local &&
+        enabled &&
+        !request.appearance &&
+        !request.skin &&
+        requestReady(request) &&
+        !!request.url,
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<PreparedReview> => {
         const item = review.items[index]!;
         if (bodyMode) {
@@ -273,7 +296,11 @@ export function useFramedReview(jobId: string | undefined) {
       gcTime: 600_000,
     })),
   });
+  const outlineUnsupported = !interactiveEnabled && requests.some((r) => !!r.appearance);
+  const skinUnsupported = !interactiveEnabled && requests.some((r) => !!r.skin);
   const preparationError =
+    outlineUnsupported ||
+    skinUnsupported ||
     localQueries.some((q, i) => !!requests[i]?.local && q.isError) ||
     (!interactiveEnabled && generatedReviewUnavailable) ||
     (enabled &&
@@ -289,6 +316,8 @@ export function useFramedReview(jobId: string | undefined) {
         requests.some((r) => !r.local && !r.url) ||
         queries.some((q, i) => !requests[i]?.local && q.isError)));
   const downloadReady =
+    !outlineUnsupported &&
+    !skinUnsupported &&
     !requiresFbx &&
     (!generatedReviewUnavailable || interactiveEnabled) &&
     !review.isRefining &&
@@ -377,8 +406,23 @@ export function useFramedReview(jobId: string | undefined) {
     hands,
     items: review.items.map((item, index) => ({
       ...item,
-      localFbx: requests[index]?.local ? localQueries[index]?.data?.content : undefined,
+      localFbx:
+        requests[index]?.local &&
+        localQueries[index]?.data?.binding === requests[index]?.localBinding
+          ? localQueries[index]?.data?.content
+          : undefined,
       localName: requests[index]?.local?.name,
+      outlineWidth: requests[index]?.local ? 0 : (outlines?.[item.personIndex] ?? 0),
+      skin: requests[index]!.skin,
+      skinAvailable:
+        interactiveEnabled &&
+        !requests[index]?.local &&
+        interactive.snapshots[index]?.skinAvailable === true,
+      supportedSkins: interactive.snapshots[index]?.supportedSkins ?? ["default"],
+      outlineAvailable:
+        interactiveEnabled &&
+        !requests[index]?.local &&
+        interactive.snapshots[index]?.appearanceAvailable === true,
       includesHands: scopeIncludesHands(requests[index]!.scope),
       previewUrl: requests[index]?.local
         ? ""
@@ -394,6 +438,22 @@ export function useFramedReview(jobId: string | undefined) {
       interactivePreview:
         interactiveEnabled && !requests[index]?.local
           ? ({
+              skin: requests[index]!.skin,
+              skinPreview:
+                interactive.snapshots[index]?.binding === requests[index]!.binding
+                  ? interactive.snapshots[index]?.operation?.skinPreview
+                  : undefined,
+              skinState: interactive.snapshots[index]?.operation?.stateHash
+                ? {
+                    stateHash: interactive.snapshots[index]!.operation!.stateHash!,
+                    revision: interactive.snapshots[index]!.operation!.revision,
+                  }
+                : undefined,
+              skinControl: {
+                personIndex: item.personIndex,
+                available: interactive.snapshots[index]?.supportedSkins ?? ["default"],
+              },
+              outlineWidth: requests[index]?.local ? 0 : (outlines?.[item.personIndex] ?? 0),
               model:
                 interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
                 item.candidate.id
@@ -470,7 +530,10 @@ export function useFramedReview(jobId: string | undefined) {
               message: localError(localFailure),
             }
           : poseRecovery(
-              queries.find((q) => q.isError)?.error ??
+              interactive.snapshots.find((s) => s?.failure)?.failure ??
+                (outlineUnsupported ? new ApiError(422, "OUTLINE_UNSUPPORTED", "") : undefined) ??
+                (skinUnsupported ? new ApiError(422, "SKIN_UNSUPPORTED", "") : undefined) ??
+                queries.find((q) => q.isError)?.error ??
                 review.bodies.entries.find((e) => e.error)?.error ??
                 hands.entries.find((e) => e.error)?.error ??
                 catalog.error,
@@ -478,10 +541,10 @@ export function useFramedReview(jobId: string | undefined) {
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: requiresFbx
       ? "새로 만든 포즈는 FBX로 저장해 주세요."
-      : enabled
-        ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
-        : hasLocal
-          ? "내 데포르메에 몸 포즈를 적용해요. 원래 손 모양으로 전신 FBX를 저장해요."
+      : hasLocal
+        ? "내 데포르메는 원래 손 모양·표면으로 전신 FBX를 저장해요. 스킨·외곽선 변경은 기본 체형에만 적용돼요."
+        : enabled
+          ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
           : format === "bvh"
             ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
             : "",

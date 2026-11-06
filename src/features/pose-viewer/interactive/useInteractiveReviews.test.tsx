@@ -29,13 +29,26 @@ it("does not create server controllers or expose native bindings for personal pe
           ready: false,
           active: false,
         },
-        { personIndex: 1, binding: "server", candidateId: "public-pose", ready: true },
+        {
+          personIndex: 1,
+          binding: "server",
+          candidateId: "public-pose",
+          ready: true,
+          appearance: { version: "fbx-outline-v1", width: 2 },
+          skin: { version: "fbx-skin-v1", id: "flesh" },
+        },
       ],
     }),
   );
   expect(fixture.controller).toHaveBeenCalledTimes(1);
   expect(fixture.controller).toHaveBeenCalledWith("owner", "job", 1);
-  expect(controller.select).toHaveBeenCalledWith("server", "public-pose", true);
+  expect(controller.select).toHaveBeenCalledWith(
+    "server",
+    "public-pose",
+    true,
+    { version: "fbx-outline-v1", width: 2 },
+    { version: "fbx-skin-v1", id: "flesh" },
+  );
   expect(result.current.controllers[0]).toBeUndefined();
   expect(result.current.snapshots[0]).toBeUndefined();
   expect(result.current.ready).toBe(true);
