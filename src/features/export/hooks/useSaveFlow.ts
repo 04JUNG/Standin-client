@@ -521,6 +521,8 @@ export function useSaveFlow(jobId: string | undefined) {
             excluded: usePoseSelectionStore.getState().excludedPeople,
             character: usePoseSelectionStore.getState().characterId,
             characters: usePoseSelectionStore.getState().characterByPerson,
+            outlines: usePoseSelectionStore.getState().outlineByPerson,
+            outlineEditing: usePoseSelectionStore.getState().outlineEditingByPerson,
             refine: usePoseSelectionStore.getState().refineByPerson,
             people: qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.people,
             body: qc
@@ -575,6 +577,15 @@ export function useSaveFlow(jobId: string | undefined) {
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
+            const outline = selectionState.outlineByPerson[personIndex] ?? 0;
+            if (
+              selectionState.outlineEditingByPerson[personIndex] ||
+              (outline > 0 &&
+                (format !== "fbx" ||
+                  !env.interactivePreview ||
+                  !analysisResult.capabilities.interactivePreview?.operations))
+            )
+              throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
             const person = analysisResult.people.find((p) => p.index === personIndex);
             const scope = previewScope(person);
             const handApplicable =
@@ -615,7 +626,8 @@ export function useSaveFlow(jobId: string | undefined) {
               if (
                 !owner ||
                 !interactiveBinding ||
-                current.snapshot().operation?.candidateId !== candidateId
+                current.snapshot().operation?.candidateId !== candidateId ||
+                (current.snapshot().operation?.appearance?.width ?? 0) !== outline
               )
                 throw new ApiError(409, "PREVIEW_CHANGED", "");
               const verified = await current.download(interactiveBinding, controller.signal);
@@ -715,6 +727,8 @@ export function useSaveFlow(jobId: string | undefined) {
           sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
           !env.useMockPoseApi
         ) {
+          if (Object.values(selectionState.outlineByPerson).some((width) => width > 0))
+            throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
           sceneRequest = true;
           if (files.some((f) => !f.downloadPath))
             throw new Error("장면에 사용할 최종 파일을 확인하지 못했습니다.");

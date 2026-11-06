@@ -2,7 +2,7 @@ import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { interactiveHttp, checkOperation, type Operation } from "./http";
 import { boundedBytes, BoundedQueue } from "./assets";
-import { apiFetchResponse } from "@/shared/api/client";
+import { apiFetch, apiFetchResponse } from "@/shared/api/client";
 vi.mock("@/shared/api/client", () => ({ apiFetch: vi.fn(), apiFetchResponse: vi.fn() }));
 const target = { jobId: "job_fixture", personIndex: 0 };
 const base = "/v1/analysis/jobs/job_fixture/people/0/interactive-state/op_test";
@@ -28,6 +28,7 @@ function op(): Operation {
 beforeEach(() => {
   vi.stubGlobal("crypto", webcrypto);
   vi.mocked(apiFetchResponse).mockReset();
+  vi.mocked(apiFetch).mockReset();
 });
 afterEach(() => vi.unstubAllGlobals());
 it("rejects cross-operation, external and expired artifact references", () => {
@@ -105,4 +106,51 @@ it("bounds chunked allocation and cancels a queued task before it consumes a wor
   finish();
   await first;
   expect(task).not.toHaveBeenCalled();
+});
+
+it("refuses a ready operation that drops its requested appearance proof", () => {
+  const current = op();
+  current.appearance = { version: "fbx-outline-v1", width: 1.2 };
+  current.exportReceipt = {
+    schema: "interactive-fbx-receipt-v1",
+    operationId: current.operationId,
+    revision: current.revision,
+    stateHash: current.stateHash!,
+    artifactSha256: "a".repeat(64),
+    artifactBytes: 3,
+    runtimeRevision: "d".repeat(64),
+    packetModelSha256: "e".repeat(64),
+    solverVersion: "chain-transport-v3.2.5",
+    validationVersion: "final-fbx-v1",
+    initialFbxRequired: true,
+    nativeSaved: false,
+  };
+  expect(() => checkOperation(current, target)).toThrow("appearance receipt changed");
+});
+
+it("queries appearance-aware head and leaves missing or malformed capability unavailable", async () => {
+  const response = {
+    schemaVersion: "standin.interactive-http.v1",
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+  };
+  vi.mocked(apiFetch).mockResolvedValueOnce(response);
+  expect(
+    (await interactiveHttp.head(target, "candidate", new AbortController().signal))
+      .appearanceExport,
+  ).toBeUndefined();
+  vi.mocked(apiFetch).mockResolvedValueOnce({
+    ...response,
+    appearanceExport: { version: "fbx-outline-v1", available: "true" },
+  });
+  const appearance = { version: "fbx-outline-v1", width: 1.2 } as const;
+  expect(
+    (await interactiveHttp.head(target, "candidate", new AbortController().signal, appearance))
+      .appearanceExport,
+  ).toBeUndefined();
+  const url = vi.mocked(apiFetch).mock.calls[1][0];
+  expect(
+    JSON.parse(new URL(url, "https://standin.invalid").searchParams.get("appearance")!),
+  ).toEqual(appearance);
 });

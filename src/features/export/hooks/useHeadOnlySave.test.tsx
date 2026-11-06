@@ -245,3 +245,41 @@ it("a late download after another person's selection changes writes no stale fil
   await waitFor(() => expect(hook.result.current.status).toBe("error"));
   expect(mock.save).not.toHaveBeenCalled();
 });
+
+it("never falls back to a legacy unoutlined file when a nonzero outline is selected", async () => {
+  const hook = mount(["head"]);
+  act(() => usePoseSelectionStore.getState().setPersonOutline(0, 1.2));
+  await act(async () => {
+    await hook.result.current.retry();
+  });
+  expect(mock.save).not.toHaveBeenCalled();
+  expect(mock.bytes).not.toHaveBeenCalled();
+  expect(mock.body).not.toHaveBeenCalled();
+  expect(hook.result.current.error).toBeTruthy();
+  act(() => usePoseSelectionStore.getState().setPersonOutline(0, 0));
+  hook.unmount();
+});
+
+it("drops a late zero download when width changes before the native write", async () => {
+  let finish!: (bytes: Uint8Array) => void;
+  mock.bytes.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const hook = mount(["head"]);
+  let saving!: Promise<unknown>;
+  act(() => {
+    saving = hook.result.current.retry();
+  });
+  await waitFor(() => expect(mock.bytes).toHaveBeenCalledOnce());
+  act(() => usePoseSelectionStore.getState().setPersonOutline(0, 0.65));
+  await act(async () => {
+    finish(new Uint8Array([1]));
+    await saving;
+  });
+  expect(mock.save).not.toHaveBeenCalled();
+  act(() => usePoseSelectionStore.getState().setPersonOutline(0, 0));
+  hook.unmount();
+});
