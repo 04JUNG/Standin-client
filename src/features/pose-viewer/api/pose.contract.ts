@@ -169,5 +169,10 @@ export interface PoseResultService {
     height: number;
     /** React Query가 화면 이탈/쿼리 취소 시 진행 중인 HTTP 요청까지 중단한다. */
     signal?: AbortSignal;
+    /** Observed transport milestones; no server percentage is implied. */
+    onProgress?: (
+      phase: import("../lib/loadingProgress").AnalysisPhase,
+      snapshot?: import("./analysisProgress").AnalysisSnapshot,
+    ) => void;
   }): Promise<AnalysisResult>;
 }
