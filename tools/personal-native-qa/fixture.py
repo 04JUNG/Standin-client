@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--sha256', required=True)
     parser.add_argument('--work', type=Path, required=True)
     parser.add_argument('--port', type=int, default=8000)
+    parser.add_argument('--reuse-credentials', action='store_true', help='Reuse only this local fixture registration for app reload QA')
     args = parser.parse_args()
     pose = args.bvh.read_bytes()
     digest = hashlib.sha256(pose).hexdigest()
@@ -22,8 +23,13 @@ def main():
     args.work.mkdir(parents=True, exist_ok=True)
     owner, token = 'local-qa-' + secrets.token_hex(8), secrets.token_urlsafe(32)
     config = args.work / 'fixture-private.json'
-    config.touch(mode=0o600, exist_ok=False)
-    config.write_text(json.dumps({'owner': owner, 'token': token}))
+    if args.reuse_credentials:
+        previous = json.loads(config.read_text())
+        owner, token = previous['owner'], previous['token']
+        if not owner.startswith('local-qa-') or len(token)<32: raise ValueError('Not local fixture credentials')
+    else:
+        config.touch(mode=0o600, exist_ok=False)
+        config.write_text(json.dumps({'owner': owner, 'token': token}))
     job = 'job_personal_connection_v10_local_fixture'
     selected = 'recorded-source'
     rotation = [[0.8191520442889918, 0, 0.573576436351046], [0, 1, 0], [-0.573576436351046, 0, 0.8191520442889918]]
@@ -37,7 +43,7 @@ def main():
             out.write(json.dumps({'time': time.time(), **fields})+'\n')
     def candidate(id, rank, camera):
         return {'id': id, 'poseId': 'recorded-pose', 'rank': rank, 'view': 'front', 'tags': ['recorded-local-fixture'], 'matchLevel': 'similar', 'source': 'library', 'sourceBvhSha256': digest, 'lookupAllowed': True, 'releaseAllowed': True, 'refineAllowed': False, 'bvhAvailable': True, 'camera': {'version': 'candidate-camera-v2', 'rotation': camera, 'source_bvh_sha256': digest}}
-    result = {'jobId': job, 'notes': ['LOCAL FIXTURE: authorized recorded BVH; no live analysis or production authentication'], 'capabilities': {'fbxExport': True, 'bodyPreviews': True, 'refine': False, 'handSelection': False, 'sceneExport': False, 'characterSelection': False, 'outputScopeCropping': True, 'interactivePreview': {'schemaVersion': 'interactive-preview-capability-v1', 'top5': True, 'operations': True}}, 'candidatesByPerson': [{'personIndex': 0, 'box': None, 'tags': {}, 'confidence': 'high', 'skeletonState': 'valid', 'skeletonSource': 'full_image', 'coverageClass': 'full', 'fallbackMode': 'none', 'refineAllowed': False, 'candidates': [candidate('recorded-source', 1, [[1,0,0],[0,1,0],[0,0,1]]), candidate('recorded-yaw35', 2, rotation)]}]}
+    result = {'jobId': job, 'notes': ['LOCAL FIXTURE: authorized recorded BVH; no live analysis or production authentication'], 'capabilities': {'fbxExport': True, 'bodyPreviews': True, 'refine': False, 'handSelection': False, 'sceneExport': False, 'characterSelection': False, 'outputScopeCropping': True, 'selectionPreview': True, 'interactivePreview': {'schemaVersion': 'interactive-preview-capability-v1', 'top5': True, 'operations': True}}, 'candidatesByPerson': [{'personIndex': 0, 'box': None, 'tags': {}, 'confidence': 'high', 'skeletonState': 'valid', 'skeletonSource': 'full_image', 'coverageClass': 'full', 'fallbackMode': 'none', 'refineAllowed': False, 'candidates': [candidate('recorded-source', 1, [[1,0,0],[0,1,0],[0,0,1]]), candidate('recorded-yaw35', 2, rotation)]}]}
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_): pass
         def send(self, code, value, mime='application/json'):

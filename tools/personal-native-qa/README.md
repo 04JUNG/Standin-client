@@ -7,3 +7,7 @@ Run with `--bvh /private/authorized/recorded.bvh --sha256 <exact-sha> --work /pr
 Register only previously permitted local FBX/CS3C in **체형 커스텀 → 내 데포르메**, use **작업 기록** to open the clearly recorded fixture result, select a personal card, confirm the applied model in review, and save into a new QA folder. Source/camera changes must revoke old readiness. App↔bar uses normal product routes. Hash source, BVH, runtime, app binary and exact saved files separately.
 
 This checks local real HTTP delivery and native model/save integration. The fixture does **not** validate production authentication, live analysis/refine, Hono/SQL/S3, geometry quality, CSP or another OS. The log records route names, ownership booleans and final-BVH hashes; it omits credentials, personal names/IDs, model contents and request bodies. Raw model/decoder/build/output files must never be committed.
+
+For the same isolated app registration after a fixture restart, `--reuse-credentials` reuses only that run’s existing generated credential file. It is never a production identity. The fixture advertises `selectionPreview` so the latest persistent large pane can be checked with the actual local library.
+
+`verify_camera_pair.py` independently reimports app-saved identity/yaw35 FBXs, checks matching topology and the rigid transform about Hips, and writes only scalar errors/hashes. It does not certify deformation or CSP.

@@ -95,6 +95,6 @@ decoder payloads or runtime binaries were uploaded to CI, and no new machine,
 paid service, signing key, deployment, release or PR merge was used.
 
 Remaining: actual Windows/Intel runtime packages and execution, signing and
-redistribution, geometry quality, supported CSP import/joints/.clip save/reopen,
+redistribution, geometry quality, supported CSP object import/transform/.clip save/reopen,
 and live installation-owned BFF acceptance. A successful local file save does
 not close these gates. No newly qualified deformation runtime was handed off.
