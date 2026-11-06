@@ -49,7 +49,9 @@ PR159 `a473b525…`에서 새 독립 bare/worktree를 만들고 develop `65a4365
 | Windows / Intel native runtime | unverified |
 | Production/live BFF 연속·신규 분석 | unverified; 유료 호출 안 함 |
 | 변형 품질 / 새 runtime | not qualified / 미채택, 기존 v10 유지 |
-| CSP | [별도 실제 CSP 결과](../personal-body-csp-20261106/README.md); 남성 원래 리그 crash와 라이선스 저장 제한을 숨기지 않음 |
+| CSP 최신 앱4개 | 남성 source/yaw35 모두 crash, 여성 source/yaw35 모두 표시. 실제 Save As license-required, .clip/reopen 차단. [별도 실제 CSP 결과](../personal-body-csp-20261106/README.md) |
+
+최신 앱 저장본4개를 같은 SHA로 CSP5.1.1에 실제 가져왔다. 남성 source/yaw35는 모두 즉시 종료하고 여성 두 파일은 앉은 인체·회색 음영·방향 차이를 표시했다. 최신 여성 source의 실제 Save As도 라이선스 요구로 차단됐다. null camera/identity/yaw35 남성 실패를 근거로 카메라 원인을 단정하지 않는다. 최소 리그 진단 성공을 원래 리그의 해결책으로 대체하지 않는다.
 
 미리보기 실패는 첫 남성 source 표시 성공 후 설정 화면을 다녀온 재방문에서1회 관찰됐다. 검증된 FBX 준비와 미리보기 성공을 구분하는 기존 동작에 따라 저장은 가능했고 해당 디스크 파일을 별도로 해시했다. 이후 남성 yaw35와 여성 두 방향은 실제 표시됐다. **모든 재방문에 정상 표시된다고 주장하지 않는다.**
 

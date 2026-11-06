@@ -203,11 +203,12 @@
     "sourcePreservation": "both original input hashes rechecked unchanged",
     "selectedCamera": "pass only for fixture-controlled I/yaw35 matrices; real live fitted camera unverified",
     "runtimeAfterUi": "6591 exact hash/file audit passed after actual conversion",
-    "CSP": "separate owner evidence; not inferred from app save",
+    "CSP": "Latest ordinary app4: male identity/yaw35 crash; female identity/yaw35 display pass; actual Save As license-required; clip/reopen blocked. Separate CSP owner native evidence.",
     "geometry": "not qualified; v10 unchanged",
     "liveProductionBff": "unverified",
     "Windows": "unverified actual runtime",
-    "IntelMac": "unverified actual runtime"
+    "IntelMac": "unverified actual runtime",
+    "savedOutputsAfterRestartRenameDeleteCancel": "pass: all four disk SHA unchanged"
   },
   "previewIncident": {
     "observed": "one male source review revisit displayed preview failure while final FBX remained saveable; first male source/yaw35 and both female reviews rendered",
@@ -271,5 +272,44 @@
     "merge": false,
     "newPaidCalls": false,
     "rawModelsOrDecoderUploaded": false
+  },
+  "nativeLibraryVersions": [
+    {
+      "capabilities": {
+        "bodyPose": true,
+        "leftHand": false,
+        "rightHand": false
+      },
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254",
+      "converterVersion": "personal-converter/10",
+      "format": "cs3c",
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "sourceHash": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "version": 1
+    },
+    {
+      "capabilities": {
+        "bodyPose": true,
+        "leftHand": false,
+        "rightHand": false
+      },
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254",
+      "converterVersion": "personal-converter/10",
+      "format": "fbx",
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "sourceHash": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "version": 1
+    }
+  ],
+  "localHttpAudit": {
+    "requests": 135,
+    "finalBvhDeliveries": 18,
+    "privateInputRejectedOrDetected": 0,
+    "interactiveOperationRequests": 0,
+    "scope": "minimal fixture route/body-size observations; production replay filtering separately covered by regression tests; credentials and request bodies omitted"
   }
 }
