@@ -42,13 +42,7 @@ export async function prepareLocalRuntime({ target: requestedTarget, development
   const contract = JSON.parse(
     await readFile(path.join(source, "converter-client-contract.v1.json"), "utf8"),
   );
-  if (
-    contract.contractRevision !== 5 ||
-    contract.results?.hello?.cameraContractVersion !== "personal-camera/1" ||
-    contract.results?.hello?.modelStorageVersion !== "personal-fbx/1" ||
-    contract.results?.hello?.materialContractVersion !== "personal-solid-specular/1"
-  )
-    throw new Error("Runtime camera contract mismatch.");
+  verifyRuntimeContract(contract);
   await verifyRuntimeFiles(source, manifest);
   const destination = path.join(root, "src-tauri/resources/local-converter");
   await mkdir(path.dirname(destination), { recursive: true });
@@ -77,6 +71,31 @@ export async function prepareLocalRuntime({ target: requestedTarget, development
   });
   await verifyRuntimeFiles(destination, manifest);
   return { manifestHash, target };
+}
+
+// Explicit reviewed pairs only. A future revision requires a new compatibility review.
+export function verifyRuntimeContract(contract) {
+  const converter = new Map([
+    [5, "personal-converter/10"],
+    [6, "personal-converter/11"],
+  ]).get(contract.contractRevision);
+  const versions = {
+    importerVersion: "personal-import/4",
+    normalizationVersion: "personal-normalize/5",
+    rigMappingVersion: "personal-rig/2",
+    converterVersion: converter,
+  };
+  if (
+    !converter ||
+    contract.protocolVersion !== "standin.local-converter/1" ||
+    contract.results?.hello?.cameraContractVersion !== "personal-camera/1" ||
+    contract.results?.hello?.modelStorageVersion !== "personal-fbx/1" ||
+    contract.results?.hello?.materialContractVersion !== "personal-solid-specular/1" ||
+    [contract.versions, contract.results?.hello?.versions, contract.modelManifest?.versions].some(
+      (section) => Object.entries(versions).some(([key, value]) => section?.[key] !== value),
+    )
+  )
+    throw new Error("Unsupported runtime contract revision/version pair or capability contract.");
 }
 
 // Verify the exact artifact, including reused generated resources. No unlisted

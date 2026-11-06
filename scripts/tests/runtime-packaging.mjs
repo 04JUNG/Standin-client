@@ -47,10 +47,20 @@ test("standard build entry: absent capability, pin, contract, target, integrity,
     );
     const source = path.join(temp, "source");
     await mkdir(source);
+    const versions = {
+      importerVersion: "personal-import/4",
+      normalizationVersion: "personal-normalize/5",
+      rigMappingVersion: "personal-rig/2",
+      converterVersion: "personal-converter/10",
+    };
     const contract = JSON.stringify({
       contractRevision: 5,
+      protocolVersion: "standin.local-converter/1",
+      versions,
+      modelManifest: { versions },
       results: {
         hello: {
+          versions,
           cameraContractVersion: "personal-camera/1",
           modelStorageVersion: "personal-fbx/1",
           materialContractVersion: "personal-solid-specular/1",
@@ -140,7 +150,7 @@ test("standard build entry: absent capability, pin, contract, target, integrity,
 });
 
 // Synthetic headers exercise cross-target selection only. They never certify OS execution.
-import { verifyRuntimeFiles } from "../tauri-personal-body.mjs";
+import { verifyRuntimeFiles, verifyRuntimeContract } from "../tauri-personal-body.mjs";
 for (const target of Object.keys(triple)) {
   test(`exact artifact and native headers: ${target} (synthetic, not execution)`, async () => {
     const temp = await mkdtemp(path.join(tmpdir(), "personal-architecture-test-"));
@@ -193,3 +203,53 @@ for (const target of Object.keys(triple)) {
     }
   });
 }
+
+test("only reviewed revision/version pairs are accepted in every contract section", () => {
+  const contract = (revision, version) => {
+    const versions = {
+      importerVersion: "personal-import/4",
+      normalizationVersion: "personal-normalize/5",
+      rigMappingVersion: "personal-rig/2",
+      converterVersion: version,
+    };
+    return {
+      contractRevision: revision,
+      protocolVersion: "standin.local-converter/1",
+      versions,
+      modelManifest: { versions: { ...versions } },
+      results: {
+        hello: {
+          versions: { ...versions },
+          cameraContractVersion: "personal-camera/1",
+          modelStorageVersion: "personal-fbx/1",
+          materialContractVersion: "personal-solid-specular/1",
+        },
+      },
+    };
+  };
+  for (const [rev, version] of [
+    [5, "personal-converter/10"],
+    [6, "personal-converter/11"],
+  ]) {
+    const valid = contract(rev, version);
+    verifyRuntimeContract(valid);
+    for (const section of ["versions", "hello", "modelManifest"]) {
+      const invalid = structuredClone(valid);
+      const versions =
+        section === "versions"
+          ? invalid.versions
+          : section === "hello"
+            ? invalid.results.hello.versions
+            : invalid.modelManifest.versions;
+      versions.converterVersion = "personal-converter/999";
+      assert.throws(() => verifyRuntimeContract(invalid), /revision\/version/);
+    }
+  }
+  for (const [rev, version] of [
+    [5, "personal-converter/11"],
+    [6, "personal-converter/10"],
+    [7, "personal-converter/11"],
+    ["6", "personal-converter/11"],
+  ])
+    assert.throws(() => verifyRuntimeContract(contract(rev, version)), /revision\/version/);
+});

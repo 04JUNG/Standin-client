@@ -36,6 +36,41 @@ pub(super) fn launcher(app: &AppHandle) -> Result<PathBuf, LocalError> {
         Err(err("RUNTIME_UNAVAILABLE"))
     }
 }
+fn matches_reviewed_contract(contract: &Value, hello: &Value) -> bool {
+    let converter = match contract["contractRevision"].as_u64() {
+        Some(5) => "personal-converter/10",
+        Some(6) => "personal-converter/11",
+        _ => return false,
+    };
+    let versions = [
+        ("importerVersion", "personal-import/4"),
+        ("normalizationVersion", "personal-normalize/5"),
+        ("rigMappingVersion", "personal-rig/2"),
+        ("converterVersion", converter),
+    ];
+    contract["protocolVersion"] == PROTOCOL
+        && [
+            &contract["versions"],
+            &contract["results"]["hello"]["versions"],
+            &contract["modelManifest"]["versions"],
+            &hello["versions"],
+        ]
+        .iter()
+        .all(|section| {
+            versions
+                .iter()
+                .all(|(key, expected)| section[key] == *expected)
+        })
+        && hello["versions"]["converterFingerprint"]
+            .as_str()
+            .is_some_and(super::valid_hash)
+        && [hello, &contract["results"]["hello"]].iter().all(|value| {
+            value["cameraContractVersion"] == "personal-camera/1"
+                && value["modelStorageVersion"] == "personal-fbx/1"
+                && value["materialContractVersion"] == "personal-solid-specular/1"
+        })
+}
+
 pub(super) struct Session {
     child: Child,
     stdin: Option<ChildStdin>,
@@ -88,10 +123,12 @@ impl RuntimeCache {
                 context.cancel,
                 json!({"action":"hello"}),
             )?;
-            if hello["cameraContractVersion"] != "personal-camera/1"
-                || hello["modelStorageVersion"] != "personal-fbx/1"
-                || hello["materialContractVersion"] != "personal-solid-specular/1"
-            {
+            let contract: Value = launcher
+                .parent()
+                .and_then(|dir| std::fs::read(dir.join("converter-client-contract.v1.json")).ok())
+                .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+                .ok_or_else(|| err("RUNTIME_MISMATCH"))?;
+            if !matches_reviewed_contract(&contract, &hello) {
                 return Err(err("RUNTIME_MISMATCH"));
             }
             self.cached = Some(CachedRuntime {
@@ -294,6 +331,42 @@ impl Drop for Session {
 mod tests {
     use super::*;
 
+    fn fixture_contract(revision: u64, converter: &str) -> Value {
+        let versions = json!({"importerVersion":"personal-import/4","normalizationVersion":"personal-normalize/5",
+            "rigMappingVersion":"personal-rig/2","converterVersion":converter,"converterFingerprint":"a".repeat(64)});
+        json!({"contractRevision":revision,"protocolVersion":PROTOCOL,"versions":versions,
+            "modelManifest":{"versions":versions},"results":{"hello":{"versions":versions,
+                "cameraContractVersion":"personal-camera/1","modelStorageVersion":"personal-fbx/1",
+                "materialContractVersion":"personal-solid-specular/1"}}})
+    }
+    #[test]
+    fn only_reviewed_revision_version_pairs_and_fingerprints_are_accepted() {
+        for (revision, converter) in [(5, "personal-converter/10"), (6, "personal-converter/11")] {
+            let contract = fixture_contract(revision, converter);
+            let hello = contract["results"]["hello"].clone();
+            assert!(matches_reviewed_contract(&contract, &hello));
+            let mut stale = hello.clone();
+            stale["versions"]["converterVersion"] = json!("personal-converter/999");
+            assert!(!matches_reviewed_contract(&contract, &stale));
+            stale = hello.clone();
+            stale["versions"]["converterFingerprint"] = json!("invalid");
+            assert!(!matches_reviewed_contract(&contract, &stale));
+            let mut mismatched = contract.clone();
+            mismatched["contractRevision"] = json!(if revision == 5 { 6 } else { 5 });
+            assert!(!matches_reviewed_contract(&mismatched, &hello));
+        }
+        let mut future = fixture_contract(7, "personal-converter/11");
+        assert!(!matches_reviewed_contract(
+            &future,
+            &future["results"]["hello"]
+        ));
+        future["contractRevision"] = json!("6");
+        assert!(!matches_reviewed_contract(
+            &future,
+            &future["results"]["hello"]
+        ));
+    }
+
     #[cfg(unix)]
     #[test]
     fn retained_host_reuses_process_and_recovers_without_replaying_failed_requests() {
@@ -308,10 +381,15 @@ for line in sys.stdin:
     if r['action']=='die': sys.exit(0)
     event={'protocolVersion':'standin.local-converter/1','requestId':r['requestId'],'event':'result'}
     if r['action']=='fail': event.update(event='error',error={'code':'SOURCE_CHANGED'})
-    else: event['result']={'cameraContractVersion':'personal-camera/1','modelStorageVersion':'personal-fbx/1','materialContractVersion':'personal-solid-specular/1','pid':os.getpid()}
+    else: event['result']={'versions':json.load(open(os.path.join(os.path.dirname(__file__),"converter-client-contract.v1.json")))["versions"],'cameraContractVersion':'personal-camera/1','modelStorageVersion':'personal-fbx/1','materialContractVersion':'personal-solid-specular/1','pid':os.getpid()}
     print(json.dumps(event),flush=True)
 "##).unwrap();
         fs::set_permissions(&launcher, fs::Permissions::from_mode(0o755)).unwrap();
+        fs::write(
+            root.join("converter-client-contract.v1.json"),
+            serde_json::to_vec(&fixture_contract(5, "personal-converter/10")).unwrap(),
+        )
+        .unwrap();
         let cancel = AtomicBool::new(false);
         let context = || RequestContext {
             app: None,

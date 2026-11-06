@@ -258,87 +258,142 @@ fn import_source(
     }
     let source_hash = hash(&bytes);
     with_runtime(app, root, job, cancel, |session, hello| {
-        let existing = cards(root)?;
-        if let Some(duplicate) = existing.iter().find(|c| {
-            c.source_hash == source_hash
-                && hello["versions"]["importerVersion"] == c.importer_version
-                && hello["versions"]["normalizationVersion"] == c.normalization_version
-                && hello["versions"]["rigMappingVersion"] == c.rig_mapping_version
-                && hello["versions"]["converterVersion"] == c.converter_version
-                && hello["versions"]["converterFingerprint"] == c.converter_fingerprint
-        }) {
-            return Ok(Some(duplicate.clone()));
-        }
-        let previous = replace_id.map(|id| card(root, id)).transpose()?;
-        let stage = root.join("staging").join(job);
-        io(fs::create_dir_all(&stage))?;
-        let result = (|| {
-            let staged_source = stage.join(format!("source.{format}"));
-            io(fs::write(&staged_source, bytes))?;
-            let manifest = session.request(
-                Some(app),
+        register_source(
+            Registration {
+                app: Some(app),
+                root,
                 job,
-                cancel,
-                json!({
-                    "action":"import", "localModelId":job,
-                    "sourcePath":staged_source, "sourceHash":source_hash,
-                }),
-            )?;
-            if manifest["sourceHash"] != source_hash
-                || manifest["localModelId"] != job
-                || manifest["capabilities"]["bodyPose"] != true
-                || manifest["normalizedFormat"] != "fbx"
-                || !manifest["normalizedHash"].as_str().is_some_and(valid_hash)
-            {
-                return Err(err("UNSUPPORTED_MODEL"));
-            }
-            let version = |key: &str| {
-                manifest["versions"][key]
-                    .as_str()
-                    .map(String::from)
-                    .ok_or_else(|| err("PROTOCOL_MISMATCH"))
-            };
-            let record = Card {
-                local_model_id: previous
-                    .as_ref()
-                    .map_or_else(|| job.to_string(), |c| c.local_model_id.clone()),
-                name: previous
-                    .as_ref()
-                    .map_or_else(|| name.to_string(), |c| c.name.clone()),
                 source_hash,
+                bytes,
                 format,
-                version: previous.as_ref().map_or(1, |c| c.version + 1),
-                importer_version: version("importerVersion")?,
-                normalization_version: version("normalizationVersion")?,
-                rig_mapping_version: version("rigMappingVersion")?,
-                converter_version: version("converterVersion")?,
-                converter_fingerprint: version("converterFingerprint")?,
-                created_at: previous.as_ref().map_or(now(), |c| c.created_at),
-                updated_at: now(),
-                capabilities: json!({"bodyPose":true,
-                "leftHand":manifest["capabilities"]["hands"]["left"]["supported"] == true,
-                "rightHand":manifest["capabilities"]["hands"]["right"]["supported"] == true}),
-                worker_model_id: job.to_string(),
-            };
-            if cancel.load(Ordering::SeqCst) {
-                return Err(err("CANCELLED"));
-            }
-            save_card(root, &record)?;
-            if let Some(old) = previous {
-                let _ = session.request(
-                    Some(app),
-                    job,
-                    &AtomicBool::new(false),
-                    json!({
-                        "action":"delete", "localModelId":old.worker_model_id,
-                    }),
-                );
-            }
-            Ok(Some(record))
-        })();
-        let _ = fs::remove_dir_all(stage);
-        result
+                name,
+                replace_id,
+                cancel,
+            },
+            session,
+            hello,
+        )
     })
+}
+
+// Shared by the product command and opt-in native migration tests; no UI or
+// alternate worker implementation is involved in registration/replacement.
+struct Registration<'a> {
+    app: Option<&'a AppHandle>,
+    root: &'a Path,
+    job: &'a str,
+    source_hash: String,
+    bytes: Vec<u8>,
+    format: String,
+    name: &'a str,
+    replace_id: Option<&'a str>,
+    cancel: &'a AtomicBool,
+}
+fn register_source(
+    registration: Registration<'_>,
+    session: &mut Session,
+    hello: &Value,
+) -> Result<Option<Card>, LocalError> {
+    let Registration {
+        app,
+        root,
+        job,
+        source_hash,
+        bytes,
+        format,
+        name,
+        replace_id,
+        cancel,
+    } = registration;
+    let existing = cards(root)?;
+    if let Some(duplicate) = existing.iter().find(|c| {
+        c.source_hash == source_hash
+            && hello["versions"]["importerVersion"] == c.importer_version
+            && hello["versions"]["normalizationVersion"] == c.normalization_version
+            && hello["versions"]["rigMappingVersion"] == c.rig_mapping_version
+            && hello["versions"]["converterVersion"] == c.converter_version
+            && hello["versions"]["converterFingerprint"] == c.converter_fingerprint
+    }) {
+        return Ok(Some(duplicate.clone()));
+    }
+    let previous = replace_id.map(|id| card(root, id)).transpose()?;
+    let stage = root.join("staging").join(job);
+    io(fs::create_dir_all(&stage))?;
+    let result = (|| {
+        let staged_source = stage.join(format!("source.{format}"));
+        io(fs::write(&staged_source, bytes))?;
+        let manifest = session.request(
+            app,
+            job,
+            cancel,
+            json!({
+                "action":"import", "localModelId":job,
+                "sourcePath":staged_source, "sourceHash":source_hash,
+            }),
+        )?;
+        if manifest["sourceHash"] != source_hash
+            || manifest["localModelId"] != job
+            || manifest["capabilities"]["bodyPose"] != true
+            || manifest["normalizedFormat"] != "fbx"
+            || !manifest["normalizedHash"].as_str().is_some_and(valid_hash)
+            || [
+                "importerVersion",
+                "normalizationVersion",
+                "rigMappingVersion",
+                "converterVersion",
+                "converterFingerprint",
+            ]
+            .iter()
+            .any(|key| manifest["versions"][key] != hello["versions"][key])
+        {
+            return Err(err("UNSUPPORTED_MODEL"));
+        }
+        let version = |key: &str| {
+            manifest["versions"][key]
+                .as_str()
+                .map(String::from)
+                .ok_or_else(|| err("PROTOCOL_MISMATCH"))
+        };
+        let record = Card {
+            local_model_id: previous
+                .as_ref()
+                .map_or_else(|| job.to_string(), |c| c.local_model_id.clone()),
+            name: previous
+                .as_ref()
+                .map_or_else(|| name.to_string(), |c| c.name.clone()),
+            source_hash,
+            format,
+            version: previous.as_ref().map_or(1, |c| c.version + 1),
+            importer_version: version("importerVersion")?,
+            normalization_version: version("normalizationVersion")?,
+            rig_mapping_version: version("rigMappingVersion")?,
+            converter_version: version("converterVersion")?,
+            converter_fingerprint: version("converterFingerprint")?,
+            created_at: previous.as_ref().map_or(now(), |c| c.created_at),
+            updated_at: now(),
+            capabilities: json!({"bodyPose":true,
+            "leftHand":manifest["capabilities"]["hands"]["left"]["supported"] == true,
+            "rightHand":manifest["capabilities"]["hands"]["right"]["supported"] == true}),
+            worker_model_id: job.to_string(),
+        };
+        if cancel.load(Ordering::SeqCst) {
+            return Err(err("CANCELLED"));
+        }
+        save_card(root, &record)?;
+        if let Some(old) = previous {
+            let _ = session.request(
+                app,
+                job,
+                &AtomicBool::new(false),
+                json!({
+                    "action":"delete", "localModelId":old.worker_model_id,
+                }),
+            );
+        }
+        Ok(Some(record))
+    })();
+    let _ = fs::remove_dir_all(stage);
+    result
 }
 
 #[tauri::command]

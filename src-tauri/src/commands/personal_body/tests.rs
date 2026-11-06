@@ -285,3 +285,179 @@ fn real_packaged_worker_with_decoder_imports_original_cs3c() {
         PathBuf::from(std::env::var("STANDIN_TEST_CS3C").expect("permitted original CS3C"));
     exercise_packaged_model(runtime, source);
 }
+
+#[test]
+#[ignore = "Requires separate immutable v10/v11 packages and permitted CS3C/BVH; exercises product registration/replacement core"]
+fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
+    let old_launcher =
+        PathBuf::from(std::env::var("STANDIN_TEST_V10_LAUNCHER").expect("preserved v10 launcher"));
+    let new_launcher =
+        PathBuf::from(std::env::var("STANDIN_TEST_LAUNCHER").expect("candidate v11 launcher"));
+    let source = PathBuf::from(std::env::var("STANDIN_TEST_CS3C").expect("permitted CS3C"));
+    let pose = PathBuf::from(std::env::var("STANDIN_TEST_BVH").expect("recorded pose"));
+    let root =
+        PathBuf::from(std::env::var("STANDIN_TEST_MIGRATION_ROOT").expect("new private QA root"));
+    assert!(!root.exists());
+    fs::create_dir_all(root.join("cards")).unwrap();
+    fs::create_dir_all(root.join("staging")).unwrap();
+    fs::create_dir_all(root.join("user exports")).unwrap();
+    let bytes = fs::read(&source).unwrap();
+    let source_hash = hash(&bytes);
+    let pose_hash = hash(&fs::read(&pose).unwrap());
+    let cancel = AtomicBool::new(false);
+    let context = || RequestContext {
+        app: None,
+        job: "migration",
+        cancel: &cancel,
+    };
+    let mut runtime = RuntimeCache::default();
+    let old_id = "00000000-0000-4000-8000-000000000011";
+    let new_id = "00000000-0000-4000-8000-000000000012";
+    let register =
+        |runtime: &mut RuntimeCache, launcher: &Path, job: &str, replace_id: Option<&str>| {
+            runtime
+                .with_session(launcher, &root, context(), |session, hello| {
+                    register_source(
+                        Registration {
+                            app: None,
+                            root: &root,
+                            job,
+                            source_hash: source_hash.clone(),
+                            bytes: bytes.clone(),
+                            format: "cs3c".into(),
+                            name: "migration original",
+                            replace_id,
+                            cancel: &cancel,
+                        },
+                        session,
+                        hello,
+                    )
+                })
+                .unwrap()
+                .unwrap()
+        };
+    let old_card = register(&mut runtime, &old_launcher, old_id, None);
+    assert_eq!(old_card.converter_version, "personal-converter/10");
+    let duplicate = register(
+        &mut runtime,
+        &old_launcher,
+        "00000000-0000-4000-8000-000000000013",
+        None,
+    );
+    assert_eq!(duplicate.local_model_id, old_card.local_model_id);
+    assert_eq!(duplicate.version, 1);
+    assert_eq!(cards(&root).unwrap().len(), 1);
+    let apply = |id: &str| {
+        json!({"action":"apply","localModelId":id,"sourceHash":source_hash,
+        "posePath":pose,"poseHash":pose_hash,"selectionId":"migration",
+        "camera":{"version":"personal-camera/1","sourceBvhSha256":null,"rotation":null},
+        "hands":{"left":null,"right":null}})
+    };
+    let old_applied = runtime
+        .with_session(&old_launcher, &root, context(), |session, _| {
+            session.request(None, "migration", &cancel, apply(old_id))
+        })
+        .unwrap();
+    let old_export = root.join("user exports/v10 preserved.fbx");
+    runtime.with_session(&old_launcher,&root,context(),|session,_| session.request(None,"migration",&cancel,
+        json!({"action":"export","localModelId":old_id,"snapshotHash":old_applied["snapshotHash"],"destinationPath":old_export}))).unwrap();
+    let old_export_hash = hash(&fs::read(&old_export).unwrap());
+    // The production runtime cache switches launcher/profile; old worker model
+    // metadata must fail before any v11 apply/cache result can be consumed.
+    let stale = runtime.with_session(&new_launcher, &root, context(), |session, _| {
+        session.request(None, "migration", &cancel, apply(old_id))
+    });
+    assert_eq!(stale.unwrap_err().code, "RUNTIME_MISMATCH");
+    assert_eq!(
+        card(&root, &old_card.local_model_id)
+            .unwrap()
+            .converter_version,
+        "personal-converter/10"
+    );
+    assert_eq!(hash(&fs::read(&old_export).unwrap()), old_export_hash);
+    // Explicit user re-registration invokes the exact core used by the picker:
+    // preserve public ID/name/createdAt, increment version, change worker ID.
+    let new_card = register(
+        &mut runtime,
+        &new_launcher,
+        new_id,
+        Some(&old_card.local_model_id),
+    );
+    assert_eq!(new_card.converter_version, "personal-converter/11");
+    assert_ne!(
+        new_card.converter_fingerprint,
+        old_card.converter_fingerprint
+    );
+    assert_eq!(new_card.local_model_id, old_card.local_model_id);
+    assert_eq!(new_card.name, old_card.name);
+    assert_eq!(new_card.created_at, old_card.created_at);
+    assert_eq!(new_card.version, 2);
+    assert_eq!(new_card.worker_model_id, new_id);
+    assert_eq!(cards(&root).unwrap().len(), 1);
+    assert!(!root.join("worker/models").join(old_id).exists());
+    assert!(root.join("worker/models").join(new_id).is_dir());
+    let camera = json!({"version":"personal-camera/1","sourceBvhSha256":null,"rotation":null});
+    assert!(validate_snapshot(&new_card, &pose_hash, &camera, &old_applied["snapshot"]).is_err());
+    let new_applied = runtime
+        .with_session(&new_launcher, &root, context(), |session, _| {
+            session.request(None, "migration", &cancel, apply(new_id))
+        })
+        .unwrap();
+    assert_eq!(new_applied["cacheHit"], false);
+    assert_ne!(new_applied["snapshotHash"], old_applied["snapshotHash"]);
+    assert!(validate_snapshot(&new_card, &pose_hash, &camera, &new_applied["snapshot"]).is_ok());
+    let cached = runtime
+        .with_session(&new_launcher, &root, context(), |session, _| {
+            session.request(None, "migration", &cancel, apply(new_id))
+        })
+        .unwrap();
+    assert_eq!(cached["cacheHit"], true);
+    assert_eq!(cached["artifactHash"], new_applied["artifactHash"]);
+    let stale_export = runtime.with_session(&new_launcher,&root,context(),|session,_|
+        session.request(None,"migration",&cancel,json!({"action":"export","localModelId":new_id,
+            "snapshotHash":old_applied["snapshotHash"],"destinationPath":root.join("user exports/stale.fbx")})));
+    assert_eq!(stale_export.unwrap_err().code, "SNAPSHOT_MISMATCH");
+    assert!(!root.join("user exports/stale.fbx").exists());
+    let new_export = root.join("user exports/v11 saved.fbx");
+    runtime
+        .with_session(&new_launcher, &root, context(), |session, _| {
+            session.request(
+                None,
+                "migration",
+                &cancel,
+                json!({"action":"export","localModelId":new_id,
+            "snapshotHash":new_applied["snapshotHash"],"destinationPath":new_export}),
+            )
+        })
+        .unwrap();
+    let new_export_hash = hash(&fs::read(&new_export).unwrap());
+    assert_eq!(new_export_hash, new_applied["artifactHash"]);
+    runtime
+        .with_session(&new_launcher, &root, context(), |session, _| {
+            session.request(
+                None,
+                "migration",
+                &cancel,
+                json!({"action":"delete","localModelId":new_id}),
+            )
+        })
+        .unwrap();
+    runtime.clear();
+    assert_eq!(hash(&fs::read(&old_export).unwrap()), old_export_hash);
+    assert_eq!(hash(&fs::read(&new_export).unwrap()), new_export_hash);
+    assert_eq!(hash(&fs::read(&source).unwrap()), source_hash);
+    let report = json!({"allPassed":true,"sourceSha256":source_hash,"poseSha256":pose_hash,
+        "v10Versions":{"converterVersion":old_card.converter_version,"converterFingerprint":old_card.converter_fingerprint},
+        "v11Versions":{"converterVersion":new_card.converter_version,"converterFingerprint":new_card.converter_fingerprint},
+        "v10ExportSha256":old_export_hash,"v11ExportSha256":new_export_hash,
+        "v10SnapshotHash":old_applied["snapshotHash"],"v11SnapshotHash":new_applied["snapshotHash"],
+        "sameRuntimeDuplicateReused":true,"oldWorkerRejected":true,"explicitReregistrationPassed":true,
+        "cardVersionIncremented":true,"oldCardIdentityPreserved":true,"oldSnapshotRejected":true,
+        "freshV11ApplyPassed":true,"v11CacheReusePassed":true,"deletionPreservesBothExports":true,
+        "scope":"actual product native registration/replacement core and retained NDJSON adapter; offline recorded pose; no picker/UI/live BFF/CSP or geometry quality qualification"});
+    fs::write(
+        std::env::var("STANDIN_TEST_MIGRATION_REPORT").unwrap(),
+        serde_json::to_vec_pretty(&report).unwrap(),
+    )
+    .unwrap();
+}
