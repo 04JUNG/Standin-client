@@ -1,3 +1,4 @@
+import { usePreparedSelection } from "../preparation/usePreparedSelection";
 import { loadPosePoster } from "../api/posePoster";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { useQueries } from "@tanstack/react-query";
@@ -39,7 +40,18 @@ export function useSelectionReview(jobId: string | undefined) {
   const analysis = useAnalysisResult(jobId);
   const characterId = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
-  const { status, refineByPerson } = useRefineSelection(analysis.data);
+  const legacy = useRefineSelection(analysis.data, analysis.preparation?.enabled);
+  const reused = usePreparedSelection(
+    analysis.data,
+    analysis.preparation,
+    analysis.selectedByPerson,
+  );
+  const status = analysis.preparation?.enabled
+    ? reused.ready
+      ? "done"
+      : "running"
+    : legacy.status;
+  const refineByPerson = analysis.preparation?.enabled ? reused.outcomes : legacy.refineByPerson;
   const { data, selectedByPerson } = analysis;
   const format = useExportStore((s) => s.format);
   const framed =
@@ -68,7 +80,9 @@ export function useSelectionReview(jobId: string | undefined) {
           personIndex,
           candidate,
           // 조정 결과가 있으면 그 URL이 최종이다. 없으면 후보의 베이스 URL로 저장한다.
-          exportUrl: currentOutcome?.exportUrl ?? candidate.bvhUrl,
+          exportUrl: analysis.preparation?.enabled
+            ? currentOutcome?.exportUrl
+            : (currentOutcome?.exportUrl ?? candidate.bvhUrl),
           // A deferred refined preview must never show the unmodified pose.
           previewUrl:
             currentOutcome?.previewUrl || (currentOutcome?.refined ? "" : candidate.thumbnailUrl),
@@ -77,7 +91,7 @@ export function useSelectionReview(jobId: string | undefined) {
         },
       ];
     });
-  }, [data, selectedByPerson, refineByPerson]);
+  }, [data, selectedByPerson, refineByPerson, analysis.preparation?.enabled]);
 
   const previews = useQueries({
     queries: items.map((item) => {
@@ -125,6 +139,7 @@ export function useSelectionReview(jobId: string | undefined) {
             }
           : legacy),
         enabled:
+          !analysis.preparation?.enabled &&
           !data?.capabilities.interactivePreview?.operations &&
           !framed &&
           !item.refined &&
@@ -136,6 +151,7 @@ export function useSelectionReview(jobId: string | undefined) {
 
   return {
     ...analysis,
+    sourceReuse: reused,
     items: items.map((item, i) => ({
       ...item,
       previewUrl: item.previewUrl || previews[i]?.data || "",
@@ -148,6 +164,6 @@ export function useSelectionReview(jobId: string | undefined) {
      * `idle`인데, 그걸 "끝남"으로 다루면 첫 렌더가 완료 화면을 보여주고 저장 버튼도
      * 활성이 된다 — 그 사이에 저장하면 조정본 대신 베이스 URL이 내려간다.
      */
-    isRefining: data?.source !== "semantic" && status !== "done",
+    isRefining: data?.source !== "semantic" && status !== "done" && !reused.error,
   };
 }

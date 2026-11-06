@@ -1,3 +1,7 @@
+import {
+  PreparationBarrier,
+  PreparationNotice,
+} from "@/features/pose-viewer/preparation/PreparationBarrier";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -29,6 +33,7 @@ export function BarCandidatesPage() {
   const analysis = useAnalysisResult(jobId ?? undefined, true);
   const {
     data,
+    preparation,
     bodies,
     isPending,
     isError,
@@ -164,7 +169,10 @@ export function BarCandidatesPage() {
             )}
           </div>
         )}
-        {!isPending && !isError && data && (
+        {!isPending && !isError && preparation.blocked && (
+          <PreparationBarrier preparation={preparation} onLeave={() => navigate("/bar/actions")} />
+        )}
+        {!isPending && !isError && data && !preparation.blocked && (
           <>
             {semantic && (
               <div className="sticky top-0 z-10 border-b border-border bg-surface-0 p-2">
@@ -175,6 +183,7 @@ export function BarCandidatesPage() {
                 />
               </div>
             )}
+            <PreparationNotice preparation={preparation} />
             {people.map((person) => (
               <BarPersonCandidates
                 key={`${data.jobId}:${person.index}`}

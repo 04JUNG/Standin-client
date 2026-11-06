@@ -1,3 +1,4 @@
+import { PreparedCandidateCard } from "../preparation/PreparedCandidateCard";
 import { ExpandablePose } from "../interactive/InteractivePose";
 import { useThumbnailJourney } from "@/features/analytics/useThumbnailJourney";
 import { reviewOnly, canRelease } from "../api/routedSearch";
@@ -35,6 +36,7 @@ type PoseCandidateCardProps = {
 };
 
 export function PoseCandidateCard(props: PoseCandidateCardProps) {
+  if (props.candidate.prepared) return <PreparedCandidateCard {...props} />;
   if (props.candidate.interactivePreview && !props.candidate.semantic)
     return <InteractiveCandidateCard {...props} />;
   return <PosterCandidateCard {...props} />;

@@ -360,3 +360,7 @@ BVH는 원본 전체 관절 파일이며 체형·손·부분 메시를 담지 �
 서버 변경 내역 비교 및 동일 SHA 저장은 [SCENE_SAVE_UI.md](SCENE_SAVE_UI.md)를 따른다.
 자동 보정은 명시적으로 선택하고 최종 장면을 확인해야 한다. 기존 자동 저장 규칙보다
 이 확장이 우선한다. 구 계약은 기본 통합 저장을 유지하며 v4 기본 꺼짐도 유지한다.
+
+## Top5 prepared source 재사용 (2026-11-06)
+
+새 capability의 live 캡처/이미지 후보는 source 동작을 먼저 보정해 비교한다. 실제 선택 후 source 재사용 영수증을 받고, 그 뒤 선택한 포즈에만 체형·수치·손·범위를 적용해 기존 최종 검증을 수행한다. source solve를 반복하지 않으며 BVH는 Top5에서 표시한 정확한 SHA를 재검증한다. source-only는 최종 체형 표면/FBX 인증이 아니다. [상세 경계·로컬 증거·한계](PRETOP5_SOURCE_PREPARATION.md).

@@ -8,6 +8,8 @@
  * 코드 목록은 BFF(`Standin-app-server`)의 실제 errorEnvelope 호출부 기준이다.
  */
 const MESSAGES: Record<string, string> = {
+  PREPARATION_EXPIRED: "포즈를 확인할 시간이 지났어요. 후보를 다시 준비하고 골라 주세요.",
+  PREPARATION_SUPERSEDED: "포즈 후보가 변경되었어요. 후보를 다시 확인해 주세요.",
   UPDATE_REQUIRED: "새 버전으로 업데이트해야 Standin을 사용할 수 있습니다.",
   SCENE_CONTRACT_UNSUPPORTED:
     "지금은 이 저장 방식을 사용할 수 없어요. 작업을 다시 열어 확인해 주세요.",

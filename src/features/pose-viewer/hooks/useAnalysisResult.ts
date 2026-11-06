@@ -1,3 +1,4 @@
+import { useCandidatePreparation } from "../preparation/useCandidatePreparation";
 import { replayObservation } from "@/shared/lib/replayBridge";
 import { analysisFailureJob } from "@/features/analytics/analysisContext";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
@@ -151,7 +152,23 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
 
   // hard fallback(자동 후보 없음)인 인물은 선택 대상이 아니라 안내로만 보여준다.
   // soft fallback은 다르다 — 저신뢰지만 후보가 있으므로 계속 고르고 저장할 수 있다.
-  const people = useMemo(() => query.data?.people ?? [], [query.data?.people]);
+  const preparation = useCandidatePreparation(query.data, !restoreOnly);
+  const data = useMemo(() => {
+    if (!query.data || !preparation.batch) return query.data;
+    return {
+      ...query.data,
+      people: query.data.people.map((person) => ({
+        ...person,
+        candidates: person.candidates.map((candidate) => ({
+          ...candidate,
+          prepared: preparation.batch!.candidates.find(
+            (c) => c.personIndex === person.index && c.candidateId === candidate.id,
+          ),
+        })),
+      })),
+    };
+  }, [query.data, preparation.batch]);
+  const people = useMemo(() => data?.people ?? [], [data?.people]);
   const selectablePeople = people.filter((p) => p.candidates.some(canRelease));
   const failedPeople = people.filter((p) => !p.candidates.some(canRelease));
   // 내보내기를 끈 인물은 진행 조건과 확정 요청에서 빠진다. 한 명은 남아야 한다.
@@ -167,6 +184,8 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
   );
   const allSelected =
     releaseReady &&
+    preparation.ready &&
+    includedPeople.every((p) => preparation.canSelect(p.index, selectedByPerson[p.index] ?? "")) &&
     bodies.ready &&
     !isSavingScope &&
     includedPeople.length > 0 &&
@@ -219,7 +238,7 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
     if (restoreOnly) {
       setServerJobId(query.data.jobId);
     }
-    if (!resultsVisible) return;
+    if (!resultsVisible || preparation.blocked) return;
     const surface = currentSurface();
     const viewKey = `${query.data.jobId}:${surface}`;
     if (lastViewedKey === viewKey) return;
@@ -262,13 +281,13 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
       },
       query.data.jobId,
     );
-  }, [query.data, people, setServerJobId, restoreOnly, resultsVisible, draft]);
+  }, [query.data, people, setServerJobId, restoreOnly, resultsVisible, draft, preparation.blocked]);
 
   function selectAndTrack(personIndex: number, candidateId: string) {
     const chosen = people
       .find((p) => p.index === personIndex)
       ?.candidates.find((c) => c.id === candidateId);
-    if (!canRelease(chosen)) return;
+    if (!canRelease(chosen) || !preparation.canSelect(personIndex, candidateId)) return;
     const previousCandidateId = selectedByPerson[personIndex] ?? null;
     // 이미 고른 후보를 다시 눌러도 "후보 변경"으로 세면 변경 횟수 지표가 부풀려진다.
     if (previousCandidateId === candidateId) return;
@@ -305,6 +324,8 @@ export function useAnalysisResult(jobId: string | undefined, resultsVisible = fa
   };
   return {
     ...query,
+    data,
+    preparation,
     retryAnalysis,
     bodies,
     // 기록은 다른 live draft와 수명이 겹친다. 원본도 조회한 job에만 묶고,

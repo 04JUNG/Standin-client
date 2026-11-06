@@ -169,6 +169,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     set((state) => {
       // 끈 인물은 고를 수 없다. 화면이 막지만 단축키·늦은 클릭도 여기서 막는다.
       if (personIndex in state.excludedPeople) return state;
+      if (state.selectedByPerson[personIndex] === candidateId) return state;
       // 후보를 바꾸면 이전 후보의 조정 결과는 더 이상 이 선택의 것이 아니다.
       // 남겨 두면 저장 단계가 고르지 않은 포즈의 exportUrl을 내려받는다.
       const refineByPerson = { ...state.refineByPerson };
