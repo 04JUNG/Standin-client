@@ -1,3 +1,4 @@
+import { CandidatePreviewButton } from "./CandidatePreviewContext";
 import { ExpandablePose } from "../interactive/InteractivePose";
 import type { CSSProperties } from "react";
 import "./PoseSearchPending.css";
@@ -133,95 +134,110 @@ function PosterCandidateCard({
   );
   void bodyPreview;
   return (
-    <button
-      data-pose-candidate
-      style={{ "--candidate-order": Math.min(Math.max(candidate.rank - 1, 0), 4) } as CSSProperties}
-      id={`pose-candidate-${candidate.id}`}
-      type="button"
-      onClick={
-        failed
-          ? () => {
-              void preview.refetch();
-            }
-          : onSelect
-      }
-      disabled={pending || disabled || !canRelease(candidate)}
-      aria-busy={pending}
-      aria-pressed={isSelected}
-      className={cn(
-        "pose-candidate-arrival flex w-full flex-col overflow-hidden rounded-xl border-2 bg-surface-0 text-left transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
-        isSelected ? "border-brand-coral" : "border-border hover:border-brand-sky",
-        fill && "h-full min-h-0",
-      )}
-    >
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          onError={reportThumbnailFailure}
-          onLoad={reportThumbnailFailure.onLoad}
-          alt={candidate.title}
-          className={cn(
-            "w-full object-contain",
-            fill ? "min-h-0 flex-1 bg-surface-2" : "aspect-square",
-          )}
-        />
-      ) : (
-        <div
-          className={cn(
-            "flex w-full items-center justify-center bg-surface-2 text-text-secondary",
-            fill ? "min-h-0 flex-1" : "aspect-square",
-          )}
-        >
-          {pending ? (
-            <span className="flex flex-col items-center gap-2 text-xs" role="status">
-              <LoaderCircle className="h-6 w-6 animate-spin" aria-hidden />
-              포즈 이미지 불러오는 중
-            </span>
-          ) : failed ? (
-            <span className="text-xs">미리보기 다시 시도</span>
-          ) : (
-            <ImageOff className="h-8 w-8" aria-hidden />
-          )}
-        </div>
-      )}
-      <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
-        <div className="flex items-center justify-between">
-          <span
-            className={cn("font-semibold text-text-primary", fill ? "text-[12px]" : "text-[13px]")}
-          >
-            {candidate.rank}. {candidate.title}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1">
-          <span
+    <div className={cn("relative w-full", fill && "h-full min-h-0")}>
+      <button
+        data-pose-candidate
+        style={
+          { "--candidate-order": Math.min(Math.max(candidate.rank - 1, 0), 4) } as CSSProperties
+        }
+        id={`pose-candidate-${candidate.id}`}
+        type="button"
+        onClick={
+          failed
+            ? () => {
+                void preview.refetch();
+              }
+            : onSelect
+        }
+        disabled={pending || disabled || !canRelease(candidate)}
+        aria-busy={pending}
+        aria-pressed={isSelected}
+        className={cn(
+          "pose-candidate-arrival flex w-full flex-col overflow-hidden rounded-xl border-2 bg-surface-0 text-left transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+          isSelected ? "border-brand-coral" : "border-border hover:border-brand-sky",
+          fill && "h-full min-h-0",
+        )}
+      >
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            onError={reportThumbnailFailure}
+            onLoad={reportThumbnailFailure.onLoad}
+            alt={candidate.title}
             className={cn(
-              "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold",
-              candidate.semantic
-                ? MATCH_BADGE_CLASS.medium
-                : MATCH_BADGE_CLASS[candidate.matchLevel],
+              "w-full object-contain",
+              fill ? "min-h-0 flex-1 bg-surface-2" : "aspect-square",
+            )}
+          />
+        ) : (
+          <div
+            className={cn(
+              "flex w-full items-center justify-center bg-surface-2 text-text-secondary",
+              fill ? "min-h-0 flex-1" : "aspect-square",
             )}
           >
-            {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
-            {candidate.manualExportAllowed
-              ? "선택하고 확인 후 저장"
-              : reviewOnly(candidate)
-                ? "미리보기 전용"
-                : candidate.semantic
-                  ? "문장 검색"
-                  : MATCH_LABEL[candidate.matchLevel]}
-          </span>
-          {!fill &&
-            candidate.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-secondary"
-              >
-                {tag}
+            {pending ? (
+              <span className="flex flex-col items-center gap-2 text-xs" role="status">
+                <LoaderCircle className="h-6 w-6 animate-spin" aria-hidden />
+                포즈 이미지 불러오는 중
               </span>
-            ))}
+            ) : failed ? (
+              <span className="text-xs">미리보기 다시 시도</span>
+            ) : (
+              <ImageOff className="h-8 w-8" aria-hidden />
+            )}
+          </div>
+        )}
+        <div className={cn("flex shrink-0 flex-col", fill ? "gap-1 px-2 py-1.5" : "gap-2 p-3")}>
+          <div className="flex items-center justify-between">
+            <span
+              className={cn(
+                "font-semibold text-text-primary",
+                fill ? "text-[12px]" : "text-[13px]",
+              )}
+            >
+              {candidate.rank}. {candidate.title}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold",
+                candidate.semantic
+                  ? MATCH_BADGE_CLASS.medium
+                  : MATCH_BADGE_CLASS[candidate.matchLevel],
+              )}
+            >
+              {candidate.matchLevel === "low" && <Info className="h-3 w-3" aria-hidden />}
+              {candidate.manualExportAllowed
+                ? "선택하고 확인 후 저장"
+                : reviewOnly(candidate)
+                  ? "미리보기 전용"
+                  : candidate.semantic
+                    ? "문장 검색"
+                    : MATCH_LABEL[candidate.matchLevel]}
+            </span>
+            {!fill &&
+              candidate.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-text-secondary"
+                >
+                  {tag}
+                </span>
+              ))}
+          </div>
         </div>
+      </button>
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0",
+          fill ? "bottom-[66px]" : "aspect-square",
+        )}
+      >
+        <CandidatePreviewButton candidateId={candidate.id} />
       </div>
-    </button>
+    </div>
   );
 }

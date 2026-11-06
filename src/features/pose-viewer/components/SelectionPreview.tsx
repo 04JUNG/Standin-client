@@ -1,3 +1,4 @@
+import "../pages/selectionWorkspace.css";
 import { MAX_OUTLINE_WIDTH } from "../outline/outlineSettings";
 import { loadSelectionPacket } from "../interactive/selectionPacket";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +17,7 @@ export function SelectionPreview({
   entry,
   bodiesEnabled,
   canonicalPreview = false,
+  renderLayer = 0,
 }: {
   job: string;
   person: PersonResult;
@@ -23,6 +25,7 @@ export function SelectionPreview({
   entry?: BodyEntry;
   bodiesEnabled: boolean;
   canonicalPreview?: boolean;
+  renderLayer?: number;
 }) {
   const owner = useBodyOwner();
   const candidate = person.candidates.find((c) => c.id === selectedId) ?? person.candidates[0];
@@ -132,7 +135,7 @@ export function SelectionPreview({
             asset={displayAsset}
             viewKey={`${appearanceKey}:selection`}
             large
-            renderLayer={0}
+            renderLayer={renderLayer}
             appearance={appearance}
           />
         ) : (
