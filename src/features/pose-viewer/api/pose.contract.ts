@@ -92,6 +92,8 @@ export type AnalysisResult = {
    * false가 오고, 클라이언트는 그걸 따른다(자기 판단으로 호출하지 않는다).
    */
   capabilities: {
+    /** Read-only, unconfirmed canonical packet endpoint. */
+    selectionPreview?: boolean;
     handSelection?: boolean;
     refine: boolean;
     /**

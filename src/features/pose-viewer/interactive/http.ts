@@ -1,3 +1,6 @@
+import { skinReceiptSchema } from "../skin/skinReceipt";
+import { skinPreviewSchema, checkSkinPreviewPaths } from "../skin/skinPreview";
+import { skinSchema, skinCapabilitySchema, sameSkin, type Skin } from "../skin/skin";
 import { z } from "zod";
 import {
   appearanceSchema,
@@ -36,6 +39,8 @@ export const exportReceiptSchema = z
     nativeSaved: z.literal(false),
     appearance: appearanceSchema.optional(),
     outline: outlineReceiptSchema.optional(),
+    skin: skinSchema.optional(),
+    skinProof: skinReceiptSchema.optional(),
   })
   .strict();
 export const operationSchema = z.object({
@@ -46,6 +51,8 @@ export const operationSchema = z.object({
   stateHash: digest.nullable(),
   selectionHash: digest,
   appearance: appearanceSchema.optional(),
+  skin: skinSchema.optional(),
+  skinPreview: skinPreviewSchema.optional(),
   previewState: z.enum(["solving", "authoritative", "error", "superseded", "cancelled"]),
   exportState: z.enum([
     "not-requested",
@@ -74,6 +81,7 @@ export type Prepare = {
   expectedStateHash: string | null;
   mutationId: string;
   appearance?: Appearance;
+  skin?: Skin;
 };
 export type Target = { jobId: string; personIndex: number };
 export function operationBase(target: Target) {
@@ -86,7 +94,16 @@ export function operationPath(target: Target, operationId: string) {
 }
 export function checkOperation(raw: unknown, target: Target): Operation {
   const op = operationSchema.parse(raw);
+  if (op.skin && op.appearance && op.appearance.width !== 2)
+    throw Error("unsupported skin outline combination");
   const root = operationPath(target, op.operationId);
+  if (op.skinPreview) {
+    checkSkinPreviewPaths(op.skinPreview, root);
+    if (!op.skin || !sameSkin(op.skin, op.skinPreview.skin))
+      throw Error("skin preview choice changed");
+  }
+  if (op.skin && op.previewState === "authoritative" && !op.skinPreview)
+    throw Error("skin preview missing");
   for (const [suffix, url] of [
     ["model", op.modelUrl],
     ["file", op.fileUrl],
@@ -106,7 +123,37 @@ export function checkOperation(raw: unknown, target: Target): Operation {
     throw Error("export receipt binding changed");
   const receipt = op.exportReceipt;
   if (
+    receipt?.skinProof &&
+    receipt.outline &&
+    (receipt.outline.proof.output_scope !== "full" ||
+      receipt.outline.proof.character_id !== receipt.skinProof.compatibility.characterId ||
+      receipt.outline.proof.character_sha256 !== receipt.skinProof.compatibility.characterSha256)
+  )
+    throw Error("skin outline target changed");
+  if (
+    receipt?.skinProof &&
+    op.skinPreview &&
+    (receipt.skinProof.assetManifestSha256 !== op.skinPreview.assetManifestSha256 ||
+      receipt.skinProof.assetVersion !== op.skinPreview.assetVersion ||
+      receipt.skinProof.uvSha256 !== op.skinPreview.uv.sha256 ||
+      Object.entries(receipt.skinProof.compatibility).some(
+        ([key, value]) =>
+          op.skinPreview!.compatibility[key as keyof typeof op.skinPreview.compatibility] !== value,
+      ))
+  )
+    throw Error("skin preview/export assets changed");
+  if (
     op.appearance?.width === 0 ||
+    op.skin?.id === "default" ||
+    (receipt &&
+      (!sameSkin(op.skin, receipt.skin) ||
+        !!op.skin !== !!receipt.skinProof ||
+        (receipt.skinProof &&
+          (!sameSkin(op.skin, receipt.skinProof.skin) ||
+            (receipt.outline
+              ? receipt.outline.sourceArtifactSha256 !== receipt.skinProof.artifactSha256
+              : receipt.artifactSha256 !== receipt.skinProof.artifactSha256 ||
+                receipt.artifactBytes !== receipt.skinProof.artifactBytes))))) ||
     (receipt &&
       (!sameAppearance(op.appearance, receipt.appearance) ||
         !!op.appearance !== !!receipt.outline ||
@@ -160,8 +207,10 @@ export interface InteractiveTransport {
     candidateId: string,
     signal: AbortSignal,
     appearance?: Appearance,
+    skin?: Skin,
   ): Promise<{
     appearanceExport?: z.infer<typeof appearanceCapabilitySchema>;
+    skinExport?: z.infer<typeof skinCapabilitySchema>;
     currentRevision: number;
     currentStateHash: string | null;
     operation: Operation | null;
@@ -218,7 +267,7 @@ export const interactiveHttp: InteractiveTransport = {
       return packetParses.run(() => prepareHandVariants(new Uint8Array(bytes), sha), signal);
     }, signal);
   },
-  async head(target, candidateId, signal, appearance) {
+  async head(target, candidateId, signal, appearance, skin) {
     const raw = z
       .object({
         schemaVersion: z.literal("standin.interactive-http.v1"),
@@ -227,10 +276,11 @@ export const interactiveHttp: InteractiveTransport = {
         operation: z.unknown().nullable(),
         // Unknown/malformed future capability stays unavailable on old clients.
         appearanceExport: z.unknown().optional(),
+        skinExport: z.unknown().optional(),
       })
       .parse(
         await apiFetch(
-          `${operationBase(target)}?candidateId=${encodeURIComponent(candidateId)}${appearance ? `&appearance=${encodeURIComponent(JSON.stringify(appearance))}` : ""}`,
+          `${operationBase(target)}?candidateId=${encodeURIComponent(candidateId)}${appearance ? `&appearance=${encodeURIComponent(JSON.stringify(appearance))}` : ""}${skin ? `&skin=${encodeURIComponent(JSON.stringify(skin))}` : ""}`,
           jsonOptions(signal),
         ),
       );
@@ -240,14 +290,17 @@ export const interactiveHttp: InteractiveTransport = {
       (operation.candidateId !== candidateId ||
         operation.revision !== raw.currentRevision ||
         operation.stateHash !== raw.currentStateHash ||
-        !sameAppearance(operation.appearance, appearance))
+        !sameAppearance(operation.appearance, appearance) ||
+        !sameSkin(operation.skin, skin))
     )
       throw Error("head binding changed");
     const capability = appearanceCapabilitySchema.safeParse(raw.appearanceExport);
+    const skinCapability = skinCapabilitySchema.safeParse(raw.skinExport);
     return {
       ...raw,
       operation,
       appearanceExport: capability.success ? capability.data : undefined,
+      skinExport: skinCapability.success ? skinCapability.data : undefined,
     };
   },
   async prepare(target, body) {
@@ -326,7 +379,11 @@ export const interactiveHttp: InteractiveTransport = {
     if (
       response.headers.get("Content-Type")?.split(";")[0] !== "application/octet-stream" ||
       response.headers.get("X-Standin-Artifact-Contract") !==
-        (op.appearance ? "outlined-fbx-v1" : "interactive-fbx-receipt-v1") ||
+        (op.appearance
+          ? "outlined-fbx-v1"
+          : op.skin
+            ? "textured-fbx-v1"
+            : "interactive-fbx-receipt-v1") ||
       response.headers.get("X-Standin-State-Hash") !== op.stateHash ||
       response.headers.get("X-Standin-Revision") !== String(op.revision)
     )

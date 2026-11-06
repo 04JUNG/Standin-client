@@ -1,3 +1,5 @@
+import type { SkinId } from "../skin/skinChoices";
+import { sameSkin, type Skin } from "../skin/skin";
 import { sameAppearance, type Appearance } from "../outline/appearance";
 import { ApiError } from "@/shared/api/errors";
 import type { SurfaceView } from "./InteractivePose";
@@ -20,6 +22,8 @@ export type ExportState =
   "not-requested" | "queued" | "building" | "validating" | "ready" | "failed" | "superseded";
 export type InteractiveSnapshot = {
   appearanceAvailable?: boolean;
+  skinAvailable?: boolean;
+  supportedSkins?: readonly SkinId[];
   binding?: string;
   previewState: PreviewState;
   exportState: ExportState;
@@ -64,6 +68,7 @@ export class InteractiveController {
     candidateId: string;
     ready: boolean;
     appearance?: Appearance;
+    skin?: Skin;
   };
   private mutation?: Prepare;
   private handAtlas?: LoadedVariants;
@@ -84,15 +89,22 @@ export class InteractiveController {
     this.value = { ...this.value, ...patch };
     for (const listener of this.listeners) listener();
   }
-  select(binding: string, candidateId: string, ready: boolean, appearance?: Appearance) {
+  select(
+    binding: string,
+    candidateId: string,
+    ready: boolean,
+    appearance?: Appearance,
+    skin?: Skin,
+  ) {
     if (
       this.desired?.binding === binding &&
       this.desired.ready === ready &&
-      sameAppearance(this.desired.appearance, appearance)
+      sameAppearance(this.desired.appearance, appearance) &&
+      sameSkin(this.desired.skin, skin)
     )
       return;
     const changed = this.desired?.binding !== binding;
-    this.desired = { binding, candidateId, ready, appearance };
+    this.desired = { binding, candidateId, ready, appearance, skin };
     this.generation++;
     this.controller?.abort();
     clearTimeout(this.timer);
@@ -209,6 +221,7 @@ export class InteractiveController {
       op.revision !== previous.revision ||
       op.selectionHash !== previous.selectionHash ||
       !sameAppearance(op.appearance, previous.appearance) ||
+      !sameSkin(op.skin, previous.skin) ||
       op.eventSequence < previous.eventSequence ||
       (previous.stateHash !== null && op.stateHash !== previous.stateHash)
     )
@@ -239,17 +252,34 @@ export class InteractiveController {
           desired.candidateId,
           signal,
           desired.appearance,
+          desired.skin,
         );
         if (generation !== this.generation) return;
         this.fence = { revision: recovery.currentRevision, stateHash: recovery.currentStateHash };
         this.head = recovery.operation ?? undefined;
-        this.publish({ appearanceAvailable: recovery.appearanceExport?.available === true });
+        this.publish({
+          appearanceAvailable: recovery.appearanceExport?.available === true,
+          skinAvailable: recovery.skinExport?.available === true,
+          supportedSkins: recovery.skinExport?.available
+            ? recovery.skinExport.supportedIds
+            : ["default"],
+        });
         resumed = recovery.operation;
-        if (resumed && !sameAppearance(resumed.appearance, desired.appearance)) resumed = null;
+        if (
+          resumed &&
+          (!sameAppearance(resumed.appearance, desired.appearance) ||
+            !sameSkin(resumed.skin, desired.skin))
+        )
+          resumed = null;
         this.recovered = true;
       }
       if (desired.appearance && this.value.appearanceAvailable !== true)
         throw new ApiError(503, "OUTLINE_DISABLED", "");
+      if (
+        desired.skin &&
+        (this.value.skinAvailable !== true || !this.value.supportedSkins?.includes(desired.skin.id))
+      )
+        throw new ApiError(503, "SKIN_DISABLED", "");
       let op: Operation;
       if (resumed) op = resumed;
       else {
@@ -262,13 +292,15 @@ export class InteractiveController {
             revision: (this.head?.revision ?? this.fence.revision) + 1,
             mutationId: crypto.randomUUID(),
             ...(desired.appearance ? { appearance: desired.appearance } : {}),
+            ...(desired.skin ? { skin: desired.skin } : {}),
           };
         const request = this.mutation;
         const creating = this.transport.prepare(this.target, request).then((next) => {
           if (
             next.revision !== request.revision ||
             next.candidateId !== request.candidateId ||
-            !sameAppearance(next.appearance, request.appearance)
+            !sameAppearance(next.appearance, request.appearance) ||
+            !sameSkin(next.skin, request.skin)
           )
             throw Error("prepare binding mismatch");
           this.head = next;

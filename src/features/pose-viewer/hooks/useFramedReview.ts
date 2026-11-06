@@ -1,4 +1,5 @@
 import { outlineAppearance } from "../outline/appearance";
+import { selectedSkin } from "../skin/skin";
 import { queueRepresentativeFrame } from "../interactive/history";
 import { historyUpload } from "../interactive/historyHttp";
 import { solvedCamera } from "../interactive/solved";
@@ -57,6 +58,7 @@ export function useFramedReview(jobId: string | undefined) {
     format === "fbx",
   );
   const outlines = usePoseSelectionStore((s) => s.outlineByPerson);
+  const skins = usePoseSelectionStore((s) => s.skinByPerson);
   const outlineEditing = usePoseSelectionStore((s) => s.outlineEditingByPerson);
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
@@ -105,6 +107,7 @@ export function useFramedReview(jobId: string | undefined) {
       }
     }
     const appearance = outlineAppearance(outlines?.[item.personIndex] ?? 0);
+    const skin = selectedSkin(skins?.[item.personIndex] ?? "default");
     const binding = JSON.stringify([
       owner,
       item.personIndex,
@@ -116,10 +119,12 @@ export function useFramedReview(jobId: string | undefined) {
       bodyMode ? [body?.selectionRevision, body?.resolvedBody, body?.shape] : characterId,
       handEntry?.selection,
       appearance,
+      ...(skin ? [skin] : []),
     ]);
     return {
       binding,
       appearance,
+      skin,
       editing: outlineEditing?.[item.personIndex] === true,
       scope,
       characterId,
@@ -148,6 +153,7 @@ export function useFramedReview(jobId: string | undefined) {
       candidateId: review.items[i].candidate.id,
       ready: requestReady(r),
       appearance: r.appearance,
+      skin: r.skin,
     })),
   });
   const queries = useQueries({
@@ -174,7 +180,8 @@ export function useFramedReview(jobId: string | undefined) {
             "verified-fbx-v1",
             request.binding,
           ],
-      enabled: enabled && !request.appearance && requestReady(request) && !!request.url,
+      enabled:
+        enabled && !request.appearance && !request.skin && requestReady(request) && !!request.url,
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<PreparedReview> => {
         const item = review.items[index]!;
         if (bodyMode) {
@@ -250,8 +257,10 @@ export function useFramedReview(jobId: string | undefined) {
     })),
   });
   const outlineUnsupported = !interactiveEnabled && requests.some((r) => !!r.appearance);
+  const skinUnsupported = !interactiveEnabled && requests.some((r) => !!r.skin);
   const preparationError =
     outlineUnsupported ||
+    skinUnsupported ||
     (!interactiveEnabled && generatedReviewUnavailable) ||
     (enabled &&
       (!!hands.error ||
@@ -261,6 +270,7 @@ export function useFramedReview(jobId: string | undefined) {
   const downloadReady = interactiveEnabled
     ? interactive.ready
     : !outlineUnsupported &&
+      !skinUnsupported &&
       !requiresFbx &&
       !generatedReviewUnavailable &&
       !review.isRefining &&
@@ -328,6 +338,9 @@ export function useFramedReview(jobId: string | undefined) {
     items: review.items.map((item, index) => ({
       ...item,
       outlineWidth: outlines?.[item.personIndex] ?? 0,
+      skin: requests[index]!.skin,
+      skinAvailable: interactiveEnabled && interactive.snapshots[index]?.skinAvailable === true,
+      supportedSkins: interactive.snapshots[index]?.supportedSkins ?? ["default"],
       outlineAvailable:
         interactiveEnabled && interactive.snapshots[index]?.appearanceAvailable === true,
       includesHands: scopeIncludesHands(requests[index]!.scope),
@@ -343,6 +356,21 @@ export function useFramedReview(jobId: string | undefined) {
             : item.previewUrl,
       interactivePreview: interactiveEnabled
         ? ({
+            skin: requests[index]!.skin,
+            skinPreview:
+              interactive.snapshots[index]?.binding === requests[index]!.binding
+                ? interactive.snapshots[index]?.operation?.skinPreview
+                : undefined,
+            skinState: interactive.snapshots[index]?.operation?.stateHash
+              ? {
+                  stateHash: interactive.snapshots[index]!.operation!.stateHash!,
+                  revision: interactive.snapshots[index]!.operation!.revision,
+                }
+              : undefined,
+            skinControl: {
+              personIndex: item.personIndex,
+              available: interactive.snapshots[index]?.supportedSkins ?? ["default"],
+            },
             outlineWidth: outlines?.[item.personIndex] ?? 0,
             model:
               interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
@@ -409,6 +437,7 @@ export function useFramedReview(jobId: string | undefined) {
     previewFailure: poseRecovery(
       interactive.snapshots.find((s) => s.failure)?.failure ??
         (outlineUnsupported ? new ApiError(422, "OUTLINE_UNSUPPORTED", "") : undefined) ??
+        (skinUnsupported ? new ApiError(422, "SKIN_UNSUPPORTED", "") : undefined) ??
         queries.find((q) => q.isError)?.error ??
         review.bodies.entries.find((e) => e.error)?.error ??
         hands.entries.find((e) => e.error)?.error ??

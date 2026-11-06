@@ -1,3 +1,4 @@
+import { skinIdSchema, type SkinId } from "../skin/skinChoices";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { clampOutlineWidth } from "../outline/outlineSettings";
 import { create } from "zustand";
@@ -31,6 +32,8 @@ type PoseSelectionState = {
    * 필요할 수 있다 — 후보 화면에서 인물마다 고른다. 여기 없는 인물은 `characterId`를 쓴다.
    */
   characterByPerson: Record<number, string>;
+  skinByPerson: Record<number, SkinId>;
+  setPersonSkin(personIndex: number, skin: SkinId): void;
   outlineByPerson: Record<number, number>;
   outlineEditingByPerson: Record<number, boolean>;
   setOutlineEditing(personIndex: number, editing: boolean): void;
@@ -63,6 +66,7 @@ type JobChoice = Pick<
   | "characterId"
   | "characterByPerson"
   | "outlineByPerson"
+  | "skinByPerson"
 >;
 // Only explicit choices, never downloaded files or review receipts. Bounded and session-local.
 const jobChoices = new Map<string, JobChoice>();
@@ -77,6 +81,7 @@ useInstallationStore.subscribe((next, previous) => {
       characterId: null,
       characterByPerson: {},
       outlineByPerson: {},
+      skinByPerson: {},
       outlineEditingByPerson: {},
       serverJobId: null,
     });
@@ -95,6 +100,7 @@ function rememberChoice(state: PoseSelectionState) {
       characterId: state.characterId,
       characterByPerson: state.characterByPerson,
       outlineByPerson: state.outlineByPerson,
+      skinByPerson: state.skinByPerson,
     }),
   );
   // History opens by the server ID while the live route uses a local UUID.
@@ -114,6 +120,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   characterId: null,
   characterByPerson: {},
   outlineByPerson: {},
+  skinByPerson: {},
   outlineEditingByPerson: {},
   excludedPeople: {},
   setJobId(jobId) {
@@ -128,6 +135,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
         characterId: null,
         characterByPerson: {},
         outlineByPerson: {},
+        skinByPerson: {},
         outlineEditingByPerson: {},
         excludedPeople: {},
         ...priorChoice(jobId),
@@ -145,6 +153,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
       characterId,
       characterByPerson: {},
       outlineByPerson: {},
+      skinByPerson: {},
       outlineEditingByPerson: {},
       excludedPeople: {},
       ...priorChoice(jobId),
@@ -157,6 +166,21 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     set((state) => ({
       characterByPerson: { ...state.characterByPerson, [personIndex]: characterId },
     }));
+  },
+  setPersonSkin(personIndex, skin) {
+    if (
+      !Number.isSafeInteger(personIndex) ||
+      personIndex < 0 ||
+      !skinIdSchema.safeParse(skin).success
+    )
+      return;
+    if ((get().skinByPerson[personIndex] ?? "default") === skin) return;
+    set((state) => {
+      const skinByPerson = { ...state.skinByPerson };
+      if (skin === "default") delete skinByPerson[personIndex];
+      else skinByPerson[personIndex] = skin;
+      return { skinByPerson };
+    });
   },
   setOutlineEditing(personIndex, editing) {
     if (!Number.isSafeInteger(personIndex) || personIndex < 0) return;
@@ -260,6 +284,7 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
       refineByPerson: {},
       excludedPeople: {},
       outlineByPerson: {},
+      skinByPerson: {},
       outlineEditingByPerson: {},
     });
   },

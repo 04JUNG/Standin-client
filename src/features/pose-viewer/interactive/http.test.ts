@@ -1,3 +1,5 @@
+import { previewFixture } from "../skin/__fixtures__/skinPreview";
+import { skinPreviewSchema } from "../skin/skinPreview";
 import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { interactiveHttp, checkOperation, type Operation } from "./http";
@@ -153,4 +155,25 @@ it("queries appearance-aware head and leaves missing or malformed capability una
   expect(
     JSON.parse(new URL(url, "https://standin.invalid").searchParams.get("appearance")!),
   ).toEqual(appearance);
+});
+
+it("cannot accept a selected skin with a legacy untextured file receipt", () => {
+  const current = op();
+  current.skin = { version: "fbx-skin-v1", id: "flesh" };
+  current.skinPreview = skinPreviewSchema.parse(previewFixture());
+  current.exportReceipt = {
+    schema: "interactive-fbx-receipt-v1",
+    operationId: current.operationId,
+    revision: current.revision,
+    stateHash: current.stateHash!,
+    artifactSha256: "a".repeat(64),
+    artifactBytes: 3,
+    runtimeRevision: "d".repeat(64),
+    packetModelSha256: "e".repeat(64),
+    solverVersion: "chain-transport-v3.2.5",
+    validationVersion: "final-fbx-v1",
+    initialFbxRequired: true,
+    nativeSaved: false,
+  };
+  expect(() => checkOperation(current, target)).toThrow("appearance receipt changed");
 });

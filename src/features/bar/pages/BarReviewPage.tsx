@@ -1,4 +1,5 @@
 import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
+import { SkinControl } from "@/features/pose-viewer/skin/SkinControl";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
@@ -78,6 +79,9 @@ export function BarReviewPage() {
                   />
                   {(item.outlineAvailable || item.outlineWidth > 0) && (
                     <OutlineControl personIndex={item.personIndex} />
+                  )}
+                  {(item.skinAvailable || item.skin) && (
+                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
                   )}
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">

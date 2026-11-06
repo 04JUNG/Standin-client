@@ -1,6 +1,6 @@
 import type * as THREE from "three";
 import type { SearchCamera } from "./contract";
-import { useEffect, useRef, useState, useId } from "react";
+import { useEffect, useRef, useState, useId, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, RotateCcw, X, ZoomIn, ZoomOut, Move } from "lucide-react";
 import type { StaticAsset } from "./contract";
@@ -25,13 +25,19 @@ export function InteractivePose({
   showExpandButton = false,
   onExpand,
   onFrame,
+  appearance,
+  renderLayer,
   outlineWidth = 0,
+  loading = false,
 }: {
+  loading?: boolean;
   outlineWidth?: number;
   asset?: StaticAsset;
   surface?: SurfaceView;
   viewKey: string;
   large?: boolean;
+  renderLayer?: number;
+  appearance?: import("./renderer").PreviewAppearance;
   showControls?: boolean;
   showExpandButton?: boolean;
   onExpand?: () => void;
@@ -45,6 +51,9 @@ export function InteractivePose({
   const observation = useRef(observationFor(viewKey));
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
   const [retry, setRetry] = useState(0);
+  const style = useRef(appearance);
+  style.current = appearance;
+  useEffect(() => invalidate(), [appearance]);
   const frame = useRef(onFrame);
   frame.current = onFrame;
   const gesture = useRef<{ x: number; y: number; pan: boolean; pointer: number }>();
@@ -81,7 +90,8 @@ export function InteractivePose({
             body: result.body,
             camera: surface?.camera ?? asset!.camera,
             observation: () => observation.current,
-            layer: large ? 1 : 0,
+            layer: renderLayer ?? (large ? 1 : 0),
+            appearance: () => style.current,
             ready() {
               if (first) {
                 first = false;
@@ -107,7 +117,14 @@ export function InteractivePose({
       unregister?.();
       release?.();
     };
-  }, [asset, surface, large, retry, viewKey]);
+  }, [asset, surface, large, retry, viewKey, renderLayer]);
+  useEffect(() => {
+    const target = element.current;
+    if (!large || !target) return;
+    const preventPageScroll = (event: WheelEvent) => event.preventDefault();
+    target.addEventListener("wheel", preventPageScroll, { passive: false });
+    return () => target.removeEventListener("wheel", preventPageScroll);
+  }, [large]);
   const update = (fn: (value: Observation) => Observation) => {
     Object.assign(observation.current, fn(observation.current));
     observations.delete(viewKey);
@@ -215,14 +232,16 @@ export function InteractivePose({
         }}
       />
       <span id={controlId} className="sr-only">
-        방향키로 회전, R로 처음 시점, Enter로 크게 보기
+        {large
+          ? "방향키로 회전, R로 처음 시점. 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동"
+          : "방향키로 회전, R로 처음 시점, Enter로 크게 보기"}
       </span>
-      {status !== "ready" && (
+      {(loading || status !== "ready") && (
         <div
           className="pointer-events-none absolute inset-0 z-[20] flex items-center justify-center bg-surface-2 text-xs text-text-secondary"
           role="status"
         >
-          {status === "loading" ? (
+          {loading || status === "loading" ? (
             "포즈 불러오는 중"
           ) : (
             <div className="pointer-events-auto p-3 text-center">
@@ -310,7 +329,11 @@ export function ExpandablePose({
   showExpandButton = false,
   onFrame,
   outlineWidth = 0,
+  footer,
+  loading = false,
 }: {
+  loading?: boolean;
+  footer?: ReactNode;
   outlineWidth?: number;
   asset?: StaticAsset;
   surface?: SurfaceView;
@@ -336,6 +359,7 @@ export function ExpandablePose({
   return (
     <>
       <InteractivePose
+        loading={loading}
         asset={asset}
         surface={surface}
         viewKey={viewKey}
@@ -366,8 +390,9 @@ export function ExpandablePose({
                   setExpanded(false);
                 }
                 if (e.key === "Tab") {
-                  const nodes =
-                    dialog.current!.querySelectorAll<HTMLElement>("button,[tabindex='0']");
+                  const nodes = dialog.current!.querySelectorAll<HTMLElement>(
+                    "button:not(:disabled),select:not(:disabled),[tabindex='0']",
+                  );
                   const first = nodes[0],
                     last = nodes[nodes.length - 1];
                   if (e.shiftKey && document.activeElement === first) {
@@ -388,6 +413,7 @@ export function ExpandablePose({
               </div>
               <div className="min-h-0 flex-1">
                 <InteractivePose
+                  loading={loading}
                   asset={asset}
                   surface={surface}
                   viewKey={viewKey}
@@ -395,6 +421,7 @@ export function ExpandablePose({
                   large
                 />
               </div>
+              {footer && <div className="relative z-[20] border-t bg-surface-0">{footer}</div>}
             </div>
           </div>,
           document.body,

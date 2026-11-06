@@ -55,6 +55,7 @@ function ensureSubscriptions() {
         next.characterByPerson[entry.personIndex] !== prev.characterByPerson[entry.personIndex] ||
         next.refineByPerson[entry.personIndex] !== prev.refineByPerson[entry.personIndex] ||
         next.outlineByPerson[entry.personIndex] !== prev.outlineByPerson[entry.personIndex] ||
+        next.skinByPerson[entry.personIndex] !== prev.skinByPerson[entry.personIndex] ||
         next.outlineEditingByPerson[entry.personIndex] !==
           prev.outlineEditingByPerson[entry.personIndex];
       if (changed) {
