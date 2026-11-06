@@ -1033,3 +1033,21 @@ BFF body-options 및 body-preferences.shapeEditable는 선택적으로 `gender: 
 새 커스텀 카드의 성별별 시작값은 그 성별의 default 자산이다. `?base`, 기존 개인 카드, 후보 화면의 기존 선택은 유지한다. 후보 화면에서 성별 탭을 바꾸는 동작은 조회 필터이며 카드 클릭 전까지 PUT하지 않는다. 새 기본값은 기존 last_used/auto 정책·사용자 설정 revision·Job snapshot을 바꾸지 않는다. role 없는 서버와도 호환된다. 새 모델 PNG/3D가 없으면 준비 안 된 상태를 표시하고 다른 체형의 그림을 새 기본형으로 제시하지 않는다.
 
 [기본형 통합 계약과 검증 범위](BODY_DEFAULT_ROLLOUT_20261104.md).
+## 선택적 분석 진행 구간 — 클라이언트 수신 준비
+
+기존 Job 상태(queued/running/completed/failed)는 그대로다. 통합 검색·refine 서버가 추가하는 `stage`를 클라이언트가 선택적으로 읽을 수 있게 준비했다. 현재 모든 서버가 이 필드를 제공한다는 뜻은 아니다.
+
+```json
+{"jobId":"job_example","status":"running","stage":"refining"}
+```
+
+허용 stage: `analyzing`, `extracting`, `understanding`, `searching`, `refining`, `ranking`. running 상태에서만 반영한다. 미제공/알 수 없는 값은 running의 기존 탐색 화면을 유지하며 완료/실패 상태가 우선한다. 퍼센트는 여전히 클라이언트 추정치다. 새로운 endpoint, 결과 타입, refine 권한 또는 실행 순서를 변경하지 않는다.
+
+
+### 실제 중간 결과 snapshot v1
+
+`GET /v1/analysis/jobs/:id`의 선택적 `progress`는 [공유 계약](POSE_ANALYSIS_PROGRESS_V1.md)을 따른다. version과 sequence를 검증한 running 응답만 표시하며, completed/failed 응답의 progress는 무시한다. progress 없는 기존 서버나 알 수 없는 버전/잘못된 좌표는 분석을 실패시키지 않는다. 동일/이전 sequence는 Job별 Query cache의 최신 snapshot을 덮어쓰지 않는다. 반복 polling은 키워드 모션을 다시 시작하지 않는다.
+
+`people[].skeleton` 및 refine before/after는 원본 전체 이미지 기준 정규화 COCO17 좌표다. 실제 관측이 없는 관절은 null이며 UI는 얼굴 세부점을 제외한 주요 관절만 연결한다. `observations`와 `searchMode`는 실제 관측/실행 경로를 BFF에서 축약·번역한 값이다. raw trace/prompt/private context를 읽거나 UI에서 동작을 추측하지 않는다.
+
+중간 candidate id/rank/thumbnailUrl은 read-only이며 후보 선택/조정/내보내기 허용을 의미하지 않는다. `/v1/` 이미지는 설치 인증으로 읽고, 외부 https 이미지에 인증 헤더를 보내지 않는다. 이미 준비된 이미지만 사용하며 렌더·변환을 추가 요청하지 않는다. 실제 refine 전후만 보간하고 unchanged/reverted/skipped를 구별한다. 진행률은 계속 예상치이며 진행 중 100%가 되지 않는다. 실시간 producer/BFF 연결 및 배포 여부는 해당 세션의 검증 결과로 확인한다.

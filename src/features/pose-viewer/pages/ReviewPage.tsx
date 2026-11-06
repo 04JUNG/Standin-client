@@ -1,10 +1,11 @@
 import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
 import { SkinControl } from "../skin/SkinControl";
+import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { Loader2, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "../hooks/useFramedReview";
@@ -25,6 +26,8 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const {
     items,
+    draft,
+    roughUrl,
     hands,
     isRefining,
     previewLoading,
@@ -48,9 +51,18 @@ export function ReviewPage() {
     <AppShell title="저장할 포즈 확인">
       <div className="mx-auto flex h-full w-full max-w-[760px] flex-col gap-4">
         {isRefining && !items.some((item) => item.interactivePreview) ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-text-secondary">
-            <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
-            <p className="text-[14px]">포즈를 러프에 맞춰 조정하고 있습니다…</p>
+          <div className="flex flex-1 items-center justify-center">
+            <PoseSearchPending
+              mode="refine"
+              preview={
+                roughUrl
+                  ? { previewUrl: roughUrl, originalName: draft?.originalName ?? "러프" }
+                  : null
+              }
+              selectionPreviewUrl={
+                items[0]?.candidate.thumbnailUrl || items[0]?.candidate.quickThumbnailUrl
+              }
+            />
           </div>
         ) : (
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
