@@ -65,13 +65,13 @@
   display: none;
 }
 
-.compact-pose-layout [data-pose-candidate] > div:last-child {
+.compact-pose-layout [data-pose-candidate] > :is(div:last-child, [data-pose-selection]) {
   gap: 2px;
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-.compact-pose-layout [data-pose-candidate] > div:last-child {
+.compact-pose-layout [data-pose-candidate] > :is(div:last-child, [data-pose-selection]) {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
