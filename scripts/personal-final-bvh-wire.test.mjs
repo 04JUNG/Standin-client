@@ -46,6 +46,40 @@ it.skipIf(!directory)(
           signal,
         ),
       ).rejects.toMatchObject({ code: "STALE_RESULT" });
+      const confirm = await fetch(
+        "http://localhost:8000/v1/analysis/jobs/" + result.jobId + "/selections",
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Installation-Id": auth.installationId,
+            "X-Device-Token": auth.deviceToken,
+          },
+          body: JSON.stringify({ selections: [{ personIndex: 0, candidateId: second.id }] }),
+        },
+      );
+      expect(confirm.status).toBe(200);
+      expect(
+        (
+          await finalPose(
+            result.jobId,
+            { ...item, candidate: second, exportUrl: second.bvhUrl },
+            signal,
+          )
+        ).hash,
+      ).toBe(provenance.bvhSha256);
+      await expect(finalPose(result.jobId, item, signal)).rejects.toMatchObject({
+        code: "INVALID_SELECTION",
+      });
+      await fetch("http://localhost:8000/v1/analysis/jobs/" + result.jobId + "/selections", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Installation-Id": auth.installationId,
+          "X-Device-Token": auth.deviceToken,
+        },
+        body: JSON.stringify({ selections: [{ personIndex: 0, candidateId: candidate.id }] }),
+      });
       setInstallationCredentials({ ...auth, installationId: "another-owner" });
       await expect(finalPose(result.jobId, item, signal)).rejects.toMatchObject({ status: 403 });
     } finally {

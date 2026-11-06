@@ -77,7 +77,7 @@ def main():
             if path==f'/v1/analysis/jobs/{job}': return self.send(200, {'jobId': job, 'status': 'completed', 'createdAt': now, 'updatedAt': now, 'error': None})
             if path==f'/v1/analysis/jobs/{job}/result': return self.send(200, result)
             if path==f'/v1/analysis/jobs/{job}/selections':
-                if self.command=='POST':
+                if self.command in ('POST', 'PUT'):
                     data=json.loads(raw or '{}')
                     for item in data.get('selections', []):
                         if item.get('personIndex')==0 and item.get('candidateId') in ['recorded-source','recorded-yaw35']: selected=item['candidateId']
