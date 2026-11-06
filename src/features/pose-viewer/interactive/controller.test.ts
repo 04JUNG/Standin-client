@@ -241,3 +241,17 @@ it("an old width acknowledgement cannot satisfy a new width even with matching r
   expect(client.snapshot().exportState).toBe("failed");
   client.dispose();
 });
+
+it("refuses skin preparation on an older server without a skin capability", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  client.select("skin-flesh", "candidate", true, undefined, {
+    version: "fbx-skin-v1",
+    id: "flesh",
+  });
+  await vi.advanceTimersByTimeAsync(270);
+  expect(transport.prepare).not.toHaveBeenCalled();
+  expect(client.snapshot().failure).toMatchObject({ code: "SKIN_DISABLED" });
+  expect(client.ready("skin-flesh")).toBe(false);
+  client.invalidate();
+});

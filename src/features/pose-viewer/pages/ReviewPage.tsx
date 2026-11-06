@@ -1,4 +1,5 @@
 import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
+import { SkinControl } from "../skin/SkinControl";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
@@ -78,6 +79,9 @@ export function ReviewPage() {
                   />
                   {(item.outlineAvailable || item.outlineWidth > 0) && (
                     <OutlineControl personIndex={item.personIndex} />
+                  )}
+                  {(item.skinAvailable || item.skin) && (
+                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
                   )}
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">

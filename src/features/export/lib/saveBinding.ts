@@ -19,6 +19,7 @@ export function saveConsentBinding(qc: QueryClient, routeJob: string | undefined
     character: state.characterId,
     characters: state.characterByPerson,
     outlines: state.outlineByPerson,
+    skins: state.skinByPerson,
     outlineEditing: state.outlineEditingByPerson,
     refine: state.refineByPerson,
     body: qc.getQueriesData({

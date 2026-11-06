@@ -1,4 +1,5 @@
 import { interactiveController } from "@/features/pose-viewer/interactive/session";
+import { selectedSkin, sameSkin } from "@/features/pose-viewer/skin/skin";
 import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
 import {
   prepareOriginalScene,
@@ -522,6 +523,7 @@ export function useSaveFlow(jobId: string | undefined) {
             character: usePoseSelectionStore.getState().characterId,
             characters: usePoseSelectionStore.getState().characterByPerson,
             outlines: usePoseSelectionStore.getState().outlineByPerson,
+            skins: usePoseSelectionStore.getState().skinByPerson,
             outlineEditing: usePoseSelectionStore.getState().outlineEditingByPerson,
             refine: usePoseSelectionStore.getState().refineByPerson,
             people: qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.people,
@@ -578,6 +580,14 @@ export function useSaveFlow(jobId: string | undefined) {
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
             const outline = selectionState.outlineByPerson[personIndex] ?? 0;
+            const skin = selectedSkin(selectionState.skinByPerson[personIndex] ?? "default");
+            if (
+              skin &&
+              (format !== "fbx" ||
+                !env.interactivePreview ||
+                !analysisResult.capabilities.interactivePreview?.operations)
+            )
+              throw new ApiError(422, "SKIN_UNSUPPORTED", "");
             if (
               selectionState.outlineEditingByPerson[personIndex] ||
               (outline > 0 &&
@@ -627,7 +637,8 @@ export function useSaveFlow(jobId: string | undefined) {
                 !owner ||
                 !interactiveBinding ||
                 current.snapshot().operation?.candidateId !== candidateId ||
-                (current.snapshot().operation?.appearance?.width ?? 0) !== outline
+                (current.snapshot().operation?.appearance?.width ?? 0) !== outline ||
+                !sameSkin(current.snapshot().operation?.skin, skin)
               )
                 throw new ApiError(409, "PREVIEW_CHANGED", "");
               const verified = await current.download(interactiveBinding, controller.signal);
@@ -729,6 +740,8 @@ export function useSaveFlow(jobId: string | undefined) {
         ) {
           if (Object.values(selectionState.outlineByPerson).some((width) => width > 0))
             throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
+          if (Object.values(selectionState.skinByPerson).some((skin) => skin !== "default"))
+            throw new ApiError(422, "SKIN_UNSUPPORTED", "");
           sceneRequest = true;
           if (files.some((f) => !f.downloadPath))
             throw new Error("장면에 사용할 최종 파일을 확인하지 못했습니다.");

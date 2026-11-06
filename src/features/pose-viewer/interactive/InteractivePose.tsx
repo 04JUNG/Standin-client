@@ -1,6 +1,6 @@
 import type * as THREE from "three";
 import type { SearchCamera } from "./contract";
-import { useEffect, useRef, useState, useId } from "react";
+import { useEffect, useRef, useState, useId, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Maximize2, RotateCcw, X, ZoomIn, ZoomOut, Move } from "lucide-react";
 import type { StaticAsset } from "./contract";
@@ -25,7 +25,9 @@ export function InteractivePose({
   onExpand,
   onFrame,
   outlineWidth = 0,
+  loading = false,
 }: {
+  loading?: boolean;
   outlineWidth?: number;
   asset?: StaticAsset;
   surface?: SurfaceView;
@@ -215,12 +217,12 @@ export function InteractivePose({
       <span id={controlId} className="sr-only">
         방향키로 회전, R로 처음 시점, Enter로 크게 보기
       </span>
-      {status !== "ready" && (
+      {(loading || status !== "ready") && (
         <div
           className="pointer-events-none absolute inset-0 z-[20] flex items-center justify-center bg-surface-2 text-xs text-text-secondary"
           role="status"
         >
-          {status === "loading" ? (
+          {loading || status === "loading" ? (
             "포즈 불러오는 중"
           ) : (
             <div className="pointer-events-auto p-3 text-center">
@@ -290,7 +292,11 @@ export function ExpandablePose({
   showControls = true,
   onFrame,
   outlineWidth = 0,
+  footer,
+  loading = false,
 }: {
+  loading?: boolean;
+  footer?: ReactNode;
   outlineWidth?: number;
   asset?: StaticAsset;
   surface?: SurfaceView;
@@ -315,6 +321,7 @@ export function ExpandablePose({
   return (
     <>
       <InteractivePose
+        loading={loading}
         asset={asset}
         surface={surface}
         viewKey={viewKey}
@@ -340,8 +347,9 @@ export function ExpandablePose({
               onKeyDown={(e) => {
                 if (e.key === "Escape") setExpanded(false);
                 if (e.key === "Tab") {
-                  const nodes =
-                    dialog.current!.querySelectorAll<HTMLElement>("button,[tabindex='0']");
+                  const nodes = dialog.current!.querySelectorAll<HTMLElement>(
+                    "button:not(:disabled),select:not(:disabled),[tabindex='0']",
+                  );
                   const first = nodes[0],
                     last = nodes[nodes.length - 1];
                   if (e.shiftKey && document.activeElement === first) {
@@ -362,6 +370,7 @@ export function ExpandablePose({
               </div>
               <div className="min-h-0 flex-1">
                 <InteractivePose
+                  loading={loading}
                   asset={asset}
                   surface={surface}
                   viewKey={viewKey}
@@ -369,6 +378,7 @@ export function ExpandablePose({
                   large
                 />
               </div>
+              {footer && <div className="relative z-[20] border-t bg-surface-0">{footer}</div>}
             </div>
           </div>,
           document.body,

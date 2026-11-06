@@ -1,0 +1,76 @@
+{
+  "date": "2026-11-06",
+  "assetManifestSha256": "1fb0fa382d4fa7d27233b6139cba9c5f1ec575c6b8f86b7deac2a3dc4d447386",
+  "scope": "current #168 male24988/female24999,52bones,full only; skin-only or combined width2",
+  "neutralCspImports": 16,
+  "representativePosedCspImports": 2,
+  "actualClientHttp": [
+    {
+      "width": 0,
+      "skin": "flesh-guide",
+      "sha256": "de8ea3dd12b72472b238d79491de1baf61f1b086f7667c401091d91993eded3d",
+      "bytes": 3196156,
+      "nativeSaved": false
+    },
+    {
+      "width": 2,
+      "skin": "flesh-guide",
+      "sha256": "16796fc8487da771111915deafa0a1c3069482cf9601375f81f72379f3c1073e",
+      "bytes": 5105708,
+      "nativeSaved": false
+    },
+    {
+      "width": 2,
+      "skin": "gray-guide",
+      "sha256": "9c0f045f68deb0b91bfe124393e113916905a0361fecfd08c9d98b9c017d8453",
+      "bytes": 5097244,
+      "nativeSaved": false
+    },
+    {
+      "width": 2,
+      "skin": "flesh",
+      "sha256": "06f6ad7d54408102dab848e2c382231b602fe213fb62db300d1d210471f8ced2",
+      "bytes": 4747500,
+      "nativeSaved": false
+    },
+    {
+      "width": 2,
+      "skin": "muscle",
+      "sha256": "18db340d97bd4a352cffdaff6361cfc59fac3ad896752b58e27e5deb9f20bd90",
+      "bytes": 4975564,
+      "nativeSaved": false
+    }
+  ],
+  "nativeRecordedStage": {
+    "stage": "recorded actual client/BFF HTTP file -> production Tauri export adapter -> disk; not a live product UI/BFF transaction",
+    "path": "native-skin-flesh-guide-outline2.fbx",
+    "sha256": "16796fc8487da771111915deafa0a1c3069482cf9601375f81f72379f3c1073e",
+    "bytes": 5105708,
+    "same_as_client_wire": true,
+    "skin": {
+      "version": "fbx-skin-v1",
+      "id": "flesh-guide"
+    },
+    "appearance": {
+      "version": "fbx-outline-v1",
+      "width": 2
+    },
+    "nativeSaved": true,
+    "csp_import": "PASS",
+    "csp_photo": "csp/native-skin-fbx-csp.jpg",
+    "pose_surface_outline_visible": true,
+    "same_disk_sha_after_import": true
+  },
+  "nativeCspImport": true,
+  "limits": [
+    "Controlled local installation/source/SQL/memory storage, not production auth/PG/S3",
+    "UI/native saved a recorded actual HTTP result; not one live product UI/BFF transaction",
+    "CSP default lighting is shiny; not pixel-identical to preview",
+    "No .clip or CSP internal joint edit support claimed",
+    "Other six posed style samples independently verified but not all visually imported",
+    "Matte/Lambert diagnostic improvement is separate and not certified"
+  ],
+  "globalEnabled": false,
+  "merged": false,
+  "deployed": false
+}
