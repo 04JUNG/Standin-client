@@ -26,7 +26,7 @@ BVH 저장은 카드가 읽은 같은 prepared descriptor와 SHA를 다시 검�
 
 ## 로컬 검증과 의존성
 
-베이스: client develop `5934f0d2799d64074cb5836b9d7bab48d7246f1e`. 외곽선 #162, 스킨, 큰미리보기 PR을 가져오거나 수정하지 않았다. 새 BFF candidate-preparation 계약/준비 source resolver가 런타임 의존성이며 PR/commit은 PR 설명과 공유 status에 고정한다. 엔진 v3 shadow/v4 intent를 apply/user_confirmed로 바꾸지 않았다.
+베이스: client develop `5934f0d2799d64074cb5836b9d7bab48d7246f1e`. 외곽선 #162, 스킨, 큰미리보기 PR을 가져오거나 수정하지 않았다. BFF #163 `6d45674baa1efa54d6807671710eede0711bc11c`의 candidate-preparation 계약/준비 source resolver와 엔진 #171 `9b6b76df5c63b0dc2b2bb2fd1e5eedd48a1e72c4`가 런타임 의존성이다. 클라이언트 PR은 #178이다. 엔진 v3 shadow/v4 intent를 apply/user_confirmed로 바꾸지 않았다.
 
 - 테스트: 전체 1,297개 통과/4개 명시적 opt-in skip. 최종 카메라/재사용/만료 저장 차단 관련 50개 별도 통과. 빌드·lint 통과(기존 Fast Refresh 경고1개). 준비5/10/15후보, 동일 요청 single-flight, 늦은 응답·취소·부분 결과·hash 손상 차단, no-op 선택, source 재사용 시 legacy refine0, 기존 앱/바/target/장면 회귀.
 - 실제 localhost wire: BFF의 Hono routes + PGlite SQL + durable store/worker에 클라이언트 HTTP를 연결. 3인15후보를 10+5 chunk로 처리, 선택3개의 정확한 BVH SHA/184 bytes 확인, 선택 이후 source 추가 호출0, 다른 설치404. source engine은 제어 fixture이며 실제 VLM/target/최종 FBX 증거가 아니다.
