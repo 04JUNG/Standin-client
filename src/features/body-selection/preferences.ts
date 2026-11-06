@@ -1,19 +1,85 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { listen, emit } from "@tauri-apps/api/event";
 import { ApiError } from "@/shared/api/client";
 import { useInstallationStore } from "@/features/installation/installationStore";
-import { bodyKeys, changeCard, getPreferences, type CardChange } from "./api";
+import { bodyKeys, changeCard, getPreferences, putPreferences, type CardChange } from "./api";
+import { changePickerVisibility } from "./pickerVisibility";
 import { useBodyOwner } from "./hooks";
 import type { BodyCard, BodyPreferences, ShapeSpec } from "./contract";
 import { sameShape } from "./shapeValues";
 
 export function useBodyPreferences() {
   const owner = useBodyOwner();
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!owner || !isTauri()) return;
+    let disposed = false;
+    let stop: (() => void) | undefined;
+    void listen<{ owner: string; revision: number }>("body-preferences-changed", ({ payload }) => {
+      const cached = qc.getQueryData<BodyPreferences>(bodyKeys.preferences(owner));
+      if (
+        payload &&
+        payload.owner === owner &&
+        Number.isSafeInteger(payload.revision) &&
+        payload.revision > (cached?.revision ?? -1)
+      )
+        void qc.invalidateQueries({ queryKey: bodyKeys.preferences(owner), exact: true });
+    })
+      .then((unlisten) => {
+        if (disposed) unlisten();
+        else stop = unlisten;
+      })
+      .catch(() => undefined);
+    return () => {
+      disposed = true;
+      stop?.();
+    };
+  }, [owner, qc]);
   return useQuery({
     queryKey: bodyKeys.preferences(owner),
     queryFn: ({ signal }) => getPreferences(signal),
     enabled: !!owner,
     retry: false,
   });
+}
+
+/** Changes visibility only. Server revision conflicts refetch; cards/current bodies stay intact. */
+export function useBodyPickerVisibility() {
+  const query = useBodyPreferences();
+  const owner = useBodyOwner();
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async ({
+      kind,
+      id,
+      included,
+    }: {
+      kind: "preset" | "card";
+      id: string;
+      included: boolean;
+    }) => {
+      if (useInstallationStore.getState().credentials?.installationId !== owner)
+        throw new Error("installation changed");
+      const current = qc.getQueryData<BodyPreferences>(bodyKeys.preferences(owner)) ?? query.data;
+      if (!current?.pickerVisibility) throw new Error("visibility preferences unavailable");
+      return putPreferences(
+        { pickerVisibility: changePickerVisibility(current, kind, id, included) },
+        current.revision,
+      );
+    },
+    onSuccess: (value) => {
+      if (useInstallationStore.getState().credentials?.installationId !== owner) return;
+      qc.setQueryData(bodyKeys.preferences(owner), value);
+      if (isTauri())
+        void emit("body-preferences-changed", { owner, revision: value.revision }).catch(
+          () => undefined,
+        );
+    },
+    onError: () => void query.refetch(),
+  });
+  return { supported: !!query.data?.pickerVisibility, mutation };
 }
 export function legacyPreferences(error: unknown) {
   return (
