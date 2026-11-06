@@ -314,14 +314,23 @@
     "httpWire": "1PASS",
     "iconsRelease": "PASS"
   },
-  "cspExactAppOutputs": "pending separate crash-owner recheck",
+  "cspExactAppOutputs": {
+    "nativeImports": 4,
+    "displayPass": 4,
+    "crash": 0,
+    "sourceEvidenceCommit": "2b32c8ed746433bc7f37a63afc8209f4bb5eb840",
+    "evidencePath": "../personal-body-v11-csp-20261106/evidence.json",
+    "objectManipulation": "unverified CUA noWindowsAvailable",
+    "clipSave": "license blocked",
+    "reopen": "unverified"
+  },
   "geometryQuality": "NOT QUALIFIED",
   "limits": [
     "geometry not qualified",
-    "exact app outputs CSP recheck pending",
     "production BFF/live inferred fitted camera unverified",
     "CSP license save/reopen unverified",
     "Windows/Intel/signing/decoder redistribution unverified",
     "v10 revisit preview failure remains historical; no all-revisit guarantee"
-  ]
+  ],
+  "serverConverterContractSourceEquality": "git diff empty 7616e491f vs published cfd98aea for all converter/ and converter-client-contract.v1.json"
 }

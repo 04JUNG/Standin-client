@@ -1,6 +1,6 @@
 # 개인 모델 v11 앱 연결 검증 — 2026-11-06
 
-**별도 macOS arm64 앱에서 남성 CS3C·여성 FBX 등록 → 기록 final BVH 적용 → identity/yaw35 FBX 저장 4건을 확인했다.** CSP 호환 이름 처리용 v11이며 변형 품질은 여전히 미합격이다. 정확한 앱 저장본 4개의 CSP 검사는 별도 담당 결과를 기다린다. Draft / default-off / `releaseReady:false`, 병합·배포·유료 호출 없음.
+**별도 macOS arm64 앱에서 남성 CS3C·여성 FBX 등록 → 기록 final BVH 적용 → identity/yaw35 FBX 저장 4건을 확인했다.** CSP 호환 이름 처리용 v11이며 변형 품질은 여전히 미합격이다. 정확한 앱 저장본 4개도 CSP5.1.1에서 모두 가져오기·표시에 통과했다. Draft / default-off / `releaseReady:false`, 병합·배포·유료 호출 없음.
 
 ## 계약과 앱
 
@@ -37,7 +37,7 @@ Manifest pin `2540a161e19fa34ad1d9c38bcc79751d471b938f6de5b0757923e303def5789b`,
 
 기존 v10 기록과 앱은 보존했다. 원래 공유 v10 패키지는 현재 538개 pyc 변경·3개 추가로 exact pin에 실패하며 복구하거나 정상 패키지로 재표시하지 않았다. 보존 v10 앱 runtime은 6,591개 정확 해시에 통과했다. 원인 소유는 미확정이다. 이전 직접 재임포트에 bytecode 억제 플래그가 명시되지 않았던 사실도 숨기지 않는다. [기존 v10 앱·CSP 실패 기록](../personal-body-connection-20261106/README.md)은 역사적 기준이다.
 
-새 앱의 네 첫 적용 미리보기는 표시됐다. 이전 v10 남성 재방문1회 미리보기 실패의 원인·일관 재현은 미확정이며 모든 재방문 성공을 주장하지 않는다. 변형 품질 NOT QUALIFIED, 정확한 새 앱 출력 CSP 재검증 pending, CSP 라이선스 저장/재열기·Windows/Intel 실제 실행·릴리스 서명/decoder 재배포·production/live BFF는 별도 미완료다. 원본/decoder/runtime/FBX/자격정보를 Git에 넣지 않는다. [정확한 공개 메타데이터](evidence.json).
+새 앱의 네 첫 적용 미리보기는 표시됐다. 이전 v10 남성 재방문1회 미리보기 실패의 원인·일관 재현은 미확정이며 모든 재방문 성공을 주장하지 않는다. 변형 품질 NOT QUALIFIED, 정확한 새 앱 출력 CSP4개 import/display PASS이며 새 crash는0건이다. 실제 오브젝트 drag는 CUA noWindowsAvailable로 미검증, Save As는 라이선스 요구로 차단되어 .clip/재열기 미검증이다. [CSP 별도 증거](../personal-body-v11-csp-20261106/README.md). Windows/Intel 실제 실행·릴리스 서명/decoder 재배포·production/live BFF는 별도 미완료다. 원본/decoder/runtime/FBX/자격정보를 Git에 넣지 않는다. [정확한 공개 메타데이터](evidence.json).
 
 ![v11 실제 등록 카드](registered-native-cards.png)
 ![개인 모델의 등록 모습 설명](male-registered-large-preview.png)
