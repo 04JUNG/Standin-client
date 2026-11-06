@@ -27,7 +27,9 @@ export function InteractivePose({
   onFrame,
   appearance,
   renderLayer,
+  outlineWidth = 0,
 }: {
+  outlineWidth?: number;
   asset?: StaticAsset;
   surface?: SurfaceView;
   viewKey: string;
@@ -39,6 +41,9 @@ export function InteractivePose({
   onExpand?: () => void;
   onFrame?: (element: HTMLElement) => void;
 }) {
+  const width = useRef(outlineWidth);
+  width.current = outlineWidth;
+  useEffect(() => invalidate(), [outlineWidth]);
   const controlId = useId();
   const element = useRef<HTMLDivElement>(null);
   const observation = useRef(observationFor(viewKey));
@@ -79,6 +84,7 @@ export function InteractivePose({
           }
           unregister = registerView({
             element: target,
+            outlineWidth: () => width.current,
             body: result.body,
             camera: surface?.camera ?? asset!.camera,
             observation: () => observation.current,
@@ -320,7 +326,9 @@ export function ExpandablePose({
   showControls = true,
   showExpandButton = false,
   onFrame,
+  outlineWidth = 0,
 }: {
+  outlineWidth?: number;
   asset?: StaticAsset;
   surface?: SurfaceView;
   viewKey: string;
@@ -352,6 +360,7 @@ export function ExpandablePose({
         showExpandButton={showExpandButton}
         onExpand={() => setExpanded(true)}
         onFrame={onFrame}
+        outlineWidth={outlineWidth}
       />
       {expanded &&
         createPortal(
@@ -395,7 +404,13 @@ export function ExpandablePose({
                 </button>
               </div>
               <div className="min-h-0 flex-1">
-                <InteractivePose asset={asset} surface={surface} viewKey={viewKey} large />
+                <InteractivePose
+                  asset={asset}
+                  surface={surface}
+                  viewKey={viewKey}
+                  outlineWidth={outlineWidth}
+                  large
+                />
               </div>
             </div>
           </div>,

@@ -16,12 +16,13 @@ type View = {
   appearance?: () => PreviewAppearance | undefined;
   body: THREE.Group;
   materials: THREE.Material[];
+  outlineWidth?: () => number;
+  outline: BodyOutlineRenderer;
   ready(): void;
   failed(): void;
 };
 const views = new Set<View>();
 let output: THREE.WebGLRenderer | undefined;
-let outline: BodyOutlineRenderer | undefined;
 let scheduled = 0;
 let drawCount = 0;
 let observer: ResizeObserver | undefined;
@@ -41,7 +42,6 @@ function getOutput() {
       alpha: true,
       preserveDrawingBuffer: false,
     });
-    outline = new BodyOutlineRenderer(output);
     output.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
     output.outputColorSpace = THREE.SRGBColorSpace;
     output.toneMapping = THREE.NoToneMapping;
@@ -117,14 +117,8 @@ function draw() {
       for (const material of view.materials)
         if (material instanceof THREE.ShaderMaterial)
           material.uniforms.baseColor?.value.set(color.r, color.g, color.b);
-      if (appearance?.outlineWidth) {
-        outline!.setWidth(view.body, appearance.outlineWidth);
-        try {
-          outline!.render(view.scene, camera);
-        } finally {
-          outline!.remove(view.body);
-        }
-      } else output.render(view.scene, camera);
+      view.outline.setWidth(view.body, appearance?.outlineWidth ?? view.outlineWidth?.() ?? 0);
+      view.outline.render(view.scene, camera);
       view.ready();
     } catch {
       view.failed();
@@ -136,7 +130,7 @@ function draw() {
 export function invalidate() {
   if (!scheduled) scheduled = requestAnimationFrame(draw);
 }
-export function registerView(view: Omit<View, "scene" | "materials">) {
+export function registerView(view: Omit<View, "scene" | "materials" | "outline">) {
   getOutput();
   const scene = new THREE.Scene();
   scene.add(view.body);
@@ -153,15 +147,14 @@ export function registerView(view: Omit<View, "scene" | "materials">) {
       ? object.material.map(clone)
       : clone(object.material);
   });
-  const registered: View = { ...view, scene, materials };
+  const registered: View = { ...view, scene, materials, outline: new BodyOutlineRenderer(getOutput()) };
   views.add(registered);
   observer!.observe(view.element);
   invalidate();
   return () => {
     views.delete(registered);
+    registered.outline.dispose();
     observer?.unobserve(view.element);
-    outline?.dispose();
-    outline = output ? new BodyOutlineRenderer(output) : undefined;
     for (const material of materials) material.dispose();
     scene.clear();
     if (!views.size) shutdown();
@@ -238,8 +231,7 @@ export function shutdown() {
   window.removeEventListener("resize", invalidate);
   window.removeEventListener("scroll", invalidate, true);
   window.removeEventListener("pagehide", shutdown);
-  outline?.dispose();
-  outline = undefined;
+  for (const view of views) view.outline.dispose();
   if (output) {
     output.domElement.removeEventListener("webglcontextlost", lost);
     output.domElement.removeEventListener("webglcontextrestored", restored);

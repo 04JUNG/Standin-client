@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-06 Asia/Seoul",
+  "kind": "Actual BFF real HTTP postprocess/receipt-byte verification on recorded verified base -> production client receipt schema/hash -> recorded stage -> actual Tauri exportTauri native adapter save",
+  "artifactSha256": "0d7eb8befd90ccc3203265c3527e85c2cb6ce4c222552cc2d24af7eb638cd87b",
+  "artifactBytes": 3896396,
+  "appearance": {
+    "version": "fbx-outline-v1",
+    "width": 0.65
+  },
+  "expression": "skinned-outward-transparent-native-outline-v2",
+  "mapping": "csp-native-scope-stature-v2-experimental",
+  "runtimeRevision": "292a41a2bfa1e4398f0033be57004961161653a9f8e0114f325d9c3fcae281c4",
+  "bindingSha256": "9c5243b42c363d0477ac42152a281e7f95a421bcbd7cac09ec04451c4cfb1f06",
+  "fileVerified": true,
+  "nativeSaved": true,
+  "singleLiveAppTransaction": false,
+  "globalEnabled": false,
+  "limitations": [
+    "BFF operation/source proof is controlled recorded-base fixture; base BVH solve is separate and currently fails missing_head for current default.",
+    "Local Tauri QA diagnostic normal material is not CSP surface rendering evidence.",
+    "No production auth/PostgreSQL advisory lock/S3 verification."
+  ],
+  "screenshot": "native-bff-v2-recorded-saved.jpg",
+  "native_output": "native/native-bff-v2.fbx"
+}

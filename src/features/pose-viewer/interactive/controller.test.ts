@@ -184,3 +184,60 @@ it("revokes ready after upstream artifact expiry and recovers a fresh operation 
   expect(client.ready("one")).toBe(true);
   client.dispose();
 });
+
+it("does not prepare while a width gesture is in progress and sends only the final logical appearance", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    appearanceExport: { version: "fbx-outline-v1", available: true },
+  });
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    appearance: body.appearance,
+  }));
+  client.select("zero", "candidate", true);
+  await vi.advanceTimersByTimeAsync(270);
+  expect(vi.mocked(transport.prepare).mock.calls[0][1]).not.toHaveProperty("appearance");
+  client.select("thin", "candidate", false, { version: "fbx-outline-v1", width: 0.65 });
+  client.select("mid", "candidate", false, { version: "fbx-outline-v1", width: 1.2 });
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(transport.prepare).toHaveBeenCalledTimes(1);
+  expect(client.ready("zero")).toBe(false);
+  client.select("max", "candidate", true, { version: "fbx-outline-v1", width: 2 });
+  await vi.advanceTimersByTimeAsync(270);
+  expect(transport.prepare).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(transport.prepare).mock.calls[1][1].appearance).toEqual({
+    version: "fbx-outline-v1",
+    width: 2,
+  });
+  client.dispose();
+});
+it("old servers and disabled capability cannot prepare a nonzero file", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  client.select("outlined", "candidate", true, { version: "fbx-outline-v1", width: 1 });
+  await vi.advanceTimersByTimeAsync(270);
+  expect(transport.prepare).not.toHaveBeenCalled();
+  expect(client.snapshot().failure).toMatchObject({ code: "OUTLINE_DISABLED" });
+  expect(client.ready("outlined")).toBe(false);
+  client.dispose();
+});
+it("an old width acknowledgement cannot satisfy a new width even with matching revision", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    appearanceExport: { version: "fbx-outline-v1", available: true },
+  });
+  client.select("max", "candidate", true, { version: "fbx-outline-v1", width: 2 });
+  await vi.advanceTimersByTimeAsync(270);
+  expect(client.ready("max")).toBe(false);
+  expect(transport.file).not.toHaveBeenCalled();
+  expect(client.snapshot().exportState).toBe("failed");
+  client.dispose();
+});
