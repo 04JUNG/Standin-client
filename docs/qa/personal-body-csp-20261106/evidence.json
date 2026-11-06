@@ -44,7 +44,7 @@
     "cameraCausality": "not_established",
     "clipSave": "blocked: actual Save As requested license acquisition/registration; selected No",
     "reopen": "unverified: no clip produced",
-    "latestMergedAppOutputs": "pending separate handoff",
+    "latestMergedAppOutputs": "checked separately in current-app-evidence.json; baseline not relabeled",
     "liveBff": "unverified; recorded BVH only"
   },
   "cases": [
@@ -451,52 +451,62 @@
     {
       "file": "csp-female-cmu-minimal-rig-import.png",
       "sha256": "2b5740e5ea97afc20c2aa6e882648862aa8bc1c9b1bcd7b3d377d33ffa1d2599",
-      "bytes": 311902
+      "bytes": 311902,
+      "storage": "local shared only"
     },
     {
       "file": "csp-female-cmu-minimal-single-import.png",
       "sha256": "d25806b11dcf5e6b27c1e1d6eb8a7859ad9001086d92bc88351ec190d4aa6082",
-      "bytes": 300616
+      "bytes": 300616,
+      "storage": "local shared only"
     },
     {
       "file": "csp-female-cmu-single-material-import.png",
       "sha256": "694a427797f235b87c9e809a4f81166792dc49fe5bafac812ed1c4d70b42e5be",
-      "bytes": 292524
+      "bytes": 292524,
+      "storage": "local shared only"
     },
     {
       "file": "csp-female-cmu-source-import.png",
       "sha256": "eb7928f085316fe952d56824a0da28dfd37d34e0a0621b53e39cb84743740e51",
-      "bytes": 312308
+      "bytes": 312308,
+      "storage": "local shared only"
     },
     {
       "file": "csp-female-cmu-yaw35-import.png",
       "sha256": "32e694b8722e21c71dcc89f5c4baa085f71b48b56eeae170a1d243b8579ad46f",
-      "bytes": 317199
+      "bytes": 317199,
+      "storage": "local shared only"
     },
     {
       "file": "csp-female-native-final-import.png",
       "sha256": "2245769a3cd6065ddc8741c02770e2505160c04d47ebef339b95b4579f2f459c",
-      "bytes": 314614
+      "bytes": 314614,
+      "storage": "repository representative and local shared"
     },
     {
       "file": "csp-female-object-capability.png",
       "sha256": "a7d87b8bf6f8c42a3356539e24fa3010c4ef416c5892079928c4e79827d6ef12",
-      "bytes": 127707
+      "bytes": 127707,
+      "storage": "repository representative and local shared"
     },
     {
       "file": "csp-male-minimal-rig-import.png",
       "sha256": "1e2004de1a9c977174c4ae2082935bd7ef50e0d2196bfc6e0b8c34c5d1c74f09",
-      "bytes": 314747
+      "bytes": 314747,
+      "storage": "repository representative and local shared"
     },
     {
       "file": "csp-male-minimal-single-import.png",
       "sha256": "32f9f17ca836c918bdac4e3351dd980fb07e828ce7019d36b492227867b47970",
-      "bytes": 312512
+      "bytes": 312512,
+      "storage": "local shared only"
     },
     {
       "file": "csp-save-license-required.png",
       "sha256": "0dc9eefec7bae2879abe27c67129b9f58a7ecf07934e5712336446ae70f031a9",
-      "bytes": 27155
+      "bytes": 27155,
+      "storage": "repository representative and local shared"
     }
   ],
   "constraints": {
@@ -507,5 +517,11 @@
     "prMerge": false,
     "remotePush": false,
     "rawModelsOrCrashLogsCommitted": false
+  },
+  "hashProvenance": {
+    "sourceAndBvh": "prior owner manifests; originals not rehashed by CSP operator",
+    "importedFbxAndAppBinary": "independently rehashed before/after native checks",
+    "runtime": "immutable manifest pin rehashed; full tree audit supplied by connection/platform owner",
+    "crash": "raw logs retained only in local shared folder; JSON contains sanitized observations"
   }
 }

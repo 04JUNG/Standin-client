@@ -23,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--artifact-root', type=Path, required=True)
     parser.add_argument('--evidence', type=Path, default=Path(__file__).with_name('evidence.json'))
+    parser.add_argument('--runtime-manifest', type=Path, help='Override manifest path for a later app-output stage')
     args = parser.parse_args()
     evidence = json.loads(args.evidence.read_text())
     root = args.artifact_root.resolve()
@@ -38,8 +39,12 @@ def main():
             match = False
         if not match:
             failures.append({'id': case['id'], 'reason': 'missing or changed input'})
-    runtime = root / 'converter/runtime-v10/runtime-manifest.json'
-    if digest(runtime) != evidence['runtime']['manifestSha256']:
+    runtime = args.runtime_manifest or root / 'converter/runtime-v10/runtime-manifest.json'
+    try:
+        runtime_matches = digest(runtime) == evidence['runtime']['manifestSha256']
+    except OSError:
+        runtime_matches = False
+    if not runtime_matches:
         failures.append({'id': 'runtime-manifest', 'reason': 'pin mismatch'})
     print(json.dumps({'checkedInputs': len(evidence['cases']), 'failures': failures,
                       'scope': 'hash audit only; CSP results remain native observations'}))

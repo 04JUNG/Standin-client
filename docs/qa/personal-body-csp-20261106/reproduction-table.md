@@ -12,3 +12,12 @@
 | female-minimal-rig | `a1300c9db7560b5f87b82ddf4ae8503f17b5b0f029feabba5109e90aaad41db0` | pass | — |
 | female-single-material | `1ff338ba898d301c2bfc6f77a5c3d8a869bbbe6ffdc3f0ade550758e77318d85` | pass | — |
 | female-minimal-rig-single-material | `464cad086b382a58e0cd81b3f7f6deff77f5e2f869d31f617e5a5218beb6e74c` | pass | — |
+
+## Latest ordinary app UI saves (separate stage)
+
+| Case | FBX SHA-256 | Import/display | Crash log |
+|---|---|---|---|
+| male-source | `fd827d5fa720ff08b2aa328f3c15202eb689243f12c88511b3051ec4342e03f8` | fail | CLIP STUDIO PAINT-2026-11-06-150108.ips |
+| male-yaw35 | `d5b7453f3bbf4fa83aadccd53f32ee6fe10c0b42ba36e7e4bbf57d57849297d8` | fail | CLIP STUDIO PAINT-2026-11-06-150152.ips |
+| female-yaw35 | `6d694a901a7eeca38a0fd3364fc9f1c28e1769bc647d0e19150647ca9598336b` | pass | — |
+| female-source | `80c1e94e5e4b1df5640c333a15f0001e5b4fdb73becc8980a533dac2f6a59462` | pass | — |
