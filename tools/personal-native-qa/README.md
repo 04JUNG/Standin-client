@@ -11,3 +11,5 @@ This checks local real HTTP delivery and native model/save integration. The fixt
 For the same isolated app registration after a fixture restart, `--reuse-credentials` reuses only that run’s existing generated credential file. It is never a production identity. The fixture advertises `selectionPreview` so the latest persistent large pane can be checked with the actual local library.
 
 `verify_camera_pair.py` independently reimports app-saved identity/yaw35 FBXs, checks matching topology and the rigid transform about Hips, and writes only scalar errors/hashes. It does not certify deformation or CSP.
+
+A new `--stage v11` run uses a distinct job identity and new work/credential/output folders. Keep v10 provenance and saved files unchanged; the stage label alone never claims which runtime the app contains. Confirm the actual app binary/runtime manifest separately.

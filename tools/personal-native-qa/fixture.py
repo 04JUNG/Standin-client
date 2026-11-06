@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--sha256', required=True)
     parser.add_argument('--work', type=Path, required=True)
     parser.add_argument('--port', type=int, default=8000)
+    parser.add_argument('--stage', choices=('v10', 'v11'), default='v10')
     parser.add_argument('--reuse-credentials', action='store_true', help='Reuse only this local fixture registration for app reload QA')
     args = parser.parse_args()
     pose = args.bvh.read_bytes()
@@ -30,7 +31,7 @@ def main():
     else:
         config.touch(mode=0o600, exist_ok=False)
         config.write_text(json.dumps({'owner': owner, 'token': token}))
-    job = 'job_personal_connection_v10_local_fixture'
+    job = f'job_personal_connection_{args.stage}_local_fixture'
     selected = 'recorded-source'
     rotation = [[0.8191520442889918, 0, 0.573576436351046], [0, 1, 0], [-0.573576436351046, 0, 0.8191520442889918]]
     quality = {'version': '2026-10-19', 'personalData': False, 'contentLicense': False, 'consentId': None, 'grantedAt': None}
@@ -96,7 +97,7 @@ def main():
                 record(event='final-bvh', selected=selected, sha256=digest, bytes=len(pose))
                 return self.send(200, pose, 'application/octet-stream')
             return self.send(404, {'error': {'code':'LOCAL_FIXTURE_ROUTE_UNAVAILABLE'}})
-    (args.work/'fixture-provenance.json').write_text(json.dumps({'kind':'loopback minimal HTTP fixture, not production BFF/Hono/SQL', 'recordedBvh':str(args.bvh),'bvhSha256':digest,'jobId':job,'cameraYaw35':rotation,'inferenceEnabled':False,'privateModelUploadEnabled':False}, indent=2)+'\n')
+    (args.work/'fixture-provenance.json').write_text(json.dumps({'stage':args.stage,'kind':'loopback minimal HTTP fixture, not production BFF/Hono/SQL', 'recordedBvh':str(args.bvh),'bvhSha256':digest,'jobId':job,'cameraYaw35':rotation,'inferenceEnabled':False,'privateModelUploadEnabled':False}, indent=2)+'\n')
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
     print(f'Loopback fixture ready: localhost:{args.port}; no inference or production auth', flush=True)
     server.serve_forever()
