@@ -1,3 +1,4 @@
+import { CandidatePreviewButton } from "./CandidatePreviewContext";
 import {
   hasPresentationCandidates,
   presentationNotice,
@@ -66,23 +67,26 @@ function Preview({
         selected ? "border-brand-coral ring-1 ring-brand-coral" : "border-border",
       )}
     >
-      <button
-        type="button"
-        className="w-full rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:cursor-default"
-        aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 이미지로 선택`}
-        aria-pressed={selected}
-        disabled={!selectable || !selection || selection.disabled}
-        onClick={() => selection?.onSelect(candidate.candidate_id)}
-      >
-        <DefaultPoseImage
-          jobId={telemetryJob}
-          candidate={candidate}
-          scope={scope}
-          compact={compact}
-          savedOnly={savedOnly}
-          lazy={savedOnly}
-        />
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          className="w-full rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:cursor-default"
+          aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 이미지로 선택`}
+          aria-pressed={selected}
+          disabled={!selectable || !selection || selection.disabled}
+          onClick={() => selection?.onSelect(candidate.candidate_id)}
+        >
+          <DefaultPoseImage
+            jobId={telemetryJob}
+            candidate={candidate}
+            scope={scope}
+            compact={compact}
+            savedOnly={savedOnly}
+            lazy={savedOnly}
+          />
+        </button>
+        {pick && <CandidatePreviewButton candidateId={pick.id} />}
+      </div>
       {selectable && selection ? (
         <button
           type="button"

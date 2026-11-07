@@ -1,3 +1,4 @@
+import "../pages/selectionWorkspace.css";
 import { MAX_OUTLINE_WIDTH } from "../outline/outlineSettings";
 import { loadSelectionPacket } from "../interactive/selectionPacket";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -6,9 +7,8 @@ import { useBodyOwner } from "@/features/body-selection/hooks";
 import type { PersonResult } from "../api/pose.contract";
 import { previewScope } from "../api/outputScope";
 import { InteractivePose } from "../interactive/InteractivePose";
-import type { PreviewAppearance } from "../interactive/renderer";
+import { usePreviewAppearance } from "../interactive/previewAppearanceStore";
 
-const appearances = new Map<string, PreviewAppearance>();
 export function SelectionPreview({
   job,
   person,
@@ -16,6 +16,7 @@ export function SelectionPreview({
   entry,
   bodiesEnabled,
   canonicalPreview = false,
+  renderLayer = 0,
 }: {
   job: string;
   person: PersonResult;
@@ -23,17 +24,12 @@ export function SelectionPreview({
   entry?: BodyEntry;
   bodiesEnabled: boolean;
   canonicalPreview?: boolean;
+  renderLayer?: number;
 }) {
   const owner = useBodyOwner();
   const candidate = person.candidates.find((c) => c.id === selectedId) ?? person.candidates[0];
   const appearanceKey = JSON.stringify([owner, job, person.index]);
-  const [appearance, setAppearance] = useState<PreviewAppearance>(
-    () => appearances.get(appearanceKey) ?? { skin: "default", outlineWidth: 0 },
-  );
-  useEffect(() => {
-    appearances.set(appearanceKey, appearance);
-    while (appearances.size > 64) appearances.delete(appearances.keys().next().value!);
-  }, [appearanceKey, appearance]);
+  const [appearance, setAppearance] = usePreviewAppearance(appearanceKey);
   const selection = entry?.selection;
   const scope = previewScope(person);
   const binding = JSON.stringify([
@@ -132,7 +128,7 @@ export function SelectionPreview({
             asset={displayAsset}
             viewKey={`${appearanceKey}:selection`}
             large
-            renderLayer={0}
+            renderLayer={renderLayer}
             appearance={appearance}
           />
         ) : (
