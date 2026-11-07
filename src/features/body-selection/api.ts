@@ -70,7 +70,8 @@ export async function getPreferences(signal?: AbortSignal) {
 }
 export async function putPreferences(
   value: {
-    mode: BodyPreferences["mode"];
+    mode?: BodyPreferences["mode"];
+    pickerVisibility?: BodyPreferences["pickerVisibility"];
   },
   revision: number,
 ) {

@@ -26,6 +26,7 @@ import {
   type BodyKind,
 } from "./bodyPanel";
 import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
+import { pickerIncludes } from "./pickerVisibility";
 import { ShapeControlGrid } from "./ShapeControls";
 import { shapeDefaults as defaults } from "./shapeValues";
 import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
@@ -69,7 +70,8 @@ function useBodyName(job: string, person: Pick<PersonResult, "index">, selection
 function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selection?: BodySelection) {
   const { options } = useBodyControls(job, person, selection);
   const name = useBodyName(job, person, selection);
-  const cards = cardsOf(useBodyPreferences().data);
+  const preferences = useBodyPreferences().data;
+  const cards = cardsOf(preferences);
   const id = selection?.resolvedBody?.characterId;
   const spec = options.data?.characters.find((c) => c.characterId === id)?.shape;
   const card = matchCard(cards, id, selection?.shape?.controls ?? null, spec);
@@ -298,7 +300,8 @@ export function BodyExpand({
   const selection = entry?.selection;
   useFeatureView("body_selection", !!selection, "open", job, String(person.index));
   const { options, mutation } = useBodyControls(job, person, selection);
-  const cards = cardsOf(useBodyPreferences().data);
+  const preferences = useBodyPreferences().data;
+  const cards = cardsOf(preferences);
   const navigate = useNavigate();
   const name = useBodyName(job, person, selection);
   const characters = sortBodyLooks(options.data?.characters ?? []);
@@ -309,7 +312,9 @@ export function BodyExpand({
   );
   const [kindView, setKindView] = useState<BodyKind | null>(null);
   const kind: BodyKind = kindView ?? (current ? bodyKind(current) : (kinds[0] ?? "male"));
-  const visible = characters.filter((c) => bodyKind(c) === kind);
+  const visible = characters.filter(
+    (c) => bodyKind(c) === kind && pickerIncludes(preferences, "preset", c.characterId),
+  );
 
   /* ---- 수치 조절: 손을 뗀 뒤 0.6초 쉬면 저장. 저장 중이면 끝난 뒤 마지막 값을 보낸다. */
   const spec = current?.shape;
@@ -382,7 +387,9 @@ export function BodyExpand({
   const baseOf = (card: BodyCard) => characters.find((c) => c.characterId === card.characterId);
   const visibleCards = cards.filter((card) => {
     const base = baseOf(card);
-    return !!base?.shape && bodyKind(base) === kind;
+    return (
+      !!base?.shape && bodyKind(base) === kind && pickerIncludes(preferences, "card", card.cardId)
+    );
   });
   function applyCard(card: BodyCard) {
     const base = baseOf(card);
@@ -509,7 +516,7 @@ export function BodyExpand({
               {variant === "bar" && visibleCards.length === 0 && (
                 <span className="font-normal">
                   {" "}
-                  · 내 체형 카드는 앱의 ‘체형 커스텀’에서 만들어요
+                  · 체형 커스텀에서 표시할 체형을 관리할 수 있어요
                 </span>
               )}
             </span>

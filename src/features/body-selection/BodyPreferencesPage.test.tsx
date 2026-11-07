@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import { BodyPreferencesPage } from "./BodyPreferencesPage";
 import type { BodyPreferences, ShapeSpec } from "./contract";
+import { useInstallationStore } from "@/features/installation/installationStore";
 
 /**
  * 체형 커스텀(모델 화면): 내 체형 카드(이름 변경·삭제) · 기본 모델(바꿀 수 없음) · 새 작업의 시작 방식.
@@ -96,7 +97,44 @@ function show() {
   );
 }
 
+it("offers separate visibility controls for saved cards and presets without deleting or opening them", async () => {
+  useInstallationStore.setState({
+    credentials: { installationId: "preview-test", deviceToken: "test", consentVersion: "test" },
+  });
+  prefs.current = base({ pickerVisibility: { hiddenPresetIds: [], hiddenCardIds: [] } });
+  putPreferences.mockResolvedValue(
+    base({ revision: 3, pickerVisibility: { hiddenPresetIds: [], hiddenCardIds: ["card_1"] } }),
+  );
+  show();
+  expect(await screen.findByRole("checkbox", { name: "기본형 체형 더보기에 표시" })).toBeChecked();
+  fireEvent.click(screen.getByRole("checkbox", { name: "주인공 A 체형 더보기에 표시" }));
+  await waitFor(() =>
+    expect(putPreferences).toHaveBeenCalledWith(
+      { pickerVisibility: { hiddenPresetIds: [], hiddenCardIds: ["card_1"] } },
+      2,
+    ),
+  );
+  expect(changeCard).not.toHaveBeenCalled();
+  expect(navigate).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "주인공 A 삭제" })).toBeInTheDocument();
+});
+
+it("removes internal CSP presets from management but retains saved personal cards based on them", async () => {
+  prefs.current = base({
+    cards: [{ ...base().cards![0]!, characterId: "female-base-v0-3-9" }],
+    shapeEditable: [
+      ...base().shapeEditable!,
+      { characterId: "female-base-v0-3-9", displayName: "여성 · 기본형 · CSP", shape: spec },
+    ],
+  });
+  show();
+  expect(screen.queryByRole("button", { name: /여성 · 기본형 · CSP/ })).toBeNull();
+  fireEvent.click(await screen.findByRole("button", { name: "주인공 A 편집" }));
+  expect(navigate).toHaveBeenCalledWith("/app/models/custom/card_1");
+});
+
 beforeEach(() => {
+  useInstallationStore.setState({ credentials: null });
   putPreferences.mockReset();
   changeCard.mockReset();
   navigate.mockReset();
