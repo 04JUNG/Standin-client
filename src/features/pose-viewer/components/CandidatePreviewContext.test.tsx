@@ -84,6 +84,10 @@ it.each([undefined, "fill"] as const)(
     expect(zoom).toHaveClass("bottom-1", "right-1");
     await userEvent.click(zoom);
     const dialog = await screen.findByRole("dialog", { name: "포즈 크게 보기" });
+    expect(within(dialog).getByRole("img")).toHaveAttribute("src", "poster.png");
+    expect(loadSelectionPacket).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole("button", { name: "닫기" })).toHaveFocus();
+    await userEvent.click(within(dialog).getByRole("button", { name: "선택한 체형으로 3D 보기" }));
     await waitFor(() => expect(loadSelectionPacket).toHaveBeenCalledOnce());
     expect(loadSelectionPacket).toHaveBeenCalledWith(
       "job",
@@ -96,7 +100,6 @@ it.each([undefined, "fill"] as const)(
     expect(within(dialog).getByTestId("interactive")).toHaveAttribute("data-large", "true");
     expect(within(dialog).getByTestId("interactive")).toHaveAttribute("data-layer", "1");
     expect(select).not.toHaveBeenCalled();
-    expect(within(dialog).getByRole("button", { name: "닫기" })).toHaveFocus();
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(zoom).toHaveFocus();

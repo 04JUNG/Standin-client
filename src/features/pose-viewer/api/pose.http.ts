@@ -374,6 +374,10 @@ export async function toAnalysisResult(
     )
   )
     throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid semantic candidates");
+  const selectionPreview = raw.capabilities?.selectionPreview === true;
+  const interactive =
+    env.interactivePreview &&
+    capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success;
   const people: PersonResult[] = await Promise.all(
     raw.candidatesByPerson.map(async (person) => {
       const confidence = narrow(CONFIDENCE, person.confidence, "low");
@@ -385,9 +389,10 @@ export async function toAnalysisResult(
             person.personIndex,
             signal,
             readOutputScope(person.outputScope).resolved,
-            env.interactivePreview &&
-              raw.source !== "semantic" &&
-              capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success,
+            // The Top-5 capability requires full coverage. The read-only preview
+            // can also reuse an asset advertised for just this candidate.
+            !semantic &&
+              (interactive || (selectionPreview && candidate.interactivePreview !== undefined)),
           ),
         ),
       );
@@ -464,7 +469,7 @@ export async function toAnalysisResult(
       characterSelection: raw.capabilities?.characterSelection === true,
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
-      ...(raw.capabilities?.selectionPreview === true ? { selectionPreview: true } : {}),
+      ...(selectionPreview ? { selectionPreview } : {}),
       modelPreview: raw.capabilities?.modelPreview === true,
       ...(env.interactivePreview &&
       capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success

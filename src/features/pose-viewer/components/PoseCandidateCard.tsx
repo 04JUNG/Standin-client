@@ -1,9 +1,11 @@
 import { CandidatePreviewButton } from "./CandidatePreviewContext";
+import { useCandidatePreview } from "./candidatePreviewAction";
 import { ExpandablePose } from "../interactive/InteractivePose";
 import type { CSSProperties } from "react";
 import "./PoseSearchPending.css";
 import { useThumbnailJourney } from "@/features/analytics/useThumbnailJourney";
 import { reviewOnly, canRelease } from "../api/routedSearch";
+import { candidatePosterOptions } from "../api/candidatePoster";
 import { useDefaultPosePoster } from "../api/posePoster";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
@@ -38,7 +40,13 @@ type PoseCandidateCardProps = {
 };
 
 export function PoseCandidateCard(props: PoseCandidateCardProps) {
-  if (props.candidate.interactivePreview && !props.candidate.semantic)
+  const open = useCandidatePreview();
+  const { candidate } = props;
+  if (
+    candidate.interactivePreview?.asset &&
+    !candidate.semantic &&
+    (!open || (!candidate.posterUrl && !candidate.thumbnailUrl))
+  )
     return <InteractiveCandidateCard {...props} />;
   return <PosterCandidateCard {...props} />;
 }
@@ -115,13 +123,7 @@ function PosterCandidateCard({
   // Card identity is independent of the selected body. Only final review and
   // explicit detail may load the chosen-body artifact.
   void characterId;
-  const preview = useDefaultPosePoster({
-    url: candidate.posterUrl,
-    scope: candidate.posterScope,
-    source: candidate.sourceBvhSha256 ?? candidate.previewModel?.sourceSha,
-    fallbackUrl: candidate.quickThumbnailUrl,
-    directional: candidate.source !== "generation",
-  });
+  const preview = useDefaultPosePoster(candidatePosterOptions(candidate));
   const imageUrl = preview.data?.url || candidate.thumbnailUrl;
   const pending = !imageUrl && preview.isPending;
   const failed = !imageUrl && preview.isError;

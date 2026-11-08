@@ -9,8 +9,15 @@ import type { StaticAsset } from "../interactive/contract";
 import { acquireAsset } from "../interactive/assets";
 import { registerView } from "../interactive/renderer";
 
-vi.mock("../interactive/assets", () => ({ acquireAsset: vi.fn() }));
-vi.mock("../interactive/renderer", () => ({ registerView: vi.fn(), invalidate: vi.fn() }));
+vi.mock("../interactive/assets", async (original) => ({
+  ...(await original<typeof import("../interactive/assets")>()),
+  acquireAsset: vi.fn(),
+}));
+vi.mock("../interactive/renderer", () => ({
+  registerView: vi.fn(),
+  invalidate: vi.fn(),
+  pickPoseSurface: vi.fn(),
+}));
 const asset = {
   url: "/v1/test-asset",
   sha256: "a".repeat(64),
