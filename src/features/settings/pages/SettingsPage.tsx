@@ -1,5 +1,6 @@
 import { QualityConsentSection } from "@/features/installation/QualityConsentSection";
 import { AcquisitionSettings } from "@/features/installation/AcquisitionConsent";
+import { JourneySettings } from "@/features/installation/JourneyConsent";
 import { useState } from "react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
@@ -46,6 +47,7 @@ export function SettingsPage() {
 
         <QualityConsentSection />
         <AcquisitionSettings />
+        <JourneySettings />
         <section>
           <h2 className="text-[15px] font-bold text-text-primary">베타 데이터</h2>
           <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-0 p-4">

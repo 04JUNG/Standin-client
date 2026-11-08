@@ -6,6 +6,7 @@ import { Button } from "@/shared/components/Button";
 import { useInstallationStore } from "./installationStore";
 import { useAcquisitionStore } from "./acquisitionStore";
 import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
+import { useJourneyHandoff } from "./journeyHandoff";
 
 const endpoint = "/v1/installations/current/acquisition";
 let automaticLink: Promise<void> = Promise.resolve();
@@ -43,7 +44,11 @@ export function AcquisitionConsent() {
     let disposed = false;
     let stop: (() => void) | undefined;
     const receive = (urls: string[]) => {
-      if (!disposed) urls.forEach((url) => useAcquisitionStore.getState().receive(url));
+      if (!disposed)
+        urls.forEach((url) => {
+          useAcquisitionStore.getState().receive(url);
+          useJourneyHandoff.getState().receive(url);
+        });
     };
     void import("@tauri-apps/plugin-deep-link")
       .then(async ({ onOpenUrl, getCurrent }) => {
