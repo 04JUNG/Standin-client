@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import * as THREE from "three";
-import { searchCamera, initialObservation } from "./camera";
+import { dragModel, searchCamera, initialObservation } from "./camera";
 import type { SearchCamera } from "./contract";
 function spec(angle: number, perspective: boolean): SearchCamera {
   const camera = perspective
@@ -110,4 +110,38 @@ it("keeps pan in screen axes after orbiting around the model", () => {
         const panned = searchCamera(s, 1.3, { ...observation, panX: -0.12 });
         expect(screenX(point, panned)).toBeGreaterThan(screenX(point, reference));
       }
+});
+
+it("moves the grabbed point by screen pixels while yaw can change midway through the same gesture", () => {
+  const width = 390,
+    height = 300;
+  for (const perspective of [false, true])
+    for (const sign of [1, -1]) {
+      const s = spec(0.37, perspective);
+      s.projectionMatrix[0] *= sign;
+      s.projectionMatrix[5] *= sign;
+      const initial = { ...initialObservation(), yaw: 0.35, pitch: -0.25, zoom: 1.7 };
+      const reference = searchCamera(s, width / height, initial);
+      const anchor = new THREE.Vector3(...s.target).addScaledVector(
+        new THREE.Vector3().setFromMatrixColumn(reference.matrixWorld, 2),
+        0.25,
+      );
+      const screen = (o: typeof initial) => {
+        const point = anchor.clone().project(searchCamera(s, width / height, o));
+        return { x: (point.x * width) / 2, y: (-point.y * height) / 2 };
+      };
+      const down = dragModel(s, width, height, initial, anchor, 2, 24);
+      expect(down.yaw).toBe(initial.yaw);
+      expect(down.pitch).toBe(initial.pitch);
+      expect(screen(down).y - screen(initial).y).toBeCloseTo(24, 8);
+      const right = dragModel(s, width, height, down, anchor, 24, 0);
+      expect(right.panY).toBe(down.panY);
+      expect(screen(right).x).toBeGreaterThan(screen(down).x);
+      const again = dragModel(s, width, height, right, anchor, -2, 20);
+      expect(again.yaw).toBe(right.yaw);
+      expect(screen(again).y - screen(right).y).toBeCloseTo(20, 8);
+      const diagonal = dragModel(s, width, height, again, anchor, 20, -20);
+      expect(diagonal.yaw).toBeLessThan(again.yaw);
+      expect(diagonal.panY).not.toBe(again.panY);
+    }
 });

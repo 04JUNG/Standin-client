@@ -53,3 +53,27 @@ export function searchCamera(raw: SearchCamera, aspect: number, observation: Obs
   camera.projectionMatrixInverse.copy(projection).invert();
   return camera;
 }
+
+/** Apply each pointer delta in screen space, using the grabbed surface depth for perspective. */
+export function dragModel(
+  spec: SearchCamera,
+  width: number,
+  height: number,
+  observation: Observation,
+  anchor: THREE.Vector3,
+  dx: number,
+  dy: number,
+): Observation {
+  // Remove only the horizontal component close to vertical; diagonals keep both motions.
+  const horizontal = Math.sign(dx) * Math.max(0, Math.abs(dx) - Math.abs(dy) * 0.15);
+  const next = { ...observation, yaw: observation.yaw - horizontal * 0.012 };
+  if (!dy) return next;
+
+  const camera = searchCamera(spec, width / height, next);
+  const local = anchor.clone().applyMatrix4(camera.matrixWorldInverse);
+  const clip = local.clone().applyMatrix4(camera.projectionMatrix);
+  clip.y -= (2 * dy) / height;
+  const shifted = clip.applyMatrix4(camera.projectionMatrixInverse);
+  const panY = next.panY + local.y - shifted.y;
+  return Number.isFinite(panY) ? { ...next, panY } : next;
+}

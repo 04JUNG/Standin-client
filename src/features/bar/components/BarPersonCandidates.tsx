@@ -37,6 +37,7 @@ export function BarPersonCandidates(props: BarPersonCandidatesProps) {
       entry={bodies.entries.find((e) => e.personIndex === props.person.index)}
       bodiesEnabled={bodies.enabled}
       canonicalPreview={data.capabilities.selectionPreview}
+      presentationPosters={data.source === "semantic"}
     >
       <BarPersonCandidatesContent {...props} />
     </CandidatePreviewProvider>

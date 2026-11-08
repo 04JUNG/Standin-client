@@ -232,7 +232,10 @@ export function PoseViewerPage() {
     ((data.capabilities.selectionPreview === true &&
       bodies.enabled &&
       active.candidates.length > 0) ||
-      active.candidates.some((candidate) => !!candidate.interactivePreview?.asset));
+      active.candidates.some(
+        (candidate) => candidate.posterUrl || candidate.interactivePreview?.asset,
+      ) ||
+      (data.source === "semantic" && active.candidates.length > 0 && !!active.posePresentation));
 
   if (data.source === "semantic")
     return (
@@ -251,6 +254,7 @@ export function PoseViewerPage() {
                   entry={bodies.entries.find((e) => e.personIndex === person.index)}
                   bodiesEnabled={bodies.enabled}
                   canonicalPreview={data.capabilities.selectionPreview}
+                  presentationPosters
                 >
                   <div className="flex flex-col gap-3">
                     {person.posePresentation ? (
@@ -286,6 +290,7 @@ export function PoseViewerPage() {
                 entry={bodies.entries.find((e) => e.personIndex === active.index)}
                 bodiesEnabled={bodies.enabled}
                 canonicalPreview={data.capabilities.selectionPreview}
+                presentationPosters
               />
             )}
           </div>

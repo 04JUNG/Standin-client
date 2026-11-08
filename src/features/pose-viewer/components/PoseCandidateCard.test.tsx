@@ -2,6 +2,9 @@ import { act, render, screen, waitFor, fireEvent } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { PoseCandidateCard } from "./PoseCandidateCard";
+import { SelectionPreview } from "./SelectionPreview";
+import type { PersonResult } from "../api/pose.contract";
+import { useState } from "react";
 import type { PoseCandidate } from "../api/pose.contract";
 import { apiFetchResponse } from "@/shared/api/client";
 import { useInstallationStore } from "@/features/installation/installationStore";
@@ -111,4 +114,50 @@ it("scope changes require that exact scope, while a delayed old response cannot 
   await screen.findByRole("img");
   expect(screen.queryByText(/정면 반신 참고/)).toBeNull();
   expect(vi.mocked(apiFetchResponse).mock.calls[1][0]).toContain("scope=half");
+});
+
+it("opens and switches to the exact poster cached by the two candidate cards", async () => {
+  const second = {
+    ...candidate,
+    id: "second",
+    rank: 2,
+    title: "두 번째 포즈",
+    posterUrl: POSTER_URL + "&candidateFixture=second",
+  };
+  const person = { index: 0, candidates: [candidate, second] } as PersonResult;
+  vi.mocked(apiFetchResponse).mockImplementation(() => posterResponse());
+  function View() {
+    const [selected, select] = useState(candidate.id);
+    return (
+      <>
+        {person.candidates.map((pose) => (
+          <PoseCandidateCard
+            key={pose.id}
+            candidate={pose}
+            isSelected={pose.id === selected}
+            onSelect={() => select(pose.id)}
+          />
+        ))}
+        <SelectionPreview job="job_cache" person={person} selectedId={selected} bodiesEnabled />
+      </>
+    );
+  }
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <View />
+    </QueryClientProvider>,
+  );
+  const firstImage = await screen.findByAltText(candidate.title);
+  const secondImage = await screen.findByAltText(second.title);
+  expect(screen.getByAltText(`${candidate.title} 포즈 이미지`)).toHaveAttribute(
+    "src",
+    firstImage.getAttribute("src"),
+  );
+  fireEvent.click(secondImage);
+  expect(screen.queryByAltText(`${candidate.title} 포즈 이미지`)).toBeNull();
+  expect(screen.getByAltText(`${second.title} 포즈 이미지`)).toHaveAttribute(
+    "src",
+    secondImage.getAttribute("src"),
+  );
+  expect(apiFetchResponse).toHaveBeenCalledTimes(2);
 });

@@ -310,6 +310,68 @@ describe("poseHttp", () => {
     },
   );
 
+  it("accepts a validated per-candidate static preview without requiring full Top-5 coverage", async () => {
+    const source = "a".repeat(64),
+      character = "b".repeat(64);
+    const matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    const asset = {
+      schemaVersion: "interactive-static-asset-v1",
+      url: "/v1/analysis/jobs/job_partial/people/0/interactive-static/a/artifact",
+      sha256: "c".repeat(64),
+      bytes: 5000,
+      sourceSha256: source,
+      characterId: "male-default83-v0-7-6-p1",
+      characterSha256: character,
+      revision: "static-v1",
+      scope: "full",
+      modelVersion: "posed-mesh-v1",
+      camera: {
+        schemaVersion: "interactive-camera-v1",
+        projection: "orthographic",
+        viewMatrix: matrix,
+        projectionMatrix: matrix,
+        matrixLayout: "column-major",
+        basis: "right-handed-Y-up",
+        clipSpace: "webgl-minus-one-to-one",
+        origin: "hips",
+        units: "meters",
+        distanceTorso: 12,
+        torsoReferenceSha256: character,
+        target: [0, 0, 0],
+        referenceAspect: 1,
+        framing: "projection-includes-center-scale-crop",
+        baked: "none",
+      },
+    };
+    const candidates = ["a", "b", "c"].map((id, index) => ({
+      id,
+      poseId: id,
+      rank: index + 1,
+      tags: [],
+      matchLevel: "high",
+      source: "library",
+      lookupAllowed: true,
+      releaseAllowed: true,
+      bvhAvailable: true,
+      sourceBvhSha256: source,
+      interactivePreview:
+        index === 0 ? asset : index === 1 ? { ...asset, sourceSha256: "d".repeat(64) } : undefined,
+    }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        jobId: "job_partial",
+        notes: [],
+        candidatesByPerson: [{ personIndex: 0, tags: {}, candidates }],
+        capabilities: { selectionPreview: true },
+      }),
+    );
+    const result = await poseHttp.loadResult({ jobId: "job_partial" });
+    expect(result.capabilities.interactivePreview).toBeUndefined();
+    expect(
+      result.people[0].candidates.map((candidate) => candidate.interactivePreview?.asset),
+    ).toEqual([asset, undefined, undefined]);
+  });
+
   function semanticPayload(thumbnailUrl?: string) {
     return {
       jobId: "job_saved",

@@ -1,24 +1,11 @@
 import { useInstallationStore } from "@/features/installation/installationStore";
-import {
-  lazy,
-  Suspense,
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X, ZoomIn } from "lucide-react";
-import type { SelectionPreview as SelectionPreviewType } from "./SelectionPreview";
-const SelectionPreview = lazy(() =>
-  import("./SelectionPreview").then((module) => ({ default: module.SelectionPreview })),
-);
+import { SelectionPreview } from "./SelectionPreview";
+import { PreviewContext, useCandidatePreview } from "./candidatePreviewAction";
 
-type PreviewProps = ComponentProps<typeof SelectionPreviewType>;
-const PreviewContext = createContext<((candidateId: string) => void) | undefined>(undefined);
+type PreviewProps = ComponentProps<typeof SelectionPreview>;
 
 /** Read-only inspection never updates the selected candidate or confirms a body. */
 export function CandidatePreviewProvider({
@@ -29,7 +16,9 @@ export function CandidatePreviewProvider({
   const [candidateId, setCandidateId] = useState<string>();
   const dialog = useRef<HTMLDivElement>(null);
   const restore = useRef<HTMLElement | null>(null);
-  const enabled = preview.canonicalPreview && preview.bodiesEnabled;
+  const enabled =
+    (preview.canonicalPreview && preview.bodiesEnabled) ||
+    preview.person.candidates.some((candidate) => candidate.interactivePreview?.asset);
   useEffect(() => setCandidateId(undefined), [owner, preview.job, preview.person.index]);
   useEffect(() => {
     if (!candidateId) return;
@@ -47,6 +36,7 @@ export function CandidatePreviewProvider({
       {children}
       {candidateId &&
         enabled &&
+        preview.person.candidates.some((candidate) => candidate.id === candidateId) &&
         createPortal(
           <div
             data-interactive-render-layer
@@ -89,20 +79,12 @@ export function CandidatePreviewProvider({
                 </button>
               </div>
               <div className="flex min-h-0 flex-1 flex-col [&>.selection-preview]:flex-1">
-                <Suspense
-                  fallback={
-                    <p role="status" className="p-6">
-                      3D 미리보기를 준비하는 중…
-                    </p>
-                  }
-                >
-                  <SelectionPreview
-                    key={`${owner}:${preview.job}:${preview.person.index}`}
-                    {...preview}
-                    selectedId={candidateId}
-                    renderLayer={1}
-                  />
-                </Suspense>
+                <SelectionPreview
+                  key={`${owner}:${preview.job}:${preview.person.index}`}
+                  {...preview}
+                  selectedId={candidateId}
+                  renderLayer={1}
+                />
               </div>
             </div>
           </div>,
@@ -113,7 +95,7 @@ export function CandidatePreviewProvider({
 }
 
 export function CandidatePreviewButton({ candidateId }: { candidateId: string }) {
-  const open = useContext(PreviewContext);
+  const open = useCandidatePreview();
   if (!open) return null;
   return (
     <button

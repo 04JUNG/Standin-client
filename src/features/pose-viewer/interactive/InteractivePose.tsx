@@ -5,8 +5,8 @@ import { createPortal } from "react-dom";
 import { Maximize2, RotateCcw, X, ZoomIn, ZoomOut, Move } from "lucide-react";
 import type { StaticAsset } from "./contract";
 import { acquireAsset } from "./assets";
-import { initialObservation, type Observation } from "./camera";
-import { invalidate, registerView } from "./renderer";
+import { dragModel, initialObservation, type Observation } from "./camera";
+import { invalidate, pickPoseSurface, registerView } from "./renderer";
 import { measure } from "./metrics";
 
 // Session-only observation state survives main↔bar route remounts; never enters export identity or telemetry.
@@ -29,7 +29,9 @@ export function InteractivePose({
   renderLayer,
   outlineWidth = 0,
   loading = false,
+  fallback,
 }: {
+  fallback?: ReactNode;
   loading?: boolean;
   outlineWidth?: number;
   asset?: StaticAsset;
@@ -56,7 +58,13 @@ export function InteractivePose({
   useEffect(() => invalidate(), [appearance]);
   const frame = useRef(onFrame);
   frame.current = onFrame;
-  const gesture = useRef<{ x: number; y: number; pan: boolean; pointer: number }>();
+  const gesture = useRef<{
+    x: number;
+    y: number;
+    pan: boolean;
+    pointer: number;
+    anchor?: THREE.Vector3;
+  }>();
   useEffect(() => {
     observation.current = observationFor(viewKey);
     if (!asset && !surface) {
@@ -112,6 +120,7 @@ export function InteractivePose({
     });
     visible.observe(target);
     return () => {
+      gesture.current = undefined;
       controller.abort();
       visible.disconnect();
       unregister?.();
@@ -146,14 +155,20 @@ export function InteractivePose({
         onPointerDown={(event) => {
           if (event.button !== 0 && !(large && event.button === 2)) return;
           if (event.pointerType === "touch" && !large) return;
+          if (gesture.current) return;
           event.stopPropagation();
           event.currentTarget.focus();
           event.currentTarget.setPointerCapture(event.pointerId);
+          const pan = large && (event.shiftKey || event.button === 2);
           gesture.current = {
             x: event.clientX,
             y: event.clientY,
-            pan: large && (event.shiftKey || event.button === 2),
+            pan,
             pointer: event.pointerId,
+            anchor:
+              large && !pan && status === "ready" && !loading
+                ? pickPoseSurface(event.currentTarget, event.clientX, event.clientY)
+                : undefined,
           };
         }}
         onPointerMove={(event) => {
@@ -165,6 +180,13 @@ export function InteractivePose({
           g.y = event.clientY;
           event.preventDefault();
           event.stopPropagation();
+          const camera = surface?.camera ?? asset?.camera;
+          const anchor = g.anchor;
+          if (camera && anchor) {
+            const { width, height } = event.currentTarget.getBoundingClientRect();
+            if (width && height) update((o) => dragModel(camera, width, height, o, anchor, dx, dy));
+            return;
+          }
           update((o) =>
             g.pan
               ? { ...o, panX: o.panX - (dx * 0.003) / o.zoom, panY: o.panY + (dy * 0.003) / o.zoom }
@@ -181,11 +203,11 @@ export function InteractivePose({
             event.currentTarget.releasePointerCapture(event.pointerId);
           }
         }}
-        onPointerCancel={() => {
-          gesture.current = undefined;
+        onPointerCancel={(event) => {
+          if (gesture.current?.pointer === event.pointerId) gesture.current = undefined;
         }}
-        onLostPointerCapture={() => {
-          gesture.current = undefined;
+        onLostPointerCapture={(event) => {
+          if (gesture.current?.pointer === event.pointerId) gesture.current = undefined;
         }}
         onContextMenu={(e) => {
           if (large) e.preventDefault();
@@ -233,28 +255,35 @@ export function InteractivePose({
       />
       <span id={controlId} className="sr-only">
         {large
-          ? "방향키로 회전, R로 처음 시점. 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동"
+          ? "모델을 잡고 위아래로 이동, 좌우로 회전. 방향키로 회전, R로 처음 시점. 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동"
           : "방향키로 회전, R로 처음 시점, Enter로 크게 보기"}
       </span>
       {(loading || status !== "ready") && (
-        <div
-          className="pointer-events-none absolute inset-0 z-[20] flex items-center justify-center bg-surface-2 text-xs text-text-secondary"
-          role="status"
-        >
-          {loading || status === "loading" ? (
-            "포즈 불러오는 중"
-          ) : (
-            <div className="pointer-events-auto p-3 text-center">
-              <p>3D를 표시하지 못했어요</p>
-              <button
-                type="button"
-                className="mt-2 rounded border px-3 py-1"
-                onClick={() => setRetry((n) => n + 1)}
-              >
-                다시 시도
-              </button>
-            </div>
-          )}
+        <div className="pointer-events-none absolute inset-0 z-[20]">
+          {fallback}
+          <div
+            className={
+              fallback
+                ? "absolute inset-x-2 top-2 mx-auto w-fit rounded bg-surface-0/95 p-2 text-xs text-text-secondary"
+                : "absolute inset-0 flex items-center justify-center bg-surface-2 text-xs text-text-secondary"
+            }
+            role="status"
+          >
+            {loading || status === "loading" ? (
+              "포즈 불러오는 중"
+            ) : (
+              <div className="pointer-events-auto p-3 text-center">
+                <p>3D를 표시하지 못했어요</p>
+                <button
+                  type="button"
+                  className="mt-2 rounded border px-3 py-1"
+                  onClick={() => setRetry((n) => n + 1)}
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {showExpandButton && onExpand && (
@@ -314,7 +343,7 @@ export function InteractivePose({
             <ZoomIn size={18} />
           </button>
           <span className="flex items-center gap-1 whitespace-nowrap">
-            <Move size={14} /> Shift + 드래그로 이동
+            <Move size={14} /> 모델을 위아래로 끌어 이동
           </span>
         </div>
       )}
