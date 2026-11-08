@@ -2,6 +2,7 @@ import { ApiError } from "@/shared/api/errors";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import type { UploadDraft } from "@/shared/types/upload";
 import { analyticsService } from "./api/analytics.service";
+import { journeyClient } from "@/features/installation/journeyClient";
 
 type EventName =
   | "app_started"
@@ -126,6 +127,7 @@ export function trackEvent(
   properties: QueuedEvent["properties"],
   jobId?: string,
 ): void {
+  journeyClient.track(name);
   if (!qualityConsentId) return;
   const queue = readQueue();
   queue.push({

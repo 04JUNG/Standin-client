@@ -10,6 +10,7 @@ import { useAcquisitionChoiceStore } from "./acquisitionChoiceStore";
 import { campaignCounter } from "./campaignCounts";
 import { installerCampaign } from "./installerCampaign";
 import { useAcquisitionStore } from "./acquisitionStore";
+import { journeyClient } from "./journeyClient";
 
 import {
   useQualityConsentStore,
@@ -191,6 +192,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
     }
     resetAnalyticsQueue();
     useAcquisitionChoiceStore.getState().reset();
+    journeyClient.reset();
     campaignCounter.clear();
     installerCampaign.clear();
     setInstallationCredentials(null);

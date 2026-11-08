@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect } from "react";
 import { AcquisitionConsent } from "@/features/installation/AcquisitionConsent";
+import { JourneyConsent } from "@/features/installation/JourneyConsent";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./queryClient";
 import {
@@ -21,6 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <UpdateBootstrap>
         <InstallationBootstrap />
         <AcquisitionConsent />
+        <JourneyConsent />
         {children}
       </UpdateBootstrap>
     </QueryClientProvider>
