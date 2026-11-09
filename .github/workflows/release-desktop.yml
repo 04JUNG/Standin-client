@@ -311,6 +311,10 @@ jobs:
           VITE_USE_MOCK_API: "false"
           VITE_USE_MOCK_POSE_API: "false"
           VITE_APP_ENV: ${{ inputs.environment }}
+          # Repository variables are independent for each release target.
+          # Merging into main does not enable production replay automatically.
+          VITE_REPLAY_ENABLED: ${{ inputs.environment == 'staging' && (vars.STAGING_REPLAY_ENABLED || 'true') || (vars.PRODUCTION_REPLAY_ENABLED || 'false') }}
+          VITE_REPLAY_CONSENT_MODE: ${{ inputs.environment == 'staging' && 'assumed' || 'explicit' }}
           # ⚠ OS 키체인 서비스 이름. 번들 identifier와 **자동으로 연동되지 않는다**
           #   (secure_store.rs의 SERVICE 상수가 컴파일 타임에 굳는다).
           #
