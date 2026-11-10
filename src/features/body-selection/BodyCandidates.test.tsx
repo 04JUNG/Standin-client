@@ -213,7 +213,7 @@ it("names the person's body after the card it matches", () => {
 });
 
 for (const variant of ["app", "bar"] as const) {
-  it(`${variant}: shows the male fallback and allows explicit auto when no recommendation exists`, () => {
+  it(`${variant}: shows the male fallback without offering automatic recommendation`, () => {
     const fallback = {
       ...entry,
       selection: {
@@ -231,10 +231,7 @@ for (const variant of ["app", "bar"] as const) {
         "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요.",
       ),
     ).toBeInTheDocument();
-    const auto = screen.getByRole("button", { name: "자동 추천" });
-    expect(auto).not.toBeDisabled();
-    fireEvent.click(auto);
-    expect(mutate).toHaveBeenCalledWith({ intent: "auto" });
+    expect(screen.queryByRole("button", { name: "자동 추천" })).not.toBeInTheDocument();
   });
 }
 
