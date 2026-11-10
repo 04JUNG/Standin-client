@@ -21,6 +21,7 @@ export function InteractivePose({
   surface,
   viewKey,
   large = false,
+  rotationOnly = false,
   showControls = true,
   showExpandButton = false,
   onExpand,
@@ -38,6 +39,7 @@ export function InteractivePose({
   surface?: SurfaceView;
   viewKey: string;
   large?: boolean;
+  rotationOnly?: boolean;
   renderLayer?: number;
   appearance?: import("./renderer").PreviewAppearance;
   showControls?: boolean;
@@ -153,20 +155,20 @@ export function InteractivePose({
         className="h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-sky"
         style={{ touchAction: large ? "none" : "pan-y", cursor: "grab" }}
         onPointerDown={(event) => {
-          if (event.button !== 0 && !(large && event.button === 2)) return;
+          if (event.button !== 0 && !(large && !rotationOnly && event.button === 2)) return;
           if (event.pointerType === "touch" && !large) return;
           if (gesture.current) return;
           event.stopPropagation();
           event.currentTarget.focus();
           event.currentTarget.setPointerCapture(event.pointerId);
-          const pan = large && (event.shiftKey || event.button === 2);
+          const pan = large && !rotationOnly && (event.shiftKey || event.button === 2);
           gesture.current = {
             x: event.clientX,
             y: event.clientY,
             pan,
             pointer: event.pointerId,
             anchor:
-              large && !pan && status === "ready" && !loading
+              large && !rotationOnly && !pan && status === "ready" && !loading
                 ? pickPoseSurface(event.currentTarget, event.clientX, event.clientY)
                 : undefined,
           };
@@ -234,7 +236,7 @@ export function InteractivePose({
           if (d) {
             event.preventDefault();
             update((o) =>
-              event.shiftKey && large
+              event.shiftKey && large && !rotationOnly
                 ? { ...o, panX: o.panX + d[0], panY: o.panY + d[1] }
                 : { ...o, yaw: o.yaw + d[0], pitch: Math.max(-1.5, Math.min(1.5, o.pitch + d[1])) },
             );
@@ -254,9 +256,11 @@ export function InteractivePose({
         }}
       />
       <span id={controlId} className="sr-only">
-        {large
-          ? "모델을 잡고 위아래로 이동, 좌우로 회전. 방향키로 회전, R로 처음 시점. 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동"
-          : "방향키로 회전, R로 처음 시점, Enter로 크게 보기"}
+        {rotationOnly
+          ? "드래그 또는 방향키로 회전. R로 처음 시점. 휠 또는 +와 -로 확대·축소"
+          : large
+            ? "모델을 잡고 위아래로 이동, 좌우로 회전. 방향키로 회전, R로 처음 시점. 휠 또는 +와 -로 확대·축소, Shift와 드래그로 이동"
+            : "방향키로 회전, R로 처음 시점, Enter로 크게 보기"}
       </span>
       {(loading || status !== "ready") && (
         <div className="pointer-events-none absolute inset-0 z-[20]">
@@ -343,7 +347,15 @@ export function InteractivePose({
             <ZoomIn size={18} />
           </button>
           <span className="flex items-center gap-1 whitespace-nowrap">
-            <Move size={14} /> 모델을 위아래로 끌어 이동
+            {rotationOnly ? (
+              <>
+                <RotateCcw size={14} /> 드래그로 회전
+              </>
+            ) : (
+              <>
+                <Move size={14} /> 모델을 위아래로 끌어 이동
+              </>
+            )}
           </span>
         </div>
       )}
