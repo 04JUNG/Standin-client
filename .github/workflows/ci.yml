@@ -185,6 +185,7 @@ jobs:
       VITE_USE_MOCK_API: "false"
       VITE_USE_MOCK_POSE_API: "false"
       VITE_APP_ENV: staging
+      VITE_INTERACTIVE_POSE_PREVIEW: "true"
     steps:
       - uses: actions/checkout@v4
 
