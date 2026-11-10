@@ -4,25 +4,36 @@ import { beforeEach, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { CandidatePreviewProvider } from "./CandidatePreviewContext";
 import { PoseCandidateCard } from "./PoseCandidateCard";
-import { loadSelectionPacket } from "../interactive/selectionPacket";
+import { loadReferenceBvh } from "../api/humanReference";
+import { referenceSurface } from "../preview/humanReference/surface";
 import type { PersonResult } from "../api/pose.contract";
-import type { BodyEntry } from "@/features/body-selection/hooks";
 vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" }));
 vi.mock("../api/posePoster", () => ({
   useDefaultPosePoster: () => ({ data: { url: "poster.png" }, isPending: false, isError: false }),
 }));
-vi.mock("../interactive/selectionPacket", () => ({ loadSelectionPacket: vi.fn() }));
+vi.mock("../api/humanReference", async (original) => ({
+  ...(await original<typeof import("../api/humanReference")>()),
+  loadHumanTemplate: vi.fn(),
+  loadReferenceBvh: vi.fn(),
+}));
+vi.mock("../preview/humanReference/surface", () => ({
+  referenceSurface: vi.fn(),
+  referenceSurfaceCamera: vi.fn(),
+}));
 vi.mock("../interactive/InteractivePose", () => ({
   InteractivePose: ({
     surface,
+    fallback,
     large,
     renderLayer,
   }: {
     surface: unknown;
+    fallback: React.ReactNode;
     large: boolean;
     renderLayer: number;
   }) => (
     <div data-testid="interactive" data-large={large} data-layer={renderLayer}>
+      {fallback}
       {surface ? "verified surface" : "empty"}
     </div>
   ),
@@ -44,30 +55,25 @@ const person = {
     tags: [],
     matchLevel: "high",
     thumbnailUrl: "poster.png",
+    posterUrl: `/v1/pose-candidates/${id}/poster?candidateId=${id}`,
     previewImages: [],
     bvhAvailable: true,
   })),
 } as PersonResult;
-const entry = {
-  ready: true,
-  selection: {
-    personIndex: 0,
-    selectionRevision: 3,
-    resolvedBody: { characterId: "approved", assetSha256: "a".repeat(64) },
-  },
-} as BodyEntry;
 beforeEach(() => vi.clearAllMocks());
 it.each([undefined, "fill"] as const)(
-  "opens a static %s card's own packet only on inspection, preserves selection, and releases it on close",
+  "opens a %s card's own pose on inspection, preserves selection, and releases it on close",
   async (layout) => {
     const select = vi.fn(),
       release = vi.fn();
-    vi.mocked(loadSelectionPacket).mockResolvedValue({
+    vi.mocked(loadReferenceBvh).mockResolvedValue("bvh");
+    vi.mocked(referenceSurface).mockReturnValue({
       body: new THREE.Group(),
-      camera: {} as never,
+      bounds: new THREE.Box3(),
+      characterSha: "a".repeat(64),
       release,
     });
-    const props = { job: "job", person, entry, bodiesEnabled: true, canonicalPreview: true };
+    const props = { job: "job", person };
     const r = render(
       <CandidatePreviewProvider {...props}>
         <PoseCandidateCard
@@ -78,23 +84,21 @@ it.each([undefined, "fill"] as const)(
         />
       </CandidatePreviewProvider>,
     );
-    expect(loadSelectionPacket).not.toHaveBeenCalled();
+    expect(loadReferenceBvh).not.toHaveBeenCalled();
     expect(r.container.querySelector("button button")).toBeNull();
     const zoom = screen.getByRole("button", { name: "포즈 크게 보기" });
     expect(zoom).toHaveClass("bottom-1", "right-1");
     await userEvent.click(zoom);
     const dialog = await screen.findByRole("dialog", { name: "포즈 크게 보기" });
     expect(within(dialog).getByRole("img")).toHaveAttribute("src", "poster.png");
-    expect(loadSelectionPacket).not.toHaveBeenCalled();
     expect(within(dialog).getByRole("button", { name: "닫기" })).toHaveFocus();
-    await userEvent.click(within(dialog).getByRole("button", { name: "선택한 체형으로 3D 보기" }));
-    await waitFor(() => expect(loadSelectionPacket).toHaveBeenCalledOnce());
-    expect(loadSelectionPacket).toHaveBeenCalledWith(
-      "job",
-      entry.selection,
-      person.candidates[1],
-      expect.any(String),
+    await waitFor(() => expect(loadReferenceBvh).toHaveBeenCalledOnce());
+    expect(loadReferenceBvh).toHaveBeenCalledWith(
+      "/v1/pose-candidates/two/poster-source?candidateId=two&scope=full",
+      undefined,
+      "full",
       expect.any(AbortSignal),
+      false,
     );
     expect(within(dialog).getByTestId("interactive")).toHaveTextContent("verified surface");
     expect(within(dialog).getByTestId("interactive")).toHaveAttribute("data-large", "true");
@@ -108,18 +112,3 @@ it.each([undefined, "fill"] as const)(
     expect(select).toHaveBeenCalledOnce();
   },
 );
-it("does not expose or request unsupported packet previews", () => {
-  render(
-    <CandidatePreviewProvider
-      job="job"
-      person={person}
-      entry={entry}
-      bodiesEnabled
-      canonicalPreview={false}
-    >
-      <PoseCandidateCard candidate={person.candidates[0]} isSelected={false} onSelect={vi.fn()} />
-    </CandidatePreviewProvider>,
-  );
-  expect(screen.queryByRole("button", { name: "포즈 크게 보기" })).toBeNull();
-  expect(loadSelectionPacket).not.toHaveBeenCalled();
-});

@@ -28,15 +28,12 @@ type BarPersonCandidatesProps = {
 };
 /** Each person owns a read-only inspector; visible posters never request packets. */
 export function BarPersonCandidates(props: BarPersonCandidatesProps) {
-  const { data, bodies } = props.analysis;
+  const { data } = props.analysis;
   if (!data) return null;
   return (
     <CandidatePreviewProvider
       job={data.jobId}
       person={props.person}
-      entry={bodies.entries.find((e) => e.personIndex === props.person.index)}
-      bodiesEnabled={bodies.enabled}
-      canonicalPreview={data.capabilities.selectionPreview}
       presentationPosters={data.source === "semantic"}
     >
       <BarPersonCandidatesContent {...props} />
