@@ -181,18 +181,15 @@ it("renames a card in place and deletes it after confirming", async () => {
   );
 });
 
-it("starts new jobs with the last used body by default and can switch to auto", async () => {
+it("shows the last used body without offering automatic recommendation for a legacy setting", async () => {
   prefs.current = base({
+    mode: "auto",
     lastUsed: { characterId: "female-base", controls: { height: 168 }, usedAt: "" },
   });
-  putPreferences.mockResolvedValue(base({ mode: "auto", revision: 3 }));
   show();
-  const last = screen.getByRole("radio", { name: /마지막으로 쓴 체형/ });
-  expect(last).toBeChecked();
-  // 마지막 체형이 카드와 같으면 카드 이름으로 알려 준다.
   expect(await screen.findByText("현재 체형: 주인공 A")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("radio", { name: /^자동 추천/ }));
-  await waitFor(() => expect(putPreferences).toHaveBeenCalledWith({ mode: "auto" }, 2));
+  expect(screen.queryByText("자동 추천")).not.toBeInTheDocument();
+  expect(putPreferences).not.toHaveBeenCalled();
 });
 
 it("shows separate new and previous presets while preserving the personal card and last-used mode", async () => {
@@ -225,7 +222,7 @@ it("shows separate new and previous presets while preserving the personal card a
     ],
   });
   show();
-  expect(screen.getByRole("radio", { name: /마지막으로 쓴 체형/ })).toBeChecked();
+  expect(screen.getByText(/마지막으로 사용한 체형으로 시작해요/)).toBeInTheDocument();
   expect(await screen.findByRole("button", { name: "주인공 A 이름 변경" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "여성" }));
   expect(screen.queryByRole("button", { name: /8.3등신/ })).toBeNull();
