@@ -1,15 +1,11 @@
 import { useFeatureView } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
-import { useInstallationStore } from "@/features/installation/installationStore";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog";
-import { bodyKeys, putPreferences } from "./api";
-import { useBodyOwner } from "./hooks";
 import { BODY_KIND_LABEL, bodyKind, bodyRoleLabel, type BodyKind } from "./bodyPanel";
 import { NeutralImage, ShapeThumb } from "./LiveBodyView";
 import { useBodyLooks } from "./looks";
@@ -22,7 +18,7 @@ import {
 } from "./preferences";
 import { pickerIncludes } from "./pickerVisibility";
 import { sameShape } from "./shapeValues";
-import type { BodyCard, BodyLook, BodyPreferences } from "./contract";
+import type { BodyCard, BodyLook } from "./contract";
 
 /**
  * 체형 커스텀(모델 화면): 내 체형 카드 + 기본 모델(프리셋) + 새 작업의 시작 체형.
@@ -37,19 +33,6 @@ export function BodyPreferencesPage() {
   const { cards, change, supported } = useBodyCards();
   const picker = useBodyPickerVisibility();
   useFeatureView("body_custom", supported, "exposure");
-  const owner = useBodyOwner();
-  const qc = useQueryClient();
-  const mode = useMutation({
-    mutationFn: (next: BodyPreferences["mode"]) => {
-      if (!prefs.data) throw new Error("preferences missing");
-      return putPreferences({ mode: next }, prefs.data.revision);
-    },
-    onSuccess: (value) => {
-      if (useInstallationStore.getState().credentials?.installationId === owner)
-        qc.setQueryData(bodyKeys.preferences(owner), value);
-    },
-    onError: () => void prefs.refetch(),
-  });
   const [kindView, setKindView] = useState<BodyKind | "all">("all");
   const [deleting, setDeleting] = useState<BodyCard | null>(null);
 
@@ -99,34 +82,10 @@ export function BodyPreferencesPage() {
               새 작업을 시작할 때
             </h3>
             <p className="text-xs text-text-secondary">
-              다음 분석부터 적용됩니다. 각 인물의 체형은 후보 화면의 ‘체형 더보기’에서 따로 바꿀 수
-              있어요.
+              마지막으로 사용한 체형으로 시작해요. 각 인물의 체형은 후보 화면에서 따로 바꿀 수 있어요.
             </p>
-            <fieldset
-              disabled={mode.isPending || picker.mutation.isPending || change.isPending}
-              className="space-y-2"
-            >
-              <legend className="sr-only">새 작업의 체형</legend>
-              <ModeOption
-                checked={value.mode === "last_used"}
-                onChange={() => mode.mutate("last_used")}
-                title="마지막으로 쓴 체형 (기본)"
-                description="마지막으로 사용한 체형으로 시작해요."
-              />
-              {value.mode === "last_used" && lastLabel && (
-                <p className="pl-7 text-xs text-text-secondary">현재 체형: {lastLabel}</p>
-              )}
-              <ModeOption
-                checked={value.mode === "auto"}
-                onChange={() => mode.mutate("auto")}
-                title="자동 추천"
-                description="러프에 맞는 체형으로 시작해요."
-              />
-            </fieldset>
-            {mode.isError && (
-              <p role="alert" className="text-[12px] text-brand-coral">
-                설정을 저장하지 못했습니다. 현재 값을 확인하고 다시 시도해 주세요.
-              </p>
+            {lastLabel && (
+              <p className="text-xs text-text-secondary">현재 체형: {lastLabel}</p>
             )}
           </section>
         )}
@@ -170,7 +129,7 @@ export function BodyPreferencesPage() {
                   look={find(card.characterId)}
                   baseName={name(card.characterId)}
                   editable={supported}
-                  busy={change.isPending || picker.mutation.isPending || mode.isPending}
+                  busy={change.isPending || picker.mutation.isPending}
                   onOpen={() => navigate(`/app/models/custom/${encodeURIComponent(card.cardId)}`)}
                   onRename={(next) =>
                     change.mutateAsync({ op: "update", cardId: card.cardId, name: next })
@@ -181,7 +140,7 @@ export function BodyPreferencesPage() {
                       <PickerToggle
                         name={card.name}
                         checked={pickerIncludes(value, "card", card.cardId)}
-                        disabled={picker.mutation.isPending || change.isPending || mode.isPending}
+                        disabled={picker.mutation.isPending || change.isPending}
                         onChange={(included) =>
                           picker.mutation.mutate({ kind: "card", id: card.cardId, included })
                         }
@@ -243,7 +202,7 @@ export function BodyPreferencesPage() {
                       <PickerToggle
                         name={look.displayName ?? "기본 체형"}
                         checked={pickerIncludes(value, "preset", look.characterId)}
-                        disabled={picker.mutation.isPending || change.isPending || mode.isPending}
+                        disabled={picker.mutation.isPending || change.isPending}
                         onChange={(included) =>
                           picker.mutation.mutate({ kind: "preset", id: look.characterId, included })
                         }
@@ -295,28 +254,6 @@ export function BodyPreferencesPage() {
         }
       />
     </AppShell>
-  );
-}
-
-function ModeOption({
-  checked,
-  onChange,
-  title,
-  description,
-}: {
-  checked: boolean;
-  onChange(): void;
-  title: string;
-  description: string;
-}) {
-  return (
-    <label className="flex min-h-11 items-start gap-3">
-      <input type="radio" name="body-mode" className="mt-1" checked={checked} onChange={onChange} />
-      <span>
-        <span className="block text-sm font-semibold">{title}</span>
-        <span className="block text-xs text-text-secondary">{description}</span>
-      </span>
-    </label>
   );
 }
 

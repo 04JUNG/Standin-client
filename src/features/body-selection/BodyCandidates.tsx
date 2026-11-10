@@ -4,7 +4,7 @@ import {
   failureProperties,
 } from "@/features/analytics/featureJourney";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
-import { Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Plus, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
@@ -36,7 +36,7 @@ import "@/shared/styles/horizontal-scroll.css";
 export function selectionFallbackMessage(selection?: BodySelection) {
   return selection?.resolvedSource === "catalog_default_fallback" &&
     selection.resolutionStatus === "ready" &&
-    selection.recommendation.status !== "available"
+    selection.recommendation.status === "unavailable"
     ? "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요."
     : undefined;
 }
@@ -682,21 +682,6 @@ export function BodyExpand({
           </p>
         )}
         <div className="flex flex-wrap items-center gap-1.5">
-          <ToolButton
-            disabled={busy || !selection || selection.resolutionStatus === "not_applicable"}
-            onClick={() => {
-              setKindView(null);
-              mutation.mutate({ intent: "auto" });
-            }}
-            title={
-              selection?.recommendation.status === "available"
-                ? "러프에 맞춰 추천한 체형으로 바꿉니다"
-                : "추천을 찾지 못하면 남성 기본형으로 바꿉니다"
-            }
-          >
-            <Sparkles className="h-3 w-3 text-brand-coral" aria-hidden />
-            자동 추천
-          </ToolButton>
           <ToolButton
             disabled={busy || !currentId || (!selection?.shape && !draft)}
             onClick={() => {
