@@ -138,7 +138,7 @@ it("opens and switches to the exact poster cached by the two candidate cards", a
             onSelect={() => select(pose.id)}
           />
         ))}
-        <SelectionPreview job="job_cache" person={person} selectedId={selected} bodiesEnabled />
+        <SelectionPreview job="job_cache" person={person} selectedId={selected} />
       </>
     );
   }
@@ -159,5 +159,8 @@ it("opens and switches to the exact poster cached by the two candidate cards", a
     "src",
     secondImage.getAttribute("src"),
   );
-  expect(apiFetchResponse).toHaveBeenCalledTimes(2);
+  const posterRequests = vi
+    .mocked(apiFetchResponse)
+    .mock.calls.filter(([url]) => /\/poster\?/.test(url));
+  expect(posterRequests).toHaveLength(2);
 });

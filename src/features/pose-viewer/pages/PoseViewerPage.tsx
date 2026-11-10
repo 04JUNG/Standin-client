@@ -251,9 +251,6 @@ export function PoseViewerPage() {
                   key={person.index}
                   job={data.jobId}
                   person={person}
-                  entry={bodies.entries.find((e) => e.personIndex === person.index)}
-                  bodiesEnabled={bodies.enabled}
-                  canonicalPreview={data.capabilities.selectionPreview}
                   presentationPosters
                 >
                   <div className="flex flex-col gap-3">
@@ -287,9 +284,6 @@ export function PoseViewerPage() {
                 job={data.jobId}
                 person={active}
                 selectedId={selectedByPerson[active.index]}
-                entry={bodies.entries.find((e) => e.personIndex === active.index)}
-                bodiesEnabled={bodies.enabled}
-                canonicalPreview={data.capabilities.selectionPreview}
                 presentationPosters
               />
             )}
@@ -417,13 +411,7 @@ export function PoseViewerPage() {
               </div>
 
               {active && (
-                <CandidatePreviewProvider
-                  job={data.jobId}
-                  person={active}
-                  entry={bodies.entries.find((e) => e.personIndex === active.index)}
-                  bodiesEnabled={bodies.enabled}
-                  canonicalPreview={data.capabilities.selectionPreview}
-                >
+                <CandidatePreviewProvider job={data.jobId} person={active}>
                   <ActivePersonCard
                     key={active.index}
                     jobId={data.jobId}
@@ -494,9 +482,6 @@ export function PoseViewerPage() {
                 job={data.jobId}
                 person={active}
                 selectedId={selectedByPerson[active.index]}
-                entry={bodies.entries.find((e) => e.personIndex === active.index)}
-                bodiesEnabled={bodies.enabled}
-                canonicalPreview={data.capabilities.selectionPreview}
               />
             )}
           </div>

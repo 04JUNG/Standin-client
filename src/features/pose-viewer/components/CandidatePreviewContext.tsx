@@ -2,6 +2,7 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X, ZoomIn } from "lucide-react";
+import { candidateReferenceUrl } from "../api/candidatePoster";
 import { SelectionPreview } from "./SelectionPreview";
 import { PreviewContext, useCandidatePreview } from "./candidatePreviewAction";
 
@@ -16,9 +17,22 @@ export function CandidatePreviewProvider({
   const [candidateId, setCandidateId] = useState<string>();
   const dialog = useRef<HTMLDivElement>(null);
   const restore = useRef<HTMLElement | null>(null);
-  const enabled =
-    (preview.canonicalPreview && preview.bodiesEnabled) ||
-    preview.person.candidates.some((candidate) => candidate.interactivePreview?.asset);
+  const presentation = preview.person.posePresentation;
+  const rows = presentation
+    ? [
+        ...presentation.library_candidates,
+        ...presentation.review_candidates,
+        ...presentation.generated_candidates,
+      ]
+    : [];
+  const enabled = preview.person.candidates.some((candidate) =>
+    candidateReferenceUrl(
+      candidate,
+      preview.presentationPosters || candidate.manualExportAllowed
+        ? rows.find((row) => row.candidate_id === candidate.id)
+        : undefined,
+    ),
+  );
   useEffect(() => setCandidateId(undefined), [owner, preview.job, preview.person.index]);
   useEffect(() => {
     if (!candidateId) return;
