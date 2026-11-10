@@ -3,6 +3,7 @@ import { referencePose } from "./pose";
 import type { HumanTemplate } from "./template";
 import type { SearchCamera } from "../../interactive/contract";
 import { libraryPreviewMaterial } from "../previewStyle";
+import { validRotation } from "../modelContract";
 
 /** Bake the fixed template's pose once so the existing viewer can raycast its actual surface. */
 export function referenceSurface(template: HumanTemplate, text: string) {
@@ -58,18 +59,27 @@ export function referenceSurface(template: HumanTemplate, text: string) {
 
 export function referenceSurfaceCamera(
   surface: ReturnType<typeof referenceSurface>,
-  yaw: number | undefined,
+  yaw = 0,
+  rotation?: number[][],
 ): SearchCamera {
   const target = surface.bounds.getCenter(new THREE.Vector3());
   const size = surface.bounds.getSize(new THREE.Vector3());
   const half = Math.max(size.x, size.y, size.z, 0.01) * 0.65;
   const camera = new THREE.OrthographicCamera(-half, half, half, -half, 0.001, 200);
-  // Directional posters look along +Z at search yaw 0. Legacy references use front +Z.
-  const angle = THREE.MathUtils.degToRad(yaw === undefined ? 0 : 180 - yaw);
-  camera.position
-    .copy(target)
-    .add(new THREE.Vector3(Math.sin(angle) * 10, 0, Math.cos(angle) * 10));
-  camera.lookAt(target);
+  if (validRotation(rotation)) {
+    // Search rotates model coordinates. Orbit the camera by the inverse so the pose stays fixed.
+    const [x, y, z] = rotation;
+    const worldRotation = new THREE.Matrix4().makeBasis(
+      new THREE.Vector3(...x),
+      new THREE.Vector3(...y),
+      new THREE.Vector3(...z),
+    );
+    camera.quaternion.setFromRotationMatrix(worldRotation);
+  } else {
+    // Poster yaw is also in search coordinates. Zero starts at the template's +Z front.
+    camera.rotateY(THREE.MathUtils.degToRad(-yaw));
+  }
+  camera.position.copy(target).add(new THREE.Vector3(0, 0, 10).applyQuaternion(camera.quaternion));
   camera.updateMatrixWorld();
   return {
     schemaVersion: "interactive-camera-v1",
