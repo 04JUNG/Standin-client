@@ -94,11 +94,21 @@ export function SelectionPreview({
 
   const result = loaded?.binding === binding ? loaded : undefined;
   const model = result?.model;
-  const yaw =
-    poster.data?.camera?.fallback === "legacy_reference" ? undefined : poster.data?.camera?.yaw;
+  const renderCamera = presentationCandidate?.render_camera;
+  const rotation =
+    presentationCandidate?.camera_kind === "fixed_117" &&
+    renderCamera?.version === "pose-preview-camera-v1" &&
+    renderCamera.basis === "right-handed-Y-up" &&
+    renderCamera.bvh_camera_rotation_applied === false
+      ? renderCamera.rotation
+      : candidate?.previewModel?.sourceSha === source
+        ? candidate?.previewModel?.rotation
+        : undefined;
+  const posterCamera = poster.data?.camera;
+  const yaw = posterCamera?.fallback === "none" ? posterCamera.yaw : 0;
   const surface = useMemo(
-    () => model && { body: model.body, camera: referenceSurfaceCamera(model, yaw) },
-    [model, yaw],
+    () => model && { body: model.body, camera: referenceSurfaceCamera(model, yaw, rotation) },
+    [model, yaw, rotation],
   );
   const posterImage = image ? (
     <img className="h-full w-full object-contain" src={image} alt={alt} />
