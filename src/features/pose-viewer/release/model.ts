@@ -56,6 +56,10 @@ export async function mountReleaseModel(
       renderer.dispose();
       renderer.forceContextLoss();
     },
-    { setOutlineWidth: (_width: number) => {} },
+    {
+      setOutlineWidth: (width: number) => {
+        void width;
+      },
+    },
   );
 }
