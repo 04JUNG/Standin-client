@@ -32,7 +32,6 @@ export function useSelectionSurface({
     selection?.selectionRevision,
     selection?.resolvedBody,
     selection?.shape,
-    selection?.shapeSource,
   ]);
   const query = useQuery({
     queryKey: ["selection-final-surface", binding],
