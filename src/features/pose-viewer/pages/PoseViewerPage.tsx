@@ -32,12 +32,14 @@ import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { usePoseViewerShortcuts } from "../hooks/usePoseViewerShortcuts";
 import { PoseCandidateCard } from "../components/PoseCandidateCard";
 import { PoseSearchPending } from "../components/PoseSearchPending";
+import { AnalysisResultsTransition } from "../components/AnalysisResultsTransition";
+import type { AnalysisProgress } from "../lib/loadingProgress";
 import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
 import { ModelSelect } from "@/features/models/components/ModelSelect";
 
-/** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
+/** 포즈 후보 뷰어(docs/03 §7). 실제 분석 진행 정보를 결과 화면으로 이어 준다. */
 export function PoseViewerPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
@@ -61,6 +63,7 @@ export function PoseViewerPage() {
     data,
     bodies,
     isPending,
+    analysisProgress,
     isError,
     error,
     restoreOnly,
@@ -133,20 +136,44 @@ export function PoseViewerPage() {
     );
   }
 
+  const renderPending = (completed: boolean, capturedProgress?: AnalysisProgress | null) => (
+    <div
+      {...tourAnchor("jobs.pending")}
+      className="flex min-h-full flex-col items-center justify-center gap-4"
+    >
+      <PoseSearchPending
+        preview={restoreOnly ? null : draft}
+        restoring={restoreOnly}
+        progress={capturedProgress}
+        completed={completed}
+      />
+      {/* 분석은 서버에서 계속 진행되고 결과는 작업 기록에서 다시 열 수 있다.
+              기다리는 것 말고 할 수 있는 일이 없는 화면을 만들지 않는다. */}
+      {!completed && (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            journeyExit("pose_selection", "results", "home", telemetryJob);
+            navigate("/app/home");
+          }}
+        >
+          홈으로 돌아가기
+        </Button>
+      )}
+    </div>
+  );
   if (isPending) {
     return (
       <AppShell title="포즈 후보">
-        <div
-          {...tourAnchor("jobs.pending")}
-          className="flex min-h-full flex-col items-center justify-center gap-4"
-        >
-          <PoseSearchPending preview={restoreOnly ? null : draft} restoring={restoreOnly} />
-          {/* 분석은 서버에서 계속 진행되고 결과는 작업 기록에서 다시 열 수 있다.
-              기다리는 것 말고 할 수 있는 일이 없는 화면을 만들지 않는다. */}
-          <Button variant="secondary" onClick={() => navigate("/app/home")}>
-            홈으로 돌아가기
-          </Button>
-        </div>
+        <AnalysisResultsTransition
+          key={jobId}
+          jobKey={jobId}
+          pending
+          ready={false}
+          enabled={!restoreOnly}
+          progress={analysisProgress}
+          renderPending={renderPending}
+        />
       </AppShell>
     );
   }
@@ -377,45 +404,61 @@ export function PoseViewerPage() {
             <div className="flex shrink-0 items-center gap-2">
               {people.length > 1 && (
                 <Button
-                  variant="secondary"
-                  size="lg"
-                  data-body-prev
-                  disabled={!prevPerson}
-                  onClick={() => prevPerson && pick(prevPerson.index)}
+                  variant="ghost"
+                  onClick={() => {
+                    journeyExit("pose_selection", "results", "home", telemetryJob);
+                    navigate("/app/home");
+                  }}
                 >
-                  <ChevronLeft className="h-4 w-4" aria-hidden />
-                  이전 인물{prevPerson ? ` · 인물 ${prevPerson.index + 1}` : ""}
+                  홈으로 돌아가기
                 </Button>
-              )}
-              {nextPending ? (
-                <Button data-body-next size="lg" onClick={() => pick(nextPending.index)}>
-                  다음 인물로 · 인물 {nextPending.index + 1}
-                </Button>
-              ) : (
-                <Button
-                  data-body-next
-                  {...tourAnchor("jobs.confirm")}
-                  size="lg"
-                  disabled={!allSelected || isConfirming}
-                  loading={isConfirming}
-                  onClick={() => void confirmAndContinue()}
-                >
-                  이 포즈 사용하기 ({selectedCount}/{includedPeople.length})
-                  <ShortcutKey
-                    accelerator={resolveAccelerator("poseViewer.confirm", bindings)!}
-                    className="ml-1"
-                  />
-                </Button>
-              )}
+                <span className="truncate text-[12px] text-text-secondary" aria-live="polite">
+                  {progressText}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {people.length > 1 && (
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    data-body-prev
+                    disabled={!prevPerson}
+                    onClick={() => prevPerson && pick(prevPerson.index)}
+                  >
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                    이전 인물{prevPerson ? ` · 인물 ${prevPerson.index + 1}` : ""}
+                  </Button>
+                )}
+                {nextPending ? (
+                  <Button data-body-next size="lg" onClick={() => pick(nextPending.index)}>
+                    다음 인물로 · 인물 {nextPending.index + 1}
+                  </Button>
+                ) : (
+                  <Button
+                    data-body-next
+                    {...tourAnchor("jobs.confirm")}
+                    size="lg"
+                    disabled={!allSelected || isConfirming}
+                    loading={isConfirming}
+                    onClick={() => void confirmAndContinue()}
+                  >
+                    이 포즈 사용하기 ({selectedCount}/{includedPeople.length})
+                    <ShortcutKey
+                      accelerator={resolveAccelerator("poseViewer.confirm", bindings)!}
+                      className="ml-1"
+                    />
+                  </Button>
+                )}
+              </div>
             </div>
+            {confirmError && (
+              <p role="alert" className="mt-2 text-[12px] text-brand-coral">
+                {confirmError}
+              </p>
+            )}
           </div>
-          {confirmError && (
-            <p role="alert" className="mt-2 text-[12px] text-brand-coral">
-              {confirmError}
-            </p>
-          )}
         </div>
-      </div>
+      </AnalysisResultsTransition>
     </AppShell>
   );
 }

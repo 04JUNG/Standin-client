@@ -22,6 +22,8 @@ import type {
 } from "./pose.contract";
 
 import { upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
+import { readAnalysisStage } from "../lib/loadingProgress";
+import { readAnalysisProgress } from "./analysisProgress";
 
 /** BFF의 비동기 분석 Job 계약. */
 type AnalysisJobStatus = "queued" | "running" | "completed" | "failed";
@@ -35,6 +37,9 @@ type CreateJobResponse = {
 type JobStatusResponse = CreateJobResponse & {
   updatedAt: string;
   error: string | null;
+  /** Optional detailed progress from the integrated search/refine pipeline. */
+  stage?: unknown;
+  progress?: unknown;
 };
 
 import { validRotation } from "../preview/modelContract";
@@ -447,6 +452,7 @@ async function waitForResult(
   jobId: string,
   deadline: number,
   signal: AbortSignal,
+  onProgress?: AnalyzeInput["onProgress"],
 ): Promise<BffAnalysisResult> {
   while (Date.now() < deadline) {
     const job = await apiFetch<JobStatusResponse>(endpoints.analysis.job(jobId), {
@@ -454,7 +460,14 @@ async function waitForResult(
       signal,
     });
 
+    if (signal.aborted) throw signal.reason;
+    if (job.status === "queued") onProgress?.("queued");
+    if (job.status === "running") {
+      const snapshot = readAnalysisProgress(job.progress);
+      onProgress?.(snapshot?.stage ?? readAnalysisStage(job.stage) ?? "running", snapshot);
+    }
     if (job.status === "completed") {
+      onProgress?.("preparing");
       return apiFetch<BffAnalysisResult>(endpoints.analysis.result(jobId), {
         auth: false,
         signal,
@@ -568,16 +581,18 @@ export const poseHttp: PoseResultService = {
     width,
     height,
     signal: parentSignal,
+    onProgress,
   }): Promise<AnalysisResult> {
     const timeout = createAnalysisDeadline(parentSignal);
 
     try {
+      if (!serverJobByClientJob.has(jobId)) onProgress?.("uploading");
       const serverJobId = await serverJobFor(
         jobId,
         { file, source, width, height },
         timeout.createSignal,
       );
-      const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal);
+      const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal, onProgress);
       const analysis = await toAnalysisResult(result, timeout.signal);
       if (timeout.signal.aborted) throw timeout.signal.reason;
       campaignCounter.analysisSucceeded(serverJobId);

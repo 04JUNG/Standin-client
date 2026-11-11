@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+import "./PoseSearchPending.css";
 import { reviewOnly, canRelease } from "../api/routedSearch";
 import { useDefaultPosePoster } from "../api/posePoster";
 import { ImageOff, Info, LoaderCircle } from "lucide-react";
@@ -58,6 +60,7 @@ export function PoseCandidateCard({
   return (
     <button
       data-pose-candidate
+      style={{ "--candidate-order": Math.min(Math.max(candidate.rank - 1, 0), 4) } as CSSProperties}
       id={`pose-candidate-${candidate.id}`}
       type="button"
       onClick={
@@ -71,7 +74,7 @@ export function PoseCandidateCard({
       aria-busy={pending}
       aria-pressed={isSelected}
       className={cn(
-        "flex w-full flex-col overflow-hidden rounded-xl border-2 bg-surface-0 text-left transition-colors",
+        "pose-candidate-arrival flex w-full flex-col overflow-hidden rounded-xl border-2 bg-surface-0 text-left transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
         isSelected ? "border-brand-coral" : "border-border hover:border-brand-sky",
         fill && "h-full min-h-0",

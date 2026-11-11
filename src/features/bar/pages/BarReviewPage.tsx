@@ -1,8 +1,9 @@
+import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Loader2, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "@/features/pose-viewer/hooks/useFramedReview";
 import { ReviewPosePreview } from "@/features/pose-viewer/components/ReviewPosePreview";
@@ -20,6 +21,8 @@ export function BarReviewPage() {
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const {
     items,
+    draft,
+    roughUrl,
     hands,
     isRefining,
     previewLoading,
@@ -43,11 +46,19 @@ export function BarReviewPage() {
     <BarShell title="저장할 포즈 확인">
       <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
-          {isRefining ? (
-            <>
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-              <span className="text-[12px]">포즈를 조정하는 중…</span>
-            </>
+          {isRefining && !items.some((item) => item.interactivePreview) ? (
+            <PoseSearchPending
+              mode="refine"
+              compact
+              preview={
+                roughUrl
+                  ? { previewUrl: roughUrl, originalName: draft?.originalName ?? "러프" }
+                  : null
+              }
+              selectionPreviewUrl={
+                items[0]?.candidate.thumbnailUrl || items[0]?.candidate.quickThumbnailUrl
+              }
+            />
           ) : (
             <ul
               tabIndex={0}
