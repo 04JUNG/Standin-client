@@ -12,8 +12,10 @@ import {
   presentationPosterOptions,
 } from "../api/candidatePoster";
 import { useDefaultPosePoster } from "../api/posePoster";
-import { loadHumanTemplate, loadReferenceBvh } from "../api/humanReference";
+import { humanTemplateDigest, loadHumanTemplate, loadReferenceBvh } from "../api/humanReference";
 import { referenceSurface, referenceSurfaceCamera } from "../preview/humanReference/surface";
+
+import { loadFingerSkin } from "../preview/humanReference/sourceFingers";
 
 type PosedSurface = ReturnType<typeof referenceSurface>;
 
@@ -76,9 +78,10 @@ export function SelectionPreview({
       loadHumanTemplate(scope, signal),
       loadReferenceBvh(scopedUrl, source, scope, signal, owned),
     ])
-      .then(([template, text]) => {
+      .then(async ([template, text]) => {
+        const skin = await loadFingerSkin(scope, humanTemplateDigest(template));
         signal.throwIfAborted();
-        model = referenceSurface(template, text);
+        model = referenceSurface(template, text, skin);
         setLoaded({ binding, model });
       })
       .catch(() => {
