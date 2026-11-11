@@ -1,6 +1,8 @@
 /** Transport milestones are observed; percentages between them are estimates. */
 import { ANALYSIS_STAGES, type AnalysisSnapshot } from "../api/analysisProgress";
-export const POSE_LOADING_STAGES = ANALYSIS_STAGES;
+type AnalysisStage = AnalysisSnapshot["stage"];
+// Keep accepting the server's ranking milestone as part of the visible search step.
+export const POSE_LOADING_STAGES = ANALYSIS_STAGES.filter((stage) => stage !== "ranking");
 export type PoseLoadingStage = (typeof POSE_LOADING_STAGES)[number];
 export const LOADING_STAGE_LABELS: Record<PoseLoadingStage, string> = {
   analyzing: "러프 확인",
@@ -8,9 +10,8 @@ export const LOADING_STAGE_LABELS: Record<PoseLoadingStage, string> = {
   understanding: "동작 이해",
   searching: "포즈 찾기",
   refining: "러프 맞춤",
-  ranking: "후보 정리",
 };
-export type AnalysisPhase = "uploading" | "queued" | "running" | "preparing" | PoseLoadingStage;
+export type AnalysisPhase = "uploading" | "queued" | "running" | "preparing" | AnalysisStage;
 export type AnalysisProgress = {
   phase: AnalysisPhase;
   enteredAt: number;
@@ -33,16 +34,15 @@ const RANGES: Record<LoadingPhase, [number, number, number]> = {
 };
 
 /** Optional Job.stage extension. Unknown stages preserve the legacy transport state. */
-export function readAnalysisStage(stage: unknown): PoseLoadingStage | undefined {
-  return typeof stage === "string" && POSE_LOADING_STAGES.some((value) => value === stage)
-    ? (stage as PoseLoadingStage)
+export function readAnalysisStage(stage: unknown): AnalysisStage | undefined {
+  return typeof stage === "string" && ANALYSIS_STAGES.some((value) => value === stage)
+    ? (stage as AnalysisStage)
     : undefined;
 }
 
 export function loadingVisualStage(phase: LoadingPhase): PoseLoadingStage {
   if (phase === "uploading" || phase === "queued") return "analyzing";
-  if (phase === "running") return "searching";
-  if (phase === "preparing") return "ranking";
+  if (phase === "running" || phase === "ranking" || phase === "preparing") return "searching";
   return phase;
 }
 

@@ -19,7 +19,7 @@ import rough from "./loading-rough.svg";
 import multiRough from "./loading-multi-rough.svg";
 
 type Scene = "search" | "restore" | "done" | "error";
-const DURATIONS = [2400, 4000, 6100, 7600, 5900, 3200];
+const DURATIONS = [2400, 4000, 6100, 7600, 5900];
 
 export function Preview() {
   const [scene, setScene] = useState<Scene>("search");
@@ -120,7 +120,7 @@ export function Preview() {
         <div className="loading-preview__intro">
           <span>SEARCH → REFINE → READY</span>
           <h1>러프에서 포즈까지.</h1>
-          <p>예시 데이터로 여섯 구간을 재생해요. 실제 서버 분석과 연결된 화면은 아닙니다.</p>
+          <p>예시 데이터로 다섯 구간을 재생해요. 실제 서버 분석과 연결된 화면은 아닙니다.</p>
         </div>
         <div className="loading-preview__timeline" aria-label="로딩 구간 미리보기">
           {POSE_LOADING_STAGES.map((phase, i) => (
@@ -145,7 +145,7 @@ export function Preview() {
             </span>
             <span>
               {scene === "search"
-                ? `${String(index + 1).padStart(2, "0")} / 06`
+                ? `${String(index + 1).padStart(2, "0")} / ${String(POSE_LOADING_STAGES.length).padStart(2, "0")}`
                 : scene === "done"
                   ? "준비 완료"
                   : "미리보기"}

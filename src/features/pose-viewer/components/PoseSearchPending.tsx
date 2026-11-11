@@ -31,17 +31,15 @@ type Props = {
   /** Only set by the successful-result boundary, never an elapsed-time estimate. */
   completed?: boolean;
 };
-const COPY: Record<LoadingPhase, [string, string]> = {
+const COPY: Record<Exclude<LoadingPhase, "ranking" | "preparing">, [string, string]> = {
   uploading: ["러프를 보내고 있어요", "그림을 전달한 뒤 가까운 포즈를 찾아요."],
   queued: ["분석 순서를 기다리고 있어요", "러프가 도착했어요. 잠시만 기다려 주세요."],
   running: ["가까운 포즈를 찾고 있어요", "러프의 자세를 분석하고 포즈를 비교하고 있어요."],
-  preparing: ["후보를 준비하고 있어요", "준비되면 바로 포즈를 고를 수 있어요."],
   analyzing: ["러프를 살펴보고 있어요", "그림 속 인물과 장면의 구성을 확인해요."],
   extracting: ["자세의 흐름을 읽고 있어요", "확인된 주요 관절을 러프 위에 연결해요."],
   understanding: ["동작의 특징을 읽고 있어요", "그림에서 읽은 자세와 동작을 살펴봐요."],
   searching: ["가까운 포즈를 찾고 있어요", "준비된 포즈부터 차례로 비교해요."],
   refining: ["러프에 맞춰 조정하고 있어요", "조정 결과가 준비되면 변화를 보여드려요."],
-  ranking: ["후보를 정리하고 있어요", "비교하기 좋게 포즈 후보를 준비해요."],
 };
 
 /** Every observation belongs to this Job. Only server milestones change scenes. */
@@ -68,7 +66,9 @@ export function PoseSearchPending({
   const phase: LoadingPhase = refining
     ? "refining"
     : (snapshot?.stage ?? progress?.phase ?? "running");
-  const stage = completed ? "ranking" : loadingVisualStage(phase);
+  const finishingSearch = phase === "ranking" || phase === "preparing";
+  const stage = completed && phase !== "refining" ? "searching" : loadingVisualStage(phase);
+  const copy = COPY[finishingSearch ? "searching" : phase];
   const evidence =
     stage === "extracting"
       ? "skeleton"
@@ -76,7 +76,7 @@ export function PoseSearchPending({
         ? "observations"
         : stage === "refining"
           ? "refinement"
-          : stage === "searching" || stage === "ranking"
+          : stage === "searching"
             ? "candidates"
             : undefined;
   const person = activeProgressPerson(snapshot, evidence);
@@ -113,7 +113,7 @@ export function PoseSearchPending({
       ? "이전 분석 결과를 불러오고 있어요"
       : stage === "refining" && person?.refinement
         ? REFINE_COPY[person.refinement.status]
-        : COPY[phase][0];
+        : copy[0];
   const detail = completed
     ? "결과를 살펴보세요."
     : restoring
@@ -122,9 +122,8 @@ export function PoseSearchPending({
         ? REFINE_DETAIL[person.refinement.status]
         : (stage === "understanding" || stage === "searching") && searchMode
           ? SEARCH_MODE_COPY[searchMode]
-          : COPY[phase][1];
-  const hasCandidates =
-    (stage === "searching" || stage === "ranking") && !!person?.candidates?.length;
+          : copy[1];
+  const hasCandidates = stage === "searching" && !!person?.candidates?.length;
   const hasRefineImage =
     stage === "refining" &&
     !person?.refinement?.before &&
@@ -161,7 +160,7 @@ export function PoseSearchPending({
           >
             <div className="pose-loading__scene-number" aria-hidden="true">
               {String(current + 1).padStart(2, "0")}
-              <span> / 06</span>
+              <span> / {String(POSE_LOADING_STAGES.length).padStart(2, "0")}</span>
             </div>
             {person && snapshot && snapshot.people.length > 1 && (
               <span className="pose-loading__person-badge">
@@ -200,6 +199,7 @@ export function PoseSearchPending({
             >
               <AnalysisProgressScene
                 stage={stage}
+                finishingSearch={finishingSearch || completed}
                 person={person}
                 ratio={ratio}
                 focus={showImage ? focus : undefined}
@@ -290,12 +290,18 @@ export function PoseSearchPending({
         {!restoring && (
           <ol className="pose-loading__steps" aria-label="작업 단계">
             {POSE_LOADING_STAGES.map((value, i) => {
-              const complete =
-                (snapshot?.completedStages.includes(value) ?? false) ||
-                (completed && value === "ranking");
+              const completionStage = value === "searching" && finishingSearch ? "ranking" : value;
               const skipped = snapshot?.skippedStages.includes(value) ?? false;
+              const complete =
+                !skipped &&
+                ((snapshot?.completedStages.includes(completionStage) ?? false) ||
+                  (completed && value === stage));
               const active =
-                !completed && !skipped && i === current && (!legacy || phase !== "running");
+                !completed &&
+                !complete &&
+                !skipped &&
+                i === current &&
+                (!legacy || phase !== "running");
               return (
                 <li
                   key={value}

@@ -265,7 +265,7 @@ export function ProgressCandidates({
   return (
     <div
       className={`pose-loading__candidates ${ranking ? "pose-loading__candidates--ranked" : ""}`}
-      aria-label={ranking ? "정리 중인 실제 포즈 후보" : "탐색 중인 실제 포즈 후보"}
+      aria-label={ranking ? "실제 포즈 후보" : "탐색 중인 실제 포즈 후보"}
       style={{ "--candidate-count": sorted.length } as CSSProperties}
       data-streaming={!ranking && sorted.length > 1}
       data-flowing={flowing && !ranking && !reduced}
@@ -307,6 +307,7 @@ export function ProgressCandidates({
 
 export function AnalysisProgressScene({
   stage,
+  finishingSearch,
   person,
   ratio,
   focus,
@@ -314,6 +315,7 @@ export function AnalysisProgressScene({
   provisionalSkeleton,
 }: {
   stage: PoseLoadingStage;
+  finishingSearch: boolean;
   person?: AnalysisPersonProgress;
   ratio: number;
   focus?: FocusBounds;
@@ -323,8 +325,8 @@ export function AnalysisProgressScene({
   const refinement = person?.refinement;
   const observedSkeleton = person?.skeleton ?? provisionalSkeleton;
   const actualFit = refinement?.status === "improved";
-  if ((stage === "searching" || stage === "ranking") && person?.candidates?.length)
-    return <ProgressCandidates candidates={person.candidates} ranking={stage === "ranking"} />;
+  if (stage === "searching" && person?.candidates?.length)
+    return <ProgressCandidates candidates={person.candidates} ranking={finishingSearch} />;
   if (stage === "refining" && refinement) {
     const shown = actualFit ? (refinement.after ?? refinement.before) : refinement.before;
     const highlighted = refinementJoints(refinement);
