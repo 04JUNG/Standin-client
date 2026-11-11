@@ -9,6 +9,9 @@ import { ApiError } from "@/shared/api/errors";
 import { poseService } from "../api/pose.service";
 import { AnalysisError } from "../api/pose.contract";
 import { poseQueryKeys } from "../queryKeys";
+import type { AnalysisProgress, AnalysisPhase } from "../lib/loadingProgress";
+import { mergeAnalysisProgress } from "../lib/loadingProgress";
+import type { AnalysisSnapshot } from "../api/analysisProgress";
 import { isServerJobId } from "../lib/serverJobId";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
@@ -85,19 +88,49 @@ export function useAnalysisResult(jobId: string | undefined) {
    */
   const restoreOnly = isServerJobId(jobId);
 
+  // A cache subscription survives app/bar handoff without creating another job.
+  const progressQuery = useQuery<AnalysisProgress | null>({
+    queryKey: poseQueryKeys.progress(jobId ?? ""),
+    queryFn: () => null,
+    enabled: false,
+    initialData: null,
+  });
+  const reportProgress = (phase: AnalysisPhase, snapshot?: AnalysisSnapshot) => {
+    queryClient.setQueryData<AnalysisProgress | null>(
+      poseQueryKeys.progress(jobId ?? ""),
+      (previous) => mergeAnalysisProgress(previous, phase, snapshot),
+    );
+  };
+
   const query = useQuery({
     queryKey: poseQueryKeys.result(jobId ?? ""),
-    queryFn: ({ signal }) =>
-      restoreOnly
-        ? poseService.loadResult({ jobId: jobId ?? "", signal })
-        : poseService.analyze({
-            jobId: jobId ?? "",
-            file: sourceFile!,
-            source: draft!.source,
-            width: draft!.width,
-            height: draft!.height,
-            signal,
-          }),
+    queryFn: async (context) => {
+      if (restoreOnly)
+        return poseService.loadResult({ jobId: jobId ?? "", signal: context.signal });
+      // A live job belongs to this cache entry, not to an individual page. Reading
+      // context.signal here would cancel it in the app↔bar unmount/mount gap.
+      // A removed cache entry (including session end) still aborts its requests.
+      const owner = queryClient.getQueryCache().find({ queryKey: context.queryKey, exact: true });
+      const controller = new AbortController();
+      const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+        if (event.type === "removed" && event.query === owner) controller.abort();
+      });
+      try {
+        return await poseService.analyze({
+          jobId: jobId ?? "",
+          file: sourceFile!,
+          source: draft!.source,
+          width: draft!.width,
+          height: draft!.height,
+          signal: controller.signal,
+          onProgress: (phase, snapshot) => {
+            if (!controller.signal.aborted) reportProgress(phase, snapshot);
+          },
+        });
+      } finally {
+        unsubscribe();
+      }
+    },
     enabled: Boolean(jobId) && (restoreOnly || Boolean(sourceFile)),
     // queryFn이 단순 GET이 아니라 분석 Job을 생성한다. 후보→확인 화면 재마운트나
     // 네트워크 재연결이 같은 입력의 Job을 다시 만들지 않도록 route job당 한 번만 실행한다.
@@ -243,6 +276,7 @@ export function useAnalysisResult(jobId: string | undefined) {
 
   return {
     ...query,
+    analysisProgress: progressQuery.data,
     bodies,
     // 기록은 다른 live draft와 수명이 겹친다. 원본도 조회한 job에만 묶고,
     // 없거나 결과 identity가 다르면 다른 입력으로 대체하지 않는다.

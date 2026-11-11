@@ -7,6 +7,7 @@ import { campaignCounter } from "@/features/installation/campaignCounts";
 vi.mock("@/features/installation/campaignCounts", () => ({
   campaignCounter: { analysisStarted: vi.fn(), analysisSucceeded: vi.fn() },
 }));
+import { exampleSnapshot } from "@/dev/analysis-progress-fixture";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -16,6 +17,151 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("poseHttp", () => {
+  it.each([true, false])(
+    "accepts optional progress (%s) and completes without an animation delay",
+    async (valid) => {
+      vi.useFakeTimers();
+      const onProgress = vi.fn();
+      const snapshot = exampleSnapshot("understanding");
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ jobId: "job_live", status: "queued" }, 202))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_live",
+            status: "running",
+            progress: valid ? snapshot : { ...snapshot, version: "unknown" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_live",
+            status: "completed",
+            progress: exampleSnapshot("refining"),
+          }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_live",
+            notes: [],
+            candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+          }),
+        );
+      const request = poseHttp.analyze({
+        jobId: `client_live_${valid}`,
+        file: new File(["png"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 250,
+        height: 315,
+        onProgress,
+      });
+      await vi.advanceTimersByTimeAsync(800);
+      await expect(request).resolves.toMatchObject({ jobId: "job_live" });
+      expect(onProgress.mock.calls.map(([phase]) => phase)).toEqual([
+        "uploading",
+        valid ? "understanding" : "running",
+        "preparing",
+      ]);
+      expect(onProgress.mock.calls[1][1]).toEqual(valid ? snapshot : undefined);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    },
+  );
+  it("a failed Job wins over a late progress payload", async () => {
+    const onProgress = vi.fn();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ jobId: "job_fail", status: "queued" }, 202))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_fail",
+          status: "failed",
+          error: "INFERENCE_FAILED",
+          progress: exampleSnapshot("ranking"),
+        }),
+      );
+    await expect(
+      poseHttp.analyze({
+        jobId: "client_fail_progress",
+        file: new File(["png"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 250,
+        height: 315,
+        onProgress,
+      }),
+    ).rejects.toMatchObject({ code: "JOB_FAILED" });
+    expect(onProgress.mock.calls.map(([phase]) => phase)).toEqual(["uploading"]);
+  });
+
+  it.each(["analyzing", "extracting", "searching", "refining", "ranking", "unknown-stage"])(
+    "passes the integrated %s stage through only while the job is running",
+    async (stage) => {
+      vi.useFakeTimers();
+      const onProgress = vi.fn();
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse({ jobId: "stage-job", status: "queued", createdAt: "now" }, 202),
+        )
+        .mockResolvedValueOnce(jsonResponse({ jobId: "stage-job", status: "running", stage }))
+        .mockResolvedValueOnce(
+          jsonResponse({ jobId: "stage-job", status: "completed", stage: "refining" }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "stage-job",
+            notes: [],
+            candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+          }),
+        );
+      const request = poseHttp.analyze({
+        jobId: "stage-client",
+        file: new File(["png"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 100,
+        height: 100,
+        onProgress,
+      });
+      await vi.advanceTimersByTimeAsync(800);
+      await expect(request).resolves.toMatchObject({ jobId: "stage-job" });
+      expect(onProgress.mock.calls.map(([value]) => value)).toEqual([
+        "uploading",
+        stage === "unknown-stage" ? "running" : stage,
+        "preparing",
+      ]);
+    },
+  );
+  it("reports observed milestones without reporting completion before fetching results", async () => {
+    vi.useFakeTimers();
+    const onProgress = vi.fn();
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "progress-job", status: "queued", createdAt: "now" }, 202),
+      )
+      .mockResolvedValueOnce(jsonResponse({ jobId: "progress-job", status: "queued" }))
+      .mockResolvedValueOnce(jsonResponse({ jobId: "progress-job", status: "running" }))
+      .mockResolvedValueOnce(jsonResponse({ jobId: "progress-job", status: "completed" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "progress-job",
+          notes: [],
+          candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+        }),
+      );
+    const request = poseHttp.analyze({
+      jobId: "progress-client",
+      file: new File(["png"], "rough.png", { type: "image/png" }),
+      source: "file",
+      width: 100,
+      height: 100,
+      onProgress,
+    });
+    await vi.advanceTimersByTimeAsync(1_600);
+    await expect(request).resolves.toMatchObject({ jobId: "progress-job" });
+    expect(onProgress.mock.calls.map(([phase]) => phase)).toEqual([
+      "uploading",
+      "queued",
+      "running",
+      "preparing",
+    ]);
+  });
+
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -709,7 +855,9 @@ describe("poseHttp", () => {
     });
     const assertion = expect(pending).rejects.toMatchObject({ code: "TIMEOUT" });
 
-    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(requestSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(30_000);
 
     await assertion;
     expect(requestSignal?.aborted).toBe(true);

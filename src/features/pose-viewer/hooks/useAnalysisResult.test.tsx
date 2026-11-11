@@ -1,13 +1,14 @@
 import { setAnalyticsConsent } from "@/features/analytics/analyticsClient";
 import { createElement, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/shared/api/errors";
 import { safeStorage } from "@/shared/lib/safeStorage";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import type { UploadDraft } from "@/shared/types/upload";
-import { AnalysisError } from "../api/pose.contract";
+import { AnalysisError, type PoseResultService } from "../api/pose.contract";
+import { exampleSnapshot } from "@/dev/analysis-progress-fixture";
 
 const analyze = vi.fn();
 const loadResult = vi.fn();
@@ -69,6 +70,81 @@ function wrapperFor(client: QueryClient) {
 }
 
 describe("useAnalysisResult 실패 계측", () => {
+  it("aborts a removed live job and ignores late progress instead of recreating its cache", async () => {
+    let signal: AbortSignal | undefined;
+    let report: Parameters<PoseResultService["analyze"]>[0]["onProgress"];
+    let finish: ((value: unknown) => void) | undefined;
+    analyze.mockImplementationOnce((input: Parameters<PoseResultService["analyze"]>[0]) => {
+      signal = input.signal;
+      report = input.onProgress;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = renderHook(() => useAnalysisResult("removed-live-job"), {
+      wrapper: wrapperFor(client),
+    });
+    await waitFor(() => expect(signal).toBeDefined());
+    view.unmount();
+    expect(signal?.aborted).toBe(false);
+    client.clear();
+    expect(signal?.aborted).toBe(true);
+    act(() => report?.("searching", exampleSnapshot("searching")));
+    expect(client.getQueryCache().getAll()).toHaveLength(0);
+    await act(async () =>
+      finish?.({
+        jobId: "job_removed",
+        people: [],
+        capabilities: { refine: false, fbxExport: false, characterSelection: false },
+      }),
+    );
+    expect(client.getQueryCache().getAll()).toHaveLength(0);
+  });
+  it("shares observed progress across app/bar observers without creating another analysis", async () => {
+    let report: Parameters<PoseResultService["analyze"]>[0]["onProgress"];
+    let finish: ((value: unknown) => void) | undefined;
+    const pending = new Promise((resolve) => {
+      finish = resolve;
+    });
+    analyze.mockImplementationOnce(({ onProgress }) => {
+      report = onProgress;
+      onProgress("uploading");
+      return pending;
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const sharedWrapper = wrapperFor(client);
+    const app = renderHook(() => useAnalysisResult("shared-progress"), { wrapper: sharedWrapper });
+    await waitFor(() => expect(app.result.current.analysisProgress?.phase).toBe("uploading"));
+    const bar = renderHook(() => useAnalysisResult("shared-progress"), { wrapper: sharedWrapper });
+    act(() => report?.("running"));
+    await waitFor(() => expect(bar.result.current.analysisProgress?.phase).toBe("running"));
+    const enteredAt = bar.result.current.analysisProgress?.enteredAt;
+    act(() => report?.("running"));
+    expect(bar.result.current.analysisProgress?.enteredAt).toBe(enteredAt);
+    const snapshot = exampleSnapshot("understanding", { sequence: 5 });
+    act(() => report?.("understanding", snapshot));
+    await waitFor(() => expect(bar.result.current.analysisProgress?.snapshot).toEqual(snapshot));
+    const before = bar.result.current.analysisProgress;
+    act(() => report?.("extracting", exampleSnapshot("extracting", { sequence: 4 })));
+    expect(bar.result.current.analysisProgress).toBe(before);
+    app.unmount();
+    act(() => report?.("preparing"));
+    await waitFor(() => expect(bar.result.current.analysisProgress?.phase).toBe("preparing"));
+    await act(async () =>
+      finish?.({
+        jobId: "server-progress",
+        people: [],
+        capabilities: { refine: false, fbxExport: false, characterSelection: false },
+      }),
+    );
+    await waitFor(() => expect(bar.result.current.isSuccess).toBe(true));
+    expect(analyze).toHaveBeenCalledOnce();
+    bar.unmount();
+    client.clear();
+  });
+
+
   beforeEach(() => {
     setAnalyticsConsent("test-consent");
     safeStorage.removeItem(QUEUE_KEY);

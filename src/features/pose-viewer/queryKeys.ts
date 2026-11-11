@@ -6,4 +6,5 @@ export const poseQueryKeys = {
    */
   all: ["analysis"] as const,
   result: (jobId: string) => ["analysis", "result", jobId] as const,
+  progress: (jobId: string) => ["analysis", "progress", jobId] as const,
 };
