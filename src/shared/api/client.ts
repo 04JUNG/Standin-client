@@ -1,3 +1,4 @@
+import { useAccessStore } from "@/shared/stores/accessStore";
 import { useRequiredUpdateStore } from "@/shared/stores/requiredUpdateStore";
 import { CLIENT_VERSION_HEADER } from "@/shared/lib/clientVersion";
 import { env } from "@/shared/lib/env";
@@ -186,6 +187,8 @@ export async function apiFetchResponse(
           typeof details?.minimumVersion === "string" ? details.minimumVersion : undefined,
         );
     }
+    if (error.status === 403 && error.code === "ACCESS_CODE_REQUIRED")
+      useAccessStore.getState().setPhase("blocked");
     throw error;
   }
 

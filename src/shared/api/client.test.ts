@@ -1,3 +1,4 @@
+import { useAccessStore } from "@/shared/stores/accessStore";
 import { useRequiredUpdateStore } from "@/shared/stores/requiredUpdateStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -35,6 +36,15 @@ function authHeaderOf(call: unknown[]): string | null {
 }
 
 describe("apiFetch", () => {
+  it("closes the access gate when an already-running app is denied", async () => {
+    useAccessStore.setState({ phase: "allowed" });
+    fetchMock.mockResolvedValue(errorResponse(403, "ACCESS_CODE_REQUIRED"));
+    await expect(apiFetch("/v1/analysis/jobs", { auth: false })).rejects.toMatchObject({
+      status: 403, code: "ACCESS_CODE_REQUIRED",
+    });
+    expect(useAccessStore.getState().phase).toBe("blocked");
+    useAccessStore.setState({ phase: "unknown" });
+  });
   it("sends the current build version on every request", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
     await apiFetch("/v1/models", { auth: false });
