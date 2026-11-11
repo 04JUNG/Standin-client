@@ -4,13 +4,13 @@ import { beforeEach, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { CandidatePreviewProvider } from "./CandidatePreviewContext";
 import { PoseCandidateCard } from "./PoseCandidateCard";
-import { useSelectionSurface } from "../interactive/useSelectionSurface";
+import { useLocalPreview } from "../preview/humanReference/useLocalPreview";
 import type { PersonResult } from "../api/pose.contract";
 vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" }));
 vi.mock("../api/posePoster", () => ({
   useDefaultPosePoster: () => ({ data: { url: "poster.png" }, isPending: false, isError: false }),
 }));
-vi.mock("../interactive/useSelectionSurface", () => ({ useSelectionSurface: vi.fn() }));
+vi.mock("../preview/humanReference/useLocalPreview", () => ({ useLocalPreview: vi.fn() }));
 vi.mock("../interactive/InteractivePose", () => ({
   InteractivePose: ({
     surface,
@@ -56,14 +56,18 @@ it.each([undefined, "fill"] as const)(
   "opens a %s card's own pose on inspection, preserves selection, and releases it on close",
   async (layout) => {
     const select = vi.fn();
-    vi.mocked(useSelectionSurface).mockReturnValue({
-      binding: "verified",
+    vi.mocked(useLocalPreview).mockReturnValue({
       loading: false,
       failed: false,
       retry: async () => {},
-      surface: { body: new THREE.Group(), camera: {} as never, release: vi.fn() },
+      model: {
+        body: new THREE.Group(),
+        bounds: new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)),
+        characterSha: "a".repeat(64),
+        release: vi.fn(),
+      },
     });
-    const props = { job: "job", person, canonicalPreview: true };
+    const props = { job: "job", person };
     const r = render(
       <CandidatePreviewProvider {...props}>
         <PoseCandidateCard
@@ -74,7 +78,7 @@ it.each([undefined, "fill"] as const)(
         />
       </CandidatePreviewProvider>,
     );
-    expect(useSelectionSurface).not.toHaveBeenCalled();
+    expect(useLocalPreview).not.toHaveBeenCalled();
     expect(r.container.querySelector("button button")).toBeNull();
     const zoom = screen.getByRole("button", { name: "포즈 크게 보기" });
     expect(zoom).toHaveClass("bottom-1", "right-1");
@@ -82,12 +86,11 @@ it.each([undefined, "fill"] as const)(
     const dialog = await screen.findByRole("dialog", { name: "포즈 크게 보기" });
     expect(within(dialog).getByRole("img")).toHaveAttribute("src", "poster.png");
     expect(within(dialog).getByRole("button", { name: "닫기" })).toHaveFocus();
-    await waitFor(() => expect(useSelectionSurface).toHaveBeenCalled());
-    expect(useSelectionSurface).toHaveBeenLastCalledWith(
+    await waitFor(() => expect(useLocalPreview).toHaveBeenCalled());
+    expect(useLocalPreview).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        job: "job",
-        candidate: person.candidates[1],
-        enabled: true,
+        url: expect.stringContaining("/two/poster-source?"),
+        gender: "male",
         scope: "full",
       }),
     );

@@ -1,20 +1,26 @@
 import "../pages/selectionWorkspace.css";
+import { useMemo } from "react";
 import { MAX_OUTLINE_WIDTH } from "../outline/outlineSettings";
 import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
+import { bodyKind } from "@/features/body-selection/bodyPanel";
 import type { PersonResult } from "../api/pose.contract";
 import { previewScope } from "../api/outputScope";
 import { InteractivePose } from "../interactive/InteractivePose";
 import { usePreviewAppearance } from "../interactive/previewAppearanceStore";
-import { candidatePosterOptions, presentationPosterOptions } from "../api/candidatePoster";
+import {
+  candidatePosterOptions,
+  candidateReferenceUrl,
+  presentationPosterOptions,
+} from "../api/candidatePoster";
 import { useDefaultPosePoster } from "../api/posePoster";
-import { useSelectionSurface } from "../interactive/useSelectionSurface";
+import { useLocalPreview } from "../preview/humanReference/useLocalPreview";
+import { referenceSurfaceCamera } from "../preview/humanReference/surface";
 
 export function SelectionPreview({
   job,
   person,
   selectedId,
   entry,
-  canonicalPreview = false,
   presentationPosters = false,
   renderLayer = 0,
 }: {
@@ -22,7 +28,6 @@ export function SelectionPreview({
   person: PersonResult;
   selectedId?: string;
   entry?: BodyEntry;
-  canonicalPreview?: boolean;
   presentationPosters?: boolean;
   renderLayer?: number;
 }) {
@@ -50,14 +55,39 @@ export function SelectionPreview({
   const image = poster.data?.url || (!presentationCandidate ? candidate?.thumbnailUrl : undefined);
   const alt = candidate ? `${candidate.title} 포즈 이미지` : "";
   const scope = posterOptions.scope ?? previewScope(person);
-  const { binding, surface, loading, failed, retry } = useSelectionSurface({
+  const sourceUrl = candidateReferenceUrl(candidate, presentationCandidate);
+  const source = posterOptions.source;
+  const owned = sourceUrl?.startsWith("/v1/analysis/jobs/") ?? false;
+  const scopedUrl = sourceUrl && !owned ? withScope(sourceUrl, scope) : sourceUrl;
+  const gender =
+    bodyKind({ characterId: entry?.selection?.resolvedBody?.characterId ?? "male" }) === "female"
+      ? "female"
+      : "male";
+  const binding = JSON.stringify([appearanceKey, candidate?.id, scopedUrl, source, scope, gender]);
+  const { model, loading, failed, retry } = useLocalPreview({
     owner,
-    job,
-    candidate,
-    entry,
+    binding,
+    url: entry && !entry.ready ? undefined : scopedUrl,
+    source,
     scope,
-    enabled: canonicalPreview,
+    gender,
   });
+  const renderCamera = presentationCandidate?.render_camera;
+  const rotation =
+    presentationCandidate?.camera_kind === "fixed_117" &&
+    renderCamera?.version === "pose-preview-camera-v1" &&
+    renderCamera.basis === "right-handed-Y-up" &&
+    renderCamera.bvh_camera_rotation_applied === false
+      ? renderCamera.rotation
+      : candidate?.previewModel?.sourceSha === source
+        ? candidate?.previewModel?.rotation
+        : undefined;
+  const posterCamera = poster.data?.camera;
+  const yaw = posterCamera?.fallback === "none" ? posterCamera.yaw : 0;
+  const surface = useMemo(
+    () => model && { body: model.body, camera: referenceSurfaceCamera(model, yaw, rotation) },
+    [model, yaw, rotation],
+  );
   const posterImage = image ? (
     <img className="h-full w-full object-contain" src={image} alt={alt} />
   ) : undefined;
@@ -98,15 +128,7 @@ export function SelectionPreview({
             </div>
           )))
         )}
-        {loading && !surface && image && (
-          <p
-            role="status"
-            className="absolute inset-x-2 bottom-2 z-[20] rounded bg-surface-0/95 p-2 text-center text-xs"
-          >
-            선택한 체형의 3D를 준비하는 중…
-          </p>
-        )}
-        {canonicalPreview && failed && !surface && (
+        {failed && !surface && (
           <button
             type="button"
             className="absolute bottom-2 right-2 z-[20] rounded border bg-surface-0 px-3 py-1 text-xs"
@@ -117,7 +139,11 @@ export function SelectionPreview({
         )}
       </div>
       <div className="selection-preview-settings">
-        {surface && <p className="text-[11px] text-text-secondary">선택한 체형 · 포즈 미리보기</p>}
+        {surface && (
+          <p className="text-[11px] text-text-secondary">
+            {gender === "female" ? "여성" : "남성"} 기본형 · 참고용 포즈
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="미리보기 스킨">
           <span className="mr-auto text-xs font-semibold">스킨</span>
           {(
@@ -159,4 +185,11 @@ export function SelectionPreview({
       </div>
     </section>
   );
+}
+
+function withScope(sourceUrl: string, scope: string) {
+  const [path, query] = sourceUrl.split("?", 2);
+  const params = new URLSearchParams(query);
+  params.set("scope", scope);
+  return path + "?" + params;
 }

@@ -1,33 +1,34 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import * as THREE from "three";
+import { createHash } from "node:crypto";
 import { SelectionPreview } from "./SelectionPreview";
-import { loadSelectionModel, prepareSelectionSurface } from "../interactive/selectionPacket";
+import { apiFetchResponse } from "@/shared/api/client";
+import { loadApprovedModel } from "../preview/humanReference/approvedModels";
+import { humanFixture, bvhFixture } from "@/test/humanReferenceFixture";
 import type { BodyEntry } from "@/features/body-selection/hooks";
 import type { PersonResult } from "../api/pose.contract";
 vi.mock("../api/posePoster", () => ({ useDefaultPosePoster: () => ({}) }));
 vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" }));
-vi.mock("../interactive/selectionPacket", () => ({
-  loadSelectionModel: vi.fn(),
-  prepareSelectionSurface: vi.fn(),
-}));
+vi.mock("@/shared/api/client", () => ({ apiFetchResponse: vi.fn() }));
+vi.mock("../preview/humanReference/approvedModels", () => ({ loadApprovedModel: vi.fn() }));
 vi.mock("../interactive/InteractivePose", () => ({
-  InteractivePose: ({ surface }: { surface: { body: THREE.Group } }) => (
-    <div data-testid="surface">{surface.body.name}</div>
-  ),
+  InteractivePose: () => <div data-testid="surface">local surface</div>,
 }));
-const person = {
-  index: 0,
-  candidates: ["one", "two"].map((id, index) => ({
-    id,
-    rank: index + 1,
-    title: id,
-    sourceBvhSha256: id.repeat(64).slice(0, 64),
-    thumbnailUrl: `/${id}.png`,
-    posterUrl: `/v1/pose-candidates/${id}/poster?candidateId=${id}`,
-  })),
-} as PersonResult;
+const bvh = bvhFixture();
+const sha = createHash("sha256").update(bvh).digest("hex");
+let sequence = 0;
+const makePerson = (): PersonResult =>
+  ({
+    index: 0,
+    candidates: ["one", "two"].map((id, index) => ({
+      id: `${++sequence}-${id}`,
+      rank: index + 1,
+      title: id,
+      sourceBvhSha256: sha,
+      thumbnailUrl: `/${id}.png`,
+      posterUrl: `/v1/pose-candidates/${sequence}-${id}/poster?candidateId=${id}`,
+    })),
+  }) as PersonResult;
 const entry = {
   personIndex: 0,
   ready: true,
@@ -36,144 +37,102 @@ const entry = {
   selection: {
     personIndex: 0,
     selectionRevision: 3,
-    resolutionStatus: "ready",
-    resolvedBody: { characterId: "female-base-v0-4-0", assetSha256: "a".repeat(64) },
-    shape: { shapeSha256: "b".repeat(64), controls: { height: 168 } },
+    resolvedBody: { characterId: "female-base-v0-4-0" },
   },
 } as unknown as BodyEntry;
-type Model = Awaited<ReturnType<typeof loadSelectionModel>>;
-const packet = (name: string) => ({ name }) as unknown as Model;
-const released: ReturnType<typeof vi.fn>[] = [];
+const response = () =>
+  new Response(bvh, {
+    headers: {
+      "X-Standin-Source-BVH-SHA256": sha,
+      "X-Standin-Output-Scope": "full",
+      "X-Standin-Preview-Only": "true",
+    },
+  });
 beforeEach(() => {
   vi.resetAllMocks();
-  released.length = 0;
-  vi.mocked(prepareSelectionSurface).mockImplementation((model) => {
-    const body = new THREE.Group();
-    body.name = (model as unknown as { name: string }).name;
-    const release = vi.fn();
-    released.push(release);
-    return { body, camera: {} as ReturnType<typeof prepareSelectionSurface>["camera"], release };
+  vi.mocked(loadApprovedModel).mockResolvedValue({
+    template: humanFixture(),
+    skin: { baseSha: "", joints: [], weights: [[]] },
+    corrections: {
+      restRotations: humanFixture().joints.map(() => [0, 0, 0, 1]),
+      drivers: [],
+      lifts: [],
+      shapes: [],
+    },
   });
+  vi.mocked(apiFetchResponse).mockImplementation(async () => response());
 });
-function setup() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return {
-    client,
-    wrapper: ({ children }: { children: React.ReactNode }) => (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
-    ),
-  };
-}
-it("loads selected body controls, cancels a replaced pose and releases its surface", async () => {
-  vi.mocked(loadSelectionModel)
-    .mockImplementationOnce(
-      (_job, _body, _candidate, _scope, signal) =>
-        new Promise((_resolve, reject) =>
-          signal.addEventListener("abort", () => reject(signal.reason), { once: true }),
-        ),
-    )
-    .mockResolvedValueOnce(packet("latest pose"));
-  const props = { job: "job", person, entry, canonicalPreview: true };
-  const { wrapper } = setup();
-  const view = render(<SelectionPreview {...props} selectedId="one" />, { wrapper });
-  expect(screen.getByRole("img")).toHaveAttribute("src", "/one.png");
-  await waitFor(() => expect(loadSelectionModel).toHaveBeenCalledOnce());
-  const signal = vi.mocked(loadSelectionModel).mock.calls[0][4];
-  view.rerender(<SelectionPreview {...props} selectedId="two" />);
-  expect(signal.aborted).toBe(true);
-  expect(await screen.findByTestId("surface")).toHaveTextContent("latest pose");
-  expect(vi.mocked(loadSelectionModel).mock.calls[1].slice(0, 4)).toEqual([
-    "job",
-    entry.selection,
-    person.candidates[1],
-    "full",
-  ]);
-  view.unmount();
-  expect(released[0]).toHaveBeenCalledOnce();
-});
-it("shares verified packets between inspectors with separate disposable GPU surfaces", async () => {
-  vi.mocked(loadSelectionModel).mockResolvedValue(packet("same FBX"));
-  const { wrapper } = setup();
-  const view = render(
-    <>
-      <SelectionPreview job="job" person={person} entry={entry} canonicalPreview />
-      <SelectionPreview job="job" person={person} entry={entry} canonicalPreview renderLayer={1} />
-    </>,
-    { wrapper },
-  );
-  expect(await screen.findAllByTestId("surface")).toHaveLength(2);
-  expect(loadSelectionModel).toHaveBeenCalledOnce();
-  expect(prepareSelectionSurface).toHaveBeenCalledTimes(2);
-  view.unmount();
-  expect(released.every((release) => release.mock.calls.length === 1)).toBe(true);
-});
-it("keeps different people's canonical poses separate even with the same candidate and body", async () => {
-  vi.mocked(loadSelectionModel).mockImplementation(async (_job, selection) =>
-    packet(`person ${selection.personIndex}`),
-  );
-  const { wrapper } = setup();
-  const other = {
-    ...entry,
-    personIndex: 1,
-    selection: { ...entry.selection!, personIndex: 1 },
-  };
-  const view = render(
-    <>
-      <SelectionPreview job="job" person={person} entry={entry} canonicalPreview />
-      <SelectionPreview
-        job="job"
-        person={{ ...person, index: 1 }}
-        entry={other}
-        canonicalPreview
-      />
-    </>,
-    { wrapper },
-  );
-  await waitFor(() => expect(screen.getAllByTestId("surface")).toHaveLength(2));
-  expect(screen.getAllByTestId("surface").map((el) => el.textContent)).toEqual([
-    "person 0",
-    "person 1",
-  ]);
-  expect(loadSelectionModel).toHaveBeenCalledTimes(2);
+it("uses the approved female model with local posing and never requests a server conversion", async () => {
+  const person = makePerson();
+  const view = render(<SelectionPreview job="job" person={person} entry={entry} />);
+  expect(await screen.findByTestId("surface")).toHaveTextContent("local surface");
+  expect(loadApprovedModel).toHaveBeenLastCalledWith("female", "full", expect.any(AbortSignal));
+  expect(screen.getByText("여성 기본형 · 참고용 포즈")).toBeInTheDocument();
+  expect(apiFetchResponse).toHaveBeenCalledOnce();
+  expect(vi.mocked(apiFetchResponse).mock.calls[0][0]).toContain("/poster-source?");
+  expect(vi.mocked(apiFetchResponse).mock.calls[0][1]?.method).not.toBe("POST");
   view.unmount();
 });
-it("replaces stale custom bodies and retains the thumbnail on conversion failure", async () => {
-  vi.mocked(loadSelectionModel)
-    .mockResolvedValueOnce(packet("female"))
-    .mockRejectedValueOnce(Error("network"))
-    .mockResolvedValueOnce(packet("male"));
-  const { wrapper } = setup();
-  const props = { job: "job", person, canonicalPreview: true };
-  const view = render(<SelectionPreview {...props} entry={entry} />, { wrapper });
-  expect(await screen.findByTestId("surface")).toHaveTextContent("female");
-  const changed = {
+it("reuses a verified BVH when returning to an earlier candidate", async () => {
+  const person = makePerson();
+  const props = { job: "job", person, entry };
+  const view = render(<SelectionPreview {...props} selectedId={person.candidates[0].id} />);
+  await screen.findByTestId("surface");
+  view.rerender(<SelectionPreview {...props} selectedId={person.candidates[1].id} />);
+  await waitFor(() => expect(apiFetchResponse).toHaveBeenCalledTimes(2));
+  await screen.findByTestId("surface");
+  view.rerender(<SelectionPreview {...props} selectedId={person.candidates[0].id} />);
+  await screen.findByTestId("surface");
+  expect(apiFetchResponse).toHaveBeenCalledTimes(2);
+});
+it("changes only the base preview model when switching gender, preserving body controls", async () => {
+  const person = makePerson();
+  const view = render(<SelectionPreview job="job" person={person} entry={entry} />);
+  await screen.findByTestId("surface");
+  const male = {
     ...entry,
     selection: {
       ...entry.selection!,
-      selectionRevision: 4,
       resolvedBody: { ...entry.selection!.resolvedBody!, characterId: "male-base-v0-8-0" },
     },
   };
-  view.rerender(<SelectionPreview {...props} entry={changed} />);
-  expect(screen.queryByTestId("surface")).not.toBeInTheDocument();
-  const retry = await screen.findByRole("button", { name: "3D 다시 시도" });
-  expect(screen.getByRole("img")).toHaveAttribute("src", "/one.png");
-  fireEvent.click(retry);
-  expect(await screen.findByTestId("surface")).toHaveTextContent("male");
-  expect(released[0]).toHaveBeenCalledOnce();
+  const saved = JSON.stringify(male);
+  view.rerender(<SelectionPreview job="job" person={person} entry={male} />);
+  await screen.findByTestId("surface");
+  expect(loadApprovedModel).toHaveBeenLastCalledWith("male", "full", expect.any(AbortSignal));
+  expect(apiFetchResponse).toHaveBeenCalledOnce();
+  expect(JSON.stringify(male)).toBe(saved);
 });
-it("does not request a model without capability or a ready body", async () => {
-  const { wrapper } = setup();
-  const view = render(<SelectionPreview job="job" person={person} entry={entry} />, { wrapper });
+it("aborts stale requests and lets a failed source retry without a converter fallback", async () => {
+  const person = makePerson();
+  vi.mocked(apiFetchResponse)
+    .mockImplementationOnce(
+      (_path, options) =>
+        new Promise((_resolve, reject) => {
+          options!.signal!.addEventListener("abort", () => reject(Error("aborted")), {
+            once: true,
+          });
+        }),
+    )
+    .mockRejectedValueOnce(Error("offline"))
+    .mockImplementation(async () => response());
+  const view = render(<SelectionPreview job="job" person={person} entry={entry} />);
+  await waitFor(() => expect(apiFetchResponse).toHaveBeenCalledOnce());
+  const signal = vi.mocked(apiFetchResponse).mock.calls[0][1]!.signal!;
   view.rerender(
     <SelectionPreview
       job="job"
       person={person}
-      entry={{ ...entry, ready: false }}
-      canonicalPreview
+      entry={entry}
+      selectedId={person.candidates[1].id}
     />,
   );
-  await act(async () => {});
-  expect(loadSelectionModel).not.toHaveBeenCalled();
-  expect(screen.getByRole("img")).toHaveAttribute("src", "/one.png");
+  expect(signal.aborted).toBe(true);
+  fireEvent.click(await screen.findByRole("button", { name: "3D 다시 시도" }));
+  await screen.findByTestId("surface");
+  expect(
+    vi
+      .mocked(apiFetchResponse)
+      .mock.calls.every(([path]) => String(path).includes("poster-source")),
+  ).toBe(true);
 });
