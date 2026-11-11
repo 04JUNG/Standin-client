@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PoseSearchPending } from "./PoseSearchPending";
 import { ProgressSkeleton } from "./AnalysisProgressScene";
@@ -40,7 +40,7 @@ describe("actual analysis loading", () => {
       <PoseSearchPending preview={preview} progress={{ phase, enteredAt: Date.now(), snapshot }} />,
     );
     expect(container.querySelector(".pose-loading")).toHaveAttribute("data-stage", phase);
-    expect(screen.getAllByRole("listitem")).toHaveLength(6);
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
     expect(container.querySelector('[aria-current="step"]')).toHaveTextContent(
       LOADING_STAGE_LABELS[phase],
     );
@@ -215,15 +215,33 @@ describe("actual analysis loading", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent("자세와 동작을 함께 비교");
   });
-  it("uses actual ranks and never makes intermediate candidates selectable", () => {
+  it("keeps server ranking inside step four and shows ranked candidates", () => {
+    const searching = exampleSnapshot("searching");
     const snapshot = exampleSnapshot("ranking");
+    snapshot.skippedStages = ["refining"];
+    snapshot.completedStages = snapshot.completedStages.filter((stage) => stage !== "refining");
     snapshot.people[0].candidates!.reverse();
-    const { container } = render(
+    const { container, rerender } = render(
+      <PoseSearchPending
+        preview={preview}
+        progress={{ phase: searching.stage, enteredAt: 0, snapshot: searching }}
+      />,
+    );
+    const step = screen.getByTitle("포즈 찾기");
+    rerender(
       <PoseSearchPending
         preview={preview}
         progress={{ phase: snapshot.stage, enteredAt: 0, snapshot }}
       />,
     );
+    expect(
+      within(screen.getByRole("list", { name: "작업 단계" })).getAllByRole("listitem"),
+    ).toHaveLength(5);
+    expect(step).toHaveAttribute("aria-current", "step");
+    expect(step).toHaveAttribute("data-complete", "false");
+    expect(container.querySelector(".pose-loading__scene-number")).toHaveTextContent("04 / 05");
+    expect(screen.getByTitle("러프 맞춤 · 생략")).toHaveAttribute("data-skipped", "true");
+    expect(screen.queryByText("후보 정리")).not.toBeInTheDocument();
     expect(
       [...container.querySelectorAll("[data-candidate-id]")].map((el) =>
         el.getAttribute("data-candidate-id"),

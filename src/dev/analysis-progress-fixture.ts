@@ -1,13 +1,10 @@
 // DEV-only contract replay. Coordinates/tags are illustrative, not inference output.
 // PNGs are existing Standin model QA renders (female-muscle-refine-v0.3.1); no runtime rendering.
-import type {
-  AnalysisSnapshot,
-  SkeletonOverlay,
-} from "@/features/pose-viewer/api/analysisProgress";
 import {
-  POSE_LOADING_STAGES,
-  type PoseLoadingStage,
-} from "@/features/pose-viewer/lib/loadingProgress";
+  ANALYSIS_STAGES,
+  type AnalysisSnapshot,
+  type SkeletonOverlay,
+} from "@/features/pose-viewer/api/analysisProgress";
 import candidate1 from "./progress-assets/candidate-1.png";
 import candidate2 from "./progress-assets/candidate-2.png";
 import candidate3 from "./progress-assets/candidate-3.png";
@@ -48,7 +45,7 @@ const before = structuredClone(exampleSkeleton);
 before.points[8] = [0.67, 0.34];
 before.points[10] = [0.76, 0.25];
 export function exampleSnapshot(
-  stage: PoseLoadingStage,
+  stage: AnalysisSnapshot["stage"],
   options: {
     sequence?: number;
     partial?: boolean;
@@ -57,7 +54,7 @@ export function exampleSnapshot(
     outcome?: NonNullable<AnalysisSnapshot["people"][number]["refinement"]>["status"];
   } = {},
 ): AnalysisSnapshot {
-  const index = POSE_LOADING_STAGES.indexOf(stage);
+  const index = ANALYSIS_STAGES.indexOf(stage);
   const skeleton = structuredClone(exampleSkeleton);
   if (options.partial) for (const i of [13, 14, 15, 16]) skeleton.points[i] = null;
   const person: AnalysisSnapshot["people"][number] = {
@@ -127,7 +124,7 @@ export function exampleSnapshot(
     sequence: options.sequence ?? index + 1,
     stage,
     updatedAt: "2026-11-06T04:00:00Z",
-    completedStages: POSE_LOADING_STAGES.slice(0, index),
+    completedStages: ANALYSIS_STAGES.slice(0, index),
     skippedStages: [],
     ...(index >= 1
       ? {
