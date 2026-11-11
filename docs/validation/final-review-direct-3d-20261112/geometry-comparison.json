@@ -1,0 +1,102 @@
+[
+  {
+    "source": "body-surface-upgrade-2026-10-16/male/final/00-male-base-v0-7-1-walk-side/final.fbx",
+    "bytes": 2017084,
+    "ms": 171.512542,
+    "vertices": 150000,
+    "ok": true,
+    "unit_scale": 0.010000001848156276,
+    "bbox_expected": [
+      0.8217150568962097,
+      1.714133970439434,
+      0.5306689739227295
+    ],
+    "bbox_actual": [
+      82.17148780822754,
+      171.4133653640747,
+      53.06690788269043
+    ],
+    "relative_max_error": 6.100683173671844e-07,
+    "relative_mean_error": 1.6774675053827487e-07,
+    "normal_angle_degrees": {
+      "max": 0.05584352193372164,
+      "p95": 0.01850468559863808,
+      "mean": 0.004246471111652324
+    }
+  },
+  {
+    "source": "body-surface-upgrade-2026-10-16/male/final/04-male-base-v0-7-1-deep-side/final.fbx",
+    "bytes": 2018204,
+    "ms": 139.632833,
+    "vertices": 150000,
+    "ok": true,
+    "unit_scale": 0.009999994779821284,
+    "bbox_expected": [
+      0.41662026941776276,
+      1.0870047807693481,
+      1.0671826303005219
+    ],
+    "bbox_actual": [
+      41.662049293518066,
+      108.70053482055664,
+      106.71823501586914
+    ],
+    "relative_max_error": 8.433767100888967e-07,
+    "relative_mean_error": 4.307179654167626e-07,
+    "normal_angle_degrees": {
+      "max": 0.07268496667267879,
+      "p95": 0.02211732967542711,
+      "mean": 0.007141002492246127
+    }
+  },
+  {
+    "source": "female-muscle-refine-v0.3.1/delivery/fbx/female/MUSCLE_MAX-DEEP.fbx",
+    "bytes": 1808940,
+    "ms": 129.11641699999996,
+    "vertices": 150000,
+    "ok": true,
+    "unit_scale": 0.009999999826100982,
+    "bbox_expected": [
+      1.7823225855827332,
+      1.2685993611812592,
+      0.6086288243532181
+    ],
+    "bbox_actual": [
+      178.23226165771484,
+      126.85995101928711,
+      60.86288833618164
+    ],
+    "relative_max_error": 4.150057896935434e-07,
+    "relative_mean_error": 1.3223585967728022e-07,
+    "normal_angle_degrees": {
+      "max": 0.07132624918176021,
+      "p95": 0.01850468559863808,
+      "mean": 0.004307805043643703
+    }
+  },
+  {
+    "source": "personal-body-release-followup-20261106/csp-crash/app-v11-acceptance/app-v11-male-yaw35.fbx",
+    "bytes": 2247884,
+    "ms": 136.49125000000004,
+    "vertices": 150000,
+    "ok": true,
+    "unit_scale": 0.00999999901938634,
+    "bbox_expected": [
+      0.6265094131231308,
+      1.3372259736061096,
+      0.6546012908220291
+    ],
+    "bbox_actual": [
+      62.65095138549805,
+      133.7226104736328,
+      65.46013450622559
+    ],
+    "relative_max_error": 4.805867233238528e-07,
+    "relative_mean_error": 1.2394450411783628e-07,
+    "normal_angle_degrees": {
+      "max": 0.0770146941631026,
+      "p95": 0.01850468559863808,
+      "mean": 0.004252950820937835
+    }
+  }
+]

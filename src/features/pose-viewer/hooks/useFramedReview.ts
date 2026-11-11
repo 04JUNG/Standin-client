@@ -1,3 +1,4 @@
+import { loadPreparedFbx } from "@/features/export/lib/preparedFbx";
 import { apiFetchBytes } from "@/shared/api/client";
 import { verifyDigest } from "@/features/body-selection/api";
 import { outlineAppearance } from "../outline/appearance";
@@ -30,6 +31,7 @@ import {
 } from "@/features/export/lib/framedExport";
 import {
   loadPreparedImage,
+  preparedFile,
   preparedIdentity,
   preparedUrl,
 } from "@/features/export/lib/preparedArtifact";
@@ -54,6 +56,7 @@ export function useFramedReview(jobId: string | undefined) {
   const owner = useBodyOwner();
   const releaseMode = review.items.some((i) => !!i.release);
   const bodyMode = review.bodies.enabled && !releaseMode;
+  const [failedModels, setFailedModels] = useState<Record<string, boolean>>({});
   const [releaseRendered, setReleaseRendered] = useState<Record<string, boolean>>({});
   const releaseModels = useQueries({
     queries: review.items.map((item) => ({
@@ -271,6 +274,7 @@ export function useFramedReview(jobId: string | undefined) {
           binding: request.binding,
           image: "",
           identity,
+          file: preparedFile(response),
           downloadUrl: preparedUrl(request.url, identity.reviewKey, "fbx"),
         };
       },
@@ -286,10 +290,38 @@ export function useFramedReview(jobId: string | undefined) {
   );
   // Query keys name every current selection. React Query cancels obsolete
   // observers; the signal checks also reject late transports that ignore abort.
+  const models = useQueries({
+    queries: requests.map((r, i) => ({
+      queryKey: ["framed-model", owner, currentData[i]?.downloadUrl ?? r.url, r.binding],
+      enabled: enabled && requestReady(r) && !!currentData[i]?.file,
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const receipt = currentData[i]!;
+        const data = await loadPreparedFbx(receipt.downloadUrl, receipt.file!, signal);
+        signal.throwIfAborted();
+        return {
+          downloadUrl: receipt.downloadUrl,
+          model: {
+            data,
+            format: "fbx",
+            characterId: r.characterId,
+            scope: r.scope,
+            sourceSha: receipt.file!.identity.sourceSha,
+          } satisfies ReviewModel,
+        };
+      },
+      retry: false,
+      staleTime: 300_000,
+      gcTime: 0, // large file bytes belong to the bounded download cache, not history
+    })),
+  });
+  const imageFallback = (i: number) =>
+    !currentData[i]?.file ||
+    models[i]?.isError ||
+    failedModels[currentData[i]?.downloadUrl ?? ""] === true;
   const images = useQueries({
     queries: requests.map((r, i) => ({
       queryKey: ["framed-image", owner, currentData[i]?.downloadUrl ?? r.url],
-      enabled: enabled && requestReady(r) && !!currentData[i]?.downloadUrl,
+      enabled: enabled && requestReady(r) && !!currentData[i]?.downloadUrl && imageFallback(i),
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         const downloadUrl = currentData[i]!.downloadUrl;
         return { downloadUrl, image: await loadPreparedImage(downloadUrl, signal) };
@@ -349,8 +381,13 @@ export function useFramedReview(jobId: string | undefined) {
   });
   const preparationLoading = enabled && !preparationError && !downloadReady;
   const previewLoading =
-    enabled && (preparationLoading || images.some((q) => q.isPending || q.isFetching));
-  const previewError = enabled && images.some((q) => q.isError);
+    enabled &&
+    (preparationLoading ||
+      requests.some((_, i) => {
+        const q = imageFallback(i) ? images[i] : models[i];
+        return q?.isPending || q?.isFetching;
+      }));
+  const previewError = enabled && images.some((q, i) => imageFallback(i) && q.isError);
   useEffect(() => {
     if (!enabled || !downloadReady || bodyMode) return;
     requests.forEach((r, i) => {
@@ -465,9 +502,17 @@ export function useFramedReview(jobId: string | undefined) {
         : undefined,
       previewModel: item.release
         ? releaseModels[index]?.data
-        : (undefined as ReviewModel | undefined),
+        : enabled &&
+            !imageFallback(index) &&
+            requestReady(requests[index]!) &&
+            models[index]?.data?.downloadUrl === currentData[index]?.downloadUrl
+          ? models[index]?.data?.model
+          : undefined,
       previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
       onModelStatus: (status: "ready" | "failed") => {
+        const url = currentData[index]?.downloadUrl;
+        if (!item.release && url && status === "failed")
+          setFailedModels((previous) => ({ ...previous, [url]: true }));
         if (item.release)
           setReleaseRendered((previous) => ({
             ...previous,
@@ -540,7 +585,14 @@ export function useFramedReview(jobId: string | undefined) {
         if (bodyMode) await Promise.all(review.bodies.entries.map((e) => e.retry()));
         else await catalog.refetch();
         await Promise.all(queries.map((q) => q.refetch()));
-      } else await Promise.all(images.map((q) => q.refetch()));
+      } else {
+        setFailedModels({});
+        await Promise.all(
+          requests.map((_, i) =>
+            currentData[i]?.file ? models[i]!.refetch() : images[i]!.refetch(),
+          ),
+        );
+      }
     },
     // Only the explicit download button arms SavePage's existing save flow.
     requestDownload: () => {

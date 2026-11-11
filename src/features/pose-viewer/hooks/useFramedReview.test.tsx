@@ -9,6 +9,8 @@ const m = vi.hoisted(() => ({
   refining: false,
   generated: false,
   available: true,
+  local: false,
+  model: vi.fn(),
   ready: vi.fn(),
   image: vi.fn(),
   reload: vi.fn(),
@@ -18,6 +20,7 @@ vi.mock("@/features/export/lib/preparedArtifact", async (original) => ({
   ...(await original<typeof import("@/features/export/lib/preparedArtifact")>()),
   loadPreparedImage: m.image,
 }));
+vi.mock("@/features/export/lib/preparedFbx", () => ({ loadPreparedFbx: m.model }));
 vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" }));
 vi.mock("@/features/hand-selection/hooks", () => ({
   useHands: () => ({ ready: true, entries: [], enabled: false, pending: false }),
@@ -75,6 +78,7 @@ function ready(url: string, key = "b".repeat(64)) {
   const scope = new URL(url, "https://standin.invalid").searchParams.get("outputScope")!;
   return new Response(null, {
     headers: {
+      ...(m.local ? { "X-Standin-Local-Preview": "fbx-v1" } : {}),
       "X-Standin-Artifact-Contract": "verified-fbx-v1",
       "X-Standin-Review-Key": key,
       "X-Standin-Artifact-SHA256": "c".repeat(64),
@@ -100,7 +104,9 @@ beforeEach(() => {
     refining: false,
     generated: false,
     available: true,
+    local: false,
   });
+  m.model.mockReset().mockResolvedValue(new ArrayBuffer(32));
   m.ready.mockReset().mockImplementation(async (url: string) => ready(url));
   m.image.mockReset().mockResolvedValue("final-image");
 });
@@ -194,4 +200,60 @@ it("generated poses still require FBX and converter readiness", () => {
   const { result } = mount();
   expect(result.current.downloadReady).toBe(false);
   expect(result.current.preparationError).toBe(true);
+});
+
+it("shows the final file in 3D without PNG work and keeps download independent of model loading", async () => {
+  m.local = true;
+  let finish!: (data: ArrayBuffer) => void;
+  m.model.mockImplementation(
+    () =>
+      new Promise<ArrayBuffer>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { result } = mount();
+  await waitFor(() => expect(m.model).toHaveBeenCalledTimes(1));
+  expect(result.current.downloadReady).toBe(true);
+  expect(result.current.previewLoading).toBe(true);
+  expect(m.image).not.toHaveBeenCalled();
+  await act(async () => finish(new ArrayBuffer(32)));
+  await waitFor(() => expect(result.current.items[0]?.previewModel?.format).toBe("fbx"));
+  expect(result.current.previewLoading).toBe(false);
+  expect(m.image).not.toHaveBeenCalled();
+});
+it.each(["fetch", "render"])(
+  "requests the exact-file PNG only after a 3D %s failure",
+  async (failure) => {
+    m.local = true;
+    if (failure === "fetch") m.model.mockRejectedValue(new Error("unsupported file"));
+    const { result } = mount();
+    if (failure === "render") {
+      await waitFor(() => expect(result.current.items[0]?.previewModel).toBeTruthy());
+      expect(m.image).not.toHaveBeenCalled();
+      act(() => result.current.items[0]!.onModelStatus("failed"));
+    }
+    await waitFor(() => expect(result.current.items[0]?.previewUrl).toBe("final-image"));
+    expect(result.current.items[0]?.previewModel).toBeUndefined();
+    expect(result.current.downloadReady).toBe(true);
+  },
+);
+it("rejects a late model after output scope changes", async () => {
+  m.local = true;
+  const calls: { signal: AbortSignal; finish: (data: ArrayBuffer) => void }[] = [];
+  m.model.mockImplementation(
+    (_url, _file, signal: AbortSignal) =>
+      new Promise<ArrayBuffer>((finish) => calls.push({ signal, finish })),
+  );
+  const { result, rerender } = mount();
+  await waitFor(() => expect(calls.length).toBe(1));
+  m.scope = "head";
+  rerender();
+  expect(result.current.items[0]?.previewModel).toBeUndefined();
+  await waitFor(() => expect(calls.length).toBe(2));
+  expect(calls[0]!.signal.aborted).toBe(true);
+  await act(async () => calls[0]!.finish(new ArrayBuffer(32)));
+  expect(result.current.items[0]?.previewModel).toBeUndefined();
+  await act(async () => calls[1]!.finish(new ArrayBuffer(64)));
+  await waitFor(() => expect(result.current.items[0]?.previewModel?.data.byteLength).toBe(64));
+  expect(result.current.items[0]?.scopeLabel).toBe("두상");
 });

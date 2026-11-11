@@ -3,11 +3,13 @@ import type { ReleaseCamera } from "../release/camera";
 import { recordCanvasFrame } from "@/features/replay/canvas";
 import * as THREE from "three";
 import { libraryPreviewMaterial, PREVIEW_BACKGROUND } from "./previewStyle";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { validateModel, validRotation, type CandidateModel } from "./modelContract";
 import { BodyOutlineRenderer } from "../outline/BodyOutlineRenderer";
 
 export type ReviewModel = {
+  format?: "fbx";
   releaseCamera?: ReleaseCamera;
   data: ArrayBuffer;
   characterId: string;
@@ -31,33 +33,42 @@ export async function mountReviewModel(
   signal.throwIfAborted();
   if (model.releaseCamera)
     return mountReleaseModel(canvas, model.data, model.releaseCamera, signal);
-  const meta = validateModel(
-    model.data,
-    model.sourceSha ?? model.base?.sourceSha,
-    model.characterId,
-    model.scope,
-    model.version ?? (model.base ? "posed-mesh-v1" : "framed-mesh-v1"),
-  );
+  const meta =
+    model.format === "fbx"
+      ? undefined
+      : validateModel(
+          model.data,
+          model.sourceSha ?? model.base?.sourceSha,
+          model.characterId,
+          model.scope,
+          model.version ?? (model.base ? "posed-mesh-v1" : "framed-mesh-v1"),
+        );
   if (
-    (model.characterSha256 && meta.character_sha256 !== model.characterSha256) ||
-    (model.modelRevision && meta.revision !== model.modelRevision)
+    meta &&
+    ((model.characterSha256 && meta.character_sha256 !== model.characterSha256) ||
+      (model.modelRevision && meta.revision !== model.modelRevision))
   )
     throw new Error("model identity changed");
-  if (model.shapeSha256 !== undefined && (meta.shape_sha256 ?? null) !== model.shapeSha256)
+  if (meta && model.shapeSha256 !== undefined && (meta.shape_sha256 ?? null) !== model.shapeSha256)
     throw new Error("body shape changed");
   const loader = new GLTFLoader();
   loader.manager.setURLModifier(() => {
     throw new Error("external model resource");
   });
-  const { scene: body } = await loader.parseAsync(model.data, "");
+  const body =
+    model.format === "fbx"
+      ? (await import("./finalFbxScene")).parseFinalFbx(model.data)
+      : (await loader.parseAsync(model.data, "")).scene;
   let renderer: THREE.WebGLRenderer | undefined;
   let observer: ResizeObserver | undefined;
   let outline: BodyOutlineRenderer | undefined;
+  let controls: OrbitControls | undefined;
   let disposed = false;
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     observer?.disconnect();
+    controls?.dispose();
     outline?.dispose();
     body.traverse((o) => {
       if (o instanceof THREE.Mesh) {
@@ -149,6 +160,15 @@ export async function mountReviewModel(
         shapeSha256: model.shapeSha256,
       });
     };
+    if (model.format === "fbx") {
+      controls = new OrbitControls(camera, canvas);
+      controls.target.copy(center);
+      controls.enablePan = false;
+      controls.minZoom = 0.5;
+      controls.maxZoom = 8;
+      controls.addEventListener("change", draw);
+      controls.update();
+    }
     draw();
     observer = new ResizeObserver(draw);
     observer.observe(canvas);
