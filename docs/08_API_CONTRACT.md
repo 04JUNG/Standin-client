@@ -1051,3 +1051,16 @@ BFF body-options 및 body-preferences.shapeEditable는 선택적으로 `gender: 
 `people[].skeleton` 및 refine before/after는 원본 전체 이미지 기준 정규화 COCO17 좌표다. 실제 관측이 없는 관절은 null이며 UI는 얼굴 세부점을 제외한 주요 관절만 연결한다. `observations`와 `searchMode`는 실제 관측/실행 경로를 BFF에서 축약·번역한 값이다. raw trace/prompt/private context를 읽거나 UI에서 동작을 추측하지 않는다.
 
 중간 candidate id/rank/thumbnailUrl은 read-only이며 후보 선택/조정/내보내기 허용을 의미하지 않는다. `/v1/` 이미지는 설치 인증으로 읽고, 외부 https 이미지에 인증 헤더를 보내지 않는다. 이미 준비된 이미지만 사용하며 렌더·변환을 추가 요청하지 않는다. 실제 refine 전후만 보간하고 unchanged/reverted/skipped를 구별한다. 진행률은 계속 예상치이며 진행 중 100%가 되지 않는다. 실시간 producer/BFF 연결 및 배포 여부는 해당 세션의 검증 결과로 확인한다.
+
+## 이용 코드 등록
+
+설치 등록 이후 `GET /v1/installations/current/access`로 이용 권한을 확인한다.
+`{required,allowed,role}` 응답에서 허용된 기기만 제품 화면을 연다.
+코드 등록은 `POST /v1/installations/current/access/redeem`에 `{code}`를 보낸다.
+기존 운영자 기기는 서버의 설치 ID 허용 목록을 사용한다.
+코드는 한 기기에 귀속되며 같은 기기의 재시도는 허용된다.
+
+기존 오픈베타 설치는 서버에서 `ACCESS_CODE_REQUIRED` (403)을 받으면
+전체화면·플로팅 바 모두 코드 등록 화면으로 전환한다. 앱 시작·다시 포커스·
+30초 간격으로 상태를 확인한다. 권한 확인 실패 시 재시도를 제공한다.
+코드 원문과 이용 허용 상태를 영구 저장하지 않는다.

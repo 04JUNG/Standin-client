@@ -1,3 +1,4 @@
+import { AccessGate } from "@/features/access/AccessGate";
 import { ReplayBootstrap } from "@/features/replay/ReplayBootstrap";
 import { RequiredUpdateGate } from "@/features/updates/components/RequiredUpdateGate";
 import { useAppStarted } from "@/features/analytics/useAppStarted";
@@ -21,7 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <UpdateBootstrap>
         <InstallationBootstrap />
         <ReplayBootstrap />
-        <RequiredUpdateGate>{children}</RequiredUpdateGate>
+        <RequiredUpdateGate><AccessGate>{children}</AccessGate></RequiredUpdateGate>
       </UpdateBootstrap>
     </QueryClientProvider>
   );
