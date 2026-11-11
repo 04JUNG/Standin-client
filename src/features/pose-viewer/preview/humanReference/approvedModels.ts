@@ -2,12 +2,13 @@ import { gunzipSync, strFromU8 } from "fflate";
 import { referenceDigest, boundedReferenceBytes } from "../../api/humanReference";
 import { parseHumanTemplate, humanScopes, type HumanScope, type HumanTemplate } from "./template";
 import type { FingerSkin } from "./sourceFingers";
+import type { Correctives } from "./correctives";
 import manifest from "./approvedAssets/manifest.json";
 import female from "./approvedAssets/female.json.gz?url";
 import male from "./approvedAssets/male.json.gz?url";
 
 export type PreviewGender = "female" | "male";
-export type ApprovedModel = { template: HumanTemplate; skin: FingerSkin };
+export type ApprovedModel = { template: HumanTemplate; skin: FingerSkin; corrections: Correctives };
 const urls = { female, male };
 const models = new Map<PreviewGender, Promise<ApprovedModel>>();
 const scopes = new WeakMap<HumanTemplate, Map<HumanScope, HumanTemplate>>();
@@ -31,7 +32,12 @@ async function readModel(gender: PreviewGender): Promise<ApprovedModel> {
   const template = parseHumanTemplate(decoded.template, "full", expected);
   if (decoded.skin.joints.length !== 30 || decoded.skin.weights.length !== template.meshes.length)
     throw Error("손가락 모델을 확인하지 못했습니다.");
-  return { template, skin: decoded.skin };
+  if (
+    decoded.corrections.restRotations.length !== template.joints.length ||
+    !decoded.corrections.shapes.length
+  )
+    throw Error("관절 보정 데이터를 확인하지 못했습니다.");
+  return { template, skin: decoded.skin, corrections: decoded.corrections };
 }
 
 function scopedTemplate(template: HumanTemplate, scope: HumanScope) {

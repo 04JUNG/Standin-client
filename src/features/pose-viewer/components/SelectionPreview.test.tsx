@@ -53,6 +53,12 @@ beforeEach(() => {
   vi.mocked(loadApprovedModel).mockResolvedValue({
     template: humanFixture(),
     skin: { baseSha: "", joints: [], weights: [[]] },
+    corrections: {
+      restRotations: humanFixture().joints.map(() => [0, 0, 0, 1]),
+      drivers: [],
+      lifts: [],
+      shapes: [],
+    },
   });
   vi.mocked(apiFetchResponse).mockImplementation(async () => response());
 });

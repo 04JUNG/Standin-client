@@ -36,7 +36,7 @@ const required = [
   "upleg.R",
   "leg.R",
 ];
-export function referencePose(template: HumanTemplate, text: string) {
+export function referencePose(template: HumanTemplate, text: string, approved = false) {
   if (
     !text.startsWith("HIERARCHY") ||
     text.length > 2_000_000 ||
@@ -99,7 +99,17 @@ export function referencePose(template: HumanTemplate, text: string) {
         .sub(restHeads[i]);
       const sourceDir =
         child && rest.has(child) ? rest.get(child)!.clone().sub(rest.get(bone)!) : undefined;
-      if (sourceDir && sourceDir.lengthSq() > 1e-12 && neutralDir.lengthSq() > 1e-12)
+      // Structural bones transfer motion deltas, not the source rig's rest shape.
+      // Aligning the chest/clavicles to BVH offsets displaced the chest ~6 cm
+      // relative to the shoulder sockets in gen_ch_normal. Compatible limbs also
+      // keep their delta; retain direction fitting for mismatched limb rigs.
+      const structural = /^(hips|spine\d*|neck|head|shoulder\.[LR])$/.test(joint.role);
+      if (
+        sourceDir &&
+        sourceDir.lengthSq() > 1e-12 &&
+        neutralDir.lengthSq() > 1e-12 &&
+        (!approved || (!structural && neutralDir.angleTo(sourceDir) > Math.PI / 18))
+      )
         q.multiply(
           new THREE.Quaternion().setFromUnitVectors(neutralDir.normalize(), sourceDir.normalize()),
         );

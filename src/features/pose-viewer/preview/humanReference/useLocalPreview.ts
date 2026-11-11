@@ -34,7 +34,7 @@ async function sourceText(
   return text;
 }
 
-/** Original local pose/finger solver; only the immutable neutral model changes. */
+/** Cached BVH plus bundled model and authoring correctives; no server pose solve. */
 export function useLocalPreview({
   owner,
   binding,
@@ -68,7 +68,7 @@ export function useLocalPreview({
     ])
       .then(([asset, bvh]) => {
         signal.throwIfAborted();
-        model = referenceSurface(asset.template, bvh, asset.skin);
+        model = referenceSurface(asset.template, bvh, asset.skin, asset.corrections);
         setLoaded({ binding, model });
       })
       .catch(() => {

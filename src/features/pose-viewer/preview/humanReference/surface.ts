@@ -5,13 +5,28 @@ import type { SearchCamera } from "../../interactive/contract";
 import { referenceMesh } from "./referenceMesh";
 import { sourceFingerPose, type FingerSkin } from "./sourceFingers";
 import { validRotation } from "../modelContract";
+import { correctApprovedPose, type Correctives } from "./correctives";
 
-export function referenceSurface(template: HumanTemplate, text: string, skin?: FingerSkin) {
-  const base = referencePose(template, text);
+export function referenceSurface(
+  template: HumanTemplate,
+  text: string,
+  skin?: FingerSkin,
+  corrections?: Correctives,
+) {
+  let base = referencePose(template, text, !!corrections);
+  if (corrections) {
+    const corrected = correctApprovedPose(template, base, corrections);
+    template = corrected.template;
+    base = corrected.pose;
+  }
   const fingers = skin && sourceFingerPose(template, text, base, skin);
-  return fingers
+  const surface = fingers
     ? referenceMesh(fingers.template, fingers.matrices, fingers.wrists)
     : referenceMesh(template, base.matrices);
+  // PSDs alter the surface, so neutral normals no longer describe the joints.
+  if (corrections)
+    for (const mesh of surface.body.children) (mesh as THREE.Mesh).geometry.computeVertexNormals();
+  return surface;
 }
 
 export function referenceSurfaceCamera(
