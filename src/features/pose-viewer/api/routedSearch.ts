@@ -121,3 +121,16 @@ export function readCandidatePolicy(raw: CandidatePolicy): CandidatePolicy {
     searchCamera: raw.searchCamera,
   };
 }
+
+/** RC4 validates the registered original BVH again on the server. */
+export function canReleaseRefine(candidate: PoseCandidate | undefined): boolean {
+  return (
+    !!candidate &&
+    candidate.source === "library" &&
+    !!candidate.poseId &&
+    candidate.lookupAllowed === true &&
+    candidate.manualExportAllowed === true &&
+    candidate.bvhAvailable === true &&
+    /^[a-f0-9]{64}$/.test(candidate.sourceBvhSha256 ?? "")
+  );
+}

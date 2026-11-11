@@ -1,3 +1,4 @@
+import type { ReleaseReceipt } from "../api/refine.contract";
 import { loadPosePoster } from "../api/posePoster";
 import { useInstallationStore } from "@/features/installation/installationStore";
 import { useQueries } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { useAnalysisResult } from "./useAnalysisResult";
 import { useRefineSelection } from "./useRefineSelection";
 
 export type ReviewItem = {
+  release?: ReleaseReceipt;
   personIndex: number;
   candidate: PoseCandidate;
   /** 저장과 미리보기가 함께 쓰는 최종 다운로드 경로. */
@@ -67,6 +69,7 @@ export function useSelectionReview(jobId: string | undefined) {
         {
           personIndex,
           candidate,
+          release: currentOutcome?.release,
           // 조정 결과가 있으면 그 URL이 최종이다. 없으면 후보의 베이스 URL로 저장한다.
           exportUrl: currentOutcome?.exportUrl ?? candidate.bvhUrl,
           // A deferred refined preview must never show the unmodified pose.

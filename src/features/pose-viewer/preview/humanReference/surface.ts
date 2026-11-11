@@ -10,7 +10,7 @@ export function referenceSurface(template: HumanTemplate, text: string, skin?: F
   const base = referencePose(template, text);
   const fingers = skin && sourceFingerPose(template, text, base, skin);
   return fingers
-    ? referenceMesh(fingers.template, fingers.matrices)
+    ? referenceMesh(fingers.template, fingers.matrices, fingers.wrists)
     : referenceMesh(template, base.matrices);
 }
 

@@ -1078,3 +1078,18 @@ BFF body-options 및 body-preferences.shapeEditable는 선택적으로 `gender: 
 권한을 허용하지 않는다. 제품 화면은 서버의 `allowed=true` 응답 이후에 연다.
 진단 로그에는 오류 분류·HTTP 상태·오류 코드·request ID만 남기고 토큰,
 서버 원문 메시지와 응답 본문은 남기지 않는다.
+
+## RC4 staging review
+
+Only a staging build sends `releaseVersion: RC4`. An accepted release response
+pins the final FBX and display GLB hashes plus its separate camera. Review renders
+the baked GLB in RC4's camera without fitting a new view; download uses the same
+FBX hash. GLB Y-up metres are converted back to Blender Z-up metres before the
+camera basis is applied. Orthographic and perspective projection are tested
+against the solver's formula.
+
+This path uses the verified source body. Body, hand, scope, outline and skin
+modifications are not applied afterward; the review notice makes this explicit.
+Download remains FBX-only. Off/older BFF responses use the existing review path.
+Production builds do not request RC4. Native staging verification is tracked
+separately from unit tests and web build success.
