@@ -1,0 +1,30 @@
+{
+  "female": {
+    "characterId": "female-base-v0-4-0",
+    "characterSha256": "ceee9f20f03e7cbd2df28f875ac130317fb84cecaa71f76fd012d4f3b0a65898",
+    "blendSha256": "5a62d2f3fb49d77fdc04d1c78a361edf9fbab55e71e0e47d3b6b393fae14d3a9",
+    "jsonSha256": "e9e338385ff8605f1b558bce1cce110e11f101ac36a220c9a9276c6090b52d76",
+    "gzipSha256": "226322f260ce6412da5b921ec946d176a09f557db895ba727ccc42a0a103601a",
+    "gzipBytes": 2555438,
+    "jsonBytes": 8712688,
+    "vertices": 56000,
+    "triangles": 111996,
+    "bodyJoints": 22,
+    "fingerJoints": 30,
+    "fingerVertices": 18266
+  },
+  "male": {
+    "characterId": "male-base-v0-8-0",
+    "characterSha256": "f7c74512d8f1adac528a2fd8a93baacc794ddeb4d6d298c57cd5e6fa8df19f77",
+    "blendSha256": "a03550749315592c543eeda66a183fe4116380f2068b412105f751c7b2e9c39a",
+    "jsonSha256": "c574043143a6c6b31d020d342540c18d3a8f7676c30559df96156018a35f9b19",
+    "gzipSha256": "f9d59c793df9f5abd3203a28de411dfff21f3053b7160b53d0c0dcd22949e45e",
+    "gzipBytes": 2597982,
+    "jsonBytes": 8713168,
+    "vertices": 56001,
+    "triangles": 111998,
+    "bodyJoints": 22,
+    "fingerJoints": 30,
+    "fingerVertices": 14039
+  }
+}

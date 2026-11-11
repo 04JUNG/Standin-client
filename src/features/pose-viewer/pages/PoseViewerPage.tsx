@@ -253,7 +253,6 @@ export function PoseViewerPage() {
                   person={person}
                   presentationPosters
                   entry={bodies.entries.find((e) => e.personIndex === person.index)}
-                  canonicalPreview={data.capabilities.selectionPreview === true && bodies.enabled}
                 >
                   <div className="flex flex-col gap-3">
                     {person.posePresentation ? (
@@ -288,7 +287,6 @@ export function PoseViewerPage() {
                 selectedId={selectedByPerson[active.index]}
                 presentationPosters
                 entry={bodies.entries.find((e) => e.personIndex === active.index)}
-                canonicalPreview={data.capabilities.selectionPreview === true && bodies.enabled}
               />
             )}
           </div>
@@ -419,7 +417,6 @@ export function PoseViewerPage() {
                   job={data.jobId}
                   person={active}
                   entry={bodies.entries.find((e) => e.personIndex === active.index)}
-                  canonicalPreview={data.capabilities.selectionPreview === true && bodies.enabled}
                 >
                   <ActivePersonCard
                     key={active.index}
@@ -492,7 +489,6 @@ export function PoseViewerPage() {
                 person={active}
                 selectedId={selectedByPerson[active.index]}
                 entry={bodies.entries.find((e) => e.personIndex === active.index)}
-                canonicalPreview={data.capabilities.selectionPreview === true && bodies.enabled}
               />
             )}
           </div>
