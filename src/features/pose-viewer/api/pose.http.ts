@@ -173,7 +173,8 @@ function resolveFallbackMode(
 }
 
 const POLL_INTERVAL_MS = 750;
-const JOB_TIMEOUT_MS = 3 * 60 * 1000;
+// Allow the BFF's 180-second inference window plus time for upload and polling.
+const JOB_TIMEOUT_MS = 210_000;
 
 function analysisTimeoutError(): AnalysisError {
   return new AnalysisError("TIMEOUT", ANALYSIS_TIMEOUT_MESSAGE);
