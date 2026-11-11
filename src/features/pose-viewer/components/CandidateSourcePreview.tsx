@@ -38,7 +38,7 @@ export default function CandidateSourcePreview({
         const base = referencePose(template, text);
         const fingers = skin && sourceFingerPose(template, text, base, skin);
         const model = fingers
-          ? referenceMesh(fingers.template, fingers.matrices)
+          ? referenceMesh(fingers.template, fingers.matrices, fingers.wrists)
           : referenceMesh(template, base.matrices);
         release = model.release;
         const renderer = new THREE.WebGLRenderer({ antialias: true });
