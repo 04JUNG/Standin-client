@@ -26,6 +26,7 @@ export function useSelectionSurface({
   const binding = JSON.stringify([
     owner,
     job,
+    selection?.personIndex,
     candidate?.id,
     candidate?.sourceBvhSha256,
     scope,

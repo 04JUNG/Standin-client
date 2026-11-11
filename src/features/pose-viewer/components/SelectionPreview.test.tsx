@@ -107,6 +107,36 @@ it("shares verified packets between inspectors with separate disposable GPU surf
   view.unmount();
   expect(released.every((release) => release.mock.calls.length === 1)).toBe(true);
 });
+it("keeps different people's canonical poses separate even with the same candidate and body", async () => {
+  vi.mocked(loadSelectionModel).mockImplementation(async (_job, selection) =>
+    packet(`person ${selection.personIndex}`),
+  );
+  const { wrapper } = setup();
+  const other = {
+    ...entry,
+    personIndex: 1,
+    selection: { ...entry.selection!, personIndex: 1 },
+  };
+  const view = render(
+    <>
+      <SelectionPreview job="job" person={person} entry={entry} canonicalPreview />
+      <SelectionPreview
+        job="job"
+        person={{ ...person, index: 1 }}
+        entry={other}
+        canonicalPreview
+      />
+    </>,
+    { wrapper },
+  );
+  await waitFor(() => expect(screen.getAllByTestId("surface")).toHaveLength(2));
+  expect(screen.getAllByTestId("surface").map((el) => el.textContent)).toEqual([
+    "person 0",
+    "person 1",
+  ]);
+  expect(loadSelectionModel).toHaveBeenCalledTimes(2);
+  view.unmount();
+});
 it("replaces stale custom bodies and retains the thumbnail on conversion failure", async () => {
   vi.mocked(loadSelectionModel)
     .mockResolvedValueOnce(packet("female"))
