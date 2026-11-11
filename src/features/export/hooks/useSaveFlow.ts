@@ -625,7 +625,27 @@ export function useSaveFlow(jobId: string | undefined) {
             );
             let content: Uint8Array;
             let downloadPath = "";
-            if (
+            if (currentOutcome?.release) {
+              if (format !== "fbx" || !exportUrl)
+                throw new ApiError(409, "GENERATED_FBX_REQUIRED", "");
+              const parsed = new URL(exportUrl, "https://standin.invalid");
+              if (
+                parsed.origin !== "https://standin.invalid" ||
+                !/^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/refine\/release\/fbx$/.test(
+                  parsed.pathname,
+                )
+              )
+                throw new ApiError(409, "INVALID_EXPORT", "");
+              content = await apiFetchBytes(exportUrl, { auth: false, signal: controller.signal });
+              await verifyDigest(
+                content.buffer.slice(
+                  content.byteOffset,
+                  content.byteOffset + content.byteLength,
+                ) as ArrayBuffer,
+                currentOutcome.release.artifact_sha256,
+              );
+              downloadPath = exportUrl;
+            } else if (
               env.interactivePreview &&
               analysisResult.capabilities.interactivePreview?.operations &&
               format === "fbx"

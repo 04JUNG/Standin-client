@@ -1,3 +1,5 @@
+import { mountReleaseModel } from "../release/model";
+import type { ReleaseCamera } from "../release/camera";
 import { recordCanvasFrame } from "@/features/replay/canvas";
 import * as THREE from "three";
 import { libraryPreviewMaterial, PREVIEW_BACKGROUND } from "./previewStyle";
@@ -6,6 +8,7 @@ import { validateModel, validRotation, type CandidateModel } from "./modelContra
 import { BodyOutlineRenderer } from "../outline/BodyOutlineRenderer";
 
 export type ReviewModel = {
+  releaseCamera?: ReleaseCamera;
   data: ArrayBuffer;
   characterId: string;
   scope: string;
@@ -26,6 +29,8 @@ export async function mountReviewModel(
   outlineWidth = 0,
 ) {
   signal.throwIfAborted();
+  if (model.releaseCamera)
+    return mountReleaseModel(canvas, model.data, model.releaseCamera, signal);
   const meta = validateModel(
     model.data,
     model.sourceSha ?? model.base?.sourceSha,

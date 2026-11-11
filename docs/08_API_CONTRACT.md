@@ -1064,3 +1064,18 @@ BFF body-options 및 body-preferences.shapeEditable는 선택적으로 `gender: 
 전체화면·플로팅 바 모두 코드 등록 화면으로 전환한다. 앱 시작·다시 포커스·
 30초 간격으로 상태를 확인한다. 권한 확인 실패 시 재시도를 제공한다.
 코드 원문과 이용 허용 상태를 영구 저장하지 않는다.
+
+## RC4 staging review
+
+Only a staging build sends `releaseVersion: RC4`. An accepted release response
+pins the final FBX and display GLB hashes plus its separate camera. Review renders
+the baked GLB in RC4's camera without fitting a new view; download uses the same
+FBX hash. GLB Y-up metres are converted back to Blender Z-up metres before the
+camera basis is applied. Orthographic and perspective projection are tested
+against the solver's formula.
+
+This path uses the verified source body. Body, hand, scope, outline and skin
+modifications are not applied afterward; the review notice makes this explicit.
+Download remains FBX-only. Off/older BFF responses use the existing review path.
+Production builds do not request RC4. Native staging verification is tracked
+separately from unit tests and web build success.
