@@ -61,15 +61,17 @@ export function HandChips({
   const presets = catalog.categories.flatMap((c) => c.presets);
   const byId = new Map(presets.map((p) => [p.id, p]));
   const status = (s: Side) =>
-    selection.changed.includes(s)
-      ? "고른 손 모양"
-      : selection.observation[s].source === "vlm"
-        ? selection.observation[s].confidence === "low"
-          ? "확인 필요"
-          : "추천"
-        : selection.observation[s].visible === false
-          ? "기본 · 러프에서 안 보임"
-          : "기본";
+    selection[s] === "source_pose"
+      ? "선택한 포즈의 손 모양 유지"
+      : selection.changed.includes(s)
+        ? "고른 손 모양"
+        : selection.observation[s].source === "vlm"
+          ? selection.observation[s].confidence === "low"
+            ? "확인 필요"
+            : "추천"
+          : selection.observation[s].visible === false
+            ? "기본 · 러프에서 안 보임"
+            : "기본";
   const filter = query.trim().toLocaleLowerCase();
   const displayed = (
     filter
@@ -117,7 +119,10 @@ export function HandChips({
           className="inline-flex items-center gap-1 underline disabled:opacity-40"
         >
           <RotateCcw className="h-3 w-3" aria-hidden />
-          추천으로 되돌리기
+          {selection.recommended.left === "source_pose" &&
+          selection.recommended.right === "source_pose"
+            ? "원본 손으로 되돌리기"
+            : "추천으로 되돌리기"}
         </button>
       </div>
       {selection.observation.status === "unavailable" && (

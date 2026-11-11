@@ -135,3 +135,21 @@ it("does not fake a hand preview if the catalog has no image", () => {
   expect(screen.getByRole("img", { name: "손 이미지 없음" })).toBeInTheDocument();
   expect(fetcher).not.toHaveBeenCalled();
 });
+
+it("shows side-specific bundled examples for original hands without a network request", () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const original = { ...preset, id: "source_pose", thumbnails: null };
+  const { container } = render(
+    <QueryClientProvider client={new QueryClient()}>
+      <HandThumbnail preset={original} side="left" librarySha={library} />
+      <HandThumbnail preset={original} side="right" librarySha={library} />
+    </QueryClientProvider>,
+  );
+  expect(screen.getAllByText("예시")).toHaveLength(2);
+  expect(screen.queryByText("이미지 없음")).not.toBeInTheDocument();
+  const images = Array.from(container.querySelectorAll("img")).map((i) => i.getAttribute("src"));
+  expect(images[0]).toContain("source-hand-example-left");
+  expect(images[1]).toContain("source-hand-example-right");
+  expect(fetcher).not.toHaveBeenCalled();
+});

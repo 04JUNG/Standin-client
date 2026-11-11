@@ -6,6 +6,10 @@ import {
   type HumanTemplate,
 } from "../preview/humanReference/template";
 const templates = new Map<HumanScope, Promise<HumanTemplate>>();
+const templateDigests = new WeakMap<HumanTemplate, string>();
+export function humanTemplateDigest(template: HumanTemplate) {
+  return templateDigests.get(template);
+}
 export async function boundedReferenceBytes(response: Response, max: number): Promise<Uint8Array> {
   const reader = response.body?.getReader();
   if (!reader) throw Error("빈 인체 참고 자산입니다.");
@@ -70,6 +74,7 @@ async function template(scope: HumanScope) {
     h.get("X-Standin-Character-SHA256") !== parsed.character_sha256
   )
     throw Error("기본 인체가 변경되었습니다.");
+  templateDigests.set(parsed, rawDigest);
   return parsed;
 }
 export async function loadHumanTemplate(scope: string, signal: AbortSignal) {
