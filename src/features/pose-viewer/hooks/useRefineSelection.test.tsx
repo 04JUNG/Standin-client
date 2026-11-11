@@ -83,6 +83,30 @@ describe("useRefineSelection", () => {
     expect(result.current.appliedCount).toBe(1);
   });
 
+  it("RC4 capability re-extracts a single owned original despite legacy refine denial", async () => {
+    const p = person({ index: 0, refineAllowed: false });
+    p.candidates = [
+      {
+        id: "cand-0",
+        poseId: "original",
+        source: "library",
+        sourceBvhSha256: "a".repeat(64),
+        lookupAllowed: true,
+        manualExportAllowed: true,
+        bvhAvailable: true,
+        refineAllowed: false,
+      },
+    ] as PersonResult["candidates"];
+    const data = analysis([p], false);
+    data.capabilities.refineRelease = true;
+    usePoseSelectionStore.setState({ selectedByPerson: { 0: "cand-0" } });
+    const { result } = renderHook(() => useRefineSelection(data));
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(refineSelection).toHaveBeenCalledWith(
+      expect.objectContaining({ releaseVersion: "RC4", candidateId: "cand-0" }),
+    );
+  });
+
   // FE-02/FE-03. 저신뢰 인물은 후보를 고르고 베이스로 저장할 수 있지만 refine은 금지다.
   it("refineAllowed=false인 인물은 호출하지 않는다", async () => {
     usePoseSelectionStore.setState({ selectedByPerson: { 0: "cand-0", 1: "cand-1" } });

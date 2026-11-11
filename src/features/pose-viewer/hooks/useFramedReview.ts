@@ -1,3 +1,5 @@
+import { apiFetchBytes } from "@/shared/api/client";
+import { verifyDigest } from "@/features/body-selection/api";
 import { outlineAppearance } from "../outline/appearance";
 import { selectedSkin } from "../skin/skin";
 import { queueRepresentativeFrame } from "../interactive/history";
@@ -50,12 +52,51 @@ type PreparedReview = Partial<BodyReview> & {
 export function useFramedReview(jobId: string | undefined) {
   const review = useSelectionReview(jobId);
   const owner = useBodyOwner();
-  const bodyMode = review.bodies.enabled;
+  const releaseMode = review.items.some((i) => !!i.release);
+  const bodyMode = review.bodies.enabled && !releaseMode;
+  const [releaseRendered, setReleaseRendered] = useState<Record<string, boolean>>({});
+  const releaseModels = useQueries({
+    queries: review.items.map((item) => ({
+      queryKey: [
+        "release-rc4-preview",
+        owner,
+        item.release?.previewUrl,
+        item.release?.preview_sha256,
+      ],
+      enabled: !!item.release && !review.isRefining,
+      retry: false,
+      queryFn: async ({ signal }: { signal: AbortSignal }): Promise<ReviewModel> => {
+        const receipt = item.release!;
+        const parsed = new URL(receipt.previewUrl, "https://standin.invalid");
+        if (
+          parsed.origin !== "https://standin.invalid" ||
+          !/^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/refine\/release\/preview$/.test(
+            parsed.pathname,
+          )
+        )
+          throw new Error("invalid preview route");
+        const bytes = await apiFetchBytes(receipt.previewUrl, { auth: false, signal });
+        const data = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        ) as ArrayBuffer;
+        await verifyDigest(data, receipt.preview_sha256);
+        signal.throwIfAborted();
+        return {
+          data,
+          characterId: "rc4-verified-source",
+          scope: "full",
+          releaseCamera: receipt.camera,
+          sourceSha: receipt.artifact_sha256,
+        };
+      },
+    })),
+  });
   const format = useExportStore((s) => s.format);
   const hands = useHands(
     review.data,
     review.items.map((i) => i.personIndex),
-    format === "fbx",
+    format === "fbx" && !releaseMode,
   );
   const outlines = usePoseSelectionStore((s) => s.outlineByPerson);
   const skins = usePoseSelectionStore((s) => s.skinByPerson);
@@ -65,17 +106,19 @@ export function useFramedReview(jobId: string | undefined) {
   const preferred = useModelStore((s) => s.preferredCharacterId);
   const catalog = useModelCatalog();
   const interactiveEnabled =
+    !releaseMode &&
     env.interactivePreview &&
     review.data?.capabilities.interactivePreview?.operations === true &&
     review.data?.capabilities.fbxExport === true &&
     format === "fbx";
   const enabled =
+    !releaseMode &&
     !interactiveEnabled &&
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
   const generatedSelected = review.items.some((i) => i.candidate.source === "generation");
-  const requiresFbx = format !== "fbx" && generatedSelected;
+  const requiresFbx = format !== "fbx" && (generatedSelected || releaseMode);
   const generatedReviewUnavailable = format === "fbx" && generatedSelected && !enabled;
   const requests = review.items.map((item) => {
     const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
@@ -256,8 +299,9 @@ export function useFramedReview(jobId: string | undefined) {
       gcTime: 600_000,
     })),
   });
-  const outlineUnsupported = !interactiveEnabled && requests.some((r) => !!r.appearance);
-  const skinUnsupported = !interactiveEnabled && requests.some((r) => !!r.skin);
+  const outlineUnsupported =
+    !releaseMode && !interactiveEnabled && requests.some((r) => !!r.appearance);
+  const skinUnsupported = !releaseMode && !interactiveEnabled && requests.some((r) => !!r.skin);
   const preparationError =
     outlineUnsupported ||
     skinUnsupported ||
@@ -267,18 +311,27 @@ export function useFramedReview(jobId: string | undefined) {
         (bodyMode ? review.bodies.entries.some((e) => e.error) : catalog.isError) ||
         requests.some((r) => !r.url) ||
         queries.some((q) => q.isError)));
-  const downloadReady = interactiveEnabled
-    ? interactive.ready
-    : !outlineUnsupported &&
-      !skinUnsupported &&
+  const downloadReady = releaseMode
+    ? !review.isRefining &&
       !requiresFbx &&
-      !generatedReviewUnavailable &&
-      !review.isRefining &&
-      (!enabled ||
-        (selectionsReady &&
-          requests.length > 0 &&
-          !preparationError &&
-          queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+      review.items.every(
+        (item, i) =>
+          !!item.release &&
+          releaseModels[i]?.isSuccess &&
+          releaseRendered[item.release.preview_sha256] === true,
+      )
+    : interactiveEnabled
+      ? interactive.ready
+      : !outlineUnsupported &&
+        !skinUnsupported &&
+        !requiresFbx &&
+        !generatedReviewUnavailable &&
+        !review.isRefining &&
+        (!enabled ||
+          (selectionsReady &&
+            requests.length > 0 &&
+            !preparationError &&
+            queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
   useReviewJourney({
     jobId: review.data?.jobId,
     binding: JSON.stringify([
@@ -410,21 +463,37 @@ export function useFramedReview(jobId: string | undefined) {
                       : "파일 준비 중",
           } as InteractiveReviewData)
         : undefined,
-      previewModel: undefined as ReviewModel | undefined,
+      previewModel: item.release
+        ? releaseModels[index]?.data
+        : (undefined as ReviewModel | undefined),
       previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
-      onModelStatus: () => {},
+      onModelStatus: (status: "ready" | "failed") => {
+        if (item.release)
+          setReleaseRendered((previous) => ({
+            ...previous,
+            [item.release!.preview_sha256]: status === "ready",
+          }));
+      },
       scopeLabel: enabled ? SCOPE_LABELS[requests[index]!.scope] : "",
     })),
     requiresFbx,
     downloadReady,
-    preparationLoading: interactiveEnabled
-      ? !interactive.ready && !interactive.failed
-      : preparationLoading,
-    preparationError: interactiveEnabled ? interactive.failed : preparationError,
-    previewLoading,
-    previewError: interactiveEnabled
-      ? interactive.snapshots.some((s) => s.modelError)
-      : previewError,
+    preparationLoading: releaseMode
+      ? !downloadReady && !releaseModels.some((q) => q.isError)
+      : interactiveEnabled
+        ? !interactive.ready && !interactive.failed
+        : preparationLoading,
+    preparationError: releaseMode
+      ? releaseModels.some((q) => q.isError)
+      : interactiveEnabled
+        ? interactive.failed
+        : preparationError,
+    previewLoading: releaseMode ? releaseModels.some((q) => q.isPending) : previewLoading,
+    previewError: releaseMode
+      ? releaseModels.some((q) => q.isError)
+      : interactiveEnabled
+        ? interactive.snapshots.some((s) => s.modelError)
+        : previewError,
     downloadLabel: revision.repeated
       ? "다시 다운로드"
       : revision.changed || handsChanged
@@ -444,14 +513,20 @@ export function useFramedReview(jobId: string | undefined) {
         catalog.error,
     ),
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
-    previewNotice: requiresFbx
-      ? "새로 만든 포즈는 FBX로 저장해 주세요."
-      : enabled
-        ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
-        : format === "bvh"
-          ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
-          : "",
+    previewNotice: releaseMode
+      ? "검증한 원본 체형으로 보정한 포즈입니다. 체형·손·출력 범위 변경은 적용되지 않습니다."
+      : requiresFbx
+        ? "새로 만든 포즈는 FBX로 저장해 주세요."
+        : enabled
+          ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
+          : format === "bvh"
+            ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
+            : "",
     retryPreview: async () => {
+      if (releaseMode) {
+        await Promise.all(releaseModels.map((q) => q.refetch()));
+        return;
+      }
       if (interactiveEnabled) {
         interactive.retry();
         return;

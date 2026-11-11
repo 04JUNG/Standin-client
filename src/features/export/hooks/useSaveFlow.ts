@@ -625,7 +625,27 @@ export function useSaveFlow(jobId: string | undefined) {
             );
             let content: Uint8Array;
             let downloadPath = "";
-            if (
+            if (currentOutcome?.release) {
+              if (format !== "fbx" || !exportUrl)
+                throw new ApiError(409, "GENERATED_FBX_REQUIRED", "");
+              const parsed = new URL(exportUrl, "https://standin.invalid");
+              if (
+                parsed.origin !== "https://standin.invalid" ||
+                !/^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/refine\/release\/fbx$/.test(
+                  parsed.pathname,
+                )
+              )
+                throw new ApiError(409, "INVALID_EXPORT", "");
+              content = await apiFetchBytes(exportUrl, { auth: false, signal: controller.signal });
+              await verifyDigest(
+                content.buffer.slice(
+                  content.byteOffset,
+                  content.byteOffset + content.byteLength,
+                ) as ArrayBuffer,
+                currentOutcome.release.artifact_sha256,
+              );
+              downloadPath = exportUrl;
+            } else if (
               env.interactivePreview &&
               analysisResult.capabilities.interactivePreview?.operations &&
               format === "fbx"
@@ -725,6 +745,7 @@ export function useSaveFlow(jobId: string | undefined) {
               personIndex,
               candidateId,
               downloadPath,
+              releaseSha: currentOutcome?.release?.artifact_sha256,
             };
           }),
         );
@@ -734,6 +755,7 @@ export function useSaveFlow(jobId: string | undefined) {
         let sceneMetadata: SceneManifest | undefined;
         if (
           format === "fbx" &&
+          !files.some((f) => !!f.releaseSha) &&
           analysisResult.source !== "semantic" &&
           sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
           !env.useMockPoseApi
@@ -915,6 +937,15 @@ export function useSaveFlow(jobId: string | undefined) {
           (env.interactivePreview &&
             analysisResult.capabilities.interactivePreview?.operations &&
             files.some((f) => {
+              if (f.releaseSha) {
+                const receipt = usePoseSelectionStore.getState().refineByPerson[f.personIndex];
+                return (
+                  receipt?.jobId !== analysisResult.jobId ||
+                  receipt.candidateId !== f.candidateId ||
+                  receipt.release?.artifact_sha256 !== f.releaseSha ||
+                  receipt.exportUrl !== f.downloadPath
+                );
+              }
               const current = interactiveController(
                 useInstallationStore.getState().credentials?.installationId ?? "",
                 analysisResult.jobId,

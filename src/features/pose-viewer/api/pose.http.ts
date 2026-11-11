@@ -84,6 +84,7 @@ type BffAnalysisResult = {
   sourceImage?: unknown;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: {
+    refineRelease?: boolean;
     handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
@@ -442,6 +443,7 @@ export async function toAnalysisResult(
         : undefined,
     people,
     capabilities: {
+      refineRelease: !semantic && raw.capabilities?.refineRelease === true && people.length === 1,
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
       semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,
