@@ -11,6 +11,8 @@ const statusSchema = z.object({
   required: z.boolean(),
   allowed: z.boolean(),
   role: z.enum(["operator", "supporter"]).nullable(),
+  codeRegistered: z.boolean().default(false),
+  showBetaEndedNotice: z.boolean().default(false),
 });
 const accessPath = "/v1/installations/current/access";
 
@@ -21,6 +23,8 @@ export function AccessGate({ children }: { children: ReactNode }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [redeeming, setRedeeming] = useState(false);
+  const [status, setStatus] = useState<z.infer<typeof statusSchema> | null>(null);
+  const [noticeAccepted, setNoticeAccepted] = useState(false);
   const generation = useRef(0);
   const mock = env.useMockApi && !env.isProduction;
   const invalidate = useCallback(() => { generation.current++; }, []);
@@ -30,6 +34,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
     try {
       const status = statusSchema.parse(await apiFetch(accessPath, { auth: false, cache: "no-store" }));
       if (request !== generation.current) return;
+      setStatus(status);
       useAccessStore.getState().setPhase(status.allowed ? "allowed" : "blocked");
       setError("");
     } catch {
@@ -41,6 +46,8 @@ export function AccessGate({ children }: { children: ReactNode }) {
     useAccessStore.getState().setPhase("unknown");
     setCode("");
     setError("");
+    setStatus(null);
+    setNoticeAccepted(false);
     if (!registered || mock) return;
     void refresh();
     const onFocus = () => { void refresh(); };
@@ -65,6 +72,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
       }));
       if (request !== generation.current) return;
       setCode("");
+      setStatus(status);
       useAccessStore.getState().setPhase(status.allowed ? "allowed" : "blocked");
     } catch (cause) {
       if (request === generation.current) setError(messageOf(cause, "코드를 등록하지 못했어요. 잠시 후 다시 시도해 주세요."));
@@ -82,9 +90,17 @@ export function AccessGate({ children }: { children: ReactNode }) {
           phase === "unavailable" ? <>
             <p className="mt-5" role="alert">이용 권한을 확인하지 못했어요. 인터넷 연결을 확인해 주세요.</p>
             <Button className="mt-5" onClick={() => void refresh()}>다시 확인</Button>
-          </> : <>
+          </> : status?.codeRegistered ? <>
+            <h2 className="mt-5 text-lg font-semibold">이용 권한이 종료되었습니다</h2>
+            <p className="mt-2 text-sm text-text-secondary">이용 권한을 확인하려면 운영자에게 문의해 주세요.</p>
+            <Button variant="secondary" className="mt-5 w-full" onClick={() => void refresh()}>이용 권한 다시 확인</Button>
+          </> : status?.showBetaEndedNotice && !noticeAccepted ? <>
             <h2 className="mt-5 text-lg font-semibold">오픈베타가 종료되었습니다</h2>
-            <p className="mt-2 text-sm text-text-secondary">서포터즈로 참여하신 분은 전달받은 이용 코드를 등록해 주세요.</p>
+            <p className="mt-3 text-sm leading-relaxed text-text-secondary">지금까지 Standin 오픈베타에 함께해 주셔서 감사합니다. 보내주신 의견을 바탕으로 더 나은 서비스를 준비하겠습니다.</p>
+            <Button className="mt-6 w-full" onClick={() => setNoticeAccepted(true)}>확인</Button>
+          </> : <>
+            <h2 className="mt-5 text-lg font-semibold">이용 코드 등록</h2>
+            <p className="mt-2 text-sm text-text-secondary">전달받은 이용 코드를 입력해 주세요.</p>
             <form className="mt-6 flex flex-col gap-3" onSubmit={(event) => void redeem(event)}>
               <label htmlFor="access-code" className="text-sm font-medium">이용 코드</label>
               <input id="access-code" type="text" value={code} maxLength={100} autoComplete="off"
