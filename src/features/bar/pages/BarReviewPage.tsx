@@ -46,7 +46,7 @@ export function BarReviewPage() {
     <BarShell title="저장할 포즈 확인">
       <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
-          {isRefining && !items.some((item) => item.interactivePreview) ? (
+          {isRefining ? (
             <PoseSearchPending
               mode="refine"
               compact

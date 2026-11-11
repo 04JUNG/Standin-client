@@ -47,7 +47,7 @@ export function ReviewPage() {
   return (
     <AppShell title="저장할 포즈 확인">
       <div className="mx-auto flex h-full w-full max-w-[760px] flex-col gap-4">
-        {isRefining && !items.some((item) => item.interactivePreview) ? (
+        {isRefining ? (
           <div className="flex flex-1 items-center justify-center">
             <PoseSearchPending
               mode="refine"

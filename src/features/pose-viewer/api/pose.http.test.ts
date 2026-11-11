@@ -855,7 +855,9 @@ describe("poseHttp", () => {
     });
     const assertion = expect(pending).rejects.toMatchObject({ code: "TIMEOUT" });
 
-    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(requestSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(30_000);
 
     await assertion;
     expect(requestSignal?.aborted).toBe(true);
