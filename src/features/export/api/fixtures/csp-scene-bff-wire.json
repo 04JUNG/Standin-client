@@ -1,0 +1,929 @@
+{
+  "status": "implemented-local-fixture",
+  "version": "csp-scene-manifest-v1",
+  "generatedAt": "2026-10-28T12:46:32.918Z",
+  "baseCommit": "264da73294695da800345dc1e814d11fced7b20b",
+  "endpoint": "POST /v1/analysis/jobs/{jobId}/scene",
+  "provenance": {
+    "actualHandlers": [
+      "createFramingRoutes",
+      "createSceneRoutes",
+      "composeRoughScene",
+      "encodeSceneReceipt",
+      "decodeSceneReceipt"
+    ],
+    "synthetic": ["owned repositories", "Converter", "input image", "FBX bytes"],
+    "realS3": false,
+    "nativeSave": false,
+    "cspImport": false
+  },
+  "prepareRequest": {
+    "contractVersion": "scene-save-v1",
+    "saveMode": "original-selection",
+    "manifestVersion": "csp-scene-manifest-v1",
+    "persons": [
+      {
+        "personIndex": 0,
+        "candidateId": "pick0",
+        "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e&artifactReceipt=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e",
+        "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+      },
+      {
+        "personIndex": 1,
+        "candidateId": "pick1",
+        "exportPath": "/v1/pose-candidates/pose1/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=1&candidateId=pick1&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13&artifactReceipt=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13",
+        "sha256": "b6a468d37b70892c75cd791585b554d0acae5aa9fabde2fe3b3724803079fec1"
+      }
+    ],
+    "prepare": true
+  },
+  "prepareResponse": {
+    "contractVersion": "scene-save-v1",
+    "saveMode": "original-selection",
+    "manifest": {
+      "version": "csp-scene-manifest-v1",
+      "jobId": "scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8",
+      "snapshotSha256": "3046c25a025587bcc60c959308f033548f60c863f6ee6de5580e8af5e4765865",
+      "sourceImage": {
+        "identity": "scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8:input",
+        "originalName": "T001.png",
+        "sha256": "7e35ba1bb95c9bf9f5b804c4a38d362b01cbee0827776de013437c2991e196c0",
+        "width": 1000,
+        "height": 768,
+        "captureMapping": {
+          "status": "unavailable",
+          "reason": "not_recorded"
+        }
+      },
+      "artifact": {
+        "sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "saveMode": "original-selection",
+        "layoutVersion": "rough-layout-v1",
+        "fileCount": 1
+      },
+      "people": {
+        "detectedIds": [0, 1],
+        "requestedIds": [0, 1],
+        "includedIds": [0, 1],
+        "missing": [],
+        "partial": false,
+        "confirmationRequired": false
+      },
+      "camera": {
+        "version": "scene-camera-v1",
+        "status": "unavailable",
+        "reason": "converter_recipe_not_provided",
+        "recipe": null,
+        "applicationRequired": true,
+        "automaticApplication": "unsupported",
+        "cspValidation": "unverified"
+      }
+    },
+    "partialConfirmed": false,
+    "reviewVersion": "scene-review-v1",
+    "expiresAt": "2026-10-28T13:01:32.905Z",
+    "fileCount": 1,
+    "version": "rough-layout-v1",
+    "artifactContract": "verified-scene-fbx-v1",
+    "reviewKey": "d3f124b019b5a937299c2f9b304bffa1cb0c72802b5a1200",
+    "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+    "previewSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "previewBase64": "",
+    "summary": [],
+    "personCount": 2
+  },
+  "releaseRequest": {
+    "contractVersion": "scene-save-v1",
+    "saveMode": "original-selection",
+    "manifestVersion": "csp-scene-manifest-v1",
+    "persons": [
+      {
+        "personIndex": 0,
+        "candidateId": "pick0",
+        "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e&artifactReceipt=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e",
+        "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+      },
+      {
+        "personIndex": 1,
+        "candidateId": "pick1",
+        "exportPath": "/v1/pose-candidates/pose1/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=1&candidateId=pick1&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13&artifactReceipt=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13",
+        "sha256": "b6a468d37b70892c75cd791585b554d0acae5aa9fabde2fe3b3724803079fec1"
+      }
+    ],
+    "reviewVersion": "scene-review-v1",
+    "reviewKey": "d3f124b019b5a937299c2f9b304bffa1cb0c72802b5a1200",
+    "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592"
+  },
+  "releaseResponse": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "tauri://localhost",
+      "access-control-expose-headers": "X-Standin-Poster-Variant,X-Standin-Poster-Yaw,X-Standin-Poster-Fallback,X-Standin-Poster-Camera-Source,X-Standin-Poster-Requested-Yaw,X-Standin-Projection-Matches-Search,X-Standin-Poster-Asset-Version,X-Standin-Asset-Library-Version,X-Standin-Preview-View,X-Standin-BVH-SHA256,X-Standin-Preview-Method,X-Standin-Template-SHA256,X-Standin-Template-Version,X-Standin-Template-JSON-SHA256,X-Standin-Poster-Kind,X-Standin-Poster-Version,Retry-After,ETag,X-Standin-Hand-Revision,X-Standin-Preview-Only,X-Standin-Character-Id,X-Standin-Model-Version,X-Standin-Hand-Library-SHA256,X-Standin-Review-Key,X-Standin-Body-Render-Key,X-Standin-Body-Revision,X-Standin-Body-Shape-SHA256,X-Standin-Shape-SHA256,X-Standin-Preview-Projection,X-Standin-Output-Scope,X-Standin-Character-SHA256,X-Standin-Source-BVH-SHA256,X-Standin-Preview-Revision,X-Standin-Model-Revision,X-Standin-Artifact-SHA256,X-Standin-Artifact-Contract,X-Standin-Person-Count,X-Standin-Scene-Version,X-Standin-Scene-Contract,X-Standin-Scene-Save-Mode,X-Standin-Scene-Manifest-Version,X-Standin-Scene-Snapshot-SHA256,X-Standin-File-Count,X-Standin-Preview-Artifact-SHA256",
+      "cache-control": "private, no-store",
+      "content-disposition": "attachment; filename=\"standin_scene.fbx\"",
+      "content-type": "application/octet-stream",
+      "vary": "Origin",
+      "x-standin-artifact-sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+      "x-standin-file-count": "1",
+      "x-standin-person-count": "2",
+      "x-standin-scene-contract": "scene-save-v1",
+      "x-standin-scene-manifest-version": "csp-scene-manifest-v1",
+      "x-standin-scene-save-mode": "original-selection",
+      "x-standin-scene-snapshot-sha256": "3046c25a025587bcc60c959308f033548f60c863f6ee6de5580e8af5e4765865",
+      "x-standin-scene-version": "rough-layout-v1"
+    },
+    "bodyBase64": "S2F5ZGFyYSBGQlggQmluYXJ5ICAAGgBvcmlnaW5hbC1zZWxlY3Rpb24gaW50ZWdyYXRlZCBzY2VuZTogdHdvIHBlcnNvbnM="
+  },
+  "examples": {
+    "full": {
+      "prepareRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e&artifactReceipt=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          },
+          {
+            "personIndex": 1,
+            "candidateId": "pick1",
+            "exportPath": "/v1/pose-candidates/pose1/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=1&candidateId=pick1&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13&artifactReceipt=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13",
+            "sha256": "b6a468d37b70892c75cd791585b554d0acae5aa9fabde2fe3b3724803079fec1"
+          }
+        ],
+        "prepare": true
+      },
+      "prepareResponse": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifest": {
+          "version": "csp-scene-manifest-v1",
+          "jobId": "scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8",
+          "snapshotSha256": "3046c25a025587bcc60c959308f033548f60c863f6ee6de5580e8af5e4765865",
+          "sourceImage": {
+            "identity": "scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8:input",
+            "originalName": "T001.png",
+            "sha256": "7e35ba1bb95c9bf9f5b804c4a38d362b01cbee0827776de013437c2991e196c0",
+            "width": 1000,
+            "height": 768,
+            "captureMapping": {
+              "status": "unavailable",
+              "reason": "not_recorded"
+            }
+          },
+          "artifact": {
+            "sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+            "saveMode": "original-selection",
+            "layoutVersion": "rough-layout-v1",
+            "fileCount": 1
+          },
+          "people": {
+            "detectedIds": [0, 1],
+            "requestedIds": [0, 1],
+            "includedIds": [0, 1],
+            "missing": [],
+            "partial": false,
+            "confirmationRequired": false
+          },
+          "camera": {
+            "version": "scene-camera-v1",
+            "status": "unavailable",
+            "reason": "converter_recipe_not_provided",
+            "recipe": null,
+            "applicationRequired": true,
+            "automaticApplication": "unsupported",
+            "cspValidation": "unverified"
+          }
+        },
+        "partialConfirmed": false,
+        "reviewVersion": "scene-review-v1",
+        "expiresAt": "2026-10-28T13:01:32.905Z",
+        "fileCount": 1,
+        "version": "rough-layout-v1",
+        "artifactContract": "verified-scene-fbx-v1",
+        "reviewKey": "d3f124b019b5a937299c2f9b304bffa1cb0c72802b5a1200",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "previewSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "previewBase64": "",
+        "summary": [],
+        "personCount": 2
+      },
+      "unconfirmedResponse": null,
+      "metadataRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e&artifactReceipt=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          },
+          {
+            "personIndex": 1,
+            "candidateId": "pick1",
+            "exportPath": "/v1/pose-candidates/pose1/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=1&candidateId=pick1&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13&artifactReceipt=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13",
+            "sha256": "b6a468d37b70892c75cd791585b554d0acae5aa9fabde2fe3b3724803079fec1"
+          }
+        ],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "d3f124b019b5a937299c2f9b304bffa1cb0c72802b5a1200",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "metadataOnly": true
+      },
+      "releaseRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e&artifactReceipt=6dd245069b83b5aca77cdb37753ee1e368dc8b332ed595f8c3659bb0b07e7e8e",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          },
+          {
+            "personIndex": 1,
+            "candidateId": "pick1",
+            "exportPath": "/v1/pose-candidates/pose1/framed?jobId=scene-fixture-9cbc52d5-408f-46ef-81c0-348f88b919a8&personIndex=1&candidateId=pick1&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13&artifactReceipt=2eacb5f45da57f9486c8f7fdb3df186c1b0e960ba7811ff533157a3c43411b13",
+            "sha256": "b6a468d37b70892c75cd791585b554d0acae5aa9fabde2fe3b3724803079fec1"
+          }
+        ],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "d3f124b019b5a937299c2f9b304bffa1cb0c72802b5a1200",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592"
+      },
+      "releaseResponse": {
+        "status": 200,
+        "headers": {
+          "access-control-allow-credentials": "true",
+          "access-control-allow-origin": "tauri://localhost",
+          "access-control-expose-headers": "X-Standin-Poster-Variant,X-Standin-Poster-Yaw,X-Standin-Poster-Fallback,X-Standin-Poster-Camera-Source,X-Standin-Poster-Requested-Yaw,X-Standin-Projection-Matches-Search,X-Standin-Poster-Asset-Version,X-Standin-Asset-Library-Version,X-Standin-Preview-View,X-Standin-BVH-SHA256,X-Standin-Preview-Method,X-Standin-Template-SHA256,X-Standin-Template-Version,X-Standin-Template-JSON-SHA256,X-Standin-Poster-Kind,X-Standin-Poster-Version,Retry-After,ETag,X-Standin-Hand-Revision,X-Standin-Preview-Only,X-Standin-Character-Id,X-Standin-Model-Version,X-Standin-Hand-Library-SHA256,X-Standin-Review-Key,X-Standin-Body-Render-Key,X-Standin-Body-Revision,X-Standin-Body-Shape-SHA256,X-Standin-Shape-SHA256,X-Standin-Preview-Projection,X-Standin-Output-Scope,X-Standin-Character-SHA256,X-Standin-Source-BVH-SHA256,X-Standin-Preview-Revision,X-Standin-Model-Revision,X-Standin-Artifact-SHA256,X-Standin-Artifact-Contract,X-Standin-Person-Count,X-Standin-Scene-Version,X-Standin-Scene-Contract,X-Standin-Scene-Save-Mode,X-Standin-Scene-Manifest-Version,X-Standin-Scene-Snapshot-SHA256,X-Standin-File-Count,X-Standin-Preview-Artifact-SHA256",
+          "cache-control": "private, no-store",
+          "content-disposition": "attachment; filename=\"standin_scene.fbx\"",
+          "content-type": "application/octet-stream",
+          "vary": "Origin",
+          "x-standin-artifact-sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+          "x-standin-file-count": "1",
+          "x-standin-person-count": "2",
+          "x-standin-scene-contract": "scene-save-v1",
+          "x-standin-scene-manifest-version": "csp-scene-manifest-v1",
+          "x-standin-scene-save-mode": "original-selection",
+          "x-standin-scene-snapshot-sha256": "3046c25a025587bcc60c959308f033548f60c863f6ee6de5580e8af5e4765865",
+          "x-standin-scene-version": "rough-layout-v1"
+        },
+        "bodyBase64": "S2F5ZGFyYSBGQlggQmluYXJ5ICAAGgBvcmlnaW5hbC1zZWxlY3Rpb24gaW50ZWdyYXRlZCBzY2VuZTogdHdvIHBlcnNvbnM="
+      },
+      "capabilities": {
+        "version": "scene-availability-v1",
+        "selectionValidation": "required_on_prepare",
+        "candidateEligibility": [
+          {
+            "personIndex": 0,
+            "reason": null,
+            "candidates": [
+              {
+                "candidateId": "pick0",
+                "available": true,
+                "reasons": []
+              }
+            ]
+          },
+          {
+            "personIndex": 1,
+            "reason": null,
+            "candidates": [
+              {
+                "candidateId": "pick1",
+                "available": true,
+                "reasons": []
+              }
+            ]
+          }
+        ],
+        "originalSelection": {
+          "available": true,
+          "reasons": []
+        },
+        "autoCorrectV4": {
+          "available": false,
+          "reasons": ["refinement_disabled", "refinement_unavailable"],
+          "readiness": "configuration_only"
+        },
+        "manifest": {
+          "available": true,
+          "reasons": []
+        }
+      }
+    },
+    "no_candidates": {
+      "prepareRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-00fa3f07-4f7e-4a69-97a0-64aeeec3480a&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=923ba08d387a67fa6b783d20a92531f0f9c06c8212bfc2cc81177f63021ec2b1&artifactReceipt=923ba08d387a67fa6b783d20a92531f0f9c06c8212bfc2cc81177f63021ec2b1",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "prepare": true
+      },
+      "prepareResponse": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifest": {
+          "version": "csp-scene-manifest-v1",
+          "jobId": "scene-fixture-00fa3f07-4f7e-4a69-97a0-64aeeec3480a",
+          "snapshotSha256": "1aa615a8373fd7c2d2c809864355c2e56ea7863e13ceef38432b0e29902cd550",
+          "sourceImage": {
+            "identity": "scene-fixture-00fa3f07-4f7e-4a69-97a0-64aeeec3480a:input",
+            "originalName": "T001.png",
+            "sha256": "7e35ba1bb95c9bf9f5b804c4a38d362b01cbee0827776de013437c2991e196c0",
+            "width": 1000,
+            "height": 768,
+            "captureMapping": {
+              "status": "unavailable",
+              "reason": "not_recorded"
+            }
+          },
+          "artifact": {
+            "sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+            "saveMode": "original-selection",
+            "layoutVersion": "rough-layout-v1",
+            "fileCount": 1
+          },
+          "people": {
+            "detectedIds": [0, 1],
+            "requestedIds": [0],
+            "includedIds": [0],
+            "missing": [
+              {
+                "personIndex": 1,
+                "reason": "no_candidates"
+              }
+            ],
+            "partial": true,
+            "confirmationRequired": true
+          },
+          "camera": {
+            "version": "scene-camera-v1",
+            "status": "unavailable",
+            "reason": "converter_recipe_not_provided",
+            "recipe": null,
+            "applicationRequired": true,
+            "automaticApplication": "unsupported",
+            "cspValidation": "unverified"
+          }
+        },
+        "partialConfirmed": false,
+        "reviewVersion": "scene-review-v1",
+        "expiresAt": "2026-10-28T13:01:32.910Z",
+        "fileCount": 1,
+        "version": "rough-layout-v1",
+        "artifactContract": "verified-scene-fbx-v1",
+        "reviewKey": "98097faa15dd814d4e2f911efa37a7eebb636af442ca4749",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "previewSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "previewBase64": "",
+        "summary": [],
+        "personCount": 1
+      },
+      "unconfirmedResponse": {
+        "status": 409,
+        "json": {
+          "error": {
+            "code": "SCENE_PARTIAL_CONFIRMATION_REQUIRED",
+            "message": "일부 인물만 저장됩니다. 장면을 준비하고 저장 인원을 확인해 주세요.",
+            "details": {
+              "phase": "scene_prepare",
+              "recovery": "confirm_partial",
+              "allowedActions": ["confirm_partial"],
+              "serverOperationMayContinue": false
+            },
+            "requestId": "fixture-request"
+          }
+        }
+      },
+      "metadataRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-00fa3f07-4f7e-4a69-97a0-64aeeec3480a&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=923ba08d387a67fa6b783d20a92531f0f9c06c8212bfc2cc81177f63021ec2b1&artifactReceipt=923ba08d387a67fa6b783d20a92531f0f9c06c8212bfc2cc81177f63021ec2b1",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "98097faa15dd814d4e2f911efa37a7eebb636af442ca4749",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "partialConfirmation": {
+          "snapshotSha256": "1aa615a8373fd7c2d2c809864355c2e56ea7863e13ceef38432b0e29902cd550"
+        },
+        "metadataOnly": true
+      },
+      "releaseRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-00fa3f07-4f7e-4a69-97a0-64aeeec3480a&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=923ba08d387a67fa6b783d20a92531f0f9c06c8212bfc2cc81177f63021ec2b1&artifactReceipt=923ba08d387a67fa6b783d20a92531f0f9c06c8212bfc2cc81177f63021ec2b1",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "98097faa15dd814d4e2f911efa37a7eebb636af442ca4749",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "partialConfirmation": {
+          "snapshotSha256": "1aa615a8373fd7c2d2c809864355c2e56ea7863e13ceef38432b0e29902cd550"
+        }
+      },
+      "releaseResponse": {
+        "status": 200,
+        "headers": {
+          "access-control-allow-credentials": "true",
+          "access-control-allow-origin": "tauri://localhost",
+          "access-control-expose-headers": "X-Standin-Poster-Variant,X-Standin-Poster-Yaw,X-Standin-Poster-Fallback,X-Standin-Poster-Camera-Source,X-Standin-Poster-Requested-Yaw,X-Standin-Projection-Matches-Search,X-Standin-Poster-Asset-Version,X-Standin-Asset-Library-Version,X-Standin-Preview-View,X-Standin-BVH-SHA256,X-Standin-Preview-Method,X-Standin-Template-SHA256,X-Standin-Template-Version,X-Standin-Template-JSON-SHA256,X-Standin-Poster-Kind,X-Standin-Poster-Version,Retry-After,ETag,X-Standin-Hand-Revision,X-Standin-Preview-Only,X-Standin-Character-Id,X-Standin-Model-Version,X-Standin-Hand-Library-SHA256,X-Standin-Review-Key,X-Standin-Body-Render-Key,X-Standin-Body-Revision,X-Standin-Body-Shape-SHA256,X-Standin-Shape-SHA256,X-Standin-Preview-Projection,X-Standin-Output-Scope,X-Standin-Character-SHA256,X-Standin-Source-BVH-SHA256,X-Standin-Preview-Revision,X-Standin-Model-Revision,X-Standin-Artifact-SHA256,X-Standin-Artifact-Contract,X-Standin-Person-Count,X-Standin-Scene-Version,X-Standin-Scene-Contract,X-Standin-Scene-Save-Mode,X-Standin-Scene-Manifest-Version,X-Standin-Scene-Snapshot-SHA256,X-Standin-File-Count,X-Standin-Preview-Artifact-SHA256",
+          "cache-control": "private, no-store",
+          "content-disposition": "attachment; filename=\"standin_scene.fbx\"",
+          "content-type": "application/octet-stream",
+          "vary": "Origin",
+          "x-standin-artifact-sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+          "x-standin-file-count": "1",
+          "x-standin-person-count": "1",
+          "x-standin-scene-contract": "scene-save-v1",
+          "x-standin-scene-manifest-version": "csp-scene-manifest-v1",
+          "x-standin-scene-save-mode": "original-selection",
+          "x-standin-scene-snapshot-sha256": "1aa615a8373fd7c2d2c809864355c2e56ea7863e13ceef38432b0e29902cd550",
+          "x-standin-scene-version": "rough-layout-v1"
+        },
+        "bodyBase64": "S2F5ZGFyYSBGQlggQmluYXJ5ICAAGgBvcmlnaW5hbC1zZWxlY3Rpb24gaW50ZWdyYXRlZCBzY2VuZTogdHdvIHBlcnNvbnM="
+      },
+      "capabilities": {
+        "version": "scene-availability-v1",
+        "selectionValidation": "required_on_prepare",
+        "candidateEligibility": [
+          {
+            "personIndex": 0,
+            "reason": null,
+            "candidates": [
+              {
+                "candidateId": "pick0",
+                "available": true,
+                "reasons": []
+              }
+            ]
+          },
+          {
+            "personIndex": 1,
+            "reason": "no_candidates",
+            "candidates": []
+          }
+        ],
+        "originalSelection": {
+          "available": true,
+          "reasons": []
+        },
+        "autoCorrectV4": {
+          "available": false,
+          "reasons": ["refinement_disabled", "refinement_unavailable"],
+          "readiness": "configuration_only"
+        },
+        "manifest": {
+          "available": true,
+          "reasons": []
+        }
+      }
+    },
+    "user_excluded": {
+      "prepareRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-71d92a27-3d1e-4cb8-a086-e184ca7baff4&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=3523e6665831ea6572f0cb429d87dee0b788d07b2667dcc73d31ca83149dde47&artifactReceipt=3523e6665831ea6572f0cb429d87dee0b788d07b2667dcc73d31ca83149dde47",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "excludedPersonIds": [1],
+        "prepare": true
+      },
+      "prepareResponse": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifest": {
+          "version": "csp-scene-manifest-v1",
+          "jobId": "scene-fixture-71d92a27-3d1e-4cb8-a086-e184ca7baff4",
+          "snapshotSha256": "f92c772dc7a2a857590a241e2fff8ccccfc2bab4e6c734bdd9044a8622488e41",
+          "sourceImage": {
+            "identity": "scene-fixture-71d92a27-3d1e-4cb8-a086-e184ca7baff4:input",
+            "originalName": "T001.png",
+            "sha256": "7e35ba1bb95c9bf9f5b804c4a38d362b01cbee0827776de013437c2991e196c0",
+            "width": 1000,
+            "height": 768,
+            "captureMapping": {
+              "status": "unavailable",
+              "reason": "not_recorded"
+            }
+          },
+          "artifact": {
+            "sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+            "saveMode": "original-selection",
+            "layoutVersion": "rough-layout-v1",
+            "fileCount": 1
+          },
+          "people": {
+            "detectedIds": [0, 1],
+            "requestedIds": [0],
+            "includedIds": [0],
+            "missing": [
+              {
+                "personIndex": 1,
+                "reason": "user_excluded"
+              }
+            ],
+            "partial": true,
+            "confirmationRequired": true
+          },
+          "camera": {
+            "version": "scene-camera-v1",
+            "status": "unavailable",
+            "reason": "converter_recipe_not_provided",
+            "recipe": null,
+            "applicationRequired": true,
+            "automaticApplication": "unsupported",
+            "cspValidation": "unverified"
+          }
+        },
+        "partialConfirmed": false,
+        "reviewVersion": "scene-review-v1",
+        "expiresAt": "2026-10-28T13:01:32.913Z",
+        "fileCount": 1,
+        "version": "rough-layout-v1",
+        "artifactContract": "verified-scene-fbx-v1",
+        "reviewKey": "e8de9916b7b321532e8168ba7e0ccd2ea234d7e90c3a1dac",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "previewSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "previewBase64": "",
+        "summary": [],
+        "personCount": 1
+      },
+      "unconfirmedResponse": {
+        "status": 409,
+        "json": {
+          "error": {
+            "code": "SCENE_PARTIAL_CONFIRMATION_REQUIRED",
+            "message": "일부 인물만 저장됩니다. 장면을 준비하고 저장 인원을 확인해 주세요.",
+            "details": {
+              "phase": "scene_prepare",
+              "recovery": "confirm_partial",
+              "allowedActions": ["confirm_partial"],
+              "serverOperationMayContinue": false
+            },
+            "requestId": "fixture-request"
+          }
+        }
+      },
+      "metadataRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-71d92a27-3d1e-4cb8-a086-e184ca7baff4&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=3523e6665831ea6572f0cb429d87dee0b788d07b2667dcc73d31ca83149dde47&artifactReceipt=3523e6665831ea6572f0cb429d87dee0b788d07b2667dcc73d31ca83149dde47",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "excludedPersonIds": [1],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "e8de9916b7b321532e8168ba7e0ccd2ea234d7e90c3a1dac",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "partialConfirmation": {
+          "snapshotSha256": "f92c772dc7a2a857590a241e2fff8ccccfc2bab4e6c734bdd9044a8622488e41"
+        },
+        "metadataOnly": true
+      },
+      "releaseRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-71d92a27-3d1e-4cb8-a086-e184ca7baff4&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=3523e6665831ea6572f0cb429d87dee0b788d07b2667dcc73d31ca83149dde47&artifactReceipt=3523e6665831ea6572f0cb429d87dee0b788d07b2667dcc73d31ca83149dde47",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "excludedPersonIds": [1],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "e8de9916b7b321532e8168ba7e0ccd2ea234d7e90c3a1dac",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "partialConfirmation": {
+          "snapshotSha256": "f92c772dc7a2a857590a241e2fff8ccccfc2bab4e6c734bdd9044a8622488e41"
+        }
+      },
+      "releaseResponse": {
+        "status": 200,
+        "headers": {
+          "access-control-allow-credentials": "true",
+          "access-control-allow-origin": "tauri://localhost",
+          "access-control-expose-headers": "X-Standin-Poster-Variant,X-Standin-Poster-Yaw,X-Standin-Poster-Fallback,X-Standin-Poster-Camera-Source,X-Standin-Poster-Requested-Yaw,X-Standin-Projection-Matches-Search,X-Standin-Poster-Asset-Version,X-Standin-Asset-Library-Version,X-Standin-Preview-View,X-Standin-BVH-SHA256,X-Standin-Preview-Method,X-Standin-Template-SHA256,X-Standin-Template-Version,X-Standin-Template-JSON-SHA256,X-Standin-Poster-Kind,X-Standin-Poster-Version,Retry-After,ETag,X-Standin-Hand-Revision,X-Standin-Preview-Only,X-Standin-Character-Id,X-Standin-Model-Version,X-Standin-Hand-Library-SHA256,X-Standin-Review-Key,X-Standin-Body-Render-Key,X-Standin-Body-Revision,X-Standin-Body-Shape-SHA256,X-Standin-Shape-SHA256,X-Standin-Preview-Projection,X-Standin-Output-Scope,X-Standin-Character-SHA256,X-Standin-Source-BVH-SHA256,X-Standin-Preview-Revision,X-Standin-Model-Revision,X-Standin-Artifact-SHA256,X-Standin-Artifact-Contract,X-Standin-Person-Count,X-Standin-Scene-Version,X-Standin-Scene-Contract,X-Standin-Scene-Save-Mode,X-Standin-Scene-Manifest-Version,X-Standin-Scene-Snapshot-SHA256,X-Standin-File-Count,X-Standin-Preview-Artifact-SHA256",
+          "cache-control": "private, no-store",
+          "content-disposition": "attachment; filename=\"standin_scene.fbx\"",
+          "content-type": "application/octet-stream",
+          "vary": "Origin",
+          "x-standin-artifact-sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+          "x-standin-file-count": "1",
+          "x-standin-person-count": "1",
+          "x-standin-scene-contract": "scene-save-v1",
+          "x-standin-scene-manifest-version": "csp-scene-manifest-v1",
+          "x-standin-scene-save-mode": "original-selection",
+          "x-standin-scene-snapshot-sha256": "f92c772dc7a2a857590a241e2fff8ccccfc2bab4e6c734bdd9044a8622488e41",
+          "x-standin-scene-version": "rough-layout-v1"
+        },
+        "bodyBase64": "S2F5ZGFyYSBGQlggQmluYXJ5ICAAGgBvcmlnaW5hbC1zZWxlY3Rpb24gaW50ZWdyYXRlZCBzY2VuZTogdHdvIHBlcnNvbnM="
+      },
+      "capabilities": {
+        "version": "scene-availability-v1",
+        "selectionValidation": "required_on_prepare",
+        "candidateEligibility": [
+          {
+            "personIndex": 0,
+            "reason": null,
+            "candidates": [
+              {
+                "candidateId": "pick0",
+                "available": true,
+                "reasons": []
+              }
+            ]
+          },
+          {
+            "personIndex": 1,
+            "reason": null,
+            "candidates": [
+              {
+                "candidateId": "pick1",
+                "available": true,
+                "reasons": []
+              }
+            ]
+          }
+        ],
+        "originalSelection": {
+          "available": true,
+          "reasons": []
+        },
+        "autoCorrectV4": {
+          "available": false,
+          "reasons": ["refinement_disabled", "refinement_unavailable"],
+          "readiness": "configuration_only"
+        },
+        "manifest": {
+          "available": true,
+          "reasons": []
+        }
+      }
+    },
+    "not_requested": {
+      "prepareRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-48a1608a-e731-415e-8bdf-c326a920788f&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=1421b56ee1c85942368f055240148c47c13aaa8afb312145a7acec5e0faa35ae&artifactReceipt=1421b56ee1c85942368f055240148c47c13aaa8afb312145a7acec5e0faa35ae",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "prepare": true
+      },
+      "prepareResponse": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifest": {
+          "version": "csp-scene-manifest-v1",
+          "jobId": "scene-fixture-48a1608a-e731-415e-8bdf-c326a920788f",
+          "snapshotSha256": "051143c22f204408a6f7078afdba55a2bb24fa44dd109dbda67f4486cf675cc3",
+          "sourceImage": {
+            "identity": "scene-fixture-48a1608a-e731-415e-8bdf-c326a920788f:input",
+            "originalName": "T001.png",
+            "sha256": "7e35ba1bb95c9bf9f5b804c4a38d362b01cbee0827776de013437c2991e196c0",
+            "width": 1000,
+            "height": 768,
+            "captureMapping": {
+              "status": "unavailable",
+              "reason": "not_recorded"
+            }
+          },
+          "artifact": {
+            "sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+            "saveMode": "original-selection",
+            "layoutVersion": "rough-layout-v1",
+            "fileCount": 1
+          },
+          "people": {
+            "detectedIds": [0, 1],
+            "requestedIds": [0],
+            "includedIds": [0],
+            "missing": [
+              {
+                "personIndex": 1,
+                "reason": "not_requested"
+              }
+            ],
+            "partial": true,
+            "confirmationRequired": true
+          },
+          "camera": {
+            "version": "scene-camera-v1",
+            "status": "unavailable",
+            "reason": "converter_recipe_not_provided",
+            "recipe": null,
+            "applicationRequired": true,
+            "automaticApplication": "unsupported",
+            "cspValidation": "unverified"
+          }
+        },
+        "partialConfirmed": false,
+        "reviewVersion": "scene-review-v1",
+        "expiresAt": "2026-10-28T13:01:32.916Z",
+        "fileCount": 1,
+        "version": "rough-layout-v1",
+        "artifactContract": "verified-scene-fbx-v1",
+        "reviewKey": "d16eab9cfb5d7819a41174f403f42c5b581ebb8345cabda5",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "previewSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "previewBase64": "",
+        "summary": [],
+        "personCount": 1
+      },
+      "unconfirmedResponse": {
+        "status": 409,
+        "json": {
+          "error": {
+            "code": "SCENE_PARTIAL_CONFIRMATION_REQUIRED",
+            "message": "일부 인물만 저장됩니다. 장면을 준비하고 저장 인원을 확인해 주세요.",
+            "details": {
+              "phase": "scene_prepare",
+              "recovery": "confirm_partial",
+              "allowedActions": ["confirm_partial"],
+              "serverOperationMayContinue": false
+            },
+            "requestId": "fixture-request"
+          }
+        }
+      },
+      "metadataRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-48a1608a-e731-415e-8bdf-c326a920788f&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=1421b56ee1c85942368f055240148c47c13aaa8afb312145a7acec5e0faa35ae&artifactReceipt=1421b56ee1c85942368f055240148c47c13aaa8afb312145a7acec5e0faa35ae",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "d16eab9cfb5d7819a41174f403f42c5b581ebb8345cabda5",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "partialConfirmation": {
+          "snapshotSha256": "051143c22f204408a6f7078afdba55a2bb24fa44dd109dbda67f4486cf675cc3"
+        },
+        "metadataOnly": true
+      },
+      "releaseRequest": {
+        "contractVersion": "scene-save-v1",
+        "saveMode": "original-selection",
+        "manifestVersion": "csp-scene-manifest-v1",
+        "persons": [
+          {
+            "personIndex": 0,
+            "candidateId": "pick0",
+            "exportPath": "/v1/pose-candidates/pose0/framed?jobId=scene-fixture-48a1608a-e731-415e-8bdf-c326a920788f&personIndex=0&candidateId=pick0&outputScope=half&format=fbx&characterId=chosen&bodySelectionRevision=1&handSelectionRevision=1&reviewKey=1421b56ee1c85942368f055240148c47c13aaa8afb312145a7acec5e0faa35ae&artifactReceipt=1421b56ee1c85942368f055240148c47c13aaa8afb312145a7acec5e0faa35ae",
+            "sha256": "953fd164bb596681a8239450fb72e43865a09035dfd93dd6201520684915d50f"
+          }
+        ],
+        "reviewVersion": "scene-review-v1",
+        "reviewKey": "d16eab9cfb5d7819a41174f403f42c5b581ebb8345cabda5",
+        "artifactSha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+        "partialConfirmation": {
+          "snapshotSha256": "051143c22f204408a6f7078afdba55a2bb24fa44dd109dbda67f4486cf675cc3"
+        }
+      },
+      "releaseResponse": {
+        "status": 200,
+        "headers": {
+          "access-control-allow-credentials": "true",
+          "access-control-allow-origin": "tauri://localhost",
+          "access-control-expose-headers": "X-Standin-Poster-Variant,X-Standin-Poster-Yaw,X-Standin-Poster-Fallback,X-Standin-Poster-Camera-Source,X-Standin-Poster-Requested-Yaw,X-Standin-Projection-Matches-Search,X-Standin-Poster-Asset-Version,X-Standin-Asset-Library-Version,X-Standin-Preview-View,X-Standin-BVH-SHA256,X-Standin-Preview-Method,X-Standin-Template-SHA256,X-Standin-Template-Version,X-Standin-Template-JSON-SHA256,X-Standin-Poster-Kind,X-Standin-Poster-Version,Retry-After,ETag,X-Standin-Hand-Revision,X-Standin-Preview-Only,X-Standin-Character-Id,X-Standin-Model-Version,X-Standin-Hand-Library-SHA256,X-Standin-Review-Key,X-Standin-Body-Render-Key,X-Standin-Body-Revision,X-Standin-Body-Shape-SHA256,X-Standin-Shape-SHA256,X-Standin-Preview-Projection,X-Standin-Output-Scope,X-Standin-Character-SHA256,X-Standin-Source-BVH-SHA256,X-Standin-Preview-Revision,X-Standin-Model-Revision,X-Standin-Artifact-SHA256,X-Standin-Artifact-Contract,X-Standin-Person-Count,X-Standin-Scene-Version,X-Standin-Scene-Contract,X-Standin-Scene-Save-Mode,X-Standin-Scene-Manifest-Version,X-Standin-Scene-Snapshot-SHA256,X-Standin-File-Count,X-Standin-Preview-Artifact-SHA256",
+          "cache-control": "private, no-store",
+          "content-disposition": "attachment; filename=\"standin_scene.fbx\"",
+          "content-type": "application/octet-stream",
+          "vary": "Origin",
+          "x-standin-artifact-sha256": "01cd5034a78a68931461dc6ba53372094c7d3af3c9ab15c2124eb5d26a5af592",
+          "x-standin-file-count": "1",
+          "x-standin-person-count": "1",
+          "x-standin-scene-contract": "scene-save-v1",
+          "x-standin-scene-manifest-version": "csp-scene-manifest-v1",
+          "x-standin-scene-save-mode": "original-selection",
+          "x-standin-scene-snapshot-sha256": "051143c22f204408a6f7078afdba55a2bb24fa44dd109dbda67f4486cf675cc3",
+          "x-standin-scene-version": "rough-layout-v1"
+        },
+        "bodyBase64": "S2F5ZGFyYSBGQlggQmluYXJ5ICAAGgBvcmlnaW5hbC1zZWxlY3Rpb24gaW50ZWdyYXRlZCBzY2VuZTogdHdvIHBlcnNvbnM="
+      },
+      "capabilities": {
+        "version": "scene-availability-v1",
+        "selectionValidation": "required_on_prepare",
+        "candidateEligibility": [
+          {
+            "personIndex": 0,
+            "reason": null,
+            "candidates": [
+              {
+                "candidateId": "pick0",
+                "available": true,
+                "reasons": []
+              }
+            ]
+          },
+          {
+            "personIndex": 1,
+            "reason": null,
+            "candidates": [
+              {
+                "candidateId": "pick1",
+                "available": true,
+                "reasons": []
+              }
+            ]
+          }
+        ],
+        "originalSelection": {
+          "available": true,
+          "reasons": []
+        },
+        "autoCorrectV4": {
+          "available": false,
+          "reasons": ["refinement_disabled", "refinement_unavailable"],
+          "readiness": "configuration_only"
+        },
+        "manifest": {
+          "available": true,
+          "reasons": []
+        }
+      }
+    }
+  },
+  "constraints": {
+    "cameraRecipe": "unavailable until Converter supplies artifact-bound scene-camera-v1",
+    "automaticCspCamera": "unsupported",
+    "cspValidation": "unverified",
+    "legacyFullBinary": "preserved",
+    "legacyPartial": "409 SCENE_PARTIAL_CONFIRMATION_REQUIRED",
+    "selectionValidation": "always required before and after composition/download/metadata",
+    "ttlSeconds": 900,
+    "originalName": "sourceImage on GET result; null on older jobs, use jobId fallback",
+    "captureMapping": "unavailable/not_recorded"
+  },
+  "failureExamples": {
+    "analysis": {
+      "code": "ANALYSIS_TIMEOUT",
+      "phase": "analysis",
+      "recovery": "explicit_retry",
+      "serverOperationMayContinue": true
+    },
+    "scene": {
+      "code": "SCENE_TIMEOUT",
+      "details": {
+        "phase": "scene_prepare",
+        "recovery": "prepare_again",
+        "allowedActions": ["prepare_again"],
+        "serverOperationMayContinue": true
+      }
+    }
+  }
+}

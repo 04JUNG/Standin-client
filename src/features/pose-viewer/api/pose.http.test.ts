@@ -288,9 +288,96 @@ describe("poseHttp", () => {
         expect(c.bvhUrl).toContain(`/pose-candidates/${id}/export?`);
         expect(c.posterUrl).toContain(`/people/0/pose-previews/${id}/${hash}/poster`);
       } else expect(c.bvhUrl).toBeUndefined();
-      expect(result.capabilities.sceneExport).toBe(false);
+      expect(result.capabilities.sceneExport).toBe(true);
     },
   );
+
+  it.each([undefined, false, true])(
+    "honors explicit read-only selection capability without enabling interactive operations (%s)",
+    async (selectionPreview) => {
+      const flag = env.interactivePreview;
+      Object.defineProperty(env, "interactivePreview", { value: false, configurable: true });
+      try {
+        fetchMock.mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_saved",
+            notes: [],
+            candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+            capabilities: { selectionPreview },
+          }),
+        );
+        const result = await poseHttp.loadResult({ jobId: "job_saved" });
+        expect(result.capabilities.selectionPreview).toBe(
+          selectionPreview === true ? true : undefined,
+        );
+        expect(result.capabilities.interactivePreview).toBeUndefined();
+      } finally {
+        Object.defineProperty(env, "interactivePreview", { value: flag, configurable: true });
+      }
+    },
+  );
+
+  it("accepts a validated per-candidate static preview without requiring full Top-5 coverage", async () => {
+    const source = "a".repeat(64),
+      character = "b".repeat(64);
+    const matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    const asset = {
+      schemaVersion: "interactive-static-asset-v1",
+      url: "/v1/analysis/jobs/job_partial/people/0/interactive-static/a/artifact",
+      sha256: "c".repeat(64),
+      bytes: 5000,
+      sourceSha256: source,
+      characterId: "male-default83-v0-7-6-p1",
+      characterSha256: character,
+      revision: "static-v1",
+      scope: "full",
+      modelVersion: "posed-mesh-v1",
+      camera: {
+        schemaVersion: "interactive-camera-v1",
+        projection: "orthographic",
+        viewMatrix: matrix,
+        projectionMatrix: matrix,
+        matrixLayout: "column-major",
+        basis: "right-handed-Y-up",
+        clipSpace: "webgl-minus-one-to-one",
+        origin: "hips",
+        units: "meters",
+        distanceTorso: 12,
+        torsoReferenceSha256: character,
+        target: [0, 0, 0],
+        referenceAspect: 1,
+        framing: "projection-includes-center-scale-crop",
+        baked: "none",
+      },
+    };
+    const candidates = ["a", "b", "c"].map((id, index) => ({
+      id,
+      poseId: id,
+      rank: index + 1,
+      tags: [],
+      matchLevel: "high",
+      source: "library",
+      lookupAllowed: true,
+      releaseAllowed: true,
+      bvhAvailable: true,
+      sourceBvhSha256: source,
+      interactivePreview:
+        index === 0 ? asset : index === 1 ? { ...asset, sourceSha256: "d".repeat(64) } : undefined,
+    }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        jobId: "job_partial",
+        notes: [],
+        candidatesByPerson: [{ personIndex: 0, tags: {}, candidates }],
+        capabilities: { selectionPreview: true },
+      }),
+    );
+    const result = await poseHttp.loadResult({ jobId: "job_partial" });
+    expect(result.capabilities.interactivePreview).toBeUndefined();
+    expect(
+      result.people[0].candidates.map((candidate) => candidate.interactivePreview?.asset),
+    ).toEqual([asset, undefined, undefined]);
+  });
 
   function semanticPayload(thumbnailUrl?: string) {
     return {
@@ -599,11 +686,20 @@ describe("poseHttp", () => {
     // 이 fixture에는 품질 필드가 없다 = 구 BFF와의 순차 배포 창(E2E-12).
     // 그때 낙관적으로 해석하면 저정보 결과가 경고 없이 일반 후보처럼 보인다.
     expect(result).toEqual({
+      sourceImage: {
+        identity: "server-job:input",
+        originalName: "rough.png",
+        sha256: null,
+        width: 1,
+        height: 1,
+        captureMapping: { status: "unavailable", reason: "not_recorded" },
+      },
       jobId: "server-job",
       capabilities: {
         handSelection: false,
         semanticBodySelection: false,
         refine: false,
+        refineRelease: false,
         fbxExport: false,
         sceneExport: false,
         characterSelection: false,
@@ -970,6 +1066,7 @@ describe("poseHttp", () => {
       "오늘 사용할 수 있는 분석 횟수",
     ],
     ["ANALYSIS_UPSTREAM_TIMEOUT", "UPSTREAM_TIMEOUT", "시간이 너무 오래"],
+    ["ANALYSIS_TIMEOUT", "TIMEOUT", "분석 시간이 너무 오래"],
     ["ANALYSIS_UPSTREAM_ERROR", "UPSTREAM_ERROR", "분석 중 잠시 문제"],
   ])("Job 실패 %s의 원인을 유지한다", async (error, code, message) => {
     fetchMock

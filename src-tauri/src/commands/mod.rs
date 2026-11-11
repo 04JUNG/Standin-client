@@ -7,3 +7,6 @@ pub mod secure_store;
 pub mod shortcuts;
 pub mod updates;
 pub mod window_mode;
+
+pub mod csp_result;
+pub mod replay;

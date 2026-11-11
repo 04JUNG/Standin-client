@@ -4,6 +4,11 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 pub fn write_unique(folder: &Path, name: &str, bytes: &[u8]) -> io::Result<PathBuf> {
+    write_unique_with_sidecar(folder, name, bytes, None)
+}
+
+/// The companion uses the reserved FBX basename. Never overwrite either file.
+pub fn write_unique_with_sidecar(folder: &Path, name: &str, bytes: &[u8], metadata: Option<&[u8]>) -> io::Result<PathBuf> {
     let file = Path::new(name);
     if file.file_name().and_then(|s| s.to_str()) != Some(name) {
         return Err(io::Error::new(
@@ -29,6 +34,26 @@ pub fn write_unique(folder: &Path, name: &str, bytes: &[u8]) -> io::Result<PathB
                     let _ = std::fs::remove_file(&path);
                     return Err(error);
                 }
+                if let Some(data) = metadata {
+                    let sidecar = path.with_extension("scene.json");
+                    match OpenOptions::new().write(true).create_new(true).open(&sidecar) {
+                        Ok(mut companion) => {
+                            if let Err(error) = companion.write_all(data) {
+                                drop(companion);
+                                drop(output);
+                                let _ = std::fs::remove_file(&sidecar);
+                                let _ = std::fs::remove_file(&path);
+                                return Err(error);
+                            }
+                        }
+                        Err(error) => {
+                            drop(output);
+                            let _ = std::fs::remove_file(&path);
+                            if error.kind() == io::ErrorKind::AlreadyExists { continue; }
+                            return Err(error);
+                        }
+                    }
+                }
                 return Ok(path);
             }
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
@@ -44,6 +69,18 @@ pub fn write_unique(folder: &Path, name: &str, bytes: &[u8]) -> io::Result<PathB
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn companion_collision_preserves_both_existing_files() {
+        let folder = std::env::temp_dir().join(format!("standin-pair-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("pose.scene.json"), b"old").unwrap();
+        let path = write_unique_with_sidecar(&folder, "pose.fbx", b"fbx", Some(b"metadata")).unwrap();
+        assert_eq!(path.file_name().unwrap(), "pose (1).fbx");
+        assert!(!folder.join("pose.fbx").exists());
+        assert_eq!(std::fs::read(folder.join("pose.scene.json")).unwrap(), b"old");
+        assert_eq!(std::fs::read(path.with_extension("scene.json")).unwrap(), b"metadata");
+        std::fs::remove_dir_all(folder).unwrap();
+    }
     #[test]
     fn concurrent_downloads_preserve_every_existing_file() {
         let folder = std::env::temp_dir().join(format!("standin-unique-{}", std::process::id()));

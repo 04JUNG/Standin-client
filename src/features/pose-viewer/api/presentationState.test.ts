@@ -23,7 +23,9 @@ it("only advertises references when an actual candidate exists", () => {
 });
 it("distinguishes empty search, failed search, failed checks and rejected contracts", () => {
   expect(presentationNotice(empty)).toContain("찾지 못했어요");
-  expect(presentationNotice({ ...empty, search_status: "error" })).toContain("검색을 마치지");
+  expect(presentationNotice({ ...empty, search_status: "error" })).toBe(
+    "포즈를 불러오지 못했어요. 다시 시도해 주세요.",
+  );
   expect(presentationNotice({ ...empty, issues: ["hand_skin_screen_unavailable"] })).toContain(
     "확인을 마치지",
   );
@@ -36,4 +38,44 @@ it("distinguishes empty search, failed search, failed checks and rejected contra
     );
   expect(presentationGenerationNotice(empty)).toContain("만들지 않았어요");
   expect(presentationNotice({ ...empty, library_candidates: Array(5).fill({}) })).toBeNull();
+});
+
+it.each(["error", "partial_error", "failed", "timeout"])(
+  "keeps remaining candidates separate from a total %s search failure",
+  (search_status) => {
+    for (const key of [
+      "library_candidates",
+      "review_candidates",
+      "generated_candidates",
+    ] as const) {
+      const partial = { ...empty, search_status, [key]: [{} as PreviewCandidate] };
+      expect(presentationNotice(partial)).toBe("일부 후보를 불러오지 못했어요.");
+      expect(presentationNotice({ ...empty, search_status })).toBe(
+        "포즈를 불러오지 못했어요. 다시 시도해 주세요.",
+      );
+    }
+  },
+);
+
+it("shows check failures at their own stage without rejecting remaining candidates", () => {
+  const partial = {
+    ...empty,
+    search_status: "partial_error",
+    search_reason: "hand_skin_screen_unavailable_no_generation",
+    library_candidates: [{} as PreviewCandidate],
+  };
+  expect(presentationNotice(partial)).toBe("일부 포즈의 확인을 마치지 못했어요.");
+  expect(
+    presentationNotice({ ...partial, search_reason: null, issues: ["validation_failed"] }),
+  ).toBe("일부 포즈의 확인을 마치지 못했어요.");
+  expect(presentationNotice({ ...partial, library_candidates: [] })).toContain(
+    "포즈 확인을 마치지 못했어요",
+  );
+  expect(
+    presentationNotice({ ...partial, search_reason: "presentation_contract_invalid" }),
+  ).toContain("앱을 업데이트");
+});
+
+it("does not describe a successful empty search as a request failure", () => {
+  expect(presentationNotice(empty)).toBe("비슷한 포즈를 찾지 못했어요.");
 });

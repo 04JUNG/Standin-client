@@ -1,3 +1,15 @@
+import { apiFetchBytes } from "@/shared/api/client";
+import { verifyDigest } from "@/features/body-selection/api";
+import { outlineAppearance } from "../outline/appearance";
+import { selectedSkin } from "../skin/skin";
+import { queueRepresentativeFrame } from "../interactive/history";
+import { historyUpload } from "../interactive/historyHttp";
+import { solvedCamera } from "../interactive/solved";
+import { useInteractiveReviews } from "../interactive/useInteractiveReviews";
+import { env } from "@/shared/lib/env";
+import type { InteractiveReviewData } from "../interactive/InteractiveReview";
+import { useReviewJourney } from "@/features/analytics/useReviewJourney";
+import { requestExport } from "@/features/analytics/journeyAttempts";
 import { downloadBinding, downloadRevision } from "@/features/export/lib/downloadRevisions";
 import { ApiError } from "@/shared/api/errors";
 import { poseRecovery } from "@/shared/api/poseRecovery";
@@ -40,23 +52,73 @@ type PreparedReview = Partial<BodyReview> & {
 export function useFramedReview(jobId: string | undefined) {
   const review = useSelectionReview(jobId);
   const owner = useBodyOwner();
-  const bodyMode = review.bodies.enabled;
+  const releaseMode = review.items.some((i) => !!i.release);
+  const bodyMode = review.bodies.enabled && !releaseMode;
+  const [releaseRendered, setReleaseRendered] = useState<Record<string, boolean>>({});
+  const releaseModels = useQueries({
+    queries: review.items.map((item) => ({
+      queryKey: [
+        "release-rc4-preview",
+        owner,
+        item.release?.previewUrl,
+        item.release?.preview_sha256,
+      ],
+      enabled: !!item.release && !review.isRefining,
+      retry: false,
+      queryFn: async ({ signal }: { signal: AbortSignal }): Promise<ReviewModel> => {
+        const receipt = item.release!;
+        const parsed = new URL(receipt.previewUrl, "https://standin.invalid");
+        if (
+          parsed.origin !== "https://standin.invalid" ||
+          !/^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/refine\/release\/preview$/.test(
+            parsed.pathname,
+          )
+        )
+          throw new Error("invalid preview route");
+        const bytes = await apiFetchBytes(receipt.previewUrl, { auth: false, signal });
+        const data = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        ) as ArrayBuffer;
+        await verifyDigest(data, receipt.preview_sha256);
+        signal.throwIfAborted();
+        return {
+          data,
+          characterId: "rc4-verified-source",
+          scope: "full",
+          releaseCamera: receipt.camera,
+          sourceSha: receipt.artifact_sha256,
+        };
+      },
+    })),
+  });
   const format = useExportStore((s) => s.format);
   const hands = useHands(
     review.data,
     review.items.map((i) => i.personIndex),
-    format === "fbx",
+    format === "fbx" && !releaseMode,
   );
+  const outlines = usePoseSelectionStore((s) => s.outlineByPerson);
+  const skins = usePoseSelectionStore((s) => s.skinByPerson);
+  const outlineEditing = usePoseSelectionStore((s) => s.outlineEditingByPerson);
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
   const preferred = useModelStore((s) => s.preferredCharacterId);
   const catalog = useModelCatalog();
+  const interactiveEnabled =
+    !releaseMode &&
+    env.interactivePreview &&
+    review.data?.capabilities.interactivePreview?.operations === true &&
+    review.data?.capabilities.fbxExport === true &&
+    format === "fbx";
   const enabled =
+    !releaseMode &&
+    !interactiveEnabled &&
     format === "fbx" &&
     review.data?.capabilities.fbxExport === true &&
     (bodyMode || review.data.capabilities.outputScopeCropping === true);
   const generatedSelected = review.items.some((i) => i.candidate.source === "generation");
-  const requiresFbx = format !== "fbx" && generatedSelected;
+  const requiresFbx = format !== "fbx" && (generatedSelected || releaseMode);
   const generatedReviewUnavailable = format === "fbx" && generatedSelected && !enabled;
   const requests = review.items.map((item) => {
     const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
@@ -87,6 +149,8 @@ export function useFramedReview(jobId: string | undefined) {
         /* Invalid server URLs fail closed. */
       }
     }
+    const appearance = outlineAppearance(outlines?.[item.personIndex] ?? 0);
+    const skin = selectedSkin(skins?.[item.personIndex] ?? "default");
     const binding = JSON.stringify([
       owner,
       item.personIndex,
@@ -97,9 +161,14 @@ export function useFramedReview(jobId: string | undefined) {
       scope,
       bodyMode ? [body?.selectionRevision, body?.resolvedBody, body?.shape] : characterId,
       handEntry?.selection,
+      appearance,
+      ...(skin ? [skin] : []),
     ]);
     return {
       binding,
+      appearance,
+      skin,
+      editing: outlineEditing?.[item.personIndex] === true,
       scope,
       characterId,
       body,
@@ -112,8 +181,24 @@ export function useFramedReview(jobId: string | undefined) {
     };
   });
   const requestReady = (request: (typeof requests)[number]) =>
-    !review.isRefining && request.handReady && (bodyMode ? review.bodies.ready : catalog.isSuccess);
+    !review.isRefining &&
+    !request.editing &&
+    request.handReady &&
+    (bodyMode ? review.bodies.ready : catalog.isSuccess);
   const selectionsReady = requests.every(requestReady);
+  const interactive = useInteractiveReviews({
+    enabled: interactiveEnabled,
+    owner,
+    jobId: review.data?.jobId,
+    requests: requests.map((r, i) => ({
+      binding: r.binding,
+      personIndex: review.items[i].personIndex,
+      candidateId: review.items[i].candidate.id,
+      ready: requestReady(r),
+      appearance: r.appearance,
+      skin: r.skin,
+    })),
+  });
   const queries = useQueries({
     queries: requests.map((request, index) => ({
       queryKey: bodyMode
@@ -138,7 +223,8 @@ export function useFramedReview(jobId: string | undefined) {
             "verified-fbx-v1",
             request.binding,
           ],
-      enabled: enabled && requestReady(request) && !!request.url,
+      enabled:
+        enabled && !request.appearance && !request.skin && requestReady(request) && !!request.url,
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<PreparedReview> => {
         const item = review.items[index]!;
         if (bodyMode) {
@@ -213,22 +299,54 @@ export function useFramedReview(jobId: string | undefined) {
       gcTime: 600_000,
     })),
   });
+  const outlineUnsupported =
+    !releaseMode && !interactiveEnabled && requests.some((r) => !!r.appearance);
+  const skinUnsupported = !releaseMode && !interactiveEnabled && requests.some((r) => !!r.skin);
   const preparationError =
-    generatedReviewUnavailable ||
+    outlineUnsupported ||
+    skinUnsupported ||
+    (!interactiveEnabled && generatedReviewUnavailable) ||
     (enabled &&
       (!!hands.error ||
         (bodyMode ? review.bodies.entries.some((e) => e.error) : catalog.isError) ||
         requests.some((r) => !r.url) ||
         queries.some((q) => q.isError)));
-  const downloadReady =
-    !requiresFbx &&
-    !generatedReviewUnavailable &&
-    !review.isRefining &&
-    (!enabled ||
-      (selectionsReady &&
-        requests.length > 0 &&
-        !preparationError &&
-        queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+  const downloadReady = releaseMode
+    ? !review.isRefining &&
+      !requiresFbx &&
+      review.items.every(
+        (item, i) =>
+          !!item.release &&
+          releaseModels[i]?.isSuccess &&
+          releaseRendered[item.release.preview_sha256] === true,
+      )
+    : interactiveEnabled
+      ? interactive.ready
+      : !outlineUnsupported &&
+        !skinUnsupported &&
+        !requiresFbx &&
+        !generatedReviewUnavailable &&
+        !review.isRefining &&
+        (!enabled ||
+          (selectionsReady &&
+            requests.length > 0 &&
+            !preparationError &&
+            queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+  useReviewJourney({
+    jobId: review.data?.jobId,
+    binding: JSON.stringify([
+      review.items.map((i) => [i.personIndex, i.candidate.id, i.exportUrl]),
+      requests.map((r) => r.binding),
+    ]),
+    ready: downloadReady,
+    failed: (interactiveEnabled ? interactive.failed : !!preparationError) || requiresFbx,
+    error:
+      queries.find((q) => q.error)?.error ??
+      hands.entries.find((e) => e.error)?.error ??
+      review.bodies.entries.find((e) => e.error)?.error ??
+      catalog.error,
+    format,
+  });
   const preparationLoading = enabled && !preparationError && !downloadReady;
   const previewLoading =
     enabled && (preparationLoading || images.some((q) => q.isPending || q.isFetching));
@@ -261,7 +379,9 @@ export function useFramedReview(jobId: string | undefined) {
       review.items.map((item, i) => ({
         personIndex: item.personIndex,
         candidateId: item.candidate.id,
-        downloadPath: currentData[i]?.downloadUrl ?? "",
+        downloadPath: interactiveEnabled
+          ? (interactive.snapshots[i]?.operation?.fileUrl ?? "")
+          : (currentData[i]?.downloadUrl ?? ""),
       })),
     ),
   );
@@ -270,6 +390,12 @@ export function useFramedReview(jobId: string | undefined) {
     hands,
     items: review.items.map((item, index) => ({
       ...item,
+      outlineWidth: outlines?.[item.personIndex] ?? 0,
+      skin: requests[index]!.skin,
+      skinAvailable: interactiveEnabled && interactive.snapshots[index]?.skinAvailable === true,
+      supportedSkins: interactive.snapshots[index]?.supportedSkins ?? ["default"],
+      outlineAvailable:
+        interactiveEnabled && interactive.snapshots[index]?.appearanceAvailable === true,
       includesHands: scopeIncludesHands(requests[index]!.scope),
       previewUrl:
         generatedReviewUnavailable && item.candidate.source === "generation"
@@ -281,17 +407,93 @@ export function useFramedReview(jobId: string | undefined) {
               ? (images[index]?.data?.image ?? "")
               : ""
             : item.previewUrl,
-      previewModel: undefined as ReviewModel | undefined,
+      interactivePreview: interactiveEnabled
+        ? ({
+            skin: requests[index]!.skin,
+            skinPreview:
+              interactive.snapshots[index]?.binding === requests[index]!.binding
+                ? interactive.snapshots[index]?.operation?.skinPreview
+                : undefined,
+            skinState: interactive.snapshots[index]?.operation?.stateHash
+              ? {
+                  stateHash: interactive.snapshots[index]!.operation!.stateHash!,
+                  revision: interactive.snapshots[index]!.operation!.revision,
+                }
+              : undefined,
+            skinControl: {
+              personIndex: item.personIndex,
+              available: interactive.snapshots[index]?.supportedSkins ?? ["default"],
+            },
+            outlineWidth: outlines?.[item.personIndex] ?? 0,
+            model:
+              interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
+              item.candidate.id
+                ? interactive.snapshots[index]?.model
+                : undefined,
+            asset: item.candidate.interactivePreview?.asset,
+            viewKey: `${review.data?.jobId}:${item.personIndex}:review`,
+            failed: interactive.snapshots[index]?.modelError === true,
+            localSurface: interactive.snapshots[index]?.localSurface,
+            onFrame:
+              index === 0
+                ? (element: HTMLElement) => {
+                    const controller = interactive.controllers[index];
+                    const snapshot = controller?.snapshot();
+                    const model = snapshot?.model;
+                    const operation = snapshot?.operation;
+                    if (!controller || !model?.frame || !operation) return;
+                    queueRepresentativeFrame(
+                      controller,
+                      element,
+                      solvedCamera(model.state, model.frame),
+                      historyUpload(controller.target, operation),
+                    );
+                  }
+                : undefined,
+            notice: review.isRefining
+              ? "포즈 보정 중"
+              : interactive.snapshots[index]?.localSurface
+                ? "변경 적용 중"
+                : interactive.snapshots[index]?.binding !== requests[index]?.binding
+                  ? "변경 적용 중"
+                  : interactive.snapshots[index]?.modelError
+                    ? "3D를 다시 준비해 주세요. 파일은 준비되면 다운로드할 수 있어요."
+                    : interactive.ready
+                      ? ""
+                      : "파일 준비 중",
+          } as InteractiveReviewData)
+        : undefined,
+      previewModel: item.release
+        ? releaseModels[index]?.data
+        : (undefined as ReviewModel | undefined),
       previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
-      onModelStatus: () => {},
+      onModelStatus: (status: "ready" | "failed") => {
+        if (item.release)
+          setReleaseRendered((previous) => ({
+            ...previous,
+            [item.release!.preview_sha256]: status === "ready",
+          }));
+      },
       scopeLabel: enabled ? SCOPE_LABELS[requests[index]!.scope] : "",
     })),
     requiresFbx,
     downloadReady,
-    preparationLoading,
-    preparationError,
-    previewLoading,
-    previewError,
+    preparationLoading: releaseMode
+      ? !downloadReady && !releaseModels.some((q) => q.isError)
+      : interactiveEnabled
+        ? !interactive.ready && !interactive.failed
+        : preparationLoading,
+    preparationError: releaseMode
+      ? releaseModels.some((q) => q.isError)
+      : interactiveEnabled
+        ? interactive.failed
+        : preparationError,
+    previewLoading: releaseMode ? releaseModels.some((q) => q.isPending) : previewLoading,
+    previewError: releaseMode
+      ? releaseModels.some((q) => q.isError)
+      : interactiveEnabled
+        ? interactive.snapshots.some((s) => s.modelError)
+        : previewError,
     downloadLabel: revision.repeated
       ? "다시 다운로드"
       : revision.changed || handsChanged
@@ -302,20 +504,33 @@ export function useFramedReview(jobId: string | undefined) {
         ? "변경한 손을 적용하고 있어요…"
         : "다운로드할 파일을 준비하고 있어요…",
     previewFailure: poseRecovery(
-      queries.find((q) => q.isError)?.error ??
+      interactive.snapshots.find((s) => s.failure)?.failure ??
+        (outlineUnsupported ? new ApiError(422, "OUTLINE_UNSUPPORTED", "") : undefined) ??
+        (skinUnsupported ? new ApiError(422, "SKIN_UNSUPPORTED", "") : undefined) ??
+        queries.find((q) => q.isError)?.error ??
         review.bodies.entries.find((e) => e.error)?.error ??
         hands.entries.find((e) => e.error)?.error ??
         catalog.error,
     ),
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
-    previewNotice: requiresFbx
-      ? "새로 만든 포즈는 FBX로 저장해 주세요."
-      : enabled
-        ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
-        : format === "bvh"
-          ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
-          : "",
+    previewNotice: releaseMode
+      ? "검증한 원본 체형으로 보정한 포즈입니다. 체형·손·출력 범위 변경은 적용되지 않습니다."
+      : requiresFbx
+        ? "새로 만든 포즈는 FBX로 저장해 주세요."
+        : enabled
+          ? "파일 준비가 끝나면 다운로드할 수 있어요. 미리보기는 이어서 표시돼요."
+          : format === "bvh"
+            ? "BVH에는 전체 동작만 저장돼요. 체형·손 모양과 출력 범위는 FBX에 적용돼요."
+            : "",
     retryPreview: async () => {
+      if (releaseMode) {
+        await Promise.all(releaseModels.map((q) => q.refetch()));
+        return;
+      }
+      if (interactiveEnabled) {
+        interactive.retry();
+        return;
+      }
       if (generatedReviewUnavailable) {
         await review.refetch();
         return;
@@ -330,6 +545,7 @@ export function useFramedReview(jobId: string | undefined) {
     // Only the explicit download button arms SavePage's existing save flow.
     requestDownload: () => {
       if (!downloadReady) return false;
+      if (review.data?.jobId) requestExport(review.data.jobId);
       useExportStore.getState().clearError();
       return true;
     },

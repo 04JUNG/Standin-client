@@ -314,6 +314,7 @@ jobs:
           VITE_USE_MOCK_POSE_API: "false"
           VITE_APP_ENV: ${{ inputs.environment }}
           VITE_INSTALL_CREATIVE: ${{ matrix.creative != 'standard' && matrix.creative || '' }}
+          VITE_INTERACTIVE_POSE_PREVIEW: ${{ inputs.environment == 'staging' && 'true' || 'false' }}
           # ⚠ OS 키체인 서비스 이름. 번들 identifier와 **자동으로 연동되지 않는다**
           #   (secure_store.rs의 SERVICE 상수가 컴파일 타임에 굳는다).
           #

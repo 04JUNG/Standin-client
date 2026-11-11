@@ -48,3 +48,21 @@ it.each(["preparing", "awaiting-confirm"] as const)(
     expect(updateBlockReason(new QueryClient())).toContain("준비·확인 중");
   },
 );
+
+it("required update ignores inaccessible selections but protects active work", () => {
+  const client = new QueryClient();
+  usePoseSelectionStore.setState({ jobId: "job", selectedByPerson: { 0: "pose" } });
+  expect(updateBlockReason(client, true)).toBeNull();
+  useCaptureStore.setState({ status: "selecting" });
+  useExportStore.setState({ status: "awaiting-confirm" });
+  expect(updateBlockReason(client, true)).toBeNull();
+  for (const status of ["preparing", "saving"] as const) {
+    useExportStore.setState({ status });
+    expect(updateBlockReason(client, true)).not.toBeNull();
+  }
+  useExportStore.getState().reset();
+  const finish = beginWork();
+  expect(updateBlockReason(client, true)).toContain("보정");
+  finish();
+  expect(updateBlockReason(client, true)).toBeNull();
+});

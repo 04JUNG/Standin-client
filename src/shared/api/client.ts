@@ -1,3 +1,6 @@
+import { useAccessStore } from "@/shared/stores/accessStore";
+import { useRequiredUpdateStore } from "@/shared/stores/requiredUpdateStore";
+import { CLIENT_VERSION_HEADER } from "@/shared/lib/clientVersion";
 import { env } from "@/shared/lib/env";
 import { ApiError, networkError, type AppError, type ServerErrorBody } from "./errors";
 
@@ -16,6 +19,11 @@ export function setInstallationCredentials(
   credentials: { installationId: string; deviceToken: string } | null,
 ): void {
   installationCredentials = credentials;
+}
+
+/** Owner identity only; replay control work must never persist device credentials. */
+export function currentInstallationId(): string | undefined {
+  return installationCredentials?.installationId;
 }
 
 /**
@@ -127,7 +135,10 @@ export async function apiFetchResponse(
   } = options;
 
   async function send(): Promise<Response> {
-    const headers: Record<string, string> = { Accept: "application/json" };
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      [CLIENT_VERSION_HEADER]: import.meta.env.VITE_APP_VERSION,
+    };
     const multipart = isFormData(body);
     if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
     if (auth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -166,7 +177,20 @@ export async function apiFetchResponse(
     if (renewed) res = await send();
   }
 
-  if (!res.ok) throw await parseError(res);
+  if (!res.ok) {
+    const error = await parseError(res);
+    if (error.status === 426 && error.code === "UPDATE_REQUIRED") {
+      const details = error.details as { minimumVersion?: unknown } | undefined;
+      useRequiredUpdateStore
+        .getState()
+        .requireUpdate(
+          typeof details?.minimumVersion === "string" ? details.minimumVersion : undefined,
+        );
+    }
+    if (error.status === 403 && error.code === "ACCESS_CODE_REQUIRED")
+      useAccessStore.getState().setPhase("blocked");
+    throw error;
+  }
 
   return res;
 }

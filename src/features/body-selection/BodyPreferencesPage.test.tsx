@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import { BodyPreferencesPage } from "./BodyPreferencesPage";
 import type { BodyPreferences, ShapeSpec } from "./contract";
+import { useInstallationStore } from "@/features/installation/installationStore";
 
 /**
  * 체형 커스텀(모델 화면): 내 체형 카드(이름 변경·삭제) · 기본 모델(바꿀 수 없음) · 새 작업의 시작 방식.
@@ -51,12 +52,14 @@ vi.mock("@/features/models/hooks/useModelCatalog", () => ({
           availability: "available",
           bodyRef: { characterId: "child" },
         },
-        ...["female", "male"].flatMap((gender) => ["athletic", "base", "muscular"].map((preset) => ({
-          characterId: `body-${gender}-${preset}`,
-          displayName: `구형 성인 ${gender} ${preset}`,
-          availability: "available",
-          bodyRef: { characterId: `body-${gender}-${preset}` },
-        }))),
+        ...["female", "male"].flatMap((gender) =>
+          ["athletic", "base", "muscular"].map((preset) => ({
+            characterId: `body-${gender}-${preset}`,
+            displayName: `구형 성인 ${gender} ${preset}`,
+            availability: "available",
+            bodyRef: { characterId: `body-${gender}-${preset}` },
+          })),
+        ),
       ],
     },
   }),
@@ -94,7 +97,44 @@ function show() {
   );
 }
 
+it("offers separate visibility controls for saved cards and presets without deleting or opening them", async () => {
+  useInstallationStore.setState({
+    credentials: { installationId: "preview-test", deviceToken: "test", consentVersion: "test" },
+  });
+  prefs.current = base({ pickerVisibility: { hiddenPresetIds: [], hiddenCardIds: [] } });
+  putPreferences.mockResolvedValue(
+    base({ revision: 3, pickerVisibility: { hiddenPresetIds: [], hiddenCardIds: ["card_1"] } }),
+  );
+  show();
+  expect(await screen.findByRole("checkbox", { name: "기본형 체형 더보기에 표시" })).toBeChecked();
+  fireEvent.click(screen.getByRole("checkbox", { name: "주인공 A 체형 더보기에 표시" }));
+  await waitFor(() =>
+    expect(putPreferences).toHaveBeenCalledWith(
+      { pickerVisibility: { hiddenPresetIds: [], hiddenCardIds: ["card_1"] } },
+      2,
+    ),
+  );
+  expect(changeCard).not.toHaveBeenCalled();
+  expect(navigate).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "주인공 A 삭제" })).toBeInTheDocument();
+});
+
+it("removes internal CSP presets from management but retains saved personal cards based on them", async () => {
+  prefs.current = base({
+    cards: [{ ...base().cards![0]!, characterId: "female-base-v0-3-9" }],
+    shapeEditable: [
+      ...base().shapeEditable!,
+      { characterId: "female-base-v0-3-9", displayName: "여성 · 기본형 · CSP", shape: spec },
+    ],
+  });
+  show();
+  expect(screen.queryByRole("button", { name: /여성 · 기본형 · CSP/ })).toBeNull();
+  fireEvent.click(await screen.findByRole("button", { name: "주인공 A 편집" }));
+  expect(navigate).toHaveBeenCalledWith("/app/models/custom/card_1");
+});
+
 beforeEach(() => {
+  useInstallationStore.setState({ credentials: null });
   putPreferences.mockReset();
   changeCard.mockReset();
   navigate.mockReset();
@@ -141,18 +181,55 @@ it("renames a card in place and deletes it after confirming", async () => {
   );
 });
 
-it("starts new jobs with the last used body by default and can switch to auto", async () => {
+it("shows the last used body without offering automatic recommendation for a legacy setting", async () => {
   prefs.current = base({
+    mode: "auto",
     lastUsed: { characterId: "female-base", controls: { height: 168 }, usedAt: "" },
   });
-  putPreferences.mockResolvedValue(base({ mode: "auto", revision: 3 }));
   show();
-  const last = screen.getByRole("radio", { name: /마지막으로 쓴 체형/ });
-  expect(last).toBeChecked();
-  // 마지막 체형이 카드와 같으면 카드 이름으로 알려 준다.
   expect(await screen.findByText("현재 체형: 주인공 A")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("radio", { name: /^자동 추천/ }));
-  await waitFor(() =>
-    expect(putPreferences).toHaveBeenCalledWith({ mode: "auto" }, 2),
-  );
+  expect(screen.queryByText("자동 추천")).not.toBeInTheDocument();
+  expect(putPreferences).not.toHaveBeenCalled();
+});
+
+it("shows separate new and previous presets while preserving the personal card and last-used mode", async () => {
+  prefs.current = base({
+    shapeEditable: [
+      {
+        characterId: "female-base",
+        displayName: "기존 기본형",
+        gender: "female",
+        role: "previous_default",
+        order: 30,
+        shape: spec,
+      },
+      {
+        characterId: "new-female",
+        displayName: "기본형 · 8등신",
+        gender: "female",
+        role: "default",
+        order: 20,
+        shape: spec,
+      },
+      {
+        characterId: "new-male",
+        displayName: "기본형 · 8.3등신",
+        gender: "male",
+        role: "default",
+        order: 10,
+        shape: spec,
+      },
+    ],
+  });
+  show();
+  expect(screen.getByText(/마지막으로 사용한 체형으로 시작해요/)).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: "주인공 A 이름 변경" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "여성" }));
+  expect(screen.queryByRole("button", { name: /8.3등신/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /기존 기본형.*여성/ }));
+  expect(navigate).toHaveBeenCalledWith("/app/models/custom?base=female-base");
+  fireEvent.click(screen.getByRole("button", { name: /8등신/ }));
+  expect(navigate).toHaveBeenCalledWith("/app/models/custom?base=new-female");
+  expect(putPreferences).not.toHaveBeenCalled();
+  expect(changeCard).not.toHaveBeenCalled();
 });

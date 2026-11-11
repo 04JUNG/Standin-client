@@ -1,4 +1,7 @@
+import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
+import { SkinControl } from "@/features/pose-viewer/skin/SkinControl";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
+import { journeyExit } from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
@@ -46,7 +49,7 @@ export function BarReviewPage() {
     <BarShell title="저장할 포즈 확인">
       <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
-          {isRefining ? (
+          {isRefining && !items.some((item) => item.interactivePreview) ? (
             <PoseSearchPending
               mode="refine"
               compact
@@ -71,7 +74,10 @@ export function BarReviewPage() {
                   className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[320px]" : "max-w-[256px]"}`}
                 >
                   <ReviewPosePreview
+                    telemetryJobId={hands?.jobId}
+                    interactive={item.interactivePreview}
                     model={item.previewModel}
+                    outlineWidth={item.outlineWidth}
                     src={item.previewUrl}
                     label={
                       item.previewReference
@@ -82,6 +88,12 @@ export function BarReviewPage() {
                     error={previewError}
                     onModelStatus={item.onModelStatus}
                   />
+                  {(item.outlineAvailable || item.outlineWidth > 0) && (
+                    <OutlineControl personIndex={item.personIndex} />
+                  )}
+                  {(item.skinAvailable || item.skin) && (
+                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
+                  )}
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">
                       포즈만 확인하는 모습이에요. BVH에는 체형{item.includesHands ? "·손 모양" : ""}{" "}
@@ -142,7 +154,10 @@ export function BarReviewPage() {
             variant="ghost"
             size="sm"
             className="min-w-0 flex-1"
-            onClick={() => navigate("/bar/candidates")}
+            onClick={() => {
+              journeyExit("export", "review", "back", hands?.jobId);
+              navigate("/bar/candidates");
+            }}
           >
             다시 고르기
           </Button>

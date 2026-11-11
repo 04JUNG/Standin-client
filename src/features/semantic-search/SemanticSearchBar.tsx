@@ -55,6 +55,7 @@ export function SemanticSearchBar({
       >
         <Search className="ml-2 h-4 w-4 shrink-0 text-text-secondary" aria-hidden />
         <input
+          data-replay-search="true"
           id={id}
           type="search"
           value={query}
@@ -86,7 +87,7 @@ export function SemanticSearchBar({
         </Button>
       </form>
       <p id={`${id}-hint`} className="text-xs text-text-secondary">
-        검색어를 바꾸면 자동으로 검색해요. Enter를 눌러 바로 검색할 수도 있어요.
+        검색어를 입력한 뒤 Enter를 누르거나 검색 버튼을 눌러주세요.
       </p>
       {pending ? (
         <p role="status" className="text-xs text-text-secondary">

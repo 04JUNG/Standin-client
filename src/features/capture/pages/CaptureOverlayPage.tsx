@@ -1,3 +1,5 @@
+import { captureReplayPoint, finishCaptureReplay } from "@/features/replay/captureReplay";
+import { finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { useRef, useState, type PointerEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -46,6 +48,8 @@ export function CaptureOverlayPage() {
     "captureOverlay.cancel": processing
       ? undefined
       : () => {
+          void finishCaptureReplay();
+          finishInputAttempt("capture", "cancelled");
           resetCapture();
           navigate(idleRoute(origin), { replace: true });
         },
@@ -68,12 +72,16 @@ export function CaptureOverlayPage() {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     startRef.current = p;
     setSel({ x: p.x, y: p.y, w: 0, h: 0 });
+    const r = containerRef.current!.getBoundingClientRect();
+    captureReplayPoint("select", p, undefined, r);
   }
 
   function onPointerMove(e: PointerEvent) {
     const start = startRef.current;
-    if (!start) return;
     const p = localPoint(e);
+    const r = containerRef.current!.getBoundingClientRect();
+    captureReplayPoint("move", p, sel ? scaleSelectionToFrame(sel, r, frame!) : undefined, r);
+    if (!start) return;
     setSel({
       x: Math.min(start.x, p.x),
       y: Math.min(start.y, p.y),
@@ -101,12 +109,14 @@ export function CaptureOverlayPage() {
         { width: frame!.width, height: frame!.height },
       );
       const { file, width, height } = await cropFrameToFile(frame!.dataUrl, cropRect);
+      void finishCaptureReplay(cropRect, file);
       const draft = createUploadDraft(file, { width, height }, "capture");
       setDraft(draft, origin);
       setCaptureStatus("idle");
       // 시작한 곳으로 돌아간다 — 바에서 시작했으면 앱 창을 거치지 않는다(ADR-008).
       navigate(afterInputRoute(origin), { replace: true });
-    } catch {
+    } catch (error) {
+      finishInputAttempt("capture", "failed", "CROP_FAILED", error);
       setProcessing(false);
       setSel(null);
     }
@@ -126,6 +136,7 @@ export function CaptureOverlayPage() {
 
   return (
     <div
+      data-replay-private
       ref={containerRef}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

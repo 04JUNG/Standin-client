@@ -1,5 +1,10 @@
+import {
+  featureAction,
+  useFeatureView,
+  failureProperties,
+} from "@/features/analytics/featureJourney";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
-import { Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Plus, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
@@ -12,8 +17,16 @@ import type {
   PoseCandidate,
 } from "@/features/pose-viewer/api/pose.contract";
 import { useBodyControls, type BodyEntry } from "./hooks";
-import { BODY_KIND_LABEL, bodyKind, useBodyPanel, type BodyKind } from "./bodyPanel";
+import {
+  BODY_KIND_LABEL,
+  bodyKind,
+  bodyRoleLabel,
+  sortBodyLooks,
+  useBodyPanel,
+  type BodyKind,
+} from "./bodyPanel";
 import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
+import { pickerIncludes } from "./pickerVisibility";
 import { ShapeControlGrid } from "./ShapeControls";
 import { shapeDefaults as defaults } from "./shapeValues";
 import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
@@ -23,7 +36,7 @@ import "@/shared/styles/horizontal-scroll.css";
 export function selectionFallbackMessage(selection?: BodySelection) {
   return selection?.resolvedSource === "catalog_default_fallback" &&
     selection.resolutionStatus === "ready" &&
-    selection.recommendation.status !== "available"
+    selection.recommendation.status === "unavailable"
     ? "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요."
     : undefined;
 }
@@ -57,7 +70,8 @@ function useBodyName(job: string, person: Pick<PersonResult, "index">, selection
 function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selection?: BodySelection) {
   const { options } = useBodyControls(job, person, selection);
   const name = useBodyName(job, person, selection);
-  const cards = cardsOf(useBodyPreferences().data);
+  const preferences = useBodyPreferences().data;
+  const cards = cardsOf(preferences);
   const id = selection?.resolvedBody?.characterId;
   const spec = options.data?.characters.find((c) => c.characterId === id)?.shape;
   const card = matchCard(cards, id, selection?.shape?.controls ?? null, spec);
@@ -85,6 +99,7 @@ export function BodyChip({
   onViewChange?(expanded: boolean): void;
 }) {
   const { open, setOpen } = useBodyPanel(job, person.index);
+  useFeatureView("body_selection", !!entry?.selection, "exposure", job, String(person.index));
   const { source, title } = useBodyTitle(job, person, entry?.selection);
   return (
     <span
@@ -162,6 +177,7 @@ export function BodyLabel({
 
 /** 기본 체형 참고 카드. 사진을 누르면 포즈를 고르고 최종 모습은 다음 화면에서 확인한다. */
 export function BodyCandidateCards({
+  job,
   person,
   selected,
   onSelect,
@@ -183,6 +199,7 @@ export function BodyCandidateCards({
       {person.candidates.map((candidate, i) => (
         <div key={candidate.id} className={cn("min-h-0", cardClassName?.(i))}>
           <PoseCandidateCard
+            jobId={job}
             candidate={candidate}
             isSelected={candidate.id === selected}
             onSelect={() => onSelect(candidate.id)}
@@ -197,6 +214,7 @@ export function BodyCandidateCards({
 
 /** 플로팅 바의 기본 참고 카드. 사진 클릭은 포즈 선택으로 이어진다. */
 export function BodyCandidateCard({
+  job,
   candidate,
   selected,
   onSelect,
@@ -212,6 +230,7 @@ export function BodyCandidateCard({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PoseCandidateCard
+        jobId={job}
         candidate={candidate}
         isSelected={candidate.id === selected}
         onSelect={() => onSelect(candidate.id)}
@@ -269,19 +288,23 @@ export function BodyExpand({
   entry,
   rough,
   variant,
+  hideLivePreview = false,
 }: {
   job: string;
   person: Pick<PersonResult, "index">;
   entry?: BodyEntry;
   rough?: { url?: string; box?: PersonBox | null };
   variant: "bar" | "app";
+  hideLivePreview?: boolean;
 }) {
   const selection = entry?.selection;
+  useFeatureView("body_selection", !!selection, "open", job, String(person.index));
   const { options, mutation } = useBodyControls(job, person, selection);
-  const cards = cardsOf(useBodyPreferences().data);
+  const preferences = useBodyPreferences().data;
+  const cards = cardsOf(preferences);
   const navigate = useNavigate();
   const name = useBodyName(job, person, selection);
-  const characters = options.data?.characters ?? [];
+  const characters = sortBodyLooks(options.data?.characters ?? []);
   const currentId = selection?.resolvedBody?.characterId;
   const current = characters.find((c) => c.characterId === currentId);
   const kinds = (["male", "female", "child"] as const).filter((k) =>
@@ -289,7 +312,9 @@ export function BodyExpand({
   );
   const [kindView, setKindView] = useState<BodyKind | null>(null);
   const kind: BodyKind = kindView ?? (current ? bodyKind(current) : (kinds[0] ?? "male"));
-  const visible = characters.filter((c) => bodyKind(c) === kind);
+  const visible = characters.filter(
+    (c) => bodyKind(c) === kind && pickerIncludes(preferences, "preset", c.characterId),
+  );
 
   /* ---- 수치 조절: 손을 뗀 뒤 0.6초 쉬면 저장. 저장 중이면 끝난 뒤 마지막 값을 보낸다. */
   const spec = current?.shape;
@@ -318,6 +343,17 @@ export function BodyExpand({
     mutation.mutate(
       { intent: "manual", characterId: currentId, shape: { controls } },
       {
+        onSuccess: () => {
+          featureAction("body_selection", "adjusted", job, { personIndex: person.index });
+          featureAction("body_selection", "applied", job, { personIndex: person.index });
+        },
+        onError: (error) =>
+          featureAction(
+            "body_selection",
+            "failed",
+            job,
+            failureProperties(error, "body_selection"),
+          ),
         onSettled: () => {
           if (latest.current === controls) {
             latest.current = null;
@@ -351,22 +387,46 @@ export function BodyExpand({
   const baseOf = (card: BodyCard) => characters.find((c) => c.characterId === card.characterId);
   const visibleCards = cards.filter((card) => {
     const base = baseOf(card);
-    return !!base?.shape && bodyKind(base) === kind;
+    return (
+      !!base?.shape && bodyKind(base) === kind && pickerIncludes(preferences, "card", card.cardId)
+    );
   });
   function applyCard(card: BodyCard) {
     const base = baseOf(card);
     if (busy || !base?.selectable || !base.shape || card === currentCard) return;
     setKindView(null);
-    mutation.mutate({
-      intent: "manual",
-      characterId: card.characterId,
-      shape: { controls: card.controls },
-    });
+    featureAction("body_custom", "selected", job, { personIndex: person.index });
+    mutation.mutate(
+      {
+        intent: "manual",
+        characterId: card.characterId,
+        shape: { controls: card.controls },
+      },
+      {
+        onSuccess: () => featureAction("body_custom", "reused", job, { personIndex: person.index }),
+        onError: (error) =>
+          featureAction("body_custom", "failed", job, failureProperties(error, "body_custom")),
+      },
+    );
   }
   function pick(option: BodyOption) {
     if (busy || !option.selectable) return;
     if (option.characterId === currentId && !selection?.shape) return;
-    mutation.mutate({ intent: "manual", characterId: option.characterId });
+    featureAction("body_selection", "selected", job, { personIndex: person.index });
+    mutation.mutate(
+      { intent: "manual", characterId: option.characterId },
+      {
+        onSuccess: () =>
+          featureAction("body_selection", "applied", job, { personIndex: person.index }),
+        onError: (error) =>
+          featureAction(
+            "body_selection",
+            "failed",
+            job,
+            failureProperties(error, "body_selection"),
+          ),
+      },
+    );
   }
 
   const status = mutation.isPending
@@ -415,9 +475,7 @@ export function BodyExpand({
             ))}
           </div>
         </div>
-        <p className="text-[11px] text-text-secondary">
-          선택한 인물에 바로 적용돼요.
-        </p>
+        <p className="text-[11px] text-text-secondary">선택한 인물에 바로 적용돼요.</p>
       </div>
 
       {/* 내 체형(왼쪽, 실시간) | 프리셋(오른쪽, 고정) */}
@@ -435,23 +493,30 @@ export function BodyExpand({
       ) : (
         <div className="flex min-w-0 shrink-0 items-stretch gap-2">
           {/* 왼쪽: 지금 고른 체형. 조절 바를 움직이면 여기만 다시 그린다. */}
-          <LiveBodyView
-            option={current}
-            name={currentCard?.name ?? name(currentId)}
-            controls={spec ? values : null}
-            edited={!currentCard && !!spec && (!!draft || !!selection?.shape)}
-            rough={rough}
-            personIndex={person.index}
-            variant={variant}
-          />
+          {!hideLivePreview && (
+            <LiveBodyView
+              option={current}
+              name={currentCard?.name ?? name(currentId)}
+              controls={spec ? values : null}
+              edited={!currentCard && !!spec && (!!draft || !!selection?.shape)}
+              rough={rough}
+              personIndex={person.index}
+              variant={variant}
+            />
+          )}
           {/* 오른쪽: 프리셋. 고정 그림이라 조절 바와 무관하다 — 고른 것에 표시만 한다. */}
-          <div className="flex min-w-0 flex-1 flex-col gap-1 border-l border-border pl-2">
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 flex-col gap-1",
+              !hideLivePreview && "border-l border-border pl-2",
+            )}
+          >
             <span className="text-[11px] font-semibold text-text-secondary">
               내 체형 · 프리셋 — 누르면 그 체형으로 바뀌어요
               {variant === "bar" && visibleCards.length === 0 && (
                 <span className="font-normal">
                   {" "}
-                  · 내 체형 카드는 앱의 ‘체형 커스텀’에서 만들어요
+                  · 체형 커스텀에서 표시할 체형을 관리할 수 있어요
                 </span>
               )}
             </span>
@@ -554,6 +619,11 @@ export function BodyExpand({
                     <span className="truncate px-1 text-[11.5px] font-semibold">
                       {name(option.characterId)}
                     </span>
+                    {bodyRoleLabel(option) && (
+                      <span className="px-1 text-[10px] font-semibold text-brand-coral">
+                        {bodyRoleLabel(option)}
+                      </span>
+                    )}
                     <span className="px-1 pb-0.5 text-[10px] text-text-secondary">
                       {!option.selectable
                         ? "현재 포즈에 사용 불가"
@@ -613,23 +683,9 @@ export function BodyExpand({
         )}
         <div className="flex flex-wrap items-center gap-1.5">
           <ToolButton
-            disabled={busy || !selection || selection.resolutionStatus === "not_applicable"}
-            onClick={() => {
-              setKindView(null);
-              mutation.mutate({ intent: "auto" });
-            }}
-            title={
-              selection?.recommendation.status === "available"
-                ? "러프에 맞춰 추천한 체형으로 바꿉니다"
-                : "추천을 찾지 못하면 남성 기본형으로 바꿉니다"
-            }
-          >
-            <Sparkles className="h-3 w-3 text-brand-coral" aria-hidden />
-            자동 추천
-          </ToolButton>
-          <ToolButton
             disabled={busy || !currentId || (!selection?.shape && !draft)}
             onClick={() => {
+              featureAction("body_selection", "reset", job, { personIndex: person.index });
               clearTimeout(timer.current);
               latest.current = null;
               setDraft(null);

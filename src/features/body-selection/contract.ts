@@ -47,12 +47,7 @@ export const selectionSchema = z.object({
   }),
   resolvedBody: bodyRefSchema.nullable(),
   resolvedSource: z
-    .enum([
-      "manual",
-      "last_used",
-      "auto_recommendation",
-      "catalog_default_fallback",
-    ])
+    .enum(["manual", "last_used", "auto_recommendation", "catalog_default_fallback"])
     .nullable(),
   resolutionStatus: z.enum(["ready", "needs_selection", "unavailable", "not_applicable"]),
   selectionRevision: z.number().int().nonnegative(),
@@ -101,6 +96,11 @@ export const bodyCardSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
 });
+export const bodyPresentationSchema = z.object({
+  gender: z.enum(["male", "female", "child"]).optional(),
+  role: z.enum(["default", "previous_default", "preset"]).optional(),
+  order: z.number().int().nonnegative().optional(),
+});
 export const preferencesSchema = z.object({
   version: z.literal("body-preferences.v1"),
   scope: z.literal("installation"),
@@ -108,6 +108,12 @@ export const preferencesSchema = z.object({
   mode: z.enum(["auto", "last_used"]),
   /** 내 체형 카드. 카드를 모르는 BFF는 빼고 보낸다. */
   cards: z.array(bodyCardSchema).optional(),
+  pickerVisibility: z
+    .object({
+      hiddenPresetIds: z.array(id).max(256),
+      hiddenCardIds: z.array(id).max(48),
+    })
+    .optional(),
   /** 마지막으로 직접 고른 체형. 서버가 체형을 고를 때마다 적는다. */
   lastUsed: z
     .object({ characterId: id, controls: controlsSchema.nullable(), usedAt: z.string() })
@@ -120,6 +126,7 @@ export const preferencesSchema = z.object({
   shapeEditable: z
     .array(
       z.object({
+        ...bodyPresentationSchema.shape,
         characterId: id,
         shape: shapeSpecSchema,
         displayName: z.string().optional(),
@@ -134,6 +141,7 @@ export const optionsSchema = z.object({
   catalogRevision: z.string(),
   characters: z.array(
     z.object({
+      ...bodyPresentationSchema.shape,
       characterId: id,
       bodyRef: bodyRefSchema,
       selectable: z.boolean(),
@@ -188,7 +196,14 @@ export type BodyOption = z.infer<typeof optionsSchema>["characters"][number];
 /** 체형을 그리는 데 필요한 것만(작업 밖 설정 화면은 bodyRef·선택 가능 여부가 없을 수 있다). */
 export type BodyLook = Pick<
   BodyOption,
-  "characterId" | "displayName" | "neutralPreview" | "shape" | "shapeRuntime"
+  | "characterId"
+  | "displayName"
+  | "neutralPreview"
+  | "shape"
+  | "shapeRuntime"
+  | "gender"
+  | "role"
+  | "order"
 > & { bodyRef?: BodyOption["bodyRef"] };
 export type ShapeSpec = z.infer<typeof shapeSpecSchema>;
 export type ShapeControl = z.infer<typeof shapeControlSchema>;

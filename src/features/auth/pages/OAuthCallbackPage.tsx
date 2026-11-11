@@ -32,7 +32,7 @@ export function OAuthCallbackPage() {
   }, [params, completeOAuth, navigate]);
 
   return (
-    <div className="flex h-full items-center justify-center bg-brand-paper p-6">
+    <div data-replay-private className="flex h-full items-center justify-center bg-brand-paper p-6">
       <div className="text-center">
         {error ? (
           <>

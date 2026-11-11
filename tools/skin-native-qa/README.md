@@ -1,0 +1,5 @@
+# Local recorded skin UI/native evidence
+
+This opt-in tool mounts the production InteractiveReview, ordinary/large SkinControl, OutlineControl, renderer, AppShell/BarShell and native save adapter. Inputs are recorded actual client HTTP/BFF/Converter operations, canonical packets and verified final FBXs from `scripts/skin-bff-wire.test.mjs`, plus the exact approved immutable neutral UV/2048 preview assets. It is a separate recorded result → UI/native stage, not one live app/BFF transaction. No proof/certificate replacement is allowed. A displayed choice without a matching recorded receipt cannot save.
+
+Set `SKIN_QA_RECORDS`, `SKIN_QA_ASSET_ROOT`, `VITE_API_BASE_URL=http://127.0.0.1:1451` and `VITE_SKIN_QA_OUTPUT`, then run Vite with this config. Use an isolated Tauri identifier and target for native checks; never reuse the user's installed app. Inputs, source models, credentials and native builds stay outside Git. The fixed route is `/tools/skin-native-qa/`; recorded endpoints are a bounded whitelist. Global product flags remain unchanged.

@@ -1,4 +1,4 @@
-import { canRefineCandidate } from "../api/routedSearch";
+import { canRefineCandidate, canReleaseRefine } from "../api/routedSearch";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useExportStore } from "@/features/export/store/exportStore";
 import { modelRenderingAvailable } from "../preview/modelSupport";
@@ -38,14 +38,18 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
 
     // 서버가 refine을 노출하지 않으면 클라이언트는 호출하지 않는다(OPS-02).
     const targets =
-      result.source !== "semantic" && result.capabilities.refine
+      result.source !== "semantic" &&
+      (result.capabilities.refine || result.capabilities.refineRelease)
         ? result.people.flatMap((person) => {
             const candidateId = picks[person.index];
             // Search confidence and manual release are separate from refine eligibility.
             if (
               !candidateId ||
-              !person.refineAllowed ||
-              !canRefineCandidate(person.candidates.find((c) => c.id === candidateId))
+              !(result.capabilities.refineRelease
+                ? result.people.length === 1 &&
+                  canReleaseRefine(person.candidates.find((c) => c.id === candidateId))
+                : person.refineAllowed &&
+                  canRefineCandidate(person.candidates.find((c) => c.id === candidateId)))
             )
               return [];
             const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
@@ -74,9 +78,11 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
             jobId: result.jobId,
             personIndex: next.personIndex,
             candidateId: next.candidateId,
-            ...(result.capabilities.modelPreview &&
-            modelRenderingAvailable() &&
-            result.capabilities.outputScopeCropping &&
+            ...(result.capabilities.refineRelease ? { releaseVersion: "RC4" as const } : {}),
+            ...((result.capabilities.interactivePreview?.operations ||
+              (result.capabilities.modelPreview &&
+                modelRenderingAvailable() &&
+                result.capabilities.outputScopeCropping)) &&
             result.capabilities.fbxExport &&
             useExportStore.getState().format === "fbx"
               ? { deferPreview: true }

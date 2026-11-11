@@ -13,10 +13,20 @@ export function CompactPoseLayout({ children }: { children: ReactNode }) {
 }
 
 /** Image interaction belongs to the candidate selection control. */
-export function CompactPoseImage({ src, alt }: { src: string; alt: string }) {
+export function CompactPoseImage({
+  src,
+  alt,
+  onError,
+  onLoad,
+}: {
+  src: string;
+  alt: string;
+  onError?: () => void;
+  onLoad?: () => void;
+}) {
   return (
     <div className="compact-pose-image">
-      <img src={src} alt={alt} />
+      <img src={src} onLoad={onLoad} onError={onError} alt={alt} />
     </div>
   );
 }

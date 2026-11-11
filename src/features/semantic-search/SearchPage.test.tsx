@@ -42,13 +42,21 @@ beforeEach(() => {
   loadResult.mockResolvedValue({ jobId: "job_new", source: "semantic", people: [] });
   usePoseSelectionStore.getState().clearSelection();
 });
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+});
 it("empty input stays disabled; examples fill text without making a request", async () => {
   setup();
   await screen.findByRole("textbox");
   expect(screen.getByRole("button", { name: "포즈 찾기" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "야구공을 던지는 자세" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "포즈 찾기" })).toBeEnabled());
+  vi.useFakeTimers();
+  await act(async () => vi.advanceTimersByTime(2000));
+  expect(api.searchPoses).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "하늘을 올라가는 자세" } });
+  await act(async () => vi.advanceTimersByTime(2000));
   expect(api.searchPoses).not.toHaveBeenCalled();
   expect(screen.getByRole("textbox")).toHaveAttribute("maxlength", "500");
 });

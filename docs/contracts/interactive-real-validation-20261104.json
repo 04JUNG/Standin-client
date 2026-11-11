@@ -1,0 +1,44 @@
+{
+  "realCases": 13,
+  "maxCorrespondenceError": 0.0,
+  "hand": {
+    "metric": "cached-hand-input-to-GPU-complete",
+    "samples": 40,
+    "p50": 16.69999998807907,
+    "p95": 19.599999994039536,
+    "max": 21.69999998807907,
+    "limitMs": 100,
+    "pass": true,
+    "networkIncluded": false,
+    "serverIncluded": false,
+    "gpuCompletionIncluded": true,
+    "displayPresentationIncluded": false
+  },
+  "top5": {
+    "samples": 20,
+    "firstP50Ms": 51.599999994039536,
+    "firstP95Ms": 56.599999994039536,
+    "allP50Ms": 99.90000000596046,
+    "allP95Ms": 144.80000001192093,
+    "scope": "effect to render submission; fresh JS asset cache; loopback prebuilt GLBs; HTTP cache may be warm; no search/server/GPU completion"
+  },
+  "renderSubmissionCPU": {
+    "samples": 132,
+    "p95Ms": 1,
+    "maxMs": 34.89999997615814,
+    "gpuCompletionMeasured": false
+  },
+  "privateBytesPublished": false,
+  "handSubmission": {
+    "metric": "cached-hand-input-to-render-submission",
+    "samples": 40,
+    "p50": 16.600000023841858,
+    "p95": 17,
+    "max": 17.19999998807907,
+    "limitMs": 100,
+    "pass": true,
+    "networkIncluded": false,
+    "serverIncluded": false,
+    "gpuCompletionIncluded": false
+  }
+}

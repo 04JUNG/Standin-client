@@ -1,3 +1,12 @@
+import type { ReleaseCamera } from "../release/camera";
+export type ReleaseReceipt = {
+  version: "New Refine Release RC4";
+  status: "accepted";
+  artifact_sha256: string;
+  preview_sha256: string;
+  previewUrl: string;
+  camera: ReleaseCamera;
+};
 /**
  * 선택 후보 refine 계약. 서버 문서: Standin-app-server/docs/API.md
  *
@@ -5,6 +14,7 @@
  * 보관해 둔 값을 쓴다 — 클라가 되돌려 보내는 구조였다면 refine 금지를 우회할 수 있다.
  */
 export type RefineOutcome = {
+  release?: ReleaseReceipt;
   /** 응답이 어느 분석 결과에서 만들어졌는지 확인하는 stale-response guard. */
   jobId: string;
   personIndex: number;
@@ -38,5 +48,6 @@ export interface RefineService {
     personIndex: number;
     candidateId: string;
     deferPreview?: boolean;
+    releaseVersion?: "RC4";
   }): Promise<RefineOutcome>;
 }

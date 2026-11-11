@@ -8,30 +8,48 @@
  * 코드 목록은 BFF(`Standin-app-server`)의 실제 errorEnvelope 호출부 기준이다.
  */
 const MESSAGES: Record<string, string> = {
+  INVALID_OUTLINE: "외곽선 굵기를 다시 선택해 주세요.",
+  INVALID_SKIN: "스킨을 다시 선택해 주세요.",
+  SKIN_UNSUPPORTED:
+    "이 체형·출력 범위·외곽선 조합은 선택한 스킨을 아직 지원하지 않아요. 기본 스킨으로 바꾸거나 전체 인물과 외곽선 0 또는 2를 선택해 주세요.",
+  SKIN_DISABLED: "선택한 스킨을 준비할 수 없어요. 기본 스킨으로 바꾸거나 다시 시도해 주세요.",
+  SKIN_NOT_CSP_CERTIFIED:
+    "선택한 스킨을 준비할 수 없어요. 기본 스킨으로 바꾸거나 다시 시도해 주세요.",
+  SKIN_ASSETS_UNAVAILABLE: "스킨을 불러오지 못했어요. 다시 시도해 주세요.",
+  SKIN_INTEGRITY_ERROR: "선택한 스킨 파일을 확인하지 못했어요. 다시 시도해 주세요.",
+  SKIN_UV_INCOMPATIBLE: "선택한 체형에 이 스킨을 적용할 수 없어요. 기본 스킨으로 바꿔 주세요.",
+  SKIN_BINDING_MISMATCH: "선택한 스킨이 바뀌었어요. 다시 확인해 주세요.",
+  SKIN_TIMEOUT: "스킨 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_UNSUPPORTED: "이 저장 형식은 외곽선을 아직 지원하지 않아요.",
+  OUTLINE_DISABLED: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_NOT_CSP_CERTIFIED: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_UNAVAILABLE: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_INTEGRITY_ERROR: "외곽선 파일을 확인하지 못했어요. 다시 시도해 주세요.",
+  OUTLINE_BINDING_MISMATCH: "선택한 외곽선이 바뀌었어요. 다시 확인해 주세요.",
+  OUTLINE_TIMEOUT: "외곽선 파일을 준비하지 못했어요. 다시 시도해 주세요.",
+  UPDATE_REQUIRED: "새 버전으로 업데이트해야 Standin을 사용할 수 있습니다.",
   SCENE_CONTRACT_UNSUPPORTED:
-    "현재 서버와 저장 방식이 맞지 않아요. 작업을 다시 열어 저장 방식을 확인해 주세요.",
-  SCENE_REVIEW_REQUIRED: "최종 장면 확인 정보가 없어요. 장면을 다시 준비하고 확인해 주세요.",
-  SCENE_REVIEW_EXPIRED: "장면 확인 시간이 만료됐어요. 다시 준비한 장면을 확인한 뒤 저장해 주세요.",
-  SCENE_SOURCE_CHANGED:
-    "원본이나 인물 선택이 바뀌었어요. 포즈·체형·손·출력 범위를 다시 확인해 주세요.",
-  SCENE_UNSUPPORTED_BODY:
-    "자동 보정이 이 체형을 지원하지 않아요. 다른 체형을 선택하거나 원래 선택을 유지해 저장해 주세요.",
+    "지금은 이 저장 방식을 사용할 수 없어요. 작업을 다시 열어 확인해 주세요.",
+  SCENE_REVIEW_REQUIRED: "결과를 다시 준비하고 확인한 뒤 저장해 주세요.",
+  SCENE_REVIEW_EXPIRED: "확인 시간이 지났어요. 결과를 다시 준비하고 확인해 주세요.",
+  SCENE_SOURCE_CHANGED: "원본이나 선택이 바뀌었어요. 포즈·체형·손·저장 범위를 다시 확인해 주세요.",
+  SCENE_UNSUPPORTED_BODY: "이 체형은 자동 보정할 수 없어요. 다른 체형을 골라 주세요.",
   SCENE_OBSERVATION_MISSING:
-    "러프의 인물 배치 정보를 확인하지 못했어요. 다른 선택이나 새 분석을 사용해 주세요.",
-  SCENE_UNAVAILABLE: "지금은 장면 저장을 사용할 수 없어요. 잠시 후 다시 시도해 주세요.",
-  SCENE_BUSY: "장면 준비 요청이 몰려 있어요. 잠시 후 다시 시도해 주세요.",
-  SCENE_TIMEOUT:
-    "장면 준비가 시간 안에 끝나지 않았어요. 서버 작업은 계속될 수 있어요. 다시 준비하면 새 작업이 시작될 수 있어요.",
+    "러프의 인물 배치를 확인하지 못했어요. 다른 포즈를 고르거나 다시 분석해 주세요.",
+  SCENE_UNAVAILABLE: "지금은 파일을 준비할 수 없어요. 잠시 후 다시 시도해 주세요.",
+  SCENE_BUSY: "요청이 몰려 있어요. 잠시 후 다시 시도해 주세요.",
+  SCENE_TIMEOUT: "장면 준비 시간이 초과됐어요. 결과를 다시 준비하고 확인해 주세요.",
+  SCENE_PARTIAL_CONFIRMATION_REQUIRED: "저장할 인원을 다시 확인해 주세요.",
+  GENERATED_INDIVIDUAL_ONLY: "선택한 포즈는 개별 파일로 저장해 주세요.",
   SCENE_INTEGRITY:
-    "확인한 장면과 파일이 같은지 검증하지 못했어요. 저장하지 않았습니다. 장면을 다시 준비하고 확인해 주세요.",
-  SCENE_FAILED:
-    "장면을 준비하지 못했어요. 잠시 후 다시 시도하거나 원래 선택을 유지해 저장해 주세요.",
+    "확인한 결과와 파일이 일치하지 않아 저장하지 않았어요. 결과를 다시 확인해 주세요.",
+  SCENE_FAILED: "결과를 준비하지 못했어요. 잠시 후 다시 시도해 주세요.",
   GENERATED_CHECKS_FAILED:
     "만든 포즈가 확인 과정을 통과하지 못했어요. 다른 후보를 선택하거나 그림을 바꿔 다시 분석해 주세요.",
   GENERATED_FBX_REQUIRED: "새로 만든 포즈는 저장 전 화면에서 최종 모습을 다시 확인해 주세요.",
   GENERATED_SOURCE_UNAVAILABLE:
     "새로 만든 포즈의 원본을 확인하지 못했어요. 다른 후보를 선택하거나 다시 분석해 주세요.",
-  GENERATED_INDIVIDUAL_ONLY: "새로 만든 포즈가 있는 컷은 인물마다 따로 저장해 주세요.",
+  PREVIEW_NOT_READY: "저장할 파일을 다시 준비해야 해요. 결과를 다시 확인해 주세요.",
   PREVIEW_UNAVAILABLE: "포즈 원본을 찾지 못했어요. 다른 후보를 선택하거나 다시 분석해 주세요.",
   PREVIEW_SOURCE_CHANGED: "포즈 원본이 바뀌었어요. 후보 화면에서 다시 선택해 주세요.",
   PREVIEW_HASH_MISMATCH:

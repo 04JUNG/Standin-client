@@ -1,3 +1,4 @@
+import { featureAction } from "@/features/analytics/featureJourney";
 import { clearSearchDrafts } from "./searchDraft";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -5,6 +6,10 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { useSemanticSearch } from "./useSemanticSearch";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
+vi.mock("@/features/analytics/featureJourney", async (original) => ({
+  ...(await original<typeof import("@/features/analytics/featureJourney")>()),
+  featureAction: vi.fn(),
+}));
 const api = vi.hoisted(() => ({
   searchCapabilities: vi.fn(),
   searchPoses: vi.fn(),
@@ -31,6 +36,7 @@ function setup(surface: "app" | "bar" = "app") {
   return { ...hook, qc };
 }
 beforeEach(() => {
+  vi.mocked(featureAction).mockClear();
   clearSearchDrafts();
   vi.useRealTimers();
   api.searchCapabilities.mockResolvedValue({
@@ -45,29 +51,30 @@ beforeEach(() => {
   usePoseSelectionStore.getState().clearSelection();
 });
 afterEach(() => vi.useRealTimers());
-it("debounces edits for 300ms, pauses for Korean composition and does not search on mount", async () => {
+it("typing pauses and Korean composition never search until explicit submission", async () => {
   const { result } = setup();
   await waitFor(() => expect(result.current.ready).toBe(true));
   expect(api.searchPoses).not.toHaveBeenCalled();
   vi.useFakeTimers();
-  act(() => result.current.edit("팔을"));
-  act(() => vi.advanceTimersByTime(200));
-  act(() => result.current.edit("팔을 올린 자세"));
-  act(() => vi.advanceTimersByTime(299));
-  expect(api.searchPoses).not.toHaveBeenCalled();
-  await act(async () => vi.advanceTimersByTime(1));
-  expect(api.searchPoses).toHaveBeenCalledWith("팔을 올린 자세", expect.any(AbortSignal), null);
+  for (const text of ["하늘을", "하늘을 올라가고 있는 포즈", "한쪽 손을 뻗은 형태"]) {
+    act(() => result.current.edit(text));
+    await act(async () => vi.advanceTimersByTime(2000));
+    expect(api.searchPoses).not.toHaveBeenCalled();
+  }
   act(() => {
     result.current.setComposing(true);
     result.current.edit("앉은 자세");
   });
-  await act(async () => vi.advanceTimersByTime(1000));
-  expect(api.searchPoses).toHaveBeenCalledTimes(1);
+  act(() => result.current.submit());
+  expect(api.searchPoses).not.toHaveBeenCalled();
   act(() => result.current.setComposing(false));
-  await act(async () => vi.advanceTimersByTime(300));
-  expect(api.searchPoses).toHaveBeenCalledTimes(2);
+  await act(async () => vi.advanceTimersByTime(2000));
+  expect(api.searchPoses).not.toHaveBeenCalled();
+  await act(async () => result.current.submit());
+  expect(api.searchPoses).toHaveBeenCalledOnce();
+  expect(api.searchPoses).toHaveBeenCalledWith("앉은 자세", expect.any(AbortSignal), null);
 });
-it("Enter cancels the debounce and duplicate submissions; unmount aborts the request", async () => {
+it("explicit submission ignores duplicates while pending; unmount aborts the request", async () => {
   api.searchPoses.mockImplementation(() => new Promise(() => {}));
   const { result, unmount } = setup();
   await waitFor(() => expect(result.current.ready).toBe(true));
@@ -141,7 +148,7 @@ it("changing the displayed history job aborts pending search and synchronizes th
   expect(api.loadResult).not.toHaveBeenCalled();
 });
 
-it("a fast empty Enter result does not leave a second debounced request behind", async () => {
+it("an empty Enter result does not trigger another request while idle", async () => {
   const { result } = setup();
   await waitFor(() => expect(result.current.ready).toBe(true));
   vi.useFakeTimers();
@@ -150,3 +157,38 @@ it("a fast empty Enter result does not leave a second debounced request behind",
   await act(async () => vi.advanceTimersByTime(1000));
   expect(api.searchPoses).toHaveBeenCalledOnce();
 });
+
+it("records zero results and repeated attempts with shared IDs, without search text", async () => {
+  const { result } = setup("bar");
+  await waitFor(() => expect(result.current.ready).toBe(true));
+  act(() => result.current.submit());
+  await waitFor(() => expect(result.current.noResult).toBe(true));
+  const calls = vi.mocked(featureAction).mock.calls;
+  const start = calls.find((c) => c[1] === "search_started")!;
+  const done = calls.find((c) => c[1] === "search_completed")!;
+  expect(start[3]).toMatchObject({ searchOrdinal: 1, source: "semantic", surface: "bar" });
+  expect(done[3]).toMatchObject({ attemptId: start[3]!.attemptId, resultCount: 0 });
+  expect(JSON.stringify(calls)).not.toContain("이전 문장");
+  act(() => result.current.submit());
+  await waitFor(() => expect(api.searchPoses).toHaveBeenCalledTimes(2));
+  expect(
+    vi.mocked(featureAction).mock.calls.filter((c) => c[1] === "search_started")[1][3],
+  ).toMatchObject({ searchOrdinal: 2 });
+});
+
+it.each(["app", "bar"] as const)(
+  "negotiates the progressive first batch on %s without narrowing topK",
+  async (surface) => {
+    api.searchCapabilities.mockResolvedValue({
+      available: true,
+      maxTopK: 20,
+      supportsAllResults: true,
+      supportsProgressiveResults: true,
+    });
+    const { result } = setup(surface);
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    act(() => result.current.edit("앉은 자세"));
+    await act(async () => result.current.submit());
+    expect(api.searchPoses).toHaveBeenCalledWith("앉은 자세", expect.any(AbortSignal), null, true);
+  },
+);

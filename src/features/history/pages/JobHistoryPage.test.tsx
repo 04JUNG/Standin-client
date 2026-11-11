@@ -60,6 +60,20 @@ function renderPage() {
 }
 
 describe("JobHistoryPage", () => {
+  it("analysis timeout offers an explicit original-file picker and never starts from another draft", async () => {
+    list.mockResolvedValue({
+      items: [itemFixture({ status: "failed", errorCode: "ANALYSIS_TIMEOUT", personCount: 0 })],
+      nextCursor: null,
+    });
+    renderPage();
+    const retry = await screen.findByRole("button", { name: "원본 다시 선택" });
+    const input = screen.getByLabelText("다시 분석할 원본");
+    const picker = vi.spyOn(input, "click");
+    await userEvent.click(retry);
+    expect(picker).toHaveBeenCalledOnce();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByText(/분석 시간이 너무 오래/)).toBeVisible();
+  });
   beforeEach(() => {
     list.mockReset();
     remove.mockReset();

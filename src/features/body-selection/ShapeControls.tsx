@@ -1,3 +1,5 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
+import { useRef } from "react";
 import { cn } from "@/shared/lib/cn";
 import { formatShapeValue, shapeLabel } from "./shapeLabels";
 import { groupControls } from "./shapeGroups";
@@ -18,14 +20,23 @@ export function ShapeSlider({
   value,
   disabled,
   onChange,
+  onCommit,
   id,
 }: {
   control: ShapeControl;
   value: number;
   disabled?: boolean;
   onChange(value: number): void;
+  onCommit?(): void;
   id: string;
 }) {
+  const changed = useRef(false);
+  const commit = () => {
+    if (changed.current) {
+      changed.current = false;
+      onCommit?.();
+    }
+  };
   return (
     <div className="grid grid-cols-[minmax(32px,auto)_minmax(0,1fr)_44px] items-center gap-1.5">
       <label
@@ -42,7 +53,18 @@ export function ShapeSlider({
         step={control.step}
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          replayObservation("body_control", {
+            control: control.key,
+            value: Number(e.target.value),
+            controlId: id,
+          });
+          changed.current = true;
+          onChange(Number(e.target.value));
+        }}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
         className="h-[18px] w-full accent-brand-coral disabled:opacity-40"
       />
       <output htmlFor={id} className="text-right font-mono text-[10.5px] text-text-secondary">
@@ -65,6 +87,7 @@ export function ShapeControlGrid({
   spec,
   values,
   onChange,
+  onCommit,
   idPrefix,
   disabled,
   detailColumns,
@@ -73,6 +96,7 @@ export function ShapeControlGrid({
   spec: ShapeSpec;
   values: Record<string, number>;
   onChange(key: string, value: number): void;
+  onCommit?(): void;
   idPrefix: string;
   disabled?: boolean;
   /** 세부 조절 칸 수(바는 3, 앱은 4). */
@@ -89,6 +113,7 @@ export function ShapeControlGrid({
       value={values[control.key] ?? control.default}
       disabled={disabled}
       onChange={(v) => onChange(control.key, v)}
+      onCommit={onCommit}
     />
   );
   const columns = detailColumns === 3 ? "grid-cols-3" : "grid-cols-4";

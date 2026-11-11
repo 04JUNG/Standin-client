@@ -1,3 +1,10 @@
+import {
+  sceneManifestSchema,
+  manifestRequest,
+  manifestRelease,
+  SCENE_MANIFEST_VERSION,
+  type OriginalSceneReceipt,
+} from "./sceneMetadata";
 import { z } from "zod";
 import { apiFetchResponse } from "@/shared/api/client";
 import { ApiError } from "@/shared/api/errors";
@@ -9,6 +16,7 @@ export const SCENE_REVIEW_VERSION = "scene-review-v1";
 export const sceneSaveContractSchema = z.object({
   version: z.literal(SCENE_CONTRACT),
   saveModes: z.array(z.enum(["original-selection", "auto-correct-v4"])),
+  manifestVersion: z.literal(SCENE_MANIFEST_VERSION).optional(),
   reviewVersion: z.literal(SCENE_REVIEW_VERSION),
   reviewTtlSeconds: z.number().int().positive(),
   cancellation: z.object({ httpRequest: z.literal(true), serverOperation: z.literal(false) }),
@@ -42,6 +50,7 @@ export async function sceneReference(
 }
 const sha = z.string().regex(/^[a-f0-9]{64}$/);
 const sceneReviewSchema = z.object({
+  manifest: sceneManifestSchema.optional(),
   contractVersion: z.literal(SCENE_CONTRACT),
   saveMode: z.literal("auto-correct-v4"),
   reviewVersion: z.literal(SCENE_REVIEW_VERSION),
@@ -82,15 +91,23 @@ const sceneReviewSchema = z.object({
 });
 export type SceneReview = z.infer<typeof sceneReviewSchema> & { previewFailed?: boolean };
 const integrity = () => new ApiError(502, "SCENE_INTEGRITY", "");
-export function assertSceneCurrent(review: SceneReview) {
+export function assertSceneCurrent(review: Pick<SceneReview, "expiresAt">) {
   if (Date.parse(review.expiresAt) <= Date.now())
     throw new ApiError(409, "SCENE_REVIEW_EXPIRED", "");
 }
-function confirmedBody(persons: SceneReference[], review: SceneReview) {
+function confirmedBody(persons: SceneReference[], review: SceneReview | OriginalSceneReceipt) {
   assertSceneCurrent(review);
   return {
     contractVersion: SCENE_CONTRACT,
-    saveMode: "auto-correct-v4",
+    saveMode: review.saveMode,
+    ...(review.manifest
+      ? manifestRelease(
+          review.manifest,
+          review.manifest.people.missing
+            .filter((p) => p.reason === "user_excluded")
+            .map((p) => p.personIndex),
+        )
+      : {}),
     reviewVersion: review.reviewVersion,
     artifactSha256: review.artifactSha256,
     reviewKey: review.reviewKey,
@@ -100,7 +117,7 @@ function confirmedBody(persons: SceneReference[], review: SceneReview) {
 export async function downloadScene(
   jobId: string,
   persons: SceneReference[],
-  review?: SceneReview,
+  review?: SceneReview | OriginalSceneReceipt,
   options: { signal?: AbortSignal; negotiated?: boolean } = {},
 ) {
   const response = await apiFetchResponse(`/v1/analysis/jobs/${encodeURIComponent(jobId)}/scene`, {
@@ -127,7 +144,11 @@ export async function downloadScene(
     ((review || options.negotiated) &&
       (response.headers.get("X-Standin-Scene-Contract") !== SCENE_CONTRACT ||
         response.headers.get("X-Standin-Scene-Save-Mode") !==
-          (review ? "auto-correct-v4" : "original-selection")))
+          (review ? review.saveMode : "original-selection"))) ||
+    (review?.manifest !== undefined &&
+      (response.headers.get("X-Standin-File-Count") !== "1" ||
+        response.headers.get("X-Standin-Scene-Manifest-Version") !== SCENE_MANIFEST_VERSION ||
+        response.headers.get("X-Standin-Scene-Snapshot-SHA256") !== review.manifest.snapshotSha256))
   )
     throw integrity();
   const bytes = await response.arrayBuffer();
@@ -145,6 +166,7 @@ export async function prepareScene(
   jobId: string,
   persons: SceneReference[],
   signal?: AbortSignal,
+  excludedPersonIds?: number[],
 ): Promise<SceneReview> {
   const response = await apiFetchResponse(`/v1/analysis/jobs/${encodeURIComponent(jobId)}/scene`, {
     method: "POST",
@@ -156,6 +178,7 @@ export async function prepareScene(
       persons,
       prepare: true,
       artifactOnly: true,
+      ...(excludedPersonIds ? manifestRequest(excludedPersonIds) : {}),
     },
   });
   let payload: unknown;

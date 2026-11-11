@@ -56,7 +56,7 @@ it("search starts and ends in the bar without an old-result notice", async () =>
   expect(api.searchPoses).toHaveBeenCalledWith("공을 던지는 자세", expect.any(AbortSignal), null);
   expect(screen.queryByText(/이전 검색 결과/)).toBeNull();
 });
-it("a mode switch restores text, aborts the previous request and resumes in the new surface", async () => {
+it("a mode switch restores text and aborts the previous request without searching again", async () => {
   let finishOld!: (value: unknown) => void;
   api.searchPoses.mockImplementationOnce(
     () =>
@@ -80,6 +80,9 @@ it("a mode switch restores text, aborts the previous request and resumes in the 
   expect(signal.aborted).toBe(true);
   const bar = renderHook(() => useSemanticSearch("", "bar"), { wrapper });
   expect(bar.result.current.query).toBe("앉아 있는 자세");
+  await act(async () => new Promise((r) => setTimeout(r, 350)));
+  expect(api.searchPoses).toHaveBeenCalledOnce();
+  act(() => bar.result.current.submit());
   await waitFor(() => expect(api.searchPoses).toHaveBeenCalledTimes(2));
   await act(async () => finishOld({ status: "ok", jobId: "job_old" }));
   expect(api.loadResult).not.toHaveBeenCalled();
@@ -107,7 +110,7 @@ it("switching an already submitted empty result does not search again", async ()
   bar.unmount();
 });
 
-it("a real route transition resumes a pending entry before the previous effect cleans up", async () => {
+it("a real route transition keeps the draft without automatically resubmitting", async () => {
   api.searchPoses.mockImplementationOnce(() => new Promise(() => {}));
   function Entry({ surface }: { surface: "app" | "bar" }) {
     const search = useSemanticSearch("", surface);
@@ -144,6 +147,9 @@ it("a real route transition resumes a pending entry before the previous effect c
   fireEvent.click(screen.getByText("바 전환"));
   expect(screen.getByLabelText("문장")).toHaveValue("손을 올린 자세");
   expect(signal.aborted).toBe(true);
+  await act(async () => new Promise((r) => setTimeout(r, 350)));
+  expect(api.searchPoses).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByText("검색"));
   await waitFor(() => expect(api.searchPoses).toHaveBeenCalledTimes(2));
 });
 it("session clear cannot resurrect a pending draft or publish its late response", async () => {

@@ -1,3 +1,4 @@
+import { CandidatePreviewButton } from "./CandidatePreviewContext";
 import {
   hasPresentationCandidates,
   presentationNotice,
@@ -15,7 +16,7 @@ import { DefaultPoseImage } from "./DefaultPoseImage";
 import { BodyChip, BodyExpand, BodyRenderStatus } from "@/features/body-selection/BodyCandidates";
 import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import type { PosePresentation, PreviewCandidate } from "../api/posePresentation";
-import { SemanticCandidateList } from "@/features/semantic-search/SemanticCandidateList";
+import { SemanticResultList } from "@/features/semantic-search/SemanticResultList";
 import { CandidatePages } from "./CandidatePages";
 import { isBasicCloseup } from "../api/basicCloseup";
 import { BasicCloseupReference } from "./BasicCloseupReference";
@@ -35,6 +36,7 @@ const candidateLabel = (kind: string) =>
     near_match: "비슷한 다른 포즈",
   })[kind] ?? "자세를 참고할 포즈";
 function Preview({
+  telemetryJob,
   candidate,
   scope,
   selection,
@@ -43,6 +45,7 @@ function Preview({
   pick,
   displayRank = candidate.rank,
 }: {
+  telemetryJob?: string;
   candidate: PreviewCandidate;
   scope: string | null;
   selection?: PresentationSelection;
@@ -64,35 +67,39 @@ function Preview({
         selected ? "border-brand-coral ring-1 ring-brand-coral" : "border-border",
       )}
     >
-      <button
-        type="button"
-        className="w-full rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:cursor-default"
-        aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 이미지로 선택`}
-        aria-pressed={selected}
-        disabled={!selectable || !selection || selection.disabled}
-        onClick={() => selection?.onSelect(candidate.candidate_id)}
-      >
-        <DefaultPoseImage
-          candidate={candidate}
-          scope={scope}
-          compact={compact}
-          savedOnly={savedOnly}
-          lazy={savedOnly}
-        />
-        <span className="text-xs">
-          {displayRank}. {candidateLabel(candidate.kind)}
-        </span>
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          className="w-full rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:cursor-default"
+          aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 이미지로 선택`}
+          aria-pressed={selected}
+          disabled={!selectable || !selection || selection.disabled}
+          onClick={() => selection?.onSelect(candidate.candidate_id)}
+        >
+          <DefaultPoseImage
+            jobId={telemetryJob}
+            candidate={candidate}
+            scope={scope}
+            compact={compact}
+            savedOnly={savedOnly}
+            lazy={savedOnly}
+          />
+        </button>
+        {pick && <CandidatePreviewButton candidateId={pick.id} />}
+      </div>
       {selectable && selection ? (
         <button
           type="button"
           aria-pressed={selected}
           disabled={selection.disabled}
-          className="mt-1 w-full rounded border border-border px-2 py-1.5 text-xs font-semibold hover:border-brand-sky disabled:opacity-50"
+          className={cn(
+            "mt-1 h-8 w-full rounded border px-2 text-xs font-semibold hover:border-brand-sky focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:opacity-50",
+            selected ? "border-brand-coral bg-brand-coral/5" : "border-border",
+          )}
           onClick={() => selection.onSelect(candidate.candidate_id)}
           aria-label={`${displayRank}번 ${candidateLabel(candidate.kind)} 선택`}
         >
-          {selected ? "선택한 포즈" : "이 포즈 선택"}
+          {selected ? "선택한 포즈" : "포즈 선택"}
         </button>
       ) : (
         <div className="text-[11px] text-text-secondary">
@@ -104,12 +111,14 @@ function Preview({
   );
 }
 function PresentationContent({
+  telemetryJob,
   presentation: p,
   compact = false,
   selectableLibrary = false,
   renderCandidate,
   selection,
 }: {
+  telemetryJob?: string;
   presentation: PosePresentation;
   compact?: boolean;
   selectableLibrary?: boolean;
@@ -141,12 +150,14 @@ function PresentationContent({
         rows.length > 0 && !(selectableLibrary && !selection && label === "검색 후보"),
     );
   const rows = groups.flatMap(([, candidates]) => candidates);
+  const notice = presentationNotice(p);
   const displayRanks = new Map(rows.map((c, i) => [c.candidate_id, i + 1]));
   const render = (c: PreviewCandidate) =>
     renderCandidate ? (
       <div key={c.candidate_id}>{renderCandidate(c)}</div>
     ) : (
       <Preview
+        telemetryJob={telemetryJob}
         key={c.candidate_id}
         candidate={c}
         pick={candidatesById.get(c.candidate_id)}
@@ -166,16 +177,18 @@ function PresentationContent({
       data-rough-candidates={semantic ? undefined : true}
     >
       {!hasPresentationCandidates(p) && <p className="text-xs font-semibold">후보 없음</p>}
-      {presentationNotice(p) && (
+      {notice && (
         <p role="status" className="text-xs text-text-secondary">
-          {presentationNotice(p)}
+          {notice}
         </p>
       )}
       {presentationGenerationNotice(p) && (
         <p className="text-xs text-text-secondary">{presentationGenerationNotice(p)}</p>
       )}
       {["timeout", "rejected", "failed", "error"].includes(p.generation_status ?? "") && (
-        <p className="text-xs text-text-secondary">{generatedPoseNotice(p.generation_status)}</p>
+        <p className="text-xs text-text-secondary">
+          {generatedPoseNotice(p.generation_status, undefined, hasPresentationCandidates(p))}
+        </p>
       )}
       {!semantic && rows.length > 0 ? (
         <div>
@@ -189,13 +202,15 @@ function PresentationContent({
           />
         </div>
       ) : (
-        groups.map(([label, rows]) => (
+        groups.map(([label, rows], groupIndex) => (
           <div key={label}>
             <h3 className="text-xs font-semibold">
               {label} {rows.length}개
             </h3>
-            <SemanticCandidateList
-              key={rows.map((c) => c.candidate_id).join(",")}
+            <SemanticResultList
+              key={`${telemetryJob}:${label}`}
+              jobId={telemetryJob}
+              lastGroup={groupIndex === groups.length - 1}
               rows={rows}
               label={label}
               gridClass={gridClass}
@@ -214,12 +229,14 @@ function SelectedBodyPresentation({
   compact,
   selectableLibrary,
   selection,
+  persistentPreview = false,
 }: {
   job: string;
   presentation: PosePresentation;
   compact: boolean;
   selectableLibrary: boolean;
   selection?: PresentationSelection;
+  persistentPreview?: boolean;
 }) {
   const owner = useBodyOwner();
   const state = useQuery({
@@ -244,11 +261,18 @@ function SelectedBodyPresentation({
     <div className="space-y-2">
       <BodyChip job={job} person={person} entry={entry} />
       {open ? (
-        <BodyExpand job={job} person={person} entry={entry} variant={compact ? "bar" : "app"} />
+        <BodyExpand
+          hideLivePreview={persistentPreview}
+          job={job}
+          person={person}
+          entry={entry}
+          variant={compact ? "bar" : "app"}
+        />
       ) : (
         <>
           <BodyRenderStatus entry={entry} />
           <PresentationContent
+            telemetryJob={job}
             presentation={presentation}
             compact={compact}
             selectableLibrary={selectableLibrary}
@@ -260,19 +284,23 @@ function SelectedBodyPresentation({
   );
 }
 export function PosePresentationPanel({
+  telemetryJob,
   presentation,
   compact = false,
   selectableLibrary = false,
   bodyPreviewJob,
   renderCandidate,
   selection,
+  persistentPreview = false,
 }: {
+  telemetryJob?: string;
   presentation: PosePresentation;
   compact?: boolean;
   selectableLibrary?: boolean;
   bodyPreviewJob?: string;
   renderCandidate?: (candidate: PreviewCandidate) => ReactNode;
   selection?: PresentationSelection;
+  persistentPreview?: boolean;
 }) {
   const hasCandidates = [
     presentation.library_candidates,
@@ -281,6 +309,7 @@ export function PosePresentationPanel({
   ].some((g) => g.length > 0);
   return bodyPreviewJob && hasCandidates && !renderCandidate ? (
     <SelectedBodyPresentation
+      persistentPreview={persistentPreview}
       job={bodyPreviewJob}
       presentation={presentation}
       compact={compact}
@@ -289,6 +318,7 @@ export function PosePresentationPanel({
     />
   ) : (
     <PresentationContent
+      telemetryJob={telemetryJob}
       presentation={presentation}
       compact={compact}
       selectableLibrary={selectableLibrary}

@@ -1,4 +1,7 @@
+import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
+import { SkinControl } from "../skin/SkinControl";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
+import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
@@ -47,7 +50,7 @@ export function ReviewPage() {
   return (
     <AppShell title="저장할 포즈 확인">
       <div className="mx-auto flex h-full w-full max-w-[760px] flex-col gap-4">
-        {isRefining ? (
+        {isRefining && !items.some((item) => item.interactivePreview) ? (
           <div className="flex flex-1 items-center justify-center">
             <PoseSearchPending
               mode="refine"
@@ -72,7 +75,10 @@ export function ReviewPage() {
                   className="flex flex-col overflow-hidden rounded-lg border border-border"
                 >
                   <ReviewPosePreview
+                    telemetryJobId={hands?.jobId}
+                    interactive={item.interactivePreview}
                     model={item.previewModel}
+                    outlineWidth={item.outlineWidth}
                     src={item.previewUrl}
                     label={
                       item.previewReference
@@ -83,6 +89,12 @@ export function ReviewPage() {
                     error={previewError}
                     onModelStatus={item.onModelStatus}
                   />
+                  {(item.outlineAvailable || item.outlineWidth > 0) && (
+                    <OutlineControl personIndex={item.personIndex} />
+                  )}
+                  {(item.skinAvailable || item.skin) && (
+                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
+                  )}
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">
                       인물 {item.personIndex + 1}
@@ -142,7 +154,13 @@ export function ReviewPage() {
           </div>
         )}
         <div className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
-          <Button variant="ghost" onClick={() => navigate(`/app/jobs/${jobId}`)}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              journeyExit("export", "review", "back", hands?.jobId);
+              navigate(`/app/jobs/${jobId}`);
+            }}
+          >
             후보 다시 고르기
           </Button>
           <Button

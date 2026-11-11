@@ -1,4 +1,6 @@
+import { skinIdSchema, type SkinId } from "../skin/skinChoices";
 import { useInstallationStore } from "@/features/installation/installationStore";
+import { clampOutlineWidth } from "../outline/outlineSettings";
 import { create } from "zustand";
 import type { RefineOutcome } from "../api/refine.contract";
 
@@ -30,6 +32,12 @@ type PoseSelectionState = {
    * 필요할 수 있다 — 후보 화면에서 인물마다 고른다. 여기 없는 인물은 `characterId`를 쓴다.
    */
   characterByPerson: Record<number, string>;
+  skinByPerson: Record<number, SkinId>;
+  setPersonSkin(personIndex: number, skin: SkinId): void;
+  outlineByPerson: Record<number, number>;
+  outlineEditingByPerson: Record<number, boolean>;
+  setOutlineEditing(personIndex: number, editing: boolean): void;
+  setPersonOutline(personIndex: number, width: number): void;
   /**
    * 내보내지 않기로 한 인물. 값은 끄기 전에 골라 둔 후보다 — 다시 켜면 되살린다.
    *
@@ -52,7 +60,13 @@ type PoseSelectionState = {
 
 type JobChoice = Pick<
   PoseSelectionState,
-  "serverJobId" | "selectedByPerson" | "excludedPeople" | "characterId" | "characterByPerson"
+  | "serverJobId"
+  | "selectedByPerson"
+  | "excludedPeople"
+  | "characterId"
+  | "characterByPerson"
+  | "outlineByPerson"
+  | "skinByPerson"
 >;
 // Only explicit choices, never downloaded files or review receipts. Bounded and session-local.
 const jobChoices = new Map<string, JobChoice>();
@@ -66,6 +80,9 @@ useInstallationStore.subscribe((next, previous) => {
       refineByPerson: {},
       characterId: null,
       characterByPerson: {},
+      outlineByPerson: {},
+      skinByPerson: {},
+      outlineEditingByPerson: {},
       serverJobId: null,
     });
   }
@@ -82,6 +99,8 @@ function rememberChoice(state: PoseSelectionState) {
       excludedPeople: state.excludedPeople,
       characterId: state.characterId,
       characterByPerson: state.characterByPerson,
+      outlineByPerson: state.outlineByPerson,
+      skinByPerson: state.skinByPerson,
     }),
   );
   // History opens by the server ID while the live route uses a local UUID.
@@ -100,6 +119,9 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   refineByPerson: {},
   characterId: null,
   characterByPerson: {},
+  outlineByPerson: {},
+  skinByPerson: {},
+  outlineEditingByPerson: {},
   excludedPeople: {},
   setJobId(jobId) {
     if (get().jobId !== jobId) {
@@ -112,6 +134,9 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
         // 앞 job의 모델이 새 job으로 새면 안 된다. 고정은 startJob이 다시 한다.
         characterId: null,
         characterByPerson: {},
+        outlineByPerson: {},
+        skinByPerson: {},
+        outlineEditingByPerson: {},
         excludedPeople: {},
         ...priorChoice(jobId),
       });
@@ -127,6 +152,9 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
       refineByPerson: {},
       characterId,
       characterByPerson: {},
+      outlineByPerson: {},
+      skinByPerson: {},
+      outlineEditingByPerson: {},
       excludedPeople: {},
       ...priorChoice(jobId),
     });
@@ -138,6 +166,42 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
     set((state) => ({
       characterByPerson: { ...state.characterByPerson, [personIndex]: characterId },
     }));
+  },
+  setPersonSkin(personIndex, skin) {
+    if (
+      !Number.isSafeInteger(personIndex) ||
+      personIndex < 0 ||
+      !skinIdSchema.safeParse(skin).success
+    )
+      return;
+    if ((get().skinByPerson[personIndex] ?? "default") === skin) return;
+    set((state) => {
+      const skinByPerson = { ...state.skinByPerson };
+      if (skin === "default") delete skinByPerson[personIndex];
+      else skinByPerson[personIndex] = skin;
+      return { skinByPerson };
+    });
+  },
+  setOutlineEditing(personIndex, editing) {
+    if (!Number.isSafeInteger(personIndex) || personIndex < 0) return;
+    if ((get().outlineEditingByPerson[personIndex] ?? false) === editing) return;
+    set((state) => {
+      const outlineEditingByPerson = { ...state.outlineEditingByPerson };
+      if (editing) outlineEditingByPerson[personIndex] = true;
+      else delete outlineEditingByPerson[personIndex];
+      return { outlineEditingByPerson };
+    });
+  },
+  setPersonOutline(personIndex, width) {
+    if (!Number.isSafeInteger(personIndex) || personIndex < 0) return;
+    const value = clampOutlineWidth(width);
+    if ((get().outlineByPerson[personIndex] ?? 0) === value) return;
+    set((state) => {
+      const outlineByPerson = { ...state.outlineByPerson };
+      if (value === 0) delete outlineByPerson[personIndex];
+      else outlineByPerson[personIndex] = value;
+      return { outlineByPerson };
+    });
   },
   setServerJobId(serverJobId) {
     if (get().serverJobId !== serverJobId) {
@@ -215,6 +279,13 @@ export const usePoseSelectionStore = create<PoseSelectionState>((set, get) => ({
   },
   clearSelection() {
     jobChoices.clear();
-    set({ selectedByPerson: {}, refineByPerson: {}, excludedPeople: {} });
+    set({
+      selectedByPerson: {},
+      refineByPerson: {},
+      excludedPeople: {},
+      outlineByPerson: {},
+      skinByPerson: {},
+      outlineEditingByPerson: {},
+    });
   },
 }));

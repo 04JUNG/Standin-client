@@ -1,3 +1,6 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
+import { analysisFailureJob } from "@/features/analytics/analysisContext";
+import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { useJobSelections } from "@/features/history/hooks/useJobSelections";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { canRelease } from "../api/routedSearch";
@@ -14,7 +17,11 @@ import { mergeAnalysisProgress } from "../lib/loadingProgress";
 import type { AnalysisSnapshot } from "../api/analysisProgress";
 import { isServerJobId } from "../lib/serverJobId";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
-import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
+import {
+  currentSurface,
+  trackEvent,
+  rememberJobSource,
+} from "@/features/analytics/analyticsClient";
 
 /**
  * 분석 결과 조회와 선택 상태 파생(docs/03 §7).
@@ -60,7 +67,7 @@ function failureReason(err: unknown): string {
   return "UNKNOWN";
 }
 
-export function useAnalysisResult(jobId: string | undefined) {
+export function useAnalysisResult(jobId: string | undefined, resultsVisible = false) {
   // 분석 시작 시각. 실패까지 사용자가 실제로 기다린 시간을 재려면 클라에만 있는 값이다.
   const startedAt = useRef<number | null>(null);
   const queryClient = useQueryClient();
@@ -216,36 +223,79 @@ export function useAnalysisResult(jobId: string | undefined) {
     if (restoreOnly) return;
     if (lastFailedKey === jobId) return;
     lastFailedKey = jobId;
-    trackEvent("analysis_failed", {
-      reason: failureReason(query.error),
-      surface: currentSurface(),
-      elapsedMs: startedAt.current ? Date.now() - startedAt.current : 0,
-    });
-  }, [query.isError, query.error, jobId, restoreOnly]);
+    trackEvent(
+      "analysis_failed",
+      {
+        ...failureProperties(query.error, "analysis"),
+        source: draft?.source ?? "unknown",
+        inputId: draft?.id ?? null,
+        reason: failureReason(query.error),
+        surface: currentSurface(),
+        elapsedMs: startedAt.current ? Date.now() - startedAt.current : 0,
+      },
+      analysisFailureJob(query.error),
+    );
+  }, [query.isError, query.error, jobId, restoreOnly, draft?.id, draft?.source]);
 
   useEffect(() => {
     if (!query.data) return;
-    // 기록에서 다시 열어본 것은 분석 퍼널의 "결과 조회"가 아니다. 같이 세면 같은 Job이
-    // 볼 때마다 집계돼 후보 노출 대비 선택률이 실제보다 낮게 보인다.
+    rememberJobSource(
+      query.data.jobId,
+      query.data.source === "semantic"
+        ? "semantic"
+        : !restoreOnly
+          ? (draft?.source ?? "unknown")
+          : "unknown",
+    );
+    // Existing jobs are visible-page observations, distinguished by entryPoint and deduped
+    // by server job/surface; loading the shared hook alone is not a result view.
     if (restoreOnly) {
       setServerJobId(query.data.jobId);
-      return;
     }
+    if (!resultsVisible) return;
     const surface = currentSurface();
     const viewKey = `${query.data.jobId}:${surface}`;
     if (lastViewedKey === viewKey) return;
     lastViewedKey = viewKey;
+    replayObservation(
+      "candidates_snapshot",
+      {
+        people: people.map((person) => ({
+          index: person.index,
+          candidates: person.candidates.map((candidate) => ({
+            id: candidate.id,
+            thumbnailUrl:
+              candidate.thumbnailUrl ||
+              candidate.quickThumbnailUrl ||
+              candidate.deferredThumbnailUrl,
+            rank: candidate.rank,
+            poseId: candidate.poseId,
+          })),
+        })),
+      },
+      query.data.jobId,
+    );
     setServerJobId(query.data.jobId);
     trackEvent(
       "results_viewed",
       {
         surface,
+        ...(restoreOnly ? { telemetryVersion: 2 } : {}),
+        entryPoint: restoreOnly ? "existing_job" : "live",
+        inputId: restoreOnly ? null : (draft?.id ?? null),
+        ...(query.data.source === "semantic"
+          ? { source: "semantic" }
+          : !restoreOnly
+            ? { source: draft?.source ?? "unknown" }
+            : {}),
         peopleCount: people.length,
+        zeroCandidatePeople: people.filter((person) => person.candidates.length === 0).length,
+        peopleWithCandidates: people.filter((person) => person.candidates.length > 0).length,
         candidateCount: people.reduce((sum, person) => sum + person.candidates.length, 0),
       },
       query.data.jobId,
     );
-  }, [query.data, people, setServerJobId, restoreOnly]);
+  }, [query.data, people, setServerJobId, restoreOnly, resultsVisible, draft]);
 
   function selectAndTrack(personIndex: number, candidateId: string) {
     const chosen = people
@@ -259,6 +309,8 @@ export function useAnalysisResult(jobId: string | undefined) {
     const candidate = people
       .find((person) => person.index === personIndex)
       ?.candidates.find((item) => item.id === candidateId);
+    if (query.data?.source === "semantic")
+      featureAction("semantic_search", "selected", query.data.jobId, { personIndex });
     trackEvent(
       "candidate_selected",
       {
@@ -274,9 +326,20 @@ export function useAnalysisResult(jobId: string | undefined) {
     selectCandidate(personIndex, candidateId);
   }
 
+  const retryClaim = useRef<string>();
+  const retryAnalysis = (startNew: () => void) => {
+    if (retryClaim.current === jobId || query.isFetching) return;
+    retryClaim.current = jobId;
+    if (restoreOnly)
+      void query.refetch().finally(() => {
+        retryClaim.current = undefined;
+      });
+    else startNew();
+  };
   return {
     ...query,
     analysisProgress: progressQuery.data,
+    retryAnalysis,
     bodies,
     // 기록은 다른 live draft와 수명이 겹친다. 원본도 조회한 job에만 묶고,
     // 없거나 결과 identity가 다르면 다른 입력으로 대체하지 않는다.
