@@ -1,34 +1,28 @@
 import "../pages/selectionWorkspace.css";
 import { MAX_OUTLINE_WIDTH } from "../outline/outlineSettings";
-import { useEffect, useMemo, useState } from "react";
-import { useBodyOwner } from "@/features/body-selection/hooks";
+import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
 import type { PersonResult } from "../api/pose.contract";
 import { previewScope } from "../api/outputScope";
 import { InteractivePose } from "../interactive/InteractivePose";
 import { usePreviewAppearance } from "../interactive/previewAppearanceStore";
-import {
-  candidatePosterOptions,
-  candidateReferenceUrl,
-  presentationPosterOptions,
-} from "../api/candidatePoster";
+import { candidatePosterOptions, presentationPosterOptions } from "../api/candidatePoster";
 import { useDefaultPosePoster } from "../api/posePoster";
-import { humanTemplateDigest, loadHumanTemplate, loadReferenceBvh } from "../api/humanReference";
-import { referenceSurface, referenceSurfaceCamera } from "../preview/humanReference/surface";
-
-import { loadFingerSkin } from "../preview/humanReference/sourceFingers";
-
-type PosedSurface = ReturnType<typeof referenceSurface>;
+import { useSelectionSurface } from "../interactive/useSelectionSurface";
 
 export function SelectionPreview({
   job,
   person,
   selectedId,
+  entry,
+  canonicalPreview = false,
   presentationPosters = false,
   renderLayer = 0,
 }: {
   job: string;
   person: PersonResult;
   selectedId?: string;
+  entry?: BodyEntry;
+  canonicalPreview?: boolean;
   presentationPosters?: boolean;
   renderLayer?: number;
 }) {
@@ -56,63 +50,14 @@ export function SelectionPreview({
   const image = poster.data?.url || (!presentationCandidate ? candidate?.thumbnailUrl : undefined);
   const alt = candidate ? `${candidate.title} 포즈 이미지` : "";
   const scope = posterOptions.scope ?? previewScope(person);
-  const sourceUrl = candidateReferenceUrl(candidate, presentationCandidate);
-  const source = posterOptions.source;
-  const owned = sourceUrl?.startsWith("/v1/analysis/jobs/") ?? false;
-  const scopedUrl = sourceUrl && !owned ? withScope(sourceUrl, scope) : sourceUrl;
-  const binding = JSON.stringify([appearanceKey, candidate?.id, scopedUrl, source, scope]);
-  const [loaded, setLoaded] = useState<{ binding: string; model?: PosedSurface }>();
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    setLoaded(undefined);
-    if (!owner || !scopedUrl) return;
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const timeout = setTimeout(() => {
-      controller.abort();
-      setLoaded({ binding });
-    }, 10_000);
-    let model: PosedSurface | undefined;
-    void Promise.all([
-      loadHumanTemplate(scope, signal),
-      loadReferenceBvh(scopedUrl, source, scope, signal, owned),
-    ])
-      .then(async ([template, text]) => {
-        const skin = await loadFingerSkin(scope, humanTemplateDigest(template));
-        signal.throwIfAborted();
-        model = referenceSurface(template, text, skin);
-        setLoaded({ binding, model });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setLoaded({ binding });
-      })
-      .finally(() => clearTimeout(timeout));
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-      model?.release();
-    };
-  }, [owner, scopedUrl, scope, source, owned, binding, attempt]);
-
-  const result = loaded?.binding === binding ? loaded : undefined;
-  const model = result?.model;
-  const renderCamera = presentationCandidate?.render_camera;
-  const rotation =
-    presentationCandidate?.camera_kind === "fixed_117" &&
-    renderCamera?.version === "pose-preview-camera-v1" &&
-    renderCamera.basis === "right-handed-Y-up" &&
-    renderCamera.bvh_camera_rotation_applied === false
-      ? renderCamera.rotation
-      : candidate?.previewModel?.sourceSha === source
-        ? candidate?.previewModel?.rotation
-        : undefined;
-  const posterCamera = poster.data?.camera;
-  const yaw = posterCamera?.fallback === "none" ? posterCamera.yaw : 0;
-  const surface = useMemo(
-    () => model && { body: model.body, camera: referenceSurfaceCamera(model, yaw, rotation) },
-    [model, yaw, rotation],
-  );
+  const { binding, surface, loading, failed, retry } = useSelectionSurface({
+    owner,
+    job,
+    candidate,
+    entry,
+    scope,
+    enabled: canonicalPreview,
+  });
   const posterImage = image ? (
     <img className="h-full w-full object-contain" src={image} alt={alt} />
   ) : undefined;
@@ -147,27 +92,32 @@ export function SelectionPreview({
               role="status"
               className="flex h-full items-center justify-center p-4 text-center text-xs text-text-secondary"
             >
-              {poster.isFetching || (scopedUrl && !result)
+              {poster.isFetching || loading
                 ? "포즈 불러오는 중…"
                 : "포즈 미리보기를 표시할 수 없어요."}
             </div>
           )))
         )}
-        {result && !model && (
+        {loading && !surface && image && (
+          <p
+            role="status"
+            className="absolute inset-x-2 bottom-2 z-[20] rounded bg-surface-0/95 p-2 text-center text-xs"
+          >
+            선택한 체형의 3D를 준비하는 중…
+          </p>
+        )}
+        {canonicalPreview && failed && !surface && (
           <button
             type="button"
             className="absolute bottom-2 right-2 z-[20] rounded border bg-surface-0 px-3 py-1 text-xs"
-            onClick={() => {
-              setLoaded(undefined);
-              setAttempt((previous) => previous + 1);
-            }}
+            onClick={() => void retry()}
           >
             3D 다시 시도
           </button>
         )}
       </div>
       <div className="selection-preview-settings">
-        {surface && <p className="text-[11px] text-text-secondary">기본 체형 · 참고용 포즈</p>}
+        {surface && <p className="text-[11px] text-text-secondary">선택한 체형 · 포즈 미리보기</p>}
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="미리보기 스킨">
           <span className="mr-auto text-xs font-semibold">스킨</span>
           {(
@@ -209,11 +159,4 @@ export function SelectionPreview({
       </div>
     </section>
   );
-}
-
-function withScope(sourceUrl: string, scope: string) {
-  const [path, query] = sourceUrl.split("?", 2);
-  const params = new URLSearchParams(query);
-  params.set("scope", scope);
-  return path + "?" + params;
 }

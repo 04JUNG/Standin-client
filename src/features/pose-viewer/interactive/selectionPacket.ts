@@ -19,7 +19,7 @@ const envelope = z
   })
   .strict();
 /** Same canonical decoder/camera as final review; this request never confirms or exports. */
-export async function loadSelectionPacket(
+export async function loadSelectionModel(
   job: string,
   selection: BodySelection,
   candidate: PoseCandidate,
@@ -57,10 +57,19 @@ export async function loadSelectionPacket(
   )
     throw Error("selected model changed");
   signal.throwIfAborted();
+  return model;
+}
+
+/** Each viewport owns its GPU resources; only the verified packet can be shared. */
+export function prepareSelectionSurface(model: Awaited<ReturnType<typeof loadSelectionModel>>) {
   const camera = solvedCamera(model.state, {
     target: [0, 0, 0],
     referenceAspect: 1,
     projectionIncludesCenterScaleCrop: true,
   });
   return { ...prepareSurface(model.state.model), camera };
+}
+
+export async function loadSelectionPacket(...args: Parameters<typeof loadSelectionModel>) {
+  return prepareSelectionSurface(await loadSelectionModel(...args));
 }

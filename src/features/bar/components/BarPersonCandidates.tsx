@@ -35,6 +35,10 @@ export function BarPersonCandidates(props: BarPersonCandidatesProps) {
       job={data.jobId}
       person={props.person}
       presentationPosters={data.source === "semantic"}
+      entry={props.analysis.bodies.entries.find((e) => e.personIndex === props.person.index)}
+      canonicalPreview={
+        data.capabilities.selectionPreview === true && props.analysis.bodies.enabled
+      }
     >
       <BarPersonCandidatesContent {...props} />
     </CandidatePreviewProvider>
