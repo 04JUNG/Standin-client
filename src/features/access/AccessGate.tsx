@@ -6,6 +6,7 @@ import { messageOf } from "@/shared/api/errors";
 import { env } from "@/shared/lib/env";
 import { useAccessStore } from "@/shared/stores/accessStore";
 import { Button } from "@/shared/components/Button";
+import { accessCheckDiagnostic, accessCheckMessage, isInstallationAuthenticationError } from "./accessErrors";
 
 const statusSchema = z.object({
   required: z.boolean(),
@@ -19,6 +20,7 @@ const accessPath = "/v1/installations/current/access";
 export function AccessGate({ children }: { children: ReactNode }) {
   const registered = useInstallationStore((s) => s.status === "registered");
   const installation = useInstallationStore((s) => s.credentials?.installationId);
+  const reloadCredentials = useInstallationStore((s) => s.reloadCredentials);
   const phase = useAccessStore((s) => s.phase);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -29,18 +31,34 @@ export function AccessGate({ children }: { children: ReactNode }) {
   const mock = env.useMockApi && !env.isProduction;
   const invalidate = useCallback(() => { generation.current++; }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (restore = false) => {
     const request = ++generation.current;
     try {
-      const status = statusSchema.parse(await apiFetch(accessPath, { auth: false, cache: "no-store" }));
+      const load = () => apiFetch(accessPath, { auth: false, cache: "no-store" });
+      if (restore) await reloadCredentials();
+      if (request !== generation.current) return;
+      let response: unknown;
+      try {
+        response = await load();
+      } catch (cause) {
+        if (request !== generation.current) return;
+        if (restore || !isInstallationAuthenticationError(cause) || !await reloadCredentials()) throw cause;
+        if (request !== generation.current) return;
+        response = await load();
+      }
+      const status = statusSchema.parse(response);
       if (request !== generation.current) return;
       setStatus(status);
       useAccessStore.getState().setPhase(status.allowed ? "allowed" : "blocked");
       setError("");
-    } catch {
-      if (request === generation.current) useAccessStore.getState().setPhase("unavailable");
+    } catch (cause) {
+      if (request === generation.current) {
+        console.warn("[access-check] failed", accessCheckDiagnostic(cause));
+        setError(accessCheckMessage(cause));
+        useAccessStore.getState().setPhase("unavailable");
+      }
     }
-  }, []);
+  }, [reloadCredentials]);
 
   useEffect(() => {
     useAccessStore.getState().setPhase("unknown");
@@ -53,10 +71,12 @@ export function AccessGate({ children }: { children: ReactNode }) {
     const onFocus = () => { void refresh(); };
     const timer = window.setInterval(onFocus, 30_000);
     window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
     return () => {
       invalidate();
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
     };
   }, [installation, registered, mock, refresh, invalidate]);
 
@@ -88,8 +108,8 @@ export function AccessGate({ children }: { children: ReactNode }) {
         <h1 className="text-2xl font-bold">Standin</h1>
         {phase === "unknown" ? <p className="mt-5" role="status">이용 권한을 확인하고 있어요.</p> :
           phase === "unavailable" ? <>
-            <p className="mt-5" role="alert">이용 권한을 확인하지 못했어요. 인터넷 연결을 확인해 주세요.</p>
-            <Button className="mt-5" onClick={() => void refresh()}>다시 확인</Button>
+            <p className="mt-5" role="alert">{error || "이용 권한을 확인하지 못했어요. 잠시 후 다시 시도해 주세요."}</p>
+            <Button className="mt-5" onClick={() => void refresh(true)}>다시 확인</Button>
           </> : status?.codeRegistered ? <>
             <h2 className="mt-5 text-lg font-semibold">이용 권한이 종료되었습니다</h2>
             <p className="mt-2 text-sm text-text-secondary">이용 권한을 확인하려면 운영자에게 문의해 주세요.</p>
