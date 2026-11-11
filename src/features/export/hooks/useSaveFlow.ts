@@ -745,6 +745,7 @@ export function useSaveFlow(jobId: string | undefined) {
               personIndex,
               candidateId,
               downloadPath,
+              releaseSha: currentOutcome?.release?.artifact_sha256,
             };
           }),
         );
@@ -754,6 +755,7 @@ export function useSaveFlow(jobId: string | undefined) {
         let sceneMetadata: SceneManifest | undefined;
         if (
           format === "fbx" &&
+          !files.some((f) => !!f.releaseSha) &&
           analysisResult.source !== "semantic" &&
           sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
           !env.useMockPoseApi
@@ -935,6 +937,15 @@ export function useSaveFlow(jobId: string | undefined) {
           (env.interactivePreview &&
             analysisResult.capabilities.interactivePreview?.operations &&
             files.some((f) => {
+              if (f.releaseSha) {
+                const receipt = usePoseSelectionStore.getState().refineByPerson[f.personIndex];
+                return (
+                  receipt?.jobId !== analysisResult.jobId ||
+                  receipt.candidateId !== f.candidateId ||
+                  receipt.release?.artifact_sha256 !== f.releaseSha ||
+                  receipt.exportUrl !== f.downloadPath
+                );
+              }
               const current = interactiveController(
                 useInstallationStore.getState().credentials?.installationId ?? "",
                 analysisResult.jobId,

@@ -1,4 +1,3 @@
-import { env } from "@/shared/lib/env";
 import { apiFetch } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
 import type { RefineOutcome, RefineService } from "./refine.contract";
@@ -18,12 +17,18 @@ type BffRefineResponse = {
 };
 
 export const refineHttp: RefineService = {
-  async refineSelection({ jobId, personIndex, candidateId, deferPreview }): Promise<RefineOutcome> {
+  async refineSelection({
+    jobId,
+    personIndex,
+    candidateId,
+    deferPreview,
+    releaseVersion,
+  }): Promise<RefineOutcome> {
     const res = await apiFetch<BffRefineResponse>(endpoints.analysis.refine(jobId, personIndex), {
       method: "POST",
       body: {
         candidateId,
-        ...(env.appEnv === "staging" ? { releaseVersion: "RC4" } : {}),
+        ...(releaseVersion ? { releaseVersion } : {}),
         ...(deferPreview ? { deferPreview: true } : {}),
       },
       auth: false,
