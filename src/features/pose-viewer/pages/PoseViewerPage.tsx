@@ -16,7 +16,7 @@ import { PersonIndexRow } from "../components/PersonIndexRow";
 import { CandidateRerunTile } from "../components/CandidateRerun";
 import { useCandidateRerun } from "../hooks/useCandidateRerun";
 import { usePersonScrollContinuity } from "../hooks/usePersonScrollContinuity";
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import type { BodyEntry } from "@/features/body-selection/hooks";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ChevronLeft, Info, RotateCw } from "lucide-react";
@@ -38,6 +38,10 @@ import { PersonFallbackNotice } from "../components/PersonFallbackNotice";
 import { analysisFailure } from "../lib/analysisFailure";
 import { confirmSelections } from "@/features/analytics/analyticsClient";
 import { ModelSelect } from "@/features/models/components/ModelSelect";
+import { candidateReferenceUrl } from "../api/candidatePoster";
+import { previewScope } from "../api/outputScope";
+
+const CandidateSourcePreview = lazy(() => import("../components/CandidateSourcePreview"));
 
 /** 포즈 후보 뷰어(docs/03 §7). 진행률 화면 없이 로딩 상태로 대체한다. */
 export function PoseViewerPage() {
@@ -323,8 +327,8 @@ export function PoseViewerPage() {
               </span>
               <p className="text-[12.5px] text-text-secondary">인물을 선택해 포즈를 골라 주세요.</p>
               <p className="text-[12.5px] text-text-secondary">
-                내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈 고름{" "}
-                <b className="text-text-primary">{selectedCount}</b>
+                내보낼 인물 <b className="text-text-primary">{includedPeople.length}명</b> · 포즈
+                고름 <b className="text-text-primary">{selectedCount}</b>
               </p>
             </div>
           </div>
@@ -489,6 +493,22 @@ function ActivePersonCard({
   const hard = person.fallbackMode === "hard";
   const gridCandidates = person.candidates.filter((c) => !c.manualExportAllowed);
   const selectedCandidate = person.candidates.find((c) => c.id === selectedId) ?? null;
+  const [show3d, setShow3d] = useState(false);
+  const presentation = person.posePresentation;
+  const sourceCandidate = [
+    ...(presentation?.library_candidates ?? []),
+    ...(presentation?.review_candidates ?? []),
+    ...(presentation?.generated_candidates ?? []),
+  ].find((candidate) => candidate.candidate_id === selectedCandidate?.id);
+  const reference = candidateReferenceUrl(selectedCandidate ?? undefined, sourceCandidate);
+  const scope = selectedCandidate?.posterScope ?? previewScope(person);
+  let sourceUrl = reference;
+  if (reference?.startsWith("/v1/pose-candidates/")) {
+    const [path, query] = reference.split("?", 2);
+    const params = new URLSearchParams(query);
+    params.set("scope", scope);
+    sourceUrl = path + "?" + params;
+  }
   return (
     <section
       aria-label={`인물 ${person.index + 1} 후보`}
@@ -528,6 +548,30 @@ function ActivePersonCard({
           )}
         </div>
       </div>
+      {included && !expanded && !hard && sourceUrl && selectedCandidate && (
+        <div className="space-y-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-expanded={show3d}
+            onClick={() => setShow3d(!show3d)}
+          >
+            {show3d ? "3D 미리보기 닫기" : "선택한 포즈 3D 보기"}
+          </Button>
+          {show3d && (
+            <Suspense fallback={<p role="status">3D 포즈를 불러오는 중…</p>}>
+              <CandidateSourcePreview
+                key={sourceUrl}
+                url={sourceUrl}
+                scope={scope}
+                source={
+                  selectedCandidate.sourceBvhSha256 ?? selectedCandidate.previewModel?.sourceSha
+                }
+              />
+            </Suspense>
+          )}
+        </div>
+      )}
       {expanded ? (
         <BodyExpand
           job={jobId}
