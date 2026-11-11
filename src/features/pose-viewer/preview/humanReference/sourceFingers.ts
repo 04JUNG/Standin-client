@@ -3,6 +3,7 @@ import { BVHLoader } from "three/addons/loaders/BVHLoader.js";
 import { gunzipSync, strFromU8 } from "fflate";
 import type { referencePose } from "./pose";
 import type { HumanTemplate } from "./template";
+import type { WristBlend } from "./referenceMesh";
 import full from "./fingerAssets/full.json.gz?url";
 import half from "./fingerAssets/half.json.gz?url";
 
@@ -50,16 +51,16 @@ function palm(
 ) {
   const length = middle.clone().sub(wrist);
   const across = index.clone().sub(pinky);
-  if (length.lengthSq() < 1e-12) return undefined;
+  if (!(length.lengthSq() > 1e-12) || !Number.isFinite(length.lengthSq())) return undefined;
   length.normalize();
   across.addScaledVector(length, -across.dot(length));
-  if (across.lengthSq() < 1e-12) return undefined;
+  if (!(across.lengthSq() > 1e-12) || !Number.isFinite(across.lengthSq())) return undefined;
   across.normalize();
   return new THREE.Matrix4().makeBasis(across, length, across.clone().cross(length));
 }
 
-/** Reuse the body solve. Finger segment directions come from the actual BVH
- * frame, including posed offsets in static BVHs with zero rotation channels. */
+/** Reuse the body solve and wrist positions. Read palm orientation and finger
+ * directions from the posed BVH, including bends stored in static offsets. */
 export function sourceFingerPose(
   template: HumanTemplate,
   text: string,
@@ -68,10 +69,8 @@ export function sourceFingerPose(
 ) {
   const { skeleton, clip } = new BVHLoader().parse(text.replace(/([{}])/g, "\n$1\n"));
   const root = skeleton.bones[0];
-  root.updateMatrixWorld(true);
   const byName = new Map(skeleton.bones.map((b) => [b.name, b]));
   const lookup = new Map(skeleton.bones.map((b) => [key(b.name), b]));
-  const rest = new Map(skeleton.bones.map((b) => [b, b.getWorldPosition(new THREE.Vector3())]));
   for (const track of clip.tracks) {
     const separator = track.name.lastIndexOf(".");
     const bone = byName.get(track.name.slice(0, separator));
@@ -84,6 +83,7 @@ export function sourceFingerPose(
   const joints = [...template.joints, ...skin.joints];
   const byRole = new Map(joints.map((j, i) => [j.role, i]));
   const directions = new Map<number, THREE.Vector3>();
+  const wristTurns = new Map<number, THREE.Quaternion>();
   for (const side of ["L", "R"]) {
     const label = side === "L" ? "left" : "right";
     const suffix = side.toLowerCase();
@@ -96,7 +96,7 @@ export function sourceFingerPose(
     const pinky = source("pinky", 1);
     const wristId = byRole.get("hand." + side);
     if (!wrist || !index || !middle || !pinky || wristId === undefined) continue;
-    const basis = palm(rest.get(wrist)!, rest.get(index)!, rest.get(middle)!, rest.get(pinky)!);
+    const sourceBasis = palm(posed(wrist), posed(index), posed(middle), posed(pinky));
     const target = (digit: string, i: number) => byRole.get(digit + i + "." + side)!;
     const targetBasis = palm(
       vector(joints[wristId].head),
@@ -104,14 +104,12 @@ export function sourceFingerPose(
       vector(joints[target("middle", 1)].head),
       vector(joints[target("pinky", 1)].head),
     );
-    if (!basis || !targetBasis) continue;
-    const sourceBasis = new THREE.Matrix4()
-      .makeRotationFromQuaternion(wrist.getWorldQuaternion(new THREE.Quaternion()))
-      .multiply(basis);
-    const transfer = new THREE.Matrix4()
-      .makeRotationFromQuaternion(base.rotations[wristId])
-      .multiply(targetBasis)
-      .multiply(sourceBasis.invert());
+    if (!sourceBasis || !targetBasis) continue;
+    // A wrist-to-one-child direction cannot determine the twist of the palm.
+    wristTurns.set(
+      wristId,
+      new THREE.Quaternion().setFromRotationMatrix(sourceBasis.multiply(targetBasis.invert())),
+    );
     for (const digit of digits)
       for (const i of [1, 2, 3]) {
         const bone = source(digit, i);
@@ -119,16 +117,27 @@ export function sourceFingerPose(
           i < 3 ? source(digit, i + 1) : bone?.children.find((b) => b.name === "ENDSITE");
         if (!bone || !(child instanceof THREE.Bone) || child.parent !== bone) continue;
         const segment = posed(child).sub(posed(bone));
-        if (segment.lengthSq() > 1e-12)
-          directions.set(target(digit, i), segment.transformDirection(transfer));
+        if (segment.lengthSq() > 1e-12) directions.set(target(digit, i), segment.normalize());
       }
   }
-  if (!directions.size) return undefined;
+  if (!wristTurns.size) return undefined;
 
   const { matrices, positions, rotations } = base;
   const out = [...matrices];
   const heads = [...positions];
   const turns = [...rotations];
+  const wrists: WristBlend[] = [];
+  for (const [i, turn] of wristTurns) {
+    const wrist = joints[i];
+    const rest = vector(wrist.head);
+    const position = heads[i];
+    const translation = position.clone().sub(rest.clone().applyQuaternion(turn));
+    turns[i] = turn;
+    out[i] = new THREE.Matrix4().compose(translation, turn, new THREE.Vector3(1, 1, 1));
+    if (joints[wrist.parent]?.role === wrist.role.replace("hand.", "forearm.")) {
+      wrists.push({ forearm: wrist.parent, hand: i, rest, position });
+    }
+  }
   for (const [local, joint] of skin.joints.entries()) {
     const i = template.joints.length + local;
     const parent = joint.parent;
@@ -163,5 +172,5 @@ export function sourceFingerPose(
     }
     return { ...mesh, skinIndices, skinWeights };
   });
-  return { template: { ...template, joints, meshes }, matrices: out };
+  return { template: { ...template, joints, meshes }, matrices: out, wrists };
 }
