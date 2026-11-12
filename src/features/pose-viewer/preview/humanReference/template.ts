@@ -6,7 +6,7 @@ export type HumanScope = "full" | "half" | "bust" | "shoulder_head" | "head";
 export type HumanTemplate = {
   version: typeof HUMAN_TEMPLATE_VERSION;
   scope: HumanScope;
-  character_id: "standin-master-v2";
+  character_id: string;
   character_sha256: string;
   pose_method: typeof HUMAN_REFERENCE_METHOD;
   preview_only: true;
@@ -23,7 +23,11 @@ export type HumanTemplate = {
   }[];
 };
 export const humanScopes: HumanScope[] = ["full", "half", "bust", "shoulder_head", "head"];
-export function parseHumanTemplate(raw: unknown, scope: HumanScope): HumanTemplate {
+export function parseHumanTemplate(
+  raw: unknown,
+  scope: HumanScope,
+  expected = { characterId: "standin-master-v2", characterSha256: DEFAULT_HUMAN_SHA },
+): HumanTemplate {
   const fail = (): never => {
     throw Error("기본 인체 참고 자산을 확인하지 못했습니다.");
   };
@@ -32,8 +36,8 @@ export function parseHumanTemplate(raw: unknown, scope: HumanScope): HumanTempla
   if (
     t.version !== HUMAN_TEMPLATE_VERSION ||
     t.scope !== scope ||
-    t.character_id !== "standin-master-v2" ||
-    t.character_sha256 !== DEFAULT_HUMAN_SHA ||
+    t.character_id !== expected.characterId ||
+    t.character_sha256 !== expected.characterSha256 ||
     t.coordinates !== "Y-up" ||
     t.pose_method !== HUMAN_REFERENCE_METHOD ||
     t.preview_only !== true ||

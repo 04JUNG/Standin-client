@@ -4,22 +4,13 @@ import { beforeEach, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { CandidatePreviewProvider } from "./CandidatePreviewContext";
 import { PoseCandidateCard } from "./PoseCandidateCard";
-import { loadReferenceBvh } from "../api/humanReference";
-import { referenceSurface } from "../preview/humanReference/surface";
+import { useLocalPreview } from "../preview/humanReference/useLocalPreview";
 import type { PersonResult } from "../api/pose.contract";
 vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" }));
 vi.mock("../api/posePoster", () => ({
   useDefaultPosePoster: () => ({ data: { url: "poster.png" }, isPending: false, isError: false }),
 }));
-vi.mock("../api/humanReference", async (original) => ({
-  ...(await original<typeof import("../api/humanReference")>()),
-  loadHumanTemplate: vi.fn(),
-  loadReferenceBvh: vi.fn(),
-}));
-vi.mock("../preview/humanReference/surface", () => ({
-  referenceSurface: vi.fn(),
-  referenceSurfaceCamera: vi.fn(),
-}));
+vi.mock("../preview/humanReference/useLocalPreview", () => ({ useLocalPreview: vi.fn() }));
 vi.mock("../interactive/InteractivePose", () => ({
   InteractivePose: ({
     surface,
@@ -64,14 +55,17 @@ beforeEach(() => vi.clearAllMocks());
 it.each([undefined, "fill"] as const)(
   "opens a %s card's own pose on inspection, preserves selection, and releases it on close",
   async (layout) => {
-    const select = vi.fn(),
-      release = vi.fn();
-    vi.mocked(loadReferenceBvh).mockResolvedValue("bvh");
-    vi.mocked(referenceSurface).mockReturnValue({
-      body: new THREE.Group(),
-      bounds: new THREE.Box3(),
-      characterSha: "a".repeat(64),
-      release,
+    const select = vi.fn();
+    vi.mocked(useLocalPreview).mockReturnValue({
+      loading: false,
+      failed: false,
+      retry: async () => {},
+      model: {
+        body: new THREE.Group(),
+        bounds: new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)),
+        characterSha: "a".repeat(64),
+        release: vi.fn(),
+      },
     });
     const props = { job: "job", person };
     const r = render(
@@ -84,7 +78,7 @@ it.each([undefined, "fill"] as const)(
         />
       </CandidatePreviewProvider>,
     );
-    expect(loadReferenceBvh).not.toHaveBeenCalled();
+    expect(useLocalPreview).not.toHaveBeenCalled();
     expect(r.container.querySelector("button button")).toBeNull();
     const zoom = screen.getByRole("button", { name: "포즈 크게 보기" });
     expect(zoom).toHaveClass("bottom-1", "right-1");
@@ -92,13 +86,13 @@ it.each([undefined, "fill"] as const)(
     const dialog = await screen.findByRole("dialog", { name: "포즈 크게 보기" });
     expect(within(dialog).getByRole("img")).toHaveAttribute("src", "poster.png");
     expect(within(dialog).getByRole("button", { name: "닫기" })).toHaveFocus();
-    await waitFor(() => expect(loadReferenceBvh).toHaveBeenCalledOnce());
-    expect(loadReferenceBvh).toHaveBeenCalledWith(
-      "/v1/pose-candidates/two/poster-source?candidateId=two&scope=full",
-      undefined,
-      "full",
-      expect.any(AbortSignal),
-      false,
+    await waitFor(() => expect(useLocalPreview).toHaveBeenCalled());
+    expect(useLocalPreview).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining("/two/poster-source?"),
+        gender: "male",
+        scope: "full",
+      }),
     );
     expect(within(dialog).getByTestId("interactive")).toHaveTextContent("verified surface");
     expect(within(dialog).getByTestId("interactive")).toHaveAttribute("data-large", "true");
@@ -107,7 +101,6 @@ it.each([undefined, "fill"] as const)(
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(zoom).toHaveFocus();
-    expect(release).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByAltText("포즈 2"));
     expect(select).toHaveBeenCalledOnce();
   },
