@@ -252,6 +252,7 @@ export function PoseViewerPage() {
                   job={data.jobId}
                   person={person}
                   presentationPosters
+                  entry={bodies.entries.find((e) => e.personIndex === person.index)}
                 >
                   <div className="flex flex-col gap-3">
                     {person.posePresentation ? (
@@ -285,6 +286,7 @@ export function PoseViewerPage() {
                 person={active}
                 selectedId={selectedByPerson[active.index]}
                 presentationPosters
+                entry={bodies.entries.find((e) => e.personIndex === active.index)}
               />
             )}
           </div>
@@ -411,7 +413,11 @@ export function PoseViewerPage() {
               </div>
 
               {active && (
-                <CandidatePreviewProvider job={data.jobId} person={active}>
+                <CandidatePreviewProvider
+                  job={data.jobId}
+                  person={active}
+                  entry={bodies.entries.find((e) => e.personIndex === active.index)}
+                >
                   <ActivePersonCard
                     key={active.index}
                     jobId={data.jobId}
@@ -482,6 +488,7 @@ export function PoseViewerPage() {
                 job={data.jobId}
                 person={active}
                 selectedId={selectedByPerson[active.index]}
+                entry={bodies.entries.find((e) => e.personIndex === active.index)}
               />
             )}
           </div>

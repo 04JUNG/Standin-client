@@ -1,7 +1,8 @@
 import "../pages/selectionWorkspace.css";
+import { useMemo } from "react";
 import { MAX_OUTLINE_WIDTH } from "../outline/outlineSettings";
-import { useEffect, useMemo, useState } from "react";
-import { useBodyOwner } from "@/features/body-selection/hooks";
+import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
+import { bodyKind } from "@/features/body-selection/bodyPanel";
 import type { PersonResult } from "../api/pose.contract";
 import { previewScope } from "../api/outputScope";
 import { InteractivePose } from "../interactive/InteractivePose";
@@ -12,23 +13,21 @@ import {
   presentationPosterOptions,
 } from "../api/candidatePoster";
 import { useDefaultPosePoster } from "../api/posePoster";
-import { humanTemplateDigest, loadHumanTemplate, loadReferenceBvh } from "../api/humanReference";
-import { referenceSurface, referenceSurfaceCamera } from "../preview/humanReference/surface";
-
-import { loadFingerSkin } from "../preview/humanReference/sourceFingers";
-
-type PosedSurface = ReturnType<typeof referenceSurface>;
+import { useLocalPreview } from "../preview/humanReference/useLocalPreview";
+import { referenceSurfaceCamera } from "../preview/humanReference/surface";
 
 export function SelectionPreview({
   job,
   person,
   selectedId,
+  entry,
   presentationPosters = false,
   renderLayer = 0,
 }: {
   job: string;
   person: PersonResult;
   selectedId?: string;
+  entry?: BodyEntry;
   presentationPosters?: boolean;
   renderLayer?: number;
 }) {
@@ -60,43 +59,19 @@ export function SelectionPreview({
   const source = posterOptions.source;
   const owned = sourceUrl?.startsWith("/v1/analysis/jobs/") ?? false;
   const scopedUrl = sourceUrl && !owned ? withScope(sourceUrl, scope) : sourceUrl;
-  const binding = JSON.stringify([appearanceKey, candidate?.id, scopedUrl, source, scope]);
-  const [loaded, setLoaded] = useState<{ binding: string; model?: PosedSurface }>();
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    setLoaded(undefined);
-    if (!owner || !scopedUrl) return;
-    const controller = new AbortController();
-    const signal = controller.signal;
-    const timeout = setTimeout(() => {
-      controller.abort();
-      setLoaded({ binding });
-    }, 10_000);
-    let model: PosedSurface | undefined;
-    void Promise.all([
-      loadHumanTemplate(scope, signal),
-      loadReferenceBvh(scopedUrl, source, scope, signal, owned),
-    ])
-      .then(async ([template, text]) => {
-        const skin = await loadFingerSkin(scope, humanTemplateDigest(template));
-        signal.throwIfAborted();
-        model = referenceSurface(template, text, skin);
-        setLoaded({ binding, model });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setLoaded({ binding });
-      })
-      .finally(() => clearTimeout(timeout));
-    return () => {
-      clearTimeout(timeout);
-      controller.abort();
-      model?.release();
-    };
-  }, [owner, scopedUrl, scope, source, owned, binding, attempt]);
-
-  const result = loaded?.binding === binding ? loaded : undefined;
-  const model = result?.model;
+  const gender =
+    bodyKind({ characterId: entry?.selection?.resolvedBody?.characterId ?? "male" }) === "female"
+      ? "female"
+      : "male";
+  const binding = JSON.stringify([appearanceKey, candidate?.id, scopedUrl, source, scope, gender]);
+  const { model, loading, failed, retry } = useLocalPreview({
+    owner,
+    binding,
+    url: entry && !entry.ready ? undefined : scopedUrl,
+    source,
+    scope,
+    gender,
+  });
   const renderCamera = presentationCandidate?.render_camera;
   const rotation =
     presentationCandidate?.camera_kind === "fixed_117" &&
@@ -147,27 +122,28 @@ export function SelectionPreview({
               role="status"
               className="flex h-full items-center justify-center p-4 text-center text-xs text-text-secondary"
             >
-              {poster.isFetching || (scopedUrl && !result)
+              {poster.isFetching || loading
                 ? "포즈 불러오는 중…"
                 : "포즈 미리보기를 표시할 수 없어요."}
             </div>
           )))
         )}
-        {result && !model && (
+        {failed && !surface && (
           <button
             type="button"
             className="absolute bottom-2 right-2 z-[20] rounded border bg-surface-0 px-3 py-1 text-xs"
-            onClick={() => {
-              setLoaded(undefined);
-              setAttempt((previous) => previous + 1);
-            }}
+            onClick={() => void retry()}
           >
             3D 다시 시도
           </button>
         )}
       </div>
       <div className="selection-preview-settings">
-        {surface && <p className="text-[11px] text-text-secondary">기본 체형 · 참고용 포즈</p>}
+        {surface && (
+          <p className="text-[11px] text-text-secondary">
+            {gender === "female" ? "여성" : "남성"} 기본형 · 참고용 포즈
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="미리보기 스킨">
           <span className="mr-auto text-xs font-semibold">스킨</span>
           {(
