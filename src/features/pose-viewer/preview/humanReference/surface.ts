@@ -14,7 +14,9 @@ export function referenceSurface(
   corrections?: Correctives,
 ) {
   let base = referencePose(template, text, !!corrections);
-  if (corrections) {
+  // The reviewed geometry already includes the authored shoulder placement.
+  // Applying the neutral-rig drivers would rebuild those sockets again.
+  if (corrections && !base.bakedOffsets) {
     const corrected = correctApprovedPose(template, base, corrections);
     template = corrected.template;
     base = corrected.pose;

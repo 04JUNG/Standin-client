@@ -64,7 +64,7 @@ function palm(
 export function sourceFingerPose(
   template: HumanTemplate,
   text: string,
-  base: ReturnType<typeof referencePose>,
+  base: Pick<ReturnType<typeof referencePose>, "positions" | "rotations" | "matrices" | "roles">,
   skin: FingerSkin,
 ) {
   const { skeleton, clip } = new BVHLoader().parse(text.replace(/([{}])/g, "\n$1\n"));
