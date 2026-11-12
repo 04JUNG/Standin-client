@@ -85,3 +85,9 @@ Mac 잠금 해제 후 최신 복구 수정 앱을 다시 실행해 작업 기록
 통합 커밋 `aa3803c`를 별도 snapshot으로 고정하고 Node 22.23.5로 로컬 BFF 19882만 재시작했다. 기존 operation DB·job·revision과 기존 검수 파일은 보존했다. 최신 클라이언트 검수 앱에서 같은 1인 포즈에 **살색 3D 표시 → 다운로드 → Rust 파일 저장 → 저장 완료**를 다시 확인했다. 추가 파일 `문장검색_standin_pose (1).fbx`는 13,783,500 bytes이며 서버 receipt/delivery SHA와 일치한다. 이 파일은 새 BFF 검수 결과이며 기존 8건 API 매트릭스를 새 BFF에서 전부 재실행했다고 주장하지 않는다. Windows/CSP/실제 검색·VLM/S3 및 운영 배포는 여전히 범위 밖이다.
 
 새 BFF의 살색 검수에서는 8,844,484-byte UV 검증 worker가 366ms에 통과했다. 실제 새 geometry cold 준비는 25.069초, export(기본 파일+살색) 단계는 14.713초였다. 따라서 최초 살색 준비가 즉시 끝나는 것은 아니다. 준비된 모델/파일 재사용으로 줄어드는 시간과 최초 새 변환 비용을 구분한다. 최신 살색 파일까지 실제 앱이 쓴 7개 파일(중복 재저장 포함)을 Blender로 다시 읽어 전부 통과했다.
+
+### 최종 기준과 검증 한계 정정
+
+동시 작업 중 BFF main `791960e`(#203 probe/손 readiness 복구)도 병합돼 기존 #200 `ad3ab3f`·#201 `974b4fd`에 추가 반영됐다. **실제 앱 살색 검수는 앞선 동결 runtime `aa3803c`(#204까지) 기준**이다. 이후 #203 추가분은 Node 20 관련 probe/hand 테스트로 구분하며, 그 runtime으로 native 앱을 재실행했다고 주장하지 않는다. 검수 중 계속 바뀌는 브랜치를 무한 추적하지 않고 클라 main `e27e7d5`, BFF main `791960e`, Converter `3fadbaf`를 본 작업의 코드 기준으로 고정한다.
+
+BFF 재시작은 같은 PGlite 경로와 백업·기존 proof를 보존했다. 다만 operation 전체를 전후 대조하던 스크립트는 기존 operation의 409에서 중단돼 **전체 head/revision 일치 검증은 미완료**다. 실제 앱의 새 revision 6 생성·모델/파일 증거·저장 성공과, 모든 과거 operation의 복구가 검증됐다는 주장을 구분한다. 검색·OS 인증·실제 PostgreSQL/S3/CSP/Windows UI·운영 E2E 한계는 유지한다.

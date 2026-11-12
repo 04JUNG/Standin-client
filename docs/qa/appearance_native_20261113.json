@@ -231,7 +231,8 @@
     "Local each benchmark once, not production SLA.",
     "Search/VLM, installation credentials, catalog and object storage are fixtures.",
     "Real BFF service/SQL with PGlite, Converter/Blender, native app and Rust disk writes; PostgreSQL advisory locking/S3/OS Keychain/CSP/Windows UI not tested.",
-    "All native UI appearance cases are not claimed: basic/flesh and two-person basic saved through UI; remaining skin/outline combinations are API-level."
+    "All native UI appearance cases are not claimed: basic/flesh and two-person basic saved through UI; remaining skin/outline combinations are API-level.",
+    "Full pre/post restart operation head/revision comparison incomplete: read script stopped on an older operation 409; same DB path/backups and saved proof files were preserved."
   ],
   "latestIntegratedMain": "e27e7d5",
   "latestIntegratedProductCommit": "0ae7023",
@@ -318,5 +319,14 @@
       }
     ],
     "blenderReloadPassed": true
+  },
+  "finalCodeCutoff": {
+    "clientMain": "e27e7d5",
+    "bffMain": "791960e",
+    "bffPr200": "ad3ab3f",
+    "bffPr201": "974b4fd",
+    "converter": "3fadbaf",
+    "nativeBffRuntime": "aa3803c",
+    "note": "BFF 203 was merged after native flesh QA; its probe/hand path is separately tested, not a native rerun."
   }
 }
