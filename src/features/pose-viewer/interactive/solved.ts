@@ -6,6 +6,8 @@ import {
   readHandVariants,
   selectHandVariant,
 } from "./shared/interactive_pose_v1.mjs";
+import { ENCODING as BINARY_ENCODING, readSolvedStateV2 } from "./shared/interactive_pose_v2.mjs";
+import { isBinaryModel, type AnyPoseModel, type BinaryPoseModel } from "./poseModel";
 import { libraryPreviewMaterial } from "../preview/previewStyle";
 const n = z.number().finite();
 const matrix = z.array(n).length(16);
@@ -188,16 +190,14 @@ export const packetSchema = z
   })
   .strict();
 export type SolvedPacket = z.infer<typeof packetSchema>;
-export async function loadSolvedPacket(
-  raw: unknown,
-  expected: {
-    operationId: string;
-    revision: number;
-    stateHash: string;
-    personIndex: number;
-    candidateId: string;
-  },
-) {
+export type SolvedExpectation = {
+  operationId: string;
+  revision: number;
+  stateHash: string;
+  personIndex: number;
+  candidateId: string;
+};
+export async function loadSolvedPacket(raw: unknown, expected: SolvedExpectation) {
   const packet = packetSchema.parse(raw);
   if (
     packet.operation !== expected.operationId ||
@@ -221,7 +221,73 @@ export async function loadSolvedPacket(
     throw Error("solved selection mismatch");
   return { packet, state };
 }
-export function fromRow(value: number[]) {
+/** Small header fields of a binary state; never retains the state bytes themselves. */
+export type BinarySolvedPacket = {
+  schema: "solved-pose-state-v1";
+  operation: string;
+  revision: number;
+  stateHash: string;
+  previewState: "authoritative";
+  exportState: "not-requested";
+  canonicalEncoding: typeof BINARY_ENCODING;
+  modelSha256: string;
+  stateBytes: number;
+};
+export type BinarySolvedState = Omit<SolvedState, "model"> & { model: BinaryPoseModel };
+const stateHeadSchema = stateSchema.omit({ model: true });
+// Only models that passed the shared reader and the client-only checks below may be drawn.
+const verifiedBinaryModels = new WeakSet<BinaryPoseModel>();
+/** Client-only invariants that `modelSchema` enforces and the shared v2 reader does not. */
+function checkBinaryModel(model: BinaryPoseModel) {
+  const invalid = () => {
+    throw Error("invalid bounded rig/surface");
+  };
+  for (const bone of model.bones) {
+    if (bone.name.length > 200) invalid();
+    for (const m of [bone.restLocal, bone.poseLocal, bone.inverseBind])
+      if (m.length !== 16 || Math.abs(fromRow(m).determinant()) < 1e-12) invalid();
+  }
+  for (const mesh of model.meshes) if (mesh.name.length > 200) invalid();
+}
+/**
+ * Binary v2 (`standin-binary-f64le-v2`) counterpart of `loadSolvedPacket`: SHA256, strict
+ * canonical decode and full geometry validation in the shared reader, then the same identity
+ * schema and selection binding as v1. No JSON envelope, typed-f64 decode or model zod walk.
+ */
+export async function loadBinarySolvedState(bytes: Uint8Array, expected: SolvedExpectation) {
+  const decoded = await readSolvedStateV2(bytes, expected.stateHash);
+  if (decoded.stateHash !== expected.stateHash) throw Error("stale solved packet");
+  const head = stateHeadSchema.parse({
+    schema: decoded.schema,
+    identity: decoded.identity,
+    safety: decoded.safety,
+    dependencies: decoded.dependencies,
+  });
+  checkBinaryModel(decoded.model);
+  const selection = head.identity.selection;
+  if (
+    selection.operation !== expected.operationId ||
+    selection.revision !== expected.revision ||
+    selection.person !== String(expected.personIndex) ||
+    selection.candidate !== expected.candidateId
+  )
+    throw Error("solved selection mismatch");
+  verifiedBinaryModels.add(decoded.model);
+  const packet: BinarySolvedPacket = {
+    schema: "solved-pose-state-v1",
+    operation: expected.operationId,
+    revision: expected.revision,
+    stateHash: decoded.stateHash,
+    previewState: "authoritative",
+    exportState: "not-requested",
+    canonicalEncoding: BINARY_ENCODING,
+    modelSha256: decoded.modelSha256,
+    stateBytes: decoded.byteLength,
+  };
+  const state: BinarySolvedState = { ...head, model: decoded.model };
+  return { packet, state };
+}
+export function fromRow(value: ArrayLike<number>) {
   return new THREE.Matrix4().fromArray(value).transpose();
 }
 /** Do not derive missing projection/framing from model bounds or rounded yaw. */
@@ -233,7 +299,10 @@ export const frameSchema = z
   })
   .strict();
 export type CameraFrame = z.infer<typeof frameSchema>;
-export function solvedCamera(state: SolvedState, frame: CameraFrame): SearchCamera {
+export function solvedCamera(
+  state: { identity: SolvedState["identity"] },
+  frame: CameraFrame,
+): SearchCamera {
   const c = state.identity.camera;
   return {
     schemaVersion: "interactive-camera-v1",
@@ -253,54 +322,32 @@ export function solvedCamera(state: SolvedState, frame: CameraFrame): SearchCame
     baked: c.baked ? "view" : "none",
   };
 }
-/** Exact full-influence linear blend, once per loaded packet. No independent hand solver or discarded skin weights. */
-export function prepareSurface(input: PoseModel) {
-  const model = modelSchema.parse(input);
+const SURFACE_GPU_BUDGET = 48 * 1024 * 1024;
+function boneTransforms(
+  bones: readonly {
+    parent: number;
+    poseLocal: ArrayLike<number>;
+    inverseBind: ArrayLike<number>;
+  }[],
+) {
   const world: THREE.Matrix4[] = [];
-  const transforms = model.bones.map((bone, i) => {
+  const transforms = bones.map((bone, i) => {
     const pose = fromRow(bone.poseLocal);
     world[i] = bone.parent < 0 ? pose : world[bone.parent].clone().multiply(pose);
     return world[i].clone().multiply(fromRow(bone.inverseBind));
   });
   const normalTransforms = transforms.map((t) => new THREE.Matrix3().getNormalMatrix(t));
-  if (model.meshes.reduce((sum, m) => sum + m.triangles.length * 72, 0) > 48 * 1024 * 1024)
-    throw Error("surface GPU budget");
+  return { transforms, normalTransforms };
+}
+/** De-indexed per-corner buffers become one Mesh each; any failure releases what was built. */
+function assembleSurface(
+  meshCount: number,
+  build: (mesh: number) => { positions: Float32Array; normals: Float32Array },
+) {
   const body = new THREE.Group();
   try {
-    for (const mesh of model.meshes) {
-      const corners = mesh.triangles.length * 3;
-      const memory = corners * 3 * 4 * 2;
-      if (memory > 48 * 1024 * 1024) throw Error("surface GPU budget");
-      const positions = new Float32Array(corners * 3),
-        normals = new Float32Array(corners * 3);
-      const skinned = new Float32Array(mesh.positions.length * 3);
-      const source = new THREE.Vector3(),
-        result = new THREE.Vector3(),
-        scratch = new THREE.Vector3();
-      for (let i = 0; i < mesh.positions.length; i++) {
-        source.fromArray(mesh.positions[i]);
-        result.set(0, 0, 0);
-        for (const [bone, weight] of mesh.weights[i])
-          result.addScaledVector(scratch.copy(source).applyMatrix4(transforms[bone]), weight);
-        if (![result.x, result.y, result.z].every(Number.isFinite))
-          throw Error("invalid skinned position");
-        result.toArray(skinned, i * 3);
-      }
-      for (let t = 0; t < mesh.triangles.length; t++)
-        for (let c = 0; c < 3; c++) {
-          const vertex = mesh.triangles[t][c],
-            normalIndex = mesh.normalTriangles[t][c],
-            output = (t * 3 + c) * 3;
-          positions.set(skinned.subarray(vertex * 3, vertex * 3 + 3), output);
-          source.fromArray(mesh.normals[normalIndex]);
-          result.set(0, 0, 0);
-          for (const [bone, weight] of mesh.weights[vertex])
-            result.addScaledVector(
-              scratch.copy(source).applyMatrix3(normalTransforms[bone]),
-              weight,
-            );
-          result.normalize().toArray(normals, output);
-        }
+    for (let i = 0; i < meshCount; i++) {
+      const { positions, normals } = build(i);
       if (!positions.every(Number.isFinite) || !normals.every(Number.isFinite))
         throw Error("surface float32 bounds");
       const geometry = new THREE.BufferGeometry();
@@ -330,6 +377,99 @@ export function prepareSurface(input: PoseModel) {
     });
     throw error;
   }
+}
+/** Exact full-influence linear blend, once per loaded packet. No independent hand solver or discarded skin weights. */
+export function prepareSurface(input: AnyPoseModel) {
+  if (isBinaryModel(input)) return prepareBinarySurface(input);
+  const model = modelSchema.parse(input);
+  const { transforms, normalTransforms } = boneTransforms(model.bones);
+  if (model.meshes.reduce((sum, m) => sum + m.triangles.length * 72, 0) > SURFACE_GPU_BUDGET)
+    throw Error("surface GPU budget");
+  return assembleSurface(model.meshes.length, (index) => {
+    const mesh = model.meshes[index];
+    const corners = mesh.triangles.length * 3;
+    const memory = corners * 3 * 4 * 2;
+    if (memory > SURFACE_GPU_BUDGET) throw Error("surface GPU budget");
+    const positions = new Float32Array(corners * 3),
+      normals = new Float32Array(corners * 3);
+    const skinned = new Float32Array(mesh.positions.length * 3);
+    const source = new THREE.Vector3(),
+      result = new THREE.Vector3(),
+      scratch = new THREE.Vector3();
+    for (let i = 0; i < mesh.positions.length; i++) {
+      source.fromArray(mesh.positions[i]);
+      result.set(0, 0, 0);
+      for (const [bone, weight] of mesh.weights[i])
+        result.addScaledVector(scratch.copy(source).applyMatrix4(transforms[bone]), weight);
+      if (![result.x, result.y, result.z].every(Number.isFinite))
+        throw Error("invalid skinned position");
+      result.toArray(skinned, i * 3);
+    }
+    for (let t = 0; t < mesh.triangles.length; t++)
+      for (let c = 0; c < 3; c++) {
+        const vertex = mesh.triangles[t][c],
+          normalIndex = mesh.normalTriangles[t][c],
+          output = (t * 3 + c) * 3;
+        positions.set(skinned.subarray(vertex * 3, vertex * 3 + 3), output);
+        source.fromArray(mesh.normals[normalIndex]);
+        result.set(0, 0, 0);
+        for (const [bone, weight] of mesh.weights[vertex])
+          result.addScaledVector(scratch.copy(source).applyMatrix3(normalTransforms[bone]), weight);
+        result.normalize().toArray(normals, output);
+      }
+    return { positions, normals };
+  });
+}
+/**
+ * The v1 linear blend over typed arrays: the same THREE operations in the same order (weights
+ * keep their encoded order), so the Float32 output is bitwise equal for an equivalent model.
+ * Validation already ran once in `loadBinarySolvedState`; no second walk here.
+ */
+function prepareBinarySurface(model: BinaryPoseModel) {
+  if (!verifiedBinaryModels.has(model)) throw Error("unverified binary model");
+  const { transforms, normalTransforms } = boneTransforms(model.bones);
+  if (model.meshes.reduce((sum, m) => sum + m.triangleCount * 72, 0) > SURFACE_GPU_BUDGET)
+    throw Error("surface GPU budget");
+  return assembleSurface(model.meshes.length, (index) => {
+    const mesh = model.meshes[index];
+    const corners = mesh.triangleCount * 3;
+    if (corners * 3 * 4 * 2 > SURFACE_GPU_BUDGET) throw Error("surface GPU budget");
+    const { triangles, normalTriangles, weightOffsets, weightBones, weightValues } = mesh;
+    const positions = new Float32Array(corners * 3),
+      normals = new Float32Array(corners * 3);
+    const skinned = new Float32Array(mesh.vertexCount * 3);
+    const source = new THREE.Vector3(),
+      result = new THREE.Vector3(),
+      scratch = new THREE.Vector3();
+    for (let v = 0; v < mesh.vertexCount; v++) {
+      source.fromArray(mesh.positions, v * 3);
+      result.set(0, 0, 0);
+      for (let j = weightOffsets[v], end = weightOffsets[v + 1]; j < end; j++)
+        result.addScaledVector(
+          scratch.copy(source).applyMatrix4(transforms[weightBones[j]]),
+          weightValues[j],
+        );
+      if (!Number.isFinite(result.x) || !Number.isFinite(result.y) || !Number.isFinite(result.z))
+        throw Error("invalid skinned position");
+      result.toArray(skinned, v * 3);
+    }
+    for (let k = 0; k < corners; k++) {
+      const vertex = triangles[k],
+        output = k * 3;
+      positions[output] = skinned[vertex * 3];
+      positions[output + 1] = skinned[vertex * 3 + 1];
+      positions[output + 2] = skinned[vertex * 3 + 2];
+      source.fromArray(mesh.normals, normalTriangles[k] * 3);
+      result.set(0, 0, 0);
+      for (let j = weightOffsets[vertex], end = weightOffsets[vertex + 1]; j < end; j++)
+        result.addScaledVector(
+          scratch.copy(source).applyMatrix3(normalTransforms[weightBones[j]]),
+          weightValues[j],
+        );
+      result.normalize().toArray(normals, output);
+    }
+    return { positions, normals };
+  });
 }
 export type LoadedVariants = {
   bytes: number;
