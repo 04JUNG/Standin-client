@@ -6,7 +6,7 @@
 - App/bar final review, including expanded 3D, has no skin/outline editing. Hands remain available. Candidate appearance changes do not prepare FBXs.
 - Final bar cards are capped at 192px, with rotation/enlargement still available.
 
-Validation:1573 client tests passed,5 opt-in skips; typecheck/build and changed product ESLint passed. The browser uses actual production components and local sample data, not live staging or a native installer. Tested on macOS; Windows/native packaging not tested in this follow-up.
+Validation:1576 client tests passed,5 opt-in skips; typecheck/build and changed product ESLint passed. The browser uses actual production components and local sample data, not live staging or a native installer. Tested on macOS; Windows/native packaging not tested in this follow-up.
 
 `selection.jpg` shows the existing large preview and the floating candidate component.
 The floating body-selection preview itself retains its existing neutral image/runtime;
