@@ -1,3 +1,4 @@
+import { interactiveStateCapabilitySchema } from "../interactive/capability";
 import { capabilitySchema, readAsset } from "../interactive/contract";
 import { env } from "@/shared/lib/env";
 import { rememberAnalysisFailure } from "@/features/analytics/analysisContext";
@@ -102,6 +103,7 @@ type BffAnalysisResult = {
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
     interactivePreview?: unknown;
+    interactiveState?: unknown;
     selectionPreview?: boolean;
     candidateRerun?: boolean;
   };
@@ -475,6 +477,14 @@ export async function toAnalysisResult(
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
       ...(selectionPreview ? { selectionPreview } : {}),
       modelPreview: raw.capabilities?.modelPreview === true,
+      ...(env.interactivePreview &&
+      interactiveStateCapabilitySchema.safeParse(raw.capabilities?.interactiveState).success
+        ? {
+            interactiveState: interactiveStateCapabilitySchema.parse(
+              raw.capabilities?.interactiveState,
+            ),
+          }
+        : {}),
       ...(env.interactivePreview &&
       capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success
         ? { interactivePreview: capabilitySchema.parse(raw.capabilities?.interactivePreview) }

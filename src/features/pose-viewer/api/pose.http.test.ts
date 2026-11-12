@@ -1180,4 +1180,34 @@ describe("poseHttp", () => {
     );
     expect(created).toHaveLength(1);
   });
+  // Regression: semantic jobs expose final operations without Top5 static coverage.
+  it.each([true, false])(
+    "reads final interactive support independently of Top5 coverage (%s)",
+    async (available) => {
+      const flag = env.interactivePreview;
+      Object.defineProperty(env, "interactivePreview", { value: true, configurable: true });
+      try {
+        fetchMock.mockResolvedValueOnce(
+          jsonResponse({
+            ...semanticPayload(),
+            capabilities: {
+              interactiveState: {
+                schemaVersion: "standin.interactive-http.v1",
+                available,
+                transport: "polling",
+                localHands: false,
+                initialFbxRequired: true,
+              },
+            },
+          }),
+        );
+        const result = await poseHttp.loadResult({ jobId: "job_saved" });
+        expect(result.capabilities.interactiveState?.available).toBe(available);
+        expect(result.capabilities.interactivePreview).toBeUndefined();
+        expect(result.people[0].candidates.every((c) => !c.interactivePreview)).toBe(true);
+      } finally {
+        Object.defineProperty(env, "interactivePreview", { value: flag, configurable: true });
+      }
+    },
+  );
 });

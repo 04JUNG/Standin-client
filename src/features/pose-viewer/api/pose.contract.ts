@@ -121,6 +121,7 @@ export type AnalysisResult = {
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
     interactivePreview?: import("../interactive/contract").InteractiveCapability;
+    interactiveState?: import("../interactive/capability").InteractiveStateCapability;
     /**
      * 같은 인물의 다음 후보 묶음을 서버가 줄 수 있는가. 아직 어떤 서버도 켜지 않는다 —
      * 켜지기 전에는 "후보 다시 찾기" 자리를 그리지 않는다(없는 기능을 보이지 않는다).

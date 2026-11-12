@@ -1,3 +1,4 @@
+import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
 import { canRefineCandidate, canReleaseRefine } from "../api/routedSearch";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useExportStore } from "@/features/export/store/exportStore";
@@ -79,7 +80,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
             personIndex: next.personIndex,
             candidateId: next.candidateId,
             ...(result.capabilities.refineRelease ? { releaseVersion: "RC4" as const } : {}),
-            ...((result.capabilities.interactivePreview?.operations ||
+            ...((canUseInteractiveOperations(result.capabilities) ||
               (result.capabilities.modelPreview &&
                 modelRenderingAvailable() &&
                 result.capabilities.outputScopeCropping)) &&

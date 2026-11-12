@@ -55,7 +55,9 @@ export function useInteractiveReviews({
     failed:
       enabled &&
       snapshots.some(
-        (s, i) => s.binding === requests[i]?.binding && (s.error || s.exportState === "failed"),
+        (s, i) =>
+          s.binding === requests[i]?.binding &&
+          (s.error || !!s.failure || s.exportState === "failed"),
       ),
     retry() {
       controllers.forEach((c) => c.retry());

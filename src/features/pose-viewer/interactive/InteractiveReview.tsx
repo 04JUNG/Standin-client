@@ -149,9 +149,10 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
         : source,
     [chosenSkin, overlay, source],
   );
-  const skinNotice =
-    data.skin &&
-    (!overlay || overlay.source !== source || !sameSkin(data.skin, overlay.preview.skin))
+  const skinNotice = data.failed
+    ? data.notice || "저장할 모습을 불러오지 못했어요. 다시 시도해 주세요."
+    : data.skin &&
+        (!overlay || overlay.source !== source || !sameSkin(data.skin, overlay.preview.skin))
       ? skinFailed
         ? "스킨을 불러오지 못했어요. 다시 시도해 주세요."
         : "스킨 불러오는 중"
@@ -162,6 +163,7 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
         loading={
           (!source && !data.asset && !data.failed) ||
           (!!data.skin &&
+            !data.failed &&
             (!overlay || overlay.source !== source || !sameSkin(data.skin, overlay.preview.skin)) &&
             !skinFailed)
         }

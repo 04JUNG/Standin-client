@@ -1,3 +1,4 @@
+import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
 import { fetchPreparedFbxResponse } from "../lib/preparedFbx";
 import { interactiveController } from "@/features/pose-viewer/interactive/session";
 import { selectedSkin, sameSkin } from "@/features/pose-viewer/skin/skin";
@@ -588,7 +589,7 @@ export function useSaveFlow(jobId: string | undefined) {
               skin &&
               (format !== "fbx" ||
                 !env.interactivePreview ||
-                !analysisResult.capabilities.interactivePreview?.operations)
+                !canUseInteractiveOperations(analysisResult.capabilities))
             )
               throw new ApiError(422, "SKIN_UNSUPPORTED", "");
             if (
@@ -596,7 +597,7 @@ export function useSaveFlow(jobId: string | undefined) {
               (outline > 0 &&
                 (format !== "fbx" ||
                   !env.interactivePreview ||
-                  !analysisResult.capabilities.interactivePreview?.operations))
+                  !canUseInteractiveOperations(analysisResult.capabilities)))
             )
               throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
             const person = analysisResult.people.find((p) => p.index === personIndex);
@@ -650,7 +651,7 @@ export function useSaveFlow(jobId: string | undefined) {
               downloadPath = exportUrl;
             } else if (
               env.interactivePreview &&
-              analysisResult.capabilities.interactivePreview?.operations &&
+              canUseInteractiveOperations(analysisResult.capabilities) &&
               format === "fbx"
             ) {
               const owner = useInstallationStore.getState().credentials?.installationId ?? "";
@@ -938,7 +939,7 @@ export function useSaveFlow(jobId: string | undefined) {
         // A late response must never write an older selection to disk.
         if (
           (env.interactivePreview &&
-            analysisResult.capabilities.interactivePreview?.operations &&
+            canUseInteractiveOperations(analysisResult.capabilities) &&
             files.some((f) => {
               if (f.releaseSha) {
                 const receipt = usePoseSelectionStore.getState().refineByPerson[f.personIndex];
