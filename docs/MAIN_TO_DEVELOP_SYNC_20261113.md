@@ -19,3 +19,7 @@ Converter → BFF → client 순서로 검토/병합한다. 신규 BFF는 unavai
 이번 Node 22: typecheck/build 통과, 전체 vitest 216 files / 1,692 passed / 6 skipped. lint 오류0, 기존 fast-refresh 경고2. 양쪽 ReviewPage/BarReviewPage의 cropped skin 제한·복구는 컴포넌트/훅 회귀로 확인했다. 실제 desktop UI 조작·CSP·native 저장·Windows/macOS 서명 앱은 여기서 확인했다고 주장하지 않는다. Rust checks는 CI에서 확인하며 로컬 결과는 아래 별도로 기록한다.
 
 main/develop 직접 변경·병합·배포·릴리스 없음. PR base는 develop.
+
+로컬 Rust: 새 target 디렉터리에서 cargo test --locked 직렬 실행 15/15 통과(격리된 tests Keychain namespace만 사용). 초기 sandbox Keychain 거절·병렬 update-cache 테스트 실패는 직렬/허용 환경에서 재현되지 않았다. 수정한 window_mode.rs rustfmt 통과. 전체 cargo fmt는 수정하지 않은 export.rs 등 기존 서식 차이로 실패하여 관련 없는 파일은 재포맷하지 않았다. release:check 통과.
+
+환경 확인: workflows/package·lock/release notes/Cargo·tauri/env/providers/installation/analytics/replay/settings/updates 경로가 develop과 byte 동일하다. main의 미참조 CandidateSourcePreview 잔여 모듈과 테스트 주석 삭제만 있는 delta는 이식하지 않았다.
