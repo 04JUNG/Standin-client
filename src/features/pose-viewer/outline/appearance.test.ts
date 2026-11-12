@@ -147,3 +147,20 @@ it.each([
   mutate(r);
   expect(outlineReceiptSchema.safeParse(r).success).toBe(false);
 });
+
+it("accepts exact current anatomy full receipts while rejecting copied hashes and crops", async () => {
+  const { SKIN_ASSET_PINS } = await import("../skin/skinAssetPins");
+  const pins = SKIN_ASSET_PINS.filter((p) => p.continuousOutline);
+  expect(pins).toHaveLength(20);
+  for (const pin of pins) {
+    const receipt = acceptedReceipt();
+    receipt.proof.character_id = pin.characterId;
+    receipt.proof.character_sha256 = pin.characterSha256;
+    expect(outlineReceiptSchema.safeParse(receipt).success).toBe(true);
+    receipt.proof.output_scope = "head";
+    expect(outlineReceiptSchema.safeParse(receipt).success).toBe(false);
+    receipt.proof.output_scope = "full";
+    receipt.proof.character_sha256 = "f".repeat(64);
+    expect(outlineReceiptSchema.safeParse(receipt).success).toBe(false);
+  }
+});
