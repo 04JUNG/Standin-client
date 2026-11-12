@@ -146,7 +146,7 @@ export function SelectionPreview({
             {gender === "female" ? "여성" : "남성"} 기본형 · 참고용 포즈
           </p>
         )}
-        <CandidateAppearanceControls personIndex={person.index} />
+        <CandidateAppearanceControls personIndex={person.index} scope={previewScope(person)} />
         {surface && (display.pending || display.failed) && (
           <p role="status" className="text-[11px] text-text-secondary">
             {display.failed

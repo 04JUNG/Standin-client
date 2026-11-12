@@ -12,6 +12,7 @@ import { useBodyPanel } from "@/features/body-selection/bodyPanel";
 import { ModelSelect } from "@/features/models/components/ModelSelect";
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import { canRelease } from "@/features/pose-viewer/api/routedSearch";
+import { previewScope } from "@/features/pose-viewer/api/outputScope";
 import { ExcludedOverlay, ExportSwitch } from "@/features/pose-viewer/components/ExportSwitch";
 import { FitTile } from "@/features/pose-viewer/components/FitTile";
 import { PersonFallbackNotice } from "@/features/pose-viewer/components/PersonFallbackNotice";
@@ -142,7 +143,11 @@ function BarPersonCandidatesContent({ person, analysis, onPickPerson }: BarPerso
       </div>
 
       {expanded && included && selectable && (
-        <CandidateAppearanceControls personIndex={person.index} compact />
+        <CandidateAppearanceControls
+          personIndex={person.index}
+          scope={previewScope(person)}
+          compact
+        />
       )}
 
       {semantic ? (
