@@ -1,5 +1,5 @@
 import { selectionSkinPreview } from "../skin/selectionSkinPreview";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ExpandablePose, type SurfaceView } from "./InteractivePose";
 import { prepareSurface, solvedCamera } from "./solved";
 import type { ModelResult } from "./http";
@@ -20,7 +20,7 @@ export type InteractiveReviewData = {
   localSurface?: SurfaceView;
   onFrame?: (element: HTMLElement) => void;
 };
-export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
+export function InteractiveReview({ data, fallback }: { data: InteractiveReviewData; fallback?: ReactNode }) {
   const [prepared, setPrepared] = useState<
     ReturnType<typeof prepareSurface> & {
       camera: import("./contract").SearchCamera;
@@ -62,11 +62,20 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
   const location = data.selectionSkin?.location,
     candidateId = data.selectionSkin?.candidateId,
     baseBinding = data.selectionSkin?.baseBinding;
+  const stateHash = data.skinState?.stateHash,
+    revision = data.skinState?.revision;
+  const authoritativePreview =
+    preview && chosenSkin && sameSkin(chosenSkin, preview.skin) && stateHash && revision &&
+    data.model?.packet.stateHash === stateHash && data.model.packet.revision === revision
+      ? preview
+      : undefined;
+  const [retrySkin, setRetrySkin] = useState(0);
+  const [skinFailed, setSkinFailed] = useState(false);
   const [selectedPreview, setSelectedPreview] = useState<
     Awaited<ReturnType<typeof selectionSkinPreview>> & { baseBinding: string; skin: Skin }
   >();
   useEffect(() => {
-    if (!chosenSkin || !location || !candidateId || !baseBinding || !source) return;
+    if (authoritativePreview || !chosenSkin || !location || !candidateId || !baseBinding || !source) return;
     const abort = new AbortController();
     void selectionSkinPreview(location, candidateId, chosenSkin, abort.signal)
       .then((result) => {
@@ -76,23 +85,21 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
         if (!abort.signal.aborted) setSkinFailed(true);
       });
     return () => abort.abort();
-  }, [location, candidateId, baseBinding, chosenSkin, source]);
+  }, [location, candidateId, baseBinding, chosenSkin, source, authoritativePreview, retrySkin]);
   const localPreview =
+    !authoritativePreview &&
     selectedPreview &&
     selectedPreview.baseBinding === baseBinding &&
     chosenSkin &&
     sameSkin(selectedPreview.skin, chosenSkin)
       ? selectedPreview
       : undefined;
-  const effectivePreview = localPreview?.skinPreview ?? preview;
-  const stateHash = data.skinState?.stateHash,
-    revision = data.skinState?.revision;
+  const effectivePreview = authoritativePreview ?? localPreview?.skinPreview;
   const [overlay, setOverlay] = useState<{
     source: typeof source;
     preview: SkinPreview;
     display: Awaited<ReturnType<typeof loadSkinSurface>>;
   }>();
-  const [skinFailed, setSkinFailed] = useState(false);
   useEffect(() => {
     setSkinFailed(false);
     if (
@@ -138,12 +145,12 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
     return () => {
       abort.abort();
     };
-  }, [source, chosenSkin, effectivePreview, localPreview, stateHash, revision, data.model]);
+  }, [source, chosenSkin, effectivePreview, localPreview, stateHash, revision, data.model, retrySkin]);
   useEffect(() => () => overlay?.display.release(), [overlay]);
   const display = useMemo(
     () =>
       chosenSkin
-        ? overlay && source && overlay.source === source
+        ? overlay && source && overlay.source === source && sameSkin(chosenSkin, overlay.preview.skin)
           ? { ...source!, body: overlay.display.body }
           : source
         : source,
@@ -154,12 +161,13 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
     : data.skin &&
         (!overlay || overlay.source !== source || !sameSkin(data.skin, overlay.preview.skin))
       ? skinFailed
-        ? "스킨을 불러오지 못했어요. 다시 시도해 주세요."
+        ? "스킨을 불러오지 못했어요."
         : "스킨 불러오는 중"
       : "";
   return (
     <div className="relative h-full w-full">
       <ExpandablePose
+        fallback={fallback}
         loading={
           (!source && !data.asset && !data.failed) ||
           (!!data.skin &&
@@ -179,6 +187,15 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
           className="pointer-events-none absolute bottom-2 left-2 right-2 z-[20] rounded bg-surface-0/95 p-2 text-center text-xs text-text-secondary"
         >
           {skinNotice || data.notice}
+          {skinFailed && !data.failed && skinNotice && (
+            <button
+              type="button"
+              className="pointer-events-auto ml-2 underline"
+              onClick={() => setRetrySkin((attempt) => attempt + 1)}
+            >
+              스킨 다시 불러오기
+            </button>
+          )}
         </div>
       )}
     </div>

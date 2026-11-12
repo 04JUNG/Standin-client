@@ -52,15 +52,65 @@ describe("apiFetch", () => {
     await apiFetch("/v1/analysis/jobs/job_test/people/0/interactive-state", { auth: false });
     for (const call of fetchMock.mock.calls) {
       const headers = (call[1] as RequestInit).headers as Record<string, string>;
-      // Comma-separated tokens; the BFF keeps requiring the first one.
-      expect(headers["X-Standin-Interactive-Protocol"]).toBe(
-        "pose-body-only-v1, solved-state-binary-v2",
-      );
-      expect(headers["X-Standin-Interactive-Protocol"].split(",").map((t) => t.trim())).toEqual([
-        "pose-body-only-v1",
-        "solved-state-binary-v2",
-      ]);
+      // Old BFFs require the exact v1 token until the result advertises v2.
+      expect(headers["X-Standin-Interactive-Protocol"]).toBe("pose-body-only-v1");
     }
+  });
+  const binaryCapability = {
+    capabilities: {
+      solvedStateBinary: {
+        available: true,
+        protocolToken: "solved-state-binary-v2",
+        mediaType: "application/vnd.standin.solved-pose-state-v2",
+      },
+    },
+  };
+  it("adds the binary token only after a first-party job explicitly advertises it", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(binaryCapability))
+      .mockImplementation(async () => jsonResponse({ ok: true }));
+    await apiFetch("/v1/analysis/jobs/job_test/result");
+    await apiFetch("/v1/analysis/jobs/job_test/people/0/interactive-state");
+    expect(fetchMock.mock.calls.map((c) => (c[1] as RequestInit).headers)).toMatchObject([
+      { "X-Standin-Interactive-Protocol": "pose-body-only-v1" },
+      { "X-Standin-Interactive-Protocol": "pose-body-only-v1, solved-state-binary-v2" },
+    ]);
+    fetchMock.mockResolvedValueOnce(jsonResponse({ capabilities: {} }));
+    await apiFetch("/v1/analysis/jobs/job_test/result");
+    await apiFetch("/v1/models");
+    expect((fetchMock.mock.lastCall![1] as RequestInit).headers).toMatchObject({
+      "X-Standin-Interactive-Protocol": "pose-body-only-v1",
+    });
+  });
+  it("resumes after a BFF protocol rollback without changing an idempotent prepare body", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(binaryCapability))
+      .mockResolvedValueOnce(errorResponse(426, "INTERACTIVE_PROTOCOL_REQUIRED"))
+      .mockResolvedValue(jsonResponse({ accepted: true }));
+    await apiFetch("/v1/analysis/jobs/job_test/result");
+    await apiFetch("/v1/analysis/jobs/job_test/people/0/interactive-state", {
+      method: "POST",
+      body: { mutationId: "same", revision: 1 },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect((fetchMock.mock.calls[1][1] as RequestInit).body).toBe(
+      (fetchMock.mock.calls[2][1] as RequestInit).body,
+    );
+    expect((fetchMock.mock.calls[2][1] as RequestInit).headers).toMatchObject({
+      "X-Standin-Interactive-Protocol": "pose-body-only-v1",
+    });
+  });
+  it("does not negotiate from an external origin or malformed capability", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(binaryCapability))
+      .mockResolvedValue(jsonResponse({ ok: true }));
+    await apiFetch("https://external.invalid/v1/analysis/jobs/job_test/result", {
+      installation: false,
+    });
+    await apiFetch("/v1/models");
+    expect((fetchMock.mock.lastCall![1] as RequestInit).headers).toMatchObject({
+      "X-Standin-Interactive-Protocol": "pose-body-only-v1",
+    });
   });
   it("does not send the protocol opt-in to external asset origins", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ ok: true }));

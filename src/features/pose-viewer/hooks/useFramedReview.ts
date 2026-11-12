@@ -189,7 +189,7 @@ export function useFramedReview(jobId: string | undefined) {
     ];
     const poseBinding = JSON.stringify(baseIdentity);
     const baseBinding = JSON.stringify([...baseIdentity, handEntry?.selection]);
-    const binding = JSON.stringify([...baseIdentity, appearance, ...(skin ? [skin] : [])]);
+    const binding = JSON.stringify([baseBinding, appearance, ...(skin ? [skin] : [])]);
     return {
       binding,
       baseBinding,
