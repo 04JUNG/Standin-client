@@ -57,6 +57,7 @@ export function cropReferenceMesh(mesh: Mesh, cut: number) {
     return index;
   }
   const triangles: number[] = [];
+  const uv: number[] = [];
   const edges = new Map<string, { a: number; b: number; count: number }>();
   function face(a: number, b: number, c: number) {
     if (a === b || b === c || c === a) return;
@@ -77,15 +78,32 @@ export function cropReferenceMesh(mesh: Mesh, cut: number) {
   for (let i = 0; i < mesh.triangles.length; i += 3) {
     const source = mesh.triangles.slice(i, i + 3);
     const clipped: number[] = [];
+    const clippedUv: number[][] = [];
+    const cornerUv = (k: number) => mesh.uv?.slice((i + k) * 2, (i + k) * 2 + 2) ?? [-1, -1];
     for (let k = 0; k < 3; k++) {
       const a = source[k],
         b = source[(k + 1) % 3];
       const insideA = mesh.positions[a * 3 + 1] >= cut;
       const insideB = mesh.positions[b * 3 + 1] >= cut;
-      if (insideA) clipped.push(a);
-      if (insideA !== insideB) clipped.push(intersect(a, b));
+      if (insideA) {
+        clipped.push(a);
+        clippedUv.push(cornerUv(k));
+      }
+      if (insideA !== insideB) {
+        clipped.push(intersect(a, b));
+        const t =
+          (cut - mesh.positions[a * 3 + 1]) /
+          (mesh.positions[b * 3 + 1] - mesh.positions[a * 3 + 1]);
+        const left = cornerUv(k),
+          right = cornerUv((k + 1) % 3);
+        clippedUv.push(left.map((v, c) => v * (1 - t) + right[c] * t));
+      }
     }
-    for (let k = 1; k < clipped.length - 1; k++) face(clipped[0], clipped[k], clipped[k + 1]);
+    for (let k = 1; k < clipped.length - 1; k++) {
+      const before = triangles.length;
+      face(clipped[0], clipped[k], clipped[k + 1]);
+      if (triangles.length > before) uv.push(...clippedUv[0], ...clippedUv[k], ...clippedUv[k + 1]);
+    }
   }
   // Retained faces are consistently wound. Reverse their boundary edges so the
   // cap faces outward, including when the cut has several disconnected loops.
@@ -113,7 +131,11 @@ export function cropReferenceMesh(mesh: Mesh, cut: number) {
       const faceClockwise = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) < 0;
       if (faceClockwise !== clockwise) face.reverse();
       triangles.push(...face.map((i) => rim[i]));
+      uv.push(-1, -1, -1, -1, -1, -1);
     }
   }
-  return { mesh: { positions, normals, skinIndices, skinWeights, triangles }, inserted };
+  return {
+    mesh: { positions, normals, skinIndices, skinWeights, triangles, ...(mesh.uv ? { uv } : {}) },
+    inserted,
+  };
 }

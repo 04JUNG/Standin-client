@@ -1,5 +1,3 @@
-import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
-import { SkinControl } from "../skin/SkinControl";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
@@ -89,12 +87,7 @@ export function ReviewPage() {
                     error={previewError}
                     onModelStatus={item.onModelStatus}
                   />
-                  {(item.outlineAvailable || item.outlineWidth > 0) && (
-                    <OutlineControl personIndex={item.personIndex} />
-                  )}
-                  {(item.skinAvailable || item.skin) && (
-                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
-                  )}
+
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">
                       인물 {item.personIndex + 1}

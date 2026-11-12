@@ -1,12 +1,13 @@
 import "../pages/selectionWorkspace.css";
 import { useMemo } from "react";
-import { MAX_OUTLINE_WIDTH } from "../outline/outlineSettings";
+import { CandidateAppearanceControls } from "./CandidateAppearanceControls";
+import { usePoseSelectionStore } from "../store/poseSelectionStore";
+import { useReferenceSkin } from "../preview/humanReference/referenceSkin";
 import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
 import { bodyKind } from "@/features/body-selection/bodyPanel";
 import type { PersonResult } from "../api/pose.contract";
 import { previewScope } from "../api/outputScope";
 import { InteractivePose } from "../interactive/InteractivePose";
-import { usePreviewAppearance } from "../interactive/previewAppearanceStore";
 import {
   candidatePosterOptions,
   candidateReferenceUrl,
@@ -34,7 +35,8 @@ export function SelectionPreview({
   const owner = useBodyOwner();
   const candidate = person.candidates.find((c) => c.id === selectedId) ?? person.candidates[0];
   const appearanceKey = JSON.stringify([owner, job, person.index]);
-  const [appearance, setAppearance] = usePreviewAppearance(appearanceKey);
+  const outlineWidth = usePoseSelectionStore((s) => s.outlineByPerson[person.index] ?? 0);
+  const skin = usePoseSelectionStore((s) => s.skinByPerson[person.index] ?? "default");
   const presentation = person.posePresentation;
   const presentationCandidate =
     presentation && (presentationPosters || candidate?.manualExportAllowed)
@@ -88,6 +90,7 @@ export function SelectionPreview({
     () => model && { body: model.body, camera: referenceSurfaceCamera(model, yaw, rotation) },
     [model, yaw, rotation],
   );
+  const display = useReferenceSkin(surface, gender, skin);
   const posterImage = image ? (
     <img className="h-full w-full object-contain" src={image} alt={alt} />
   ) : undefined;
@@ -104,16 +107,16 @@ export function SelectionPreview({
         <span className="text-[11px] text-text-secondary">인물 {person.index + 1}</span>
       </div>
       <div className="selection-preview-model">
-        {surface ? (
+        {display.surface ? (
           <InteractivePose
             key={binding}
-            surface={surface}
+            surface={display.surface}
             viewKey={binding}
             fallback={posterImage}
             large
             rotationOnly
             renderLayer={renderLayer}
-            appearance={appearance}
+            outlineWidth={outlineWidth}
           />
         ) : (
           (posterImage ??
@@ -144,44 +147,14 @@ export function SelectionPreview({
             {gender === "female" ? "여성" : "남성"} 기본형 · 참고용 포즈
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="미리보기 스킨">
-          <span className="mr-auto text-xs font-semibold">스킨</span>
-          {(
-            [
-              ["default", "기본"],
-              ["flesh", "살색"],
-            ] as const
-          ).map(([skin, label]) => (
-            <button
-              key={skin}
-              type="button"
-              aria-pressed={appearance.skin === skin}
-              onClick={() => setAppearance((a) => ({ ...a, skin }))}
-              className={`rounded-md border px-3 py-1 text-xs ${appearance.skin === skin ? "border-brand-coral text-brand-coral" : "border-border"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-xs">
-          <span className="shrink-0 font-semibold">외곽선</span>
-          <input
-            aria-label="외곽선 두께"
-            className="min-w-0 flex-1 accent-brand-coral"
-            type="range"
-            min="0"
-            max={MAX_OUTLINE_WIDTH}
-            step="0.05"
-            value={appearance.outlineWidth}
-            onChange={(e) => setAppearance((a) => ({ ...a, outlineWidth: Number(e.target.value) }))}
-          />
-          <output className="w-10 text-right tabular-nums">
-            {appearance.outlineWidth.toFixed(1)}
-          </output>
-        </label>
-        <p className="text-[10px] text-text-secondary">
-          이 화면의 스킨·외곽선 설정은 FBX에 저장되지 않아요.
-        </p>
+        <CandidateAppearanceControls personIndex={person.index} />
+        {surface && !display.surface && (
+          <p role="status" className="text-[11px] text-text-secondary">
+            {display.failed
+              ? "스킨을 불러오지 못했어요. 다른 스킨을 선택해 주세요."
+              : "스킨 불러오는 중…"}
+          </p>
+        )}
       </div>
     </section>
   );

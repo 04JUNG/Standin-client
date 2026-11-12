@@ -1,3 +1,4 @@
+import { CandidateAppearanceControls } from "@/features/pose-viewer/components/CandidateAppearanceControls";
 import { CandidatePreviewProvider } from "@/features/pose-viewer/components/CandidatePreviewContext";
 import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { cn } from "@/shared/lib/cn";
@@ -139,6 +140,10 @@ function BarPersonCandidatesContent({ person, analysis, onPickPerson }: BarPerso
             />
           ))}
       </div>
+
+      {expanded && included && selectable && (
+        <CandidateAppearanceControls personIndex={person.index} compact />
+      )}
 
       {semantic ? (
         person.posePresentation ? (

@@ -28,6 +28,10 @@ export function referenceSurface(
   // PSDs alter the surface, so neutral normals no longer describe the joints.
   if (corrections)
     for (const mesh of surface.body.children) (mesh as THREE.Mesh).geometry.computeVertexNormals();
+  for (const [i, child] of surface.body.children.entries()) {
+    const uv = template.meshes[i].uv;
+    if (uv) (child as THREE.Mesh).geometry.userData.previewCornerUv = uv;
+  }
   return surface;
 }
 

@@ -21,7 +21,7 @@ export const skinCapabilitySchema = z
   .object({
     version: z.literal("fbx-skin-v1"),
     available: z.boolean(),
-    supportedIds: z.array(skinIdSchema).min(1).max(5),
+    supportedIds: z.array(skinIdSchema).min(1).max(6),
   })
   .strict()
   .refine(

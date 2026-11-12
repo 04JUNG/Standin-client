@@ -24,8 +24,8 @@ export type SkinAssetPin = {
 };
 export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-base-v0-4-0",
     "characterSha256": "ffd7b57d6ebba06299be252976b511afe5684a237e6f7d440bb90b2ba20f0c33",
     "skinId": "flesh",
@@ -45,8 +45,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-base-v0-4-0",
     "characterSha256": "ffd7b57d6ebba06299be252976b511afe5684a237e6f7d440bb90b2ba20f0c33",
     "skinId": "flesh-guide",
@@ -65,8 +65,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-base-v0-4-0",
+    "characterSha256": "ffd7b57d6ebba06299be252976b511afe5684a237e6f7d440bb90b2ba20f0c33",
+    "skinId": "flesh-muscle",
+    "uvSha256": "054c5625665499e502546a21072212decbaeabc3e82b6a51a67146366084e359",
+    "uvBytes": 7031240,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-base-v0-4-0",
     "characterSha256": "ffd7b57d6ebba06299be252976b511afe5684a237e6f7d440bb90b2ba20f0c33",
     "skinId": "gray-guide",
@@ -85,8 +105,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-base-v0-4-0",
     "characterSha256": "ffd7b57d6ebba06299be252976b511afe5684a237e6f7d440bb90b2ba20f0c33",
     "skinId": "muscle",
@@ -105,8 +125,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-default80-v0-3-9-p1",
     "characterSha256": "712ac75e58efd4d6ccded0b1e931590900015de023327f1320cf6d7d94026ffc",
     "skinId": "flesh",
@@ -125,8 +145,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-default80-v0-3-9-p1",
     "characterSha256": "712ac75e58efd4d6ccded0b1e931590900015de023327f1320cf6d7d94026ffc",
     "skinId": "flesh-guide",
@@ -145,8 +165,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-default80-v0-3-9-p1",
     "characterSha256": "712ac75e58efd4d6ccded0b1e931590900015de023327f1320cf6d7d94026ffc",
     "skinId": "gray-guide",
@@ -165,8 +185,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-default80-v0-3-9-p1",
     "characterSha256": "712ac75e58efd4d6ccded0b1e931590900015de023327f1320cf6d7d94026ffc",
     "skinId": "muscle",
@@ -185,8 +205,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-fat-max-v0-4-0",
     "characterSha256": "87563be9bbb84e8d3c2f22b542a27a5c9d49bd939156338b45c40e323fb82cb9",
     "skinId": "flesh",
@@ -206,8 +226,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-fat-max-v0-4-0",
     "characterSha256": "87563be9bbb84e8d3c2f22b542a27a5c9d49bd939156338b45c40e323fb82cb9",
     "skinId": "flesh-guide",
@@ -226,8 +246,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-fat-max-v0-4-0",
+    "characterSha256": "87563be9bbb84e8d3c2f22b542a27a5c9d49bd939156338b45c40e323fb82cb9",
+    "skinId": "flesh-muscle",
+    "uvSha256": "23e37480e64b5f2c3f65dfcecb1af6d40739bc21ee43e3a2be895edfb7352d9a",
+    "uvBytes": 7031240,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-fat-max-v0-4-0",
     "characterSha256": "87563be9bbb84e8d3c2f22b542a27a5c9d49bd939156338b45c40e323fb82cb9",
     "skinId": "gray-guide",
@@ -246,8 +286,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-fat-max-v0-4-0",
     "characterSha256": "87563be9bbb84e8d3c2f22b542a27a5c9d49bd939156338b45c40e323fb82cb9",
     "skinId": "muscle",
@@ -266,8 +306,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal70-v0-4-0",
     "characterSha256": "669d62723f743163fce7cb1351004f7300cb6d5903761b8e8d2add38b754a6ba",
     "skinId": "flesh",
@@ -287,8 +327,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal70-v0-4-0",
     "characterSha256": "669d62723f743163fce7cb1351004f7300cb6d5903761b8e8d2add38b754a6ba",
     "skinId": "flesh-guide",
@@ -307,8 +347,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-ideal70-v0-4-0",
+    "characterSha256": "669d62723f743163fce7cb1351004f7300cb6d5903761b8e8d2add38b754a6ba",
+    "skinId": "flesh-muscle",
+    "uvSha256": "4bb111f3fef300c6c97467519c5c934fe732b02d61c3f5e0a36e23c144a8e8bb",
+    "uvBytes": 7031237,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal70-v0-4-0",
     "characterSha256": "669d62723f743163fce7cb1351004f7300cb6d5903761b8e8d2add38b754a6ba",
     "skinId": "gray-guide",
@@ -327,8 +387,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal70-v0-4-0",
     "characterSha256": "669d62723f743163fce7cb1351004f7300cb6d5903761b8e8d2add38b754a6ba",
     "skinId": "muscle",
@@ -347,8 +407,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal83-v0-4-0",
     "characterSha256": "4cbc58767c54c0ccc1dfd46a7d086a3503af3fc7e1dfa69a21c02eedd1a2234d",
     "skinId": "flesh",
@@ -368,8 +428,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal83-v0-4-0",
     "characterSha256": "4cbc58767c54c0ccc1dfd46a7d086a3503af3fc7e1dfa69a21c02eedd1a2234d",
     "skinId": "flesh-guide",
@@ -388,8 +448,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-ideal83-v0-4-0",
+    "characterSha256": "4cbc58767c54c0ccc1dfd46a7d086a3503af3fc7e1dfa69a21c02eedd1a2234d",
+    "skinId": "flesh-muscle",
+    "uvSha256": "b74583ff83d468fafd5184d177cdf3f49188a9b41402d5c44e4102c52880883d",
+    "uvBytes": 7031240,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal83-v0-4-0",
     "characterSha256": "4cbc58767c54c0ccc1dfd46a7d086a3503af3fc7e1dfa69a21c02eedd1a2234d",
     "skinId": "gray-guide",
@@ -408,8 +488,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-ideal83-v0-4-0",
     "characterSha256": "4cbc58767c54c0ccc1dfd46a7d086a3503af3fc7e1dfa69a21c02eedd1a2234d",
     "skinId": "muscle",
@@ -428,8 +508,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscle-max-v0-4-0",
     "characterSha256": "8e2407d0118a7d38b4d2553d260778683c5ef8ef3819e6dba18bf43650c7585f",
     "skinId": "flesh",
@@ -449,8 +529,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscle-max-v0-4-0",
     "characterSha256": "8e2407d0118a7d38b4d2553d260778683c5ef8ef3819e6dba18bf43650c7585f",
     "skinId": "flesh-guide",
@@ -469,8 +549,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-muscle-max-v0-4-0",
+    "characterSha256": "8e2407d0118a7d38b4d2553d260778683c5ef8ef3819e6dba18bf43650c7585f",
+    "skinId": "flesh-muscle",
+    "uvSha256": "d746faba59461261fb1ff67aa8886fe2bca730ce126f2272c300312a387f7973",
+    "uvBytes": 7031238,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscle-max-v0-4-0",
     "characterSha256": "8e2407d0118a7d38b4d2553d260778683c5ef8ef3819e6dba18bf43650c7585f",
     "skinId": "gray-guide",
@@ -489,8 +589,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscle-max-v0-4-0",
     "characterSha256": "8e2407d0118a7d38b4d2553d260778683c5ef8ef3819e6dba18bf43650c7585f",
     "skinId": "muscle",
@@ -509,8 +609,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscular-v0-4-0",
     "characterSha256": "76558d763ba524101fd9c3b50458641423869a2602d9198d05d41cc46efcd522",
     "skinId": "flesh",
@@ -530,8 +630,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscular-v0-4-0",
     "characterSha256": "76558d763ba524101fd9c3b50458641423869a2602d9198d05d41cc46efcd522",
     "skinId": "flesh-guide",
@@ -550,8 +650,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-muscular-v0-4-0",
+    "characterSha256": "76558d763ba524101fd9c3b50458641423869a2602d9198d05d41cc46efcd522",
+    "skinId": "flesh-muscle",
+    "uvSha256": "9a22c668b5fd462250b55eeb2947977481ec01a2d203604f9984c5b51b27a523",
+    "uvBytes": 7031234,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscular-v0-4-0",
     "characterSha256": "76558d763ba524101fd9c3b50458641423869a2602d9198d05d41cc46efcd522",
     "skinId": "gray-guide",
@@ -570,8 +690,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-muscular-v0-4-0",
     "characterSha256": "76558d763ba524101fd9c3b50458641423869a2602d9198d05d41cc46efcd522",
     "skinId": "muscle",
@@ -590,8 +710,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-fat-v0-4-0",
     "characterSha256": "43e0cff054daed6a7d76b5e338c6a0bb941760cecff417c7ca9f4ae3f5bf0f3f",
     "skinId": "flesh",
@@ -611,8 +731,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-fat-v0-4-0",
     "characterSha256": "43e0cff054daed6a7d76b5e338c6a0bb941760cecff417c7ca9f4ae3f5bf0f3f",
     "skinId": "flesh-guide",
@@ -631,8 +751,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-new-fat-v0-4-0",
+    "characterSha256": "43e0cff054daed6a7d76b5e338c6a0bb941760cecff417c7ca9f4ae3f5bf0f3f",
+    "skinId": "flesh-muscle",
+    "uvSha256": "acfd369e06d2ae7ebbdca57242ea91f2e954a4b66c9ac28befe400228b7d712c",
+    "uvBytes": 7031241,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-fat-v0-4-0",
     "characterSha256": "43e0cff054daed6a7d76b5e338c6a0bb941760cecff417c7ca9f4ae3f5bf0f3f",
     "skinId": "gray-guide",
@@ -651,8 +791,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-fat-v0-4-0",
     "characterSha256": "43e0cff054daed6a7d76b5e338c6a0bb941760cecff417c7ca9f4ae3f5bf0f3f",
     "skinId": "muscle",
@@ -671,8 +811,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-muscular-v0-4-0",
     "characterSha256": "b22bf84b91a7af1dbb4328aaafa99fbe5d89c30b29dd2c8987b65fd0fb223a96",
     "skinId": "flesh",
@@ -692,8 +832,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-muscular-v0-4-0",
     "characterSha256": "b22bf84b91a7af1dbb4328aaafa99fbe5d89c30b29dd2c8987b65fd0fb223a96",
     "skinId": "flesh-guide",
@@ -712,8 +852,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-new-muscular-v0-4-0",
+    "characterSha256": "b22bf84b91a7af1dbb4328aaafa99fbe5d89c30b29dd2c8987b65fd0fb223a96",
+    "skinId": "flesh-muscle",
+    "uvSha256": "643a4b6b42d4c4ad10951118f0f6202ca05485d47b872ee3ee06efceae25a5c6",
+    "uvBytes": 7031241,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-muscular-v0-4-0",
     "characterSha256": "b22bf84b91a7af1dbb4328aaafa99fbe5d89c30b29dd2c8987b65fd0fb223a96",
     "skinId": "gray-guide",
@@ -732,8 +892,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-new-muscular-v0-4-0",
     "characterSha256": "b22bf84b91a7af1dbb4328aaafa99fbe5d89c30b29dd2c8987b65fd0fb223a96",
     "skinId": "muscle",
@@ -752,8 +912,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-slim-v0-4-0",
     "characterSha256": "33e5041fdfc61ef26553a12d52464a1050cfa8a7a04d98668aeb250f9fb33c38",
     "skinId": "flesh",
@@ -773,8 +933,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-slim-v0-4-0",
     "characterSha256": "33e5041fdfc61ef26553a12d52464a1050cfa8a7a04d98668aeb250f9fb33c38",
     "skinId": "flesh-guide",
@@ -793,8 +953,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-slim-v0-4-0",
+    "characterSha256": "33e5041fdfc61ef26553a12d52464a1050cfa8a7a04d98668aeb250f9fb33c38",
+    "skinId": "flesh-muscle",
+    "uvSha256": "a1e7ee98c1ed16d37bb1285bbd811d56120491e7bb5a16d0b665003f229785f5",
+    "uvBytes": 7031236,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-slim-v0-4-0",
     "characterSha256": "33e5041fdfc61ef26553a12d52464a1050cfa8a7a04d98668aeb250f9fb33c38",
     "skinId": "gray-guide",
@@ -813,8 +993,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-slim-v0-4-0",
     "characterSha256": "33e5041fdfc61ef26553a12d52464a1050cfa8a7a04d98668aeb250f9fb33c38",
     "skinId": "muscle",
@@ -833,8 +1013,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-soft-v0-4-0",
     "characterSha256": "5d0345f98d881ce46777fdf91129d02a54ff20619ee63e5af9c47738ec4057b2",
     "skinId": "flesh",
@@ -854,8 +1034,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-soft-v0-4-0",
     "characterSha256": "5d0345f98d881ce46777fdf91129d02a54ff20619ee63e5af9c47738ec4057b2",
     "skinId": "flesh-guide",
@@ -874,8 +1054,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-soft-v0-4-0",
+    "characterSha256": "5d0345f98d881ce46777fdf91129d02a54ff20619ee63e5af9c47738ec4057b2",
+    "skinId": "flesh-muscle",
+    "uvSha256": "27fabec9536baf7fde9271c725f5cfb5c33160632e48a9ff690fe227a0d63153",
+    "uvBytes": 7031237,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-soft-v0-4-0",
     "characterSha256": "5d0345f98d881ce46777fdf91129d02a54ff20619ee63e5af9c47738ec4057b2",
     "skinId": "gray-guide",
@@ -894,8 +1094,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-soft-v0-4-0",
     "characterSha256": "5d0345f98d881ce46777fdf91129d02a54ff20619ee63e5af9c47738ec4057b2",
     "skinId": "muscle",
@@ -914,8 +1114,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-toon64-v0-4-0",
     "characterSha256": "dc12c453dbc46f175351d72a73fc8b0f8bc3f8ec15316fb72d2a1082b66a4a68",
     "skinId": "flesh",
@@ -935,8 +1135,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-toon64-v0-4-0",
     "characterSha256": "dc12c453dbc46f175351d72a73fc8b0f8bc3f8ec15316fb72d2a1082b66a4a68",
     "skinId": "flesh-guide",
@@ -955,8 +1155,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "female-toon64-v0-4-0",
+    "characterSha256": "dc12c453dbc46f175351d72a73fc8b0f8bc3f8ec15316fb72d2a1082b66a4a68",
+    "skinId": "flesh-muscle",
+    "uvSha256": "1b956dac4c1d57e2de7a39728986eea03859ebbf3e3932fe1a7ffee9f1fde03f",
+    "uvBytes": 7031239,
+    "textureSha256": "d5c1578f3a7d6c9021253e92d62afaf0294e56ac1f1eeb2fd314492691a24567",
+    "textureBytes": 292773,
+    "previewTextureSha256": "e3577c4e566c31c525fe2cef54b7485e2265afc53a02605c0c3ac7dfe8c55e29",
+    "previewTextureBytes": 189298,
+    "previewMesh": "mesh_000",
+    "vertices": 105430,
+    "bones": 54,
+    "polygonIndicesSha256": "336c1d07cf47e56d618ea48ef0890e7c4167b12cd37f40504251324162dd624a",
+    "weightsSha256": "92d7730b1a817a28a4cc685bcb679dcf549f9d4f37baa50d7444985718d984aa",
+    "trianglesSha256": "ad292d6aaccc3194aa347c0741729370b28e3e71f9304e569af04c574bc5a0e1",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-toon64-v0-4-0",
     "characterSha256": "dc12c453dbc46f175351d72a73fc8b0f8bc3f8ec15316fb72d2a1082b66a4a68",
     "skinId": "gray-guide",
@@ -975,8 +1195,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "female-toon64-v0-4-0",
     "characterSha256": "dc12c453dbc46f175351d72a73fc8b0f8bc3f8ec15316fb72d2a1082b66a4a68",
     "skinId": "muscle",
@@ -995,8 +1215,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-base-v0-8-0",
     "characterSha256": "705035f1bd247b3bf63a6d293065a5a39390b2d228df559474f9dc6682bf8c43",
     "skinId": "flesh",
@@ -1016,8 +1236,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-base-v0-8-0",
     "characterSha256": "705035f1bd247b3bf63a6d293065a5a39390b2d228df559474f9dc6682bf8c43",
     "skinId": "flesh-guide",
@@ -1036,8 +1256,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-base-v0-8-0",
+    "characterSha256": "705035f1bd247b3bf63a6d293065a5a39390b2d228df559474f9dc6682bf8c43",
+    "skinId": "flesh-muscle",
+    "uvSha256": "2b9d87523be46fec6053dba13f342c71fa4f9a185563331ee9645914ad0df265",
+    "uvBytes": 8844484,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-base-v0-8-0",
     "characterSha256": "705035f1bd247b3bf63a6d293065a5a39390b2d228df559474f9dc6682bf8c43",
     "skinId": "gray-guide",
@@ -1056,8 +1296,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-base-v0-8-0",
     "characterSha256": "705035f1bd247b3bf63a6d293065a5a39390b2d228df559474f9dc6682bf8c43",
     "skinId": "muscle",
@@ -1076,8 +1316,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-bulk-v0-8-0",
     "characterSha256": "9bbd89667c4d38a80b6600f318b84550021d389a0a92c3713b9bb8fb22be2901",
     "skinId": "flesh",
@@ -1097,8 +1337,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-bulk-v0-8-0",
     "characterSha256": "9bbd89667c4d38a80b6600f318b84550021d389a0a92c3713b9bb8fb22be2901",
     "skinId": "flesh-guide",
@@ -1117,8 +1357,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-bulk-v0-8-0",
+    "characterSha256": "9bbd89667c4d38a80b6600f318b84550021d389a0a92c3713b9bb8fb22be2901",
+    "skinId": "flesh-muscle",
+    "uvSha256": "ac73ea3407af6027e8795ef55ff8637bb6b0c278edde341deb9ff3c9173f86a3",
+    "uvBytes": 8844483,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-bulk-v0-8-0",
     "characterSha256": "9bbd89667c4d38a80b6600f318b84550021d389a0a92c3713b9bb8fb22be2901",
     "skinId": "gray-guide",
@@ -1137,8 +1397,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-bulk-v0-8-0",
     "characterSha256": "9bbd89667c4d38a80b6600f318b84550021d389a0a92c3713b9bb8fb22be2901",
     "skinId": "muscle",
@@ -1157,8 +1417,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-default83-v0-7-6-p1",
     "characterSha256": "085dd9c65a3a66035f7e0ce9e0a9171b9abb0e33dada92194676d92e00c8b026",
     "skinId": "flesh",
@@ -1177,8 +1437,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-default83-v0-7-6-p1",
     "characterSha256": "085dd9c65a3a66035f7e0ce9e0a9171b9abb0e33dada92194676d92e00c8b026",
     "skinId": "flesh-guide",
@@ -1197,8 +1457,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-default83-v0-7-6-p1",
     "characterSha256": "085dd9c65a3a66035f7e0ce9e0a9171b9abb0e33dada92194676d92e00c8b026",
     "skinId": "gray-guide",
@@ -1217,8 +1477,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-default83-v0-7-6-p1",
     "characterSha256": "085dd9c65a3a66035f7e0ce9e0a9171b9abb0e33dada92194676d92e00c8b026",
     "skinId": "muscle",
@@ -1237,8 +1497,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-fat-max-v0-8-0",
     "characterSha256": "61d0ededbc9e7d71c01b44196e93aa1278ff49fe603bfca28cca2cbd2eac4234",
     "skinId": "flesh",
@@ -1258,8 +1518,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-fat-max-v0-8-0",
     "characterSha256": "61d0ededbc9e7d71c01b44196e93aa1278ff49fe603bfca28cca2cbd2eac4234",
     "skinId": "flesh-guide",
@@ -1278,8 +1538,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-fat-max-v0-8-0",
+    "characterSha256": "61d0ededbc9e7d71c01b44196e93aa1278ff49fe603bfca28cca2cbd2eac4234",
+    "skinId": "flesh-muscle",
+    "uvSha256": "b9d6b64b65e29e7a73970acff13f21b7a1947d05458be7fb11a2445fc5787960",
+    "uvBytes": 8844490,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-fat-max-v0-8-0",
     "characterSha256": "61d0ededbc9e7d71c01b44196e93aa1278ff49fe603bfca28cca2cbd2eac4234",
     "skinId": "gray-guide",
@@ -1298,8 +1578,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-fat-max-v0-8-0",
     "characterSha256": "61d0ededbc9e7d71c01b44196e93aa1278ff49fe603bfca28cca2cbd2eac4234",
     "skinId": "muscle",
@@ -1318,8 +1598,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal70-v0-8-0",
     "characterSha256": "5c29616fd615db67070f4ab26bb3c46158f43801805cdf53dacc10819ec969cb",
     "skinId": "flesh",
@@ -1339,8 +1619,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal70-v0-8-0",
     "characterSha256": "5c29616fd615db67070f4ab26bb3c46158f43801805cdf53dacc10819ec969cb",
     "skinId": "flesh-guide",
@@ -1359,8 +1639,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-ideal70-v0-8-0",
+    "characterSha256": "5c29616fd615db67070f4ab26bb3c46158f43801805cdf53dacc10819ec969cb",
+    "skinId": "flesh-muscle",
+    "uvSha256": "dbbb1fd7b9b09253504ce519276af932c72dcb5b9f55865cd1ec3e3f3d458e42",
+    "uvBytes": 8844490,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal70-v0-8-0",
     "characterSha256": "5c29616fd615db67070f4ab26bb3c46158f43801805cdf53dacc10819ec969cb",
     "skinId": "gray-guide",
@@ -1379,8 +1679,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal70-v0-8-0",
     "characterSha256": "5c29616fd615db67070f4ab26bb3c46158f43801805cdf53dacc10819ec969cb",
     "skinId": "muscle",
@@ -1399,8 +1699,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal83-v0-8-0",
     "characterSha256": "56248a449cbe312b87687c7e6ffcb35149ed62ee02f1dc8700052025a7dc786f",
     "skinId": "flesh",
@@ -1420,8 +1720,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal83-v0-8-0",
     "characterSha256": "56248a449cbe312b87687c7e6ffcb35149ed62ee02f1dc8700052025a7dc786f",
     "skinId": "flesh-guide",
@@ -1440,8 +1740,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-ideal83-v0-8-0",
+    "characterSha256": "56248a449cbe312b87687c7e6ffcb35149ed62ee02f1dc8700052025a7dc786f",
+    "skinId": "flesh-muscle",
+    "uvSha256": "836eb5a76c4ca71a340adcda3721fb1065a59b9ef76b7eea1b8d72c4111bcd94",
+    "uvBytes": 8844487,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal83-v0-8-0",
     "characterSha256": "56248a449cbe312b87687c7e6ffcb35149ed62ee02f1dc8700052025a7dc786f",
     "skinId": "gray-guide",
@@ -1460,8 +1780,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-ideal83-v0-8-0",
     "characterSha256": "56248a449cbe312b87687c7e6ffcb35149ed62ee02f1dc8700052025a7dc786f",
     "skinId": "muscle",
@@ -1480,8 +1800,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscle-max-v0-8-0",
     "characterSha256": "11e88a4df956e9bd2c25f058265eb7530257f196ae54f1ad5f01099f090f38b4",
     "skinId": "flesh",
@@ -1501,8 +1821,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscle-max-v0-8-0",
     "characterSha256": "11e88a4df956e9bd2c25f058265eb7530257f196ae54f1ad5f01099f090f38b4",
     "skinId": "flesh-guide",
@@ -1521,8 +1841,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-muscle-max-v0-8-0",
+    "characterSha256": "11e88a4df956e9bd2c25f058265eb7530257f196ae54f1ad5f01099f090f38b4",
+    "skinId": "flesh-muscle",
+    "uvSha256": "21932d374b670bd9b09aa9de0ca8cec8ec20fd8a99ee24fc146dd2fa1f752749",
+    "uvBytes": 8844486,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscle-max-v0-8-0",
     "characterSha256": "11e88a4df956e9bd2c25f058265eb7530257f196ae54f1ad5f01099f090f38b4",
     "skinId": "gray-guide",
@@ -1541,8 +1881,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscle-max-v0-8-0",
     "characterSha256": "11e88a4df956e9bd2c25f058265eb7530257f196ae54f1ad5f01099f090f38b4",
     "skinId": "muscle",
@@ -1561,8 +1901,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscular-v0-8-0",
     "characterSha256": "37c6ad6e8f61354dc51f99594efecdc8b4c48d03b7e611a4e648fc0e64925e2a",
     "skinId": "flesh",
@@ -1582,8 +1922,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscular-v0-8-0",
     "characterSha256": "37c6ad6e8f61354dc51f99594efecdc8b4c48d03b7e611a4e648fc0e64925e2a",
     "skinId": "flesh-guide",
@@ -1602,8 +1942,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-muscular-v0-8-0",
+    "characterSha256": "37c6ad6e8f61354dc51f99594efecdc8b4c48d03b7e611a4e648fc0e64925e2a",
+    "skinId": "flesh-muscle",
+    "uvSha256": "ac4499008621a2861748f557c63e74731db51ca176d6bf0e44a9a5370ee1b10a",
+    "uvBytes": 8844491,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscular-v0-8-0",
     "characterSha256": "37c6ad6e8f61354dc51f99594efecdc8b4c48d03b7e611a4e648fc0e64925e2a",
     "skinId": "gray-guide",
@@ -1622,8 +1982,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-muscular-v0-8-0",
     "characterSha256": "37c6ad6e8f61354dc51f99594efecdc8b4c48d03b7e611a4e648fc0e64925e2a",
     "skinId": "muscle",
@@ -1642,8 +2002,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-soft-v0-8-0",
     "characterSha256": "a9dcd65e68d03e62d89ff3cffd27c330361595d9407d02ba16b2720086582f2e",
     "skinId": "flesh",
@@ -1663,8 +2023,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-soft-v0-8-0",
     "characterSha256": "a9dcd65e68d03e62d89ff3cffd27c330361595d9407d02ba16b2720086582f2e",
     "skinId": "flesh-guide",
@@ -1683,8 +2043,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-soft-v0-8-0",
+    "characterSha256": "a9dcd65e68d03e62d89ff3cffd27c330361595d9407d02ba16b2720086582f2e",
+    "skinId": "flesh-muscle",
+    "uvSha256": "a7a707d46181e0979aa9753366e2b6839f0aa108a38af969782c050688846d16",
+    "uvBytes": 8844488,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-soft-v0-8-0",
     "characterSha256": "a9dcd65e68d03e62d89ff3cffd27c330361595d9407d02ba16b2720086582f2e",
     "skinId": "gray-guide",
@@ -1703,8 +2083,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-soft-v0-8-0",
     "characterSha256": "a9dcd65e68d03e62d89ff3cffd27c330361595d9407d02ba16b2720086582f2e",
     "skinId": "muscle",
@@ -1723,8 +2103,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-toon64-v0-8-0",
     "characterSha256": "29aacebd756619bf62dd6f760a9966797e42dcd485dfcff82f0f878adabc595a",
     "skinId": "flesh",
@@ -1744,8 +2124,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "continuousOutline": true
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-toon64-v0-8-0",
     "characterSha256": "29aacebd756619bf62dd6f760a9966797e42dcd485dfcff82f0f878adabc595a",
     "skinId": "flesh-guide",
@@ -1764,8 +2144,28 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
+    "characterId": "male-toon64-v0-8-0",
+    "characterSha256": "29aacebd756619bf62dd6f760a9966797e42dcd485dfcff82f0f878adabc595a",
+    "skinId": "flesh-muscle",
+    "uvSha256": "67bc81ed9d38f74378941a018b1d2318b1f2bf690061f3a15ec17932e6e0a7aa",
+    "uvBytes": 8844491,
+    "textureSha256": "2c9ac2d72809db3d43bd05045c8af18fe04a2bd9e4448e583a0acf90f17762b9",
+    "textureBytes": 284908,
+    "previewTextureSha256": "0e17f10d6a814c12fd572031820f04dafa380ad66abfd6b3c0a2d474f29303b5",
+    "previewTextureBytes": 180433,
+    "previewMesh": "mesh_000",
+    "vertices": 139474,
+    "bones": 54,
+    "polygonIndicesSha256": "81b17d37385e3c7e1322caa579b9e3a47fc51f36be0e1c727ea3ebc17b3212a0",
+    "weightsSha256": "b718af8b8f900a8c24cd10951bcf8a85e2852e3b004fe1ee5d0a21476d68d170",
+    "trianglesSha256": "09dcb9b7135d099a1d6e4df44a6d5aed48c96f72b3d8ddd2efea275d1851c958",
+    "scope": "full"
+  },
+  {
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-toon64-v0-8-0",
     "characterSha256": "29aacebd756619bf62dd6f760a9966797e42dcd485dfcff82f0f878adabc595a",
     "skinId": "gray-guide",
@@ -1784,8 +2184,8 @@ export const SKIN_ASSET_PINS: readonly SkinAssetPin[] = [
     "scope": "full"
   },
   {
-    "manifestSha256": "936e9fe9c2b7258d599b383b3001ce3f308b3a429c254177895f65cba66da6e7",
-    "assetVersion": "staging-anatomy-skins-20261112-v2",
+    "manifestSha256": "f4d37bf100dcdec1de5c115d06fa68b30d3213d864d95e540c2d6bbc3676d265",
+    "assetVersion": "staging-composed-skins-20261112-v3",
     "characterId": "male-toon64-v0-8-0",
     "characterSha256": "29aacebd756619bf62dd6f760a9966797e42dcd485dfcff82f0f878adabc595a",
     "skinId": "muscle",

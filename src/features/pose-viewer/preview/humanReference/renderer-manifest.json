@@ -1,8 +1,8 @@
 {
   "version": "reference-skinning-v1",
-  "algorithm_sha256": "ef7975bddef9e32dccd832c0550b32cc395ca74c210abe5f9dfcad0818008ef5",
+  "algorithm_sha256": "07720443bdab1d8b64e5ebdff9581e7f03b6d6382d42d5664a7825e47a2664b1",
   "client_source_sha256": {
-    "preview/humanReference/template.ts": "67794da01662565a185dac35f5a5575015832596a6e6ad5e3da3b07a422f0a9b",
+    "preview/humanReference/template.ts": "e6e95e7375c5339c45cec042359ab8aed4af047664be2b4e5d65de29b6033758",
     "preview/humanReference/pose.ts": "1ba44a00f39378737788fbb369a932612568f8256565955141bc3ad64dc1d05d",
     "preview/humanReference/render.ts": "8a3a60b0248d455da74c6e6850e55d276eb8bb893ef8fa3018cb431ec5fbc15c",
     "preview/previewStyle.ts": "efc03a8890817e9aa11c1b06bb51108c81b0f00c8b7344661d2056a6636976a9",

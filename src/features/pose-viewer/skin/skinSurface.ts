@@ -19,11 +19,13 @@ export const skinUvSchema = z
 export type SkinUv = z.infer<typeof skinUvSchema>;
 
 /** Camera-space lighting matches the existing preview; albedo is an approved sRGB image. */
-function skinMaterial(texture: THREE.Texture, skin: SkinId) {
+export function skinMaterial(texture: THREE.Texture, skin: SkinId) {
   const material = libraryPreviewMaterial();
   material.side = THREE.DoubleSide;
   material.uniforms.skinMap = { value: texture };
-  material.uniforms.skinFill = { value: skin === "flesh" || skin === "flesh-guide" ? 0.3 : 0 };
+  material.uniforms.skinFill = {
+    value: skin === "flesh" || skin === "flesh-guide" || skin === "flesh-muscle" ? 0.3 : 0,
+  };
   material.vertexShader = material.vertexShader
     .replace("varying vec3 previewNormal;", "varying vec3 previewNormal; varying vec2 skinUv;")
     .replace("previewNormal = normalize", "skinUv = uv; previewNormal = normalize");
@@ -34,7 +36,7 @@ function skinMaterial(texture: THREE.Texture, skin: SkinId) {
     )
     .replace(
       "gl_FragColor = vec4(0.72 * (ambient + keyColor * key + fillColor * fill), 1.0);",
-      "vec3 light = ambient + keyColor * key + fillColor * fill; vec3 albedo = texture2D(skinMap, skinUv).rgb; gl_FragColor = vec4(albedo * mix(light, vec3(1.0), skinFill), 1.0);",
+      "vec3 light = ambient + keyColor * key + fillColor * fill; vec3 albedo = skinUv.x < 0.0 ? vec3(0.72) : texture2D(skinMap, skinUv).rgb; gl_FragColor = vec4(albedo * mix(light, vec3(1.0), skinFill), 1.0);",
     );
   return material;
 }
