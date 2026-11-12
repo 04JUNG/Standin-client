@@ -74,6 +74,7 @@ export function BarReviewPage() {
                   <ReviewPosePreview
                     telemetryJobId={hands?.jobId}
                     interactive={item.interactivePreview}
+                    candidate={item.candidate}
                     model={item.previewModel}
                     outlineWidth={item.outlineWidth}
                     src={item.previewUrl}

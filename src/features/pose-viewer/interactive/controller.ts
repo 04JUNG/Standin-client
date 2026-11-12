@@ -73,6 +73,11 @@ export class InteractiveController {
   private expiry?: ReturnType<typeof setTimeout>;
   private controller?: AbortController;
   private head?: Operation;
+  // Proof for the displayed geometry, independent of the current appearance operation.
+  private modelProof?: Pick<
+    NonNullable<Operation["exportReceipt"]>,
+    "packetModelSha256" | "runtimeRevision"
+  >;
   private recovered = false;
   private fence = { revision: 0, stateHash: null as string | null };
   private creating: Promise<Operation> | undefined;
@@ -115,6 +120,7 @@ export class InteractiveController {
     poseBinding = baseBinding,
   ) {
     if (
+      this.value.binding === binding &&
       this.desired?.binding === binding &&
       this.desired.ready === ready &&
       sameAppearance(this.desired.appearance, appearance) &&
@@ -125,6 +131,12 @@ export class InteractiveController {
     const poseChanged = this.desired?.poseBinding !== poseBinding;
     this.autoRecoveries = 0;
     const baseChanged = poseChanged || this.desired?.baseBinding !== baseBinding;
+    if (baseChanged) this.modelProof = undefined;
+    if (
+      !sameAppearance(this.desired?.appearance, appearance) ||
+      !sameSkin(this.desired?.skin, skin)
+    )
+      this.recovered = false; // Capability depends on the exact skin/width combination.
     this.desired = { binding, baseBinding, poseBinding, candidateId, ready, appearance, skin };
     this.generation++;
     this.controller?.abort();
@@ -173,6 +185,19 @@ export class InteractiveController {
     });
     // Best effort cancellation, while local readiness is already synchronously revoked.
     if (this.head) void this.transport.cancel(this.target, this.head).catch(() => undefined);
+  }
+  /** Revoke the old file immediately, retaining the pose/body/hand display and its binding.
+   * The next debounced prepare supersedes server authority. Do not cancel the shared
+   * base preparation on every slider event or discard the model before select runs.
+   */
+  invalidateAppearance() {
+    this.generation++;
+    this.controller?.abort();
+    clearTimeout(this.timer);
+    clearTimeout(this.expiry);
+    this.mutation = undefined;
+    this.recovered = false;
+    this.publish({ binding: undefined, operation: undefined, exportState: "superseded" });
   }
   localDraft(surface: SurfaceView) {
     this.publish({ localSurface: surface, previewState: "local-draft", exportState: "superseded" });
@@ -378,32 +403,54 @@ export class InteractiveController {
         });
         if (inactive || op.previewState === "error") return;
         if (op.previewState === "authoritative" && op.stateHash && !requestedModel) {
-          requestedModel = true;
-          const immutable = op;
-          const loading = this.transport.model(this.target, immutable, desired.candidateId, signal);
-          modelLoad = loading.catch(() => undefined);
-          void loading
-            .then((model) => {
-              if (
-                generation !== this.generation ||
-                this.value.operation?.stateHash !== immutable.stateHash
-              )
-                return;
-              this.publish({
-                model,
-                modelBinding: desired.baseBinding,
-                modelOperation: immutable,
-                modelError: false,
-                localSurface: undefined,
+          const retained =
+            this.value.model && this.value.modelBinding === desired.baseBinding && this.modelProof;
+          // Keep the existing surface while the new file is prepared. Only a fresh
+          // receipt proving identical geometry permits skipping another large packet.
+          if (retained && !op.exportReceipt) {
+            // Export starts below; the old packet is display-only, never file authority.
+          } else if (
+            retained &&
+            op.exportReceipt?.packetModelSha256 === this.modelProof?.packetModelSha256 &&
+            op.exportReceipt?.runtimeRevision === this.modelProof?.runtimeRevision
+          ) {
+            requestedModel = true;
+            modelLoad = Promise.resolve(this.value.model);
+          } else {
+            requestedModel = true;
+            if (retained) this.publish({ model: undefined, modelBinding: undefined });
+            const immutable = op;
+            const loading = this.transport.model(
+              this.target,
+              immutable,
+              desired.candidateId,
+              signal,
+            );
+            modelLoad = loading.catch(() => undefined);
+            void loading
+              .then((model) => {
+                if (
+                  generation !== this.generation ||
+                  this.value.operation?.stateHash !== immutable.stateHash
+                )
+                  return;
+                this.publish({
+                  model,
+                  modelBinding: desired.baseBinding,
+                  modelOperation: immutable,
+                  modelError: false,
+                  localSurface: undefined,
+                });
+                this.modelProof = this.value.operation?.exportReceipt ?? undefined;
+                measure("packet", inputAt);
+              })
+              .catch((error) => {
+                if (!signal.aborted && generation === this.generation) {
+                  if (expiredError(error)) this.expire();
+                  else this.publish({ modelError: true });
+                }
               });
-              measure("packet", inputAt);
-            })
-            .catch((error) => {
-              if (!signal.aborted && generation === this.generation) {
-                if (expiredError(error)) this.expire();
-                else this.publish({ modelError: true });
-              }
-            });
+          }
         }
         if (
           op.previewState === "authoritative" &&
@@ -417,6 +464,8 @@ export class InteractiveController {
           continue;
         }
         if (op.exportState === "ready") {
+          if (this.value.modelOperation?.stateHash === op.stateHash && this.value.model)
+            this.modelProof = op.exportReceipt ?? undefined;
           const variants = this.transport.variants?.bind(this.transport);
           if (variants) {
             const immutable = op;
@@ -517,9 +566,10 @@ export class InteractiveController {
   retry() {
     if (!this.desired?.ready) return;
     this.autoRecoveries = 0;
-    // After a read outage, recover the accepted operation before considering a create.
+    // Re-read the current capability/fence: a failed initial probe must not stay
+    // unavailable forever after the service recovers. Keep uncertain POST bodies.
+    this.recovered = false;
     if (this.value.operation && transientPollError(this.value.failure)) {
-      this.recovered = false;
       this.mutation = undefined;
     }
     // Retrying an uncertain POST reuses its exact body/idempotency key.
