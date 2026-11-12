@@ -50,10 +50,11 @@ function ensureSubscriptions() {
       const candidate = next.selectedByPerson[entry.personIndex];
       const changed =
         job !== entry.jobId ||
-        (s.operation && candidate !== s.operation.candidateId) ||
+        candidate !== prev.selectedByPerson[entry.personIndex] ||
         next.characterId !== prev.characterId ||
         next.characterByPerson[entry.personIndex] !== prev.characterByPerson[entry.personIndex] ||
-        next.refineByPerson[entry.personIndex] !== prev.refineByPerson[entry.personIndex] ||
+        next.refineByPerson[entry.personIndex] !== prev.refineByPerson[entry.personIndex];
+      const appearanceChanged =
         next.outlineByPerson[entry.personIndex] !== prev.outlineByPerson[entry.personIndex] ||
         next.skinByPerson[entry.personIndex] !== prev.skinByPerson[entry.personIndex] ||
         next.outlineEditingByPerson[entry.personIndex] !==
@@ -61,7 +62,7 @@ function ensureSubscriptions() {
       if (changed) {
         entry.controller.clearDraft();
         entry.controller.invalidate();
-      }
+      } else if (appearanceChanged) entry.controller.invalidateAppearance();
     }
   });
 }

@@ -10,6 +10,7 @@ import { SKIN_CHOICES, type SkinId } from "../skin/skinChoices";
 import { reviewedExportUrl, framedExportUrl } from "@/features/export/lib/framedExport";
 const m = vi.hoisted(() => ({
   skin: "default" as SkinId,
+  handRevision: 0,
   finalCapability: false,
   snapshot: undefined as Partial<InteractiveSnapshot> | undefined,
   staleSnapshot: false,
@@ -58,7 +59,12 @@ vi.mock("@/features/export/lib/preparedArtifact", async (original) => ({
 vi.mock("@/features/export/lib/preparedFbx", () => ({ loadPreparedFbx: m.model }));
 vi.mock("@/features/body-selection/hooks", () => ({ useBodyOwner: () => "owner" }));
 vi.mock("@/features/hand-selection/hooks", () => ({
-  useHands: () => ({ ready: true, entries: [], enabled: false, pending: false }),
+  useHands: () => ({
+    ready: true,
+    entries: m.handRevision ? [{ personIndex: 0, selection: { revision: m.handRevision } }] : [],
+    enabled: false,
+    pending: false,
+  }),
 }));
 vi.mock("./useSelectionReview", () => ({
   useSelectionReview: () => ({
@@ -154,6 +160,7 @@ function mount() {
 beforeEach(() => {
   Object.assign(m, {
     skin: "default",
+    handRevision: 0,
     finalCapability: false,
     snapshot: undefined,
     staleSnapshot: false,
@@ -169,6 +176,27 @@ beforeEach(() => {
   m.model.mockReset().mockResolvedValue(new ArrayBuffer(32));
   m.ready.mockReset().mockImplementation(async (url: string) => ready(url));
   m.image.mockReset().mockResolvedValue("final-image");
+});
+it("keeps pose/base identities on appearance edits and includes hand selection in the file identity", async () => {
+  m.finalCapability = true;
+  const hook = mount();
+  const request = () => m.interactive.mock.lastCall![0].requests[0];
+  const original = { ...request() };
+  m.skin = "flesh";
+  hook.rerender();
+  expect(request().binding).not.toBe(original.binding);
+  expect(request().baseBinding).toBe(original.baseBinding);
+  expect(request().poseBinding).toBe(original.poseBinding);
+  m.outline = 2;
+  hook.rerender();
+  expect(request().baseBinding).toBe(original.baseBinding);
+  const appearanceBinding = request().binding;
+  m.handRevision = 1;
+  hook.rerender();
+  expect(request().binding).not.toBe(appearanceBinding);
+  expect(request().baseBinding).not.toBe(original.baseBinding);
+  expect(request().poseBinding).toBe(original.poseBinding);
+  hook.unmount();
 });
 it("permits download before image completion and never downloads automatically", async () => {
   m.image.mockImplementation(() => new Promise(() => {}));
