@@ -1,3 +1,4 @@
+import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
 import { applyLocalHands } from "@/features/pose-viewer/interactive/hands";
 import { replayObservation } from "@/shared/lib/replayBridge";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
@@ -56,7 +57,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     },
     onMutate: async ({ selection, patch }) => {
       invalidateFinalReview(qc, job, true);
-      if (result?.capabilities.interactivePreview?.operations)
+      if (canUseInteractiveOperations(result?.capabilities))
         applyLocalHands(
           owner,
           job,

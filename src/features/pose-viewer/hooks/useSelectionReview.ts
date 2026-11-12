@@ -1,3 +1,4 @@
+import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
 import type { ReleaseReceipt } from "../api/refine.contract";
 import { loadPosePoster } from "../api/posePoster";
 import { useInstallationStore } from "@/features/installation/installationStore";
@@ -128,7 +129,7 @@ export function useSelectionReview(jobId: string | undefined) {
             }
           : legacy),
         enabled:
-          !data?.capabilities.interactivePreview?.operations &&
+          !canUseInteractiveOperations(data?.capabilities) &&
           !framed &&
           !item.refined &&
           !item.previewUrl &&

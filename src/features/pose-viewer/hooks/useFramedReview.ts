@@ -1,3 +1,4 @@
+import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
 import { loadPreparedFbx } from "@/features/export/lib/preparedFbx";
 import { apiFetchBytes } from "@/shared/api/client";
 import { verifyDigest } from "@/features/body-selection/api";
@@ -111,7 +112,7 @@ export function useFramedReview(jobId: string | undefined) {
   const interactiveEnabled =
     !releaseMode &&
     env.interactivePreview &&
-    review.data?.capabilities.interactivePreview?.operations === true &&
+    canUseInteractiveOperations(review.data?.capabilities) &&
     review.data?.capabilities.fbxExport === true &&
     format === "fbx";
   const enabled =
@@ -386,12 +387,14 @@ export function useFramedReview(jobId: string | undefined) {
   const preparationLoading = enabled && !preparationError && !downloadReady;
   const previewLoading =
     enabled &&
+    !preparationError &&
     (preparationLoading ||
       requests.some((_, i) => {
         const q = imageFallback(i) ? images[i] : models[i];
         return q?.isPending || q?.isFetching;
       }));
-  const previewError = enabled && images.some((q, i) => imageFallback(i) && q.isError);
+  const previewError =
+    enabled && (preparationError || images.some((q, i) => imageFallback(i) && q.isError));
   useEffect(() => {
     if (!enabled || !downloadReady || bodyMode) return;
     requests.forEach((r, i) => {
@@ -550,8 +553,9 @@ export function useFramedReview(jobId: string | undefined) {
       : revision.changed || handsChanged
         ? "변경한 포즈 다운로드"
         : "포즈 다운로드",
-    preparationNotice:
-      hands.pending || handsChanged
+    preparationNotice: preparationError
+      ? "파일을 준비하지 못했어요. 다시 시도해 주세요."
+      : hands.pending || handsChanged
         ? "변경한 손을 적용하고 있어요…"
         : "다운로드할 파일을 준비하고 있어요…",
     previewFailure: poseRecovery(

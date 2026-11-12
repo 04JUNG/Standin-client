@@ -2,8 +2,13 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
+import { env } from "@/shared/lib/env";
+import { SKIN_CHOICES, type SkinId } from "../skin/skinChoices";
 import { reviewedExportUrl, framedExportUrl } from "@/features/export/lib/framedExport";
 const m = vi.hoisted(() => ({
+  skin: "default" as SkinId,
+  finalCapability: false,
+  interactive: vi.fn(),
   scope: "full",
   format: "fbx",
   refining: false,
@@ -14,6 +19,12 @@ const m = vi.hoisted(() => ({
   ready: vi.fn(),
   image: vi.fn(),
   reload: vi.fn(),
+}));
+vi.mock("../interactive/useInteractiveReviews", () => ({
+  useInteractiveReviews: (options: unknown) => {
+    m.interactive(options);
+    return { controllers: [], snapshots: [], ready: false, failed: false, retry: vi.fn() };
+  },
 }));
 vi.mock("@/shared/api/client", () => ({ apiFetchResponse: m.ready }));
 vi.mock("@/features/export/lib/preparedArtifact", async (original) => ({
@@ -31,7 +42,21 @@ vi.mock("./useSelectionReview", () => ({
     bodies: { enabled: false, entries: [], ready: true },
     data: {
       jobId: "job",
-      capabilities: { fbxExport: m.available, outputScopeCropping: true },
+      capabilities: {
+        fbxExport: m.available,
+        outputScopeCropping: true,
+        ...(m.finalCapability
+          ? {
+              interactiveState: {
+                schemaVersion: "standin.interactive-http.v1",
+                available: true,
+                transport: "polling",
+                localHands: false,
+                initialFbxRequired: true,
+              },
+            }
+          : {}),
+      },
       people: [
         {
           index: 0,
@@ -65,7 +90,7 @@ vi.mock("@/features/export/store/exportStore", () => ({ useExportStore: () => m.
 vi.mock("@/features/models/store/modelStore", () => ({ useModelStore: () => null }));
 vi.mock("../store/poseSelectionStore", () => ({
   usePoseSelectionStore: (select: (s: unknown) => unknown) =>
-    select({ characterId: null, characterByPerson: {} }),
+    select({ characterId: null, characterByPerson: {}, skinByPerson: { 0: m.skin } }),
 }));
 vi.mock("@/features/models/hooks/useModelCatalog", () => ({
   useModelCatalog: () => ({
@@ -99,6 +124,8 @@ function mount() {
 }
 beforeEach(() => {
   Object.assign(m, {
+    skin: "default",
+    finalCapability: false,
     scope: "full",
     format: "fbx",
     refining: false,
@@ -106,6 +133,7 @@ beforeEach(() => {
     available: true,
     local: false,
   });
+  m.interactive.mockClear();
   m.model.mockReset().mockResolvedValue(new ArrayBuffer(32));
   m.ready.mockReset().mockImplementation(async (url: string) => ready(url));
   m.image.mockReset().mockResolvedValue("final-image");
@@ -131,6 +159,9 @@ it("FBX validation failure blocks download and schedules no image", async () => 
   const { result } = mount();
   await waitFor(() => expect(result.current.preparationError).toBe(true));
   expect(result.current.downloadReady).toBe(false);
+  expect(result.current.previewLoading).toBe(false);
+  expect(result.current.previewError).toBe(true);
+  expect(result.current.preparationNotice).not.toContain("준비하고");
   expect(m.image).not.toHaveBeenCalled();
 });
 it("A → B → C cancels obsolete requests and ignores out-of-order transports", async () => {
@@ -257,3 +288,39 @@ it("rejects a late model after output scope changes", async () => {
   await waitFor(() => expect(result.current.items[0]?.previewModel?.data.byteLength).toBe(64));
   expect(result.current.items[0]?.scopeLabel).toBe("두상");
 });
+
+it("unsupported flesh preparation stops the spinner and exposes a retryable failure", async () => {
+  m.skin = "flesh";
+  const { result } = mount();
+  await waitFor(() => expect(result.current.preparationError).toBe(true));
+  expect(result.current.downloadReady).toBe(false);
+  expect(result.current.previewLoading).toBe(false);
+  expect(result.current.previewError).toBe(true);
+  expect(result.current.preparationNotice).toBe("파일을 준비하지 못했어요. 다시 시도해 주세요.");
+  expect(m.image).not.toHaveBeenCalled();
+});
+
+it.each(SKIN_CHOICES)(
+  "routes $label through final interactive operations without Top5 assets",
+  ({ id }) => {
+    const previous = env.interactivePreview;
+    Object.defineProperty(env, "interactivePreview", { value: true, configurable: true });
+    try {
+      m.finalCapability = true;
+      m.skin = id;
+      const { result, unmount } = mount();
+      const options = m.interactive.mock.lastCall?.[0];
+      expect(options.enabled).toBe(true);
+      expect(options.requests[0].skin).toEqual(
+        id === "default" ? undefined : { version: "fbx-skin-v1", id },
+      );
+      expect(result.current.preparationError).toBe(false);
+      expect(result.current.items[0].interactivePreview).toBeDefined();
+      expect(result.current.items[0].interactivePreview?.asset).toBeUndefined();
+      expect(m.ready).not.toHaveBeenCalled();
+      unmount();
+    } finally {
+      Object.defineProperty(env, "interactivePreview", { value: previous, configurable: true });
+    }
+  },
+);
