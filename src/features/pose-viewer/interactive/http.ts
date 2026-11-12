@@ -1,3 +1,4 @@
+import { SKIN_ASSET_PINS } from "../skin/skinAssetPins";
 import { skinReceiptSchema } from "../skin/skinReceipt";
 import { skinPreviewSchema, checkSkinPreviewPaths } from "../skin/skinPreview";
 import { skinSchema, skinCapabilitySchema, sameSkin, type Skin } from "../skin/skin";
@@ -94,7 +95,11 @@ export function operationPath(target: Target, operationId: string) {
 }
 export function checkOperation(raw: unknown, target: Target): Operation {
   const op = operationSchema.parse(raw);
-  if (op.skin && op.appearance && op.appearance.width !== 2)
+  if (op.skin && op.appearance && op.appearance.width !== 2 &&
+    !SKIN_ASSET_PINS.some((pin) => pin.continuousOutline && pin.skinId === op.skin!.id &&
+      pin.manifestSha256 === op.skinPreview?.assetManifestSha256 &&
+      pin.characterId === op.skinPreview.compatibility.characterId &&
+      pin.characterSha256 === op.skinPreview.compatibility.characterSha256))
     throw Error("unsupported skin outline combination");
   const root = operationPath(target, op.operationId);
   if (op.skinPreview) {

@@ -14,7 +14,7 @@ const asset = z
       .number()
       .int()
       .positive()
-      .max(2 * 1024 * 1024),
+      .max(16 * 1024 * 1024),
     url: ownedPath,
   })
   .strict();
@@ -30,7 +30,7 @@ export const skinPreviewSchema = z
         characterSha256: digest,
         previewMesh: z.string().min(1).max(200),
         vertices: z.number().int().positive().max(500000),
-        bones: z.literal(52),
+        bones: z.number().int().positive().max(256),
         polygonIndicesSha256: digest,
         weightsSha256: digest,
         trianglesSha256: digest,
@@ -109,7 +109,7 @@ export async function loadSkinSurface(
   const compressed = await fetchAsset(preview.uv, "application/gzip");
   const unpacked = await boundedBytes(
     new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))),
-    16 * 1024 * 1024,
+    64 * 1024 * 1024,
     signal,
   );
   const uv = skinUvSchema.parse(JSON.parse(new TextDecoder().decode(unpacked)));
