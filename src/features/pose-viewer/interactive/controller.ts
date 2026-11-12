@@ -530,9 +530,10 @@ export class InteractiveController {
   }
   retry() {
     if (!this.desired?.ready) return;
-    // After a read outage, recover the accepted operation before considering a create.
+    // Re-read the current capability/fence: a failed initial probe must not stay
+    // unavailable forever after the service recovers. Keep uncertain POST bodies.
+    this.recovered = false;
     if (this.value.operation && transientPollError(this.value.failure)) {
-      this.recovered = false;
       this.mutation = undefined;
     }
     // Retrying an uncertain POST reuses its exact body/idempotency key.

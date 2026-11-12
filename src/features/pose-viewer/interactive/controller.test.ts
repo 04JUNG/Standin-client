@@ -734,3 +734,45 @@ it("keeps requesting the v1 atlas when the model download failed", async () => {
   expect(client.snapshot().error).toBe(false);
   client.dispose();
 });
+
+it.each(["skin", "outline"] as const)(
+  "refreshes a recovered %s capability on explicit retry",
+  async (kind) => {
+    vi.useFakeTimers();
+    const { client, transport } = harness();
+    vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+      ...operation(body),
+      appearance: body.appearance,
+      skin: body.skin,
+    }));
+    let available = false;
+    vi.mocked(transport.head).mockImplementation(async () => ({
+      currentRevision: 0,
+      currentStateHash: null,
+      operation: null,
+      appearanceExport: { version: "fbx-outline-v1", available },
+      skinExport: {
+        version: "fbx-skin-v1",
+        available,
+        supportedIds: available ? ["default", "flesh"] : ["default"],
+      },
+    }));
+    const appearance =
+      kind === "outline" ? { version: "fbx-outline-v1" as const, width: 2 } : undefined;
+    const skin =
+      kind === "skin" ? { version: "fbx-skin-v1" as const, id: "flesh" as const } : undefined;
+    client.select("selection", "candidate", true, appearance, skin);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(client.snapshot().error).toBe(true);
+    expect(transport.prepare).not.toHaveBeenCalled();
+    available = true;
+    client.retry();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(transport.head).toHaveBeenCalledTimes(2);
+    expect(transport.prepare).toHaveBeenCalledOnce();
+    expect(vi.mocked(transport.prepare).mock.calls[0][1].appearance).toEqual(appearance);
+    expect(vi.mocked(transport.prepare).mock.calls[0][1].skin).toEqual(skin);
+    expect(client.ready("selection")).toBe(true);
+    client.dispose();
+  },
+);
