@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { BVHLoader } from "three/addons/loaders/BVHLoader.js";
 import type { HumanTemplate } from "./template";
+import { isOffsetBody, type OffsetBody } from "./offsetBody";
 const key = (name: string) =>
   name
     .split(":")
@@ -129,7 +130,26 @@ export function referencePose(template: HumanTemplate, text: string, approved = 
     positions.push(position);
     matrices.push(m);
   }
-  return { matrices, positions, rotations, roles: template.joints.map((j) => j.role) };
+  let offsetBody: OffsetBody | undefined;
+  if (approved && isOffsetBody(text)) {
+    const heads = new Map<string, THREE.Vector3>(),
+      ends = new Map<string, THREE.Vector3>();
+    for (const joint of template.joints) {
+      const bone = source(joint.role);
+      if (!bone) continue;
+      heads.set(joint.role, bone.getWorldPosition(new THREE.Vector3()));
+      const child = bone.children[0];
+      if (child) ends.set(joint.role, child.getWorldPosition(new THREE.Vector3()));
+    }
+    offsetBody = { heads, ends };
+  }
+  return {
+    matrices,
+    positions,
+    rotations,
+    roles: template.joints.map((j) => j.role),
+    ...(offsetBody ? { offsetBody } : {}),
+  };
 }
 /** CPU bounding box uses the same eight skin influences as the GPU. */
 export function referenceBounds(template: HumanTemplate, matrices: THREE.Matrix4[]) {
