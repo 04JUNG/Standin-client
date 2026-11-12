@@ -5,6 +5,7 @@ import {
   journeyExit,
 } from "@/features/analytics/featureJourney";
 import { messageOf } from "@/shared/api/errors";
+import { transientPollError } from "@/features/pose-viewer/interactive/pollRecovery";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
@@ -45,6 +46,7 @@ export function HandChips({
     return (
       <div role="alert" className="p-2 text-[12px] text-brand-coral">
         손 선택을 불러오지 못했습니다.{" "}
+        {transientPollError(entry.error) ? "잠시 후 자동으로 다시 불러옵니다. " : null}
         <button className="underline" onClick={() => void entry.retry()}>
           다시 시도
         </button>
