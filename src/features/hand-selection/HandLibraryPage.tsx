@@ -1,3 +1,4 @@
+import { useFeatureView, useFeatureFailure } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/shared/components/AppShell";
@@ -15,6 +16,9 @@ export function HandLibraryPage() {
   });
   const [category, setCategory] = useState("");
   const [query, setQuery] = useState("");
+  useFeatureFailure("hand_library", catalog.error);
+  useFeatureView("hand_library", !!catalog.data, "exposure");
+  useFeatureView("hand_library", !!catalog.data, "open");
   const all = catalog.data?.categories.flatMap((c) => c.presets) ?? [];
   const selected =
     catalog.data?.categories.find((c) => c.id === category) ?? catalog.data?.categories[0];

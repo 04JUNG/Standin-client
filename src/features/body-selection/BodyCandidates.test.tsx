@@ -6,12 +6,13 @@ import { useInstallationStore } from "@/features/installation/installationStore"
 import type { PersonResult } from "@/features/pose-viewer/api/pose.contract";
 import { BodyChip, BodyExpand } from "./BodyCandidates";
 import type { BodyEntry } from "./hooks";
-import type { BodyPreferences, ShapeSpec } from "./contract";
+import type { BodyPreferences, BodyOption, ShapeSpec } from "./contract";
 
 /**
  * #84의 의도(미리보기가 느리거나 실패해도 체형 패널이 사용자를 가두지 않는다)를 새 패널에서 지킨다.
  * 새 UX에는 "확정" 버튼이 없다 — 카드를 누르면 바로 저장되고, 칩의 "포즈"로 언제든 닫는다.
  */
+const options = vi.hoisted(() => ({ current: null as BodyOption[] | null }));
 const mutate = vi.hoisted(() => vi.fn());
 const prefs = vi.hoisted(() => ({ current: null as BodyPreferences | null }));
 const spec: ShapeSpec = {
@@ -28,7 +29,7 @@ vi.mock("./hooks", async (importOriginal) => ({
       isError: false,
       isPending: false,
       data: {
-        characters: [
+        characters: options.current ?? [
           { characterId: "female-base", displayName: "기본형", selectable: true, shape: spec },
           { characterId: "female-muscular", displayName: "근육형", selectable: true },
         ],
@@ -95,8 +96,36 @@ function wrap(node: ReturnType<typeof createElement>) {
   return render(createElement(QueryClientProvider, { client: qc }, node));
 }
 
+it.each(["app", "bar"] as const)(
+  "%s hides internal CSP aliases and excluded entries without changing the selected body",
+  (variant) => {
+    prefs.current = {
+      ...withCard(),
+      pickerVisibility: { hiddenPresetIds: ["female-base"], hiddenCardIds: ["card_1"] },
+    };
+    options.current = [
+      { characterId: "female-base", displayName: "기본형", selectable: true, shape: spec },
+      { characterId: "female-muscular", displayName: "근육형", selectable: true },
+      {
+        characterId: "female-base-v0-3-9",
+        displayName: "여성 · 기본형 · CSP",
+        selectable: true,
+        shape: spec,
+      },
+    ] as BodyOption[];
+    const previous = structuredClone(entry.selection);
+    wrap(createElement(BodyExpand, { job: "visibility-" + variant, person, entry, variant }));
+    expect(screen.queryByRole("radio", { name: "내 체형 주인공 A" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: /CSP/ })).toBeNull();
+    expect(screen.getAllByRole("radio")).toHaveLength(1);
+    expect(mutate).not.toHaveBeenCalled();
+    expect(entry.selection).toEqual(previous);
+  },
+);
+
 beforeEach(() => {
   mutate.mockClear();
+  options.current = null;
   prefs.current = null;
   useInstallationStore.setState({
     credentials: {
@@ -144,7 +173,10 @@ it("saves a picked body without waiting for the previews", () => {
   const card = screen.getByRole("radio", { name: /근육형/ });
   expect(card).not.toBeDisabled();
   fireEvent.click(card);
-  expect(mutate).toHaveBeenCalledWith({ intent: "manual", characterId: "female-muscular" });
+  expect(mutate).toHaveBeenCalledWith(
+    { intent: "manual", characterId: "female-muscular" },
+    expect.objectContaining({ onSuccess: expect.any(Function) }),
+  );
 });
 
 it("applies a saved body card (body and numbers at once) and has no 'my default' buttons", () => {
@@ -152,11 +184,14 @@ it("applies a saved body card (body and numbers at once) and has no 'my default'
   wrap(createElement(BodyExpand, { job: "job-panel", person, entry, variant: "app" }));
   expect(screen.queryByRole("button", { name: /내 기본값/ })).toBeNull();
   fireEvent.click(screen.getByRole("radio", { name: "내 체형 주인공 A" }));
-  expect(mutate).toHaveBeenCalledWith({
-    intent: "manual",
-    characterId: "female-base",
-    shape: { controls: { height: 168, muscle: 1 } },
-  });
+  expect(mutate).toHaveBeenCalledWith(
+    {
+      intent: "manual",
+      characterId: "female-base",
+      shape: { controls: { height: 168, muscle: 1 } },
+    },
+    expect.objectContaining({ onSuccess: expect.any(Function) }),
+  );
 });
 
 it("names the person's body after the card it matches", () => {
@@ -178,7 +213,7 @@ it("names the person's body after the card it matches", () => {
 });
 
 for (const variant of ["app", "bar"] as const) {
-  it(`${variant}: shows the male fallback and allows explicit auto when no recommendation exists`, () => {
+  it(`${variant}: shows the male fallback without offering automatic recommendation`, () => {
     const fallback = {
       ...entry,
       selection: {
@@ -196,9 +231,56 @@ for (const variant of ["app", "bar"] as const) {
         "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요.",
       ),
     ).toBeInTheDocument();
-    const auto = screen.getByRole("button", { name: "자동 추천" });
-    expect(auto).not.toBeDisabled();
-    fireEvent.click(auto);
-    expect(mutate).toHaveBeenCalledWith({ intent: "auto" });
+    expect(screen.queryByRole("button", { name: "자동 추천" })).not.toBeInTheDocument();
   });
 }
+
+it.each(["app", "bar"] as const)(
+  "%s uses separate new and previous IDs and gender navigation does not select a body",
+  (variant) => {
+    options.current = [
+      {
+        characterId: "female-base",
+        displayName: "기존 기본형",
+        gender: "female",
+        role: "previous_default",
+        selectable: true,
+        shape: spec,
+      },
+      {
+        characterId: "new-female",
+        displayName: "기본형 · 8등신",
+        gender: "female",
+        role: "default",
+        selectable: true,
+        shape: spec,
+      },
+      {
+        characterId: "new-male",
+        displayName: "기본형 · 8.3등신",
+        gender: "male",
+        role: "default",
+        selectable: true,
+        shape: spec,
+      },
+    ] as BodyOption[];
+    prefs.current = withCard();
+    wrap(createElement(BodyExpand, { job: "job-default-" + variant, person, entry, variant }));
+    const radios = screen.getAllByRole("radio");
+    expect(radios.findIndex((r) => r.textContent?.includes("8등신"))).toBeLessThan(
+      radios.findIndex((r) => r.textContent?.includes("기존 기본형")),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "남성" }));
+    expect(mutate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "여성" }));
+    fireEvent.click(screen.getByRole("radio", { name: /8등신/ }));
+    expect(mutate).toHaveBeenLastCalledWith(
+      { intent: "manual", characterId: "new-female" },
+      expect.any(Object),
+    );
+    const previous = screen.getByRole("radio", { name: /기존 기본형/ });
+    expect(previous).toHaveAttribute("aria-checked", "true");
+    // The original asset is still separately selectable when the current body is new.
+    expect(screen.getByRole("radio", { name: "내 체형 주인공 A" })).toBeInTheDocument();
+  },
+);

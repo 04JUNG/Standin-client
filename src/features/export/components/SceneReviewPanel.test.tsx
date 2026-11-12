@@ -13,7 +13,7 @@ it.each([false, true])(
         cancel={vi.fn()}
       />,
     );
-    const button = screen.getByRole("button", { name: "이 장면으로 저장" });
+    const button = screen.getByRole("button", { name: "저장" });
     expect(button).toBeEnabled();
     fireEvent.click(button);
     expect(confirm).toHaveBeenCalledOnce();
@@ -54,15 +54,16 @@ it("shows original, verified selection, server changes and explicit original/can
     />,
   );
   expect(screen.getByRole("img", { name: "원본 러프" })).toHaveAttribute("src", "/original.png");
-  expect(screen.getByRole("img", { name: "인물 1 보정 전 선택 결과" })).toHaveAttribute(
+  expect(screen.getByRole("img", { name: "인물 1 선택한 포즈" })).toHaveAttribute(
     "src",
     "/verified.png",
   );
-  expect(screen.getByText(/old0 → new0/)).toBeVisible();
+  expect(screen.getByText("포즈: 변경됨")).toBeVisible();
+  expect(screen.queryByText(/old0|new0|SHA|scene-refinement|scene-review/)).toBeNull();
   expect(screen.getByText(/반신 → 전신/)).toBeVisible();
-  expect(screen.getByText(/몸통 시점 45°/)).toBeVisible();
-  expect(screen.getByText(/보정 전 방향 비교 정보 없음/)).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "보정 전 선택 유지로 통합 저장" }));
+  expect(screen.getByText(/몸 방향 45°/)).toBeVisible();
+  expect(screen.getByText(/보정 전 방향과는 비교하기 어려워요./)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "선택한 포즈 그대로 저장" }));
   expect(original).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole("button", { name: "취소" }));
   expect(cancel).toHaveBeenCalledOnce();

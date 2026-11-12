@@ -1,5 +1,11 @@
-import { readSceneSaveContract } from "@/features/export/api/scene";
+import { capabilitySchema, readAsset } from "../interactive/contract";
+import { env } from "@/shared/lib/env";
+import { rememberAnalysisFailure } from "@/features/analytics/analysisContext";
+import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { campaignCounter } from "@/features/installation/campaignCounts";
+import { rememberJobSource } from "@/features/analytics/analyticsClient";
+import { sourceImageSchema, sceneAvailabilitySchema } from "@/features/export/api/sceneMetadata";
+import { readSceneSaveContract } from "@/features/export/api/scene";
 import { semanticCandidateSchema, semanticResultSchema } from "@/features/semantic-search/api";
 import { selectionSchema } from "@/features/body-selection/contract";
 import { readOutputScope } from "./outputScope";
@@ -21,7 +27,7 @@ import type {
   SkeletonState,
 } from "./pose.contract";
 
-import { upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
+import { ANALYSIS_TIMEOUT_MESSAGE, upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
 import { readAnalysisStage } from "../lib/loadingProgress";
 import { readAnalysisProgress } from "./analysisProgress";
 
@@ -65,6 +71,7 @@ type BffCandidate = CandidatePolicy & {
   posterUrl?: string;
   quickThumbnailUrl?: string;
   previewModelUrl?: string;
+  interactivePreview?: unknown;
   camera?: { version?: string; rotation?: unknown; source_bvh_sha256?: string } | null;
 };
 
@@ -75,12 +82,15 @@ type BffAnalysisResult = {
   notes: string[];
   /** 입력 원본의 presigned URL. 보관 기간(90일)이 지났거나 구 BFF면 없다. */
   inputUrl?: string | null;
+  sourceImage?: unknown;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: {
+    refineRelease?: boolean;
     handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
     sceneExport?: boolean;
+    sceneAvailability?: unknown;
     sceneRefinement?: boolean;
     sceneSaveContract?: unknown;
     characterSelection?: boolean;
@@ -91,6 +101,8 @@ type BffAnalysisResult = {
     outputScopeSelection?: boolean;
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
+    interactivePreview?: unknown;
+    selectionPreview?: boolean;
     candidateRerun?: boolean;
   };
   candidatesByPerson: Array<{
@@ -167,10 +179,7 @@ const POLL_INTERVAL_MS = 750;
 const JOB_TIMEOUT_MS = 210_000;
 
 function analysisTimeoutError(): AnalysisError {
-  return new AnalysisError(
-    "TIMEOUT",
-    "분석 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.",
-  );
+  return new AnalysisError("TIMEOUT", ANALYSIS_TIMEOUT_MESSAGE);
 }
 
 /**
@@ -254,6 +263,7 @@ async function toPoseCandidate(
   personIndex: number,
   signal: AbortSignal,
   posterScope: import("./outputScope").BodyScope = "full",
+  interactive = false,
 ): Promise<PoseCandidate> {
   const semantic =
     raw.semantic === undefined ? undefined : semanticCandidateSchema.parse(raw.semantic);
@@ -328,6 +338,14 @@ async function toPoseCandidate(
           },
         }
       : {}),
+    ...(interactive && !semantic
+      ? {
+          interactivePreview: {
+            version: "interactive-preview-v1" as const,
+            asset: readAsset(raw.interactivePreview, policy.sourceBvhSha256, posterScope),
+          },
+        }
+      : {}),
     previewImages: thumbnailUrl ? [{ view: raw.view, url: thumbnailUrl }] : [],
     modelUrl: null,
     bvhAvailable: downloadable,
@@ -345,7 +363,7 @@ export function readPersonBox(value: unknown): PersonBox | null {
   return x2 > x1 && y2 > y1 ? [x1, y1, x2, y2] : null;
 }
 
-async function toAnalysisResult(
+export async function toAnalysisResult(
   raw: BffAnalysisResult,
   signal: AbortSignal,
 ): Promise<AnalysisResult> {
@@ -359,6 +377,10 @@ async function toAnalysisResult(
     )
   )
     throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid semantic candidates");
+  const selectionPreview = raw.capabilities?.selectionPreview === true;
+  const interactive =
+    env.interactivePreview &&
+    capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success;
   const people: PersonResult[] = await Promise.all(
     raw.candidatesByPerson.map(async (person) => {
       const confidence = narrow(CONFIDENCE, person.confidence, "low");
@@ -370,6 +392,10 @@ async function toAnalysisResult(
             person.personIndex,
             signal,
             readOutputScope(person.outputScope).resolved,
+            // The Top-5 capability requires full coverage. The read-only preview
+            // can also reuse an asset advertised for just this candidate.
+            !semantic &&
+              (interactive || (selectionPreview && candidate.interactivePreview !== undefined)),
           ),
         ),
       );
@@ -411,8 +437,14 @@ async function toAnalysisResult(
     ...(semantic ? { source: "semantic" as const, semantic } : {}),
     // 라이브 분석에서도 원본 미리보기가 draft의 blob URL에 의존하지 않게 된다.
     inputPreviewUrl: raw.inputUrl ?? undefined,
+    sourceImage:
+      sourceImageSchema.safeParse(raw.sourceImage).success &&
+      sourceImageSchema.parse(raw.sourceImage).identity === `${raw.jobId}:input`
+        ? sourceImageSchema.parse(raw.sourceImage)
+        : undefined,
     people,
     capabilities: {
+      refineRelease: !semantic && raw.capabilities?.refineRelease === true && people.length === 1,
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
       semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,
@@ -427,23 +459,26 @@ async function toAnalysisResult(
       fbxExport: raw.capabilities?.fbxExport === true,
       ...(raw.capabilities?.sceneRefinement === true
         ? {
-            sceneRefinement:
-              !semantic &&
-              !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
-              raw.capabilities?.sceneExport === true,
+            sceneRefinement: !semantic && raw.capabilities?.sceneExport === true,
           }
         : {}),
+      sceneAvailability: sceneAvailabilitySchema.safeParse(raw.capabilities?.sceneAvailability)
+        .success
+        ? sceneAvailabilitySchema.parse(raw.capabilities?.sceneAvailability)
+        : undefined,
       sceneSaveContract: readSceneSaveContract(raw.capabilities?.sceneSaveContract),
-      sceneExport:
-        !semantic &&
-        !people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
-        raw.capabilities?.sceneExport === true,
+      sceneExport: !semantic && raw.capabilities?.sceneExport === true,
       // 같은 이유로 모델 선택도 명시적으로 켜졌을 때만 켠다. 없으면 파라미터를 붙이지
       // 않아 이 기능이 없던 때와 바이트까지 같은 파일이 나온다.
       characterSelection: raw.capabilities?.characterSelection === true,
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
+      ...(selectionPreview ? { selectionPreview } : {}),
       modelPreview: raw.capabilities?.modelPreview === true,
+      ...(env.interactivePreview &&
+      capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success
+        ? { interactivePreview: capabilitySchema.parse(raw.capabilities?.interactivePreview) }
+        : {}),
       candidateRerun: raw.capabilities?.candidateRerun === true,
     },
   };
@@ -483,6 +518,7 @@ async function waitForResult(
       // 상류(VLM)가 붐벼서 지금은 못 하는 상태다. 이걸 일반 실패로 뭉개면 화면이
       // "다른 이미지로 다시 시도"라고 안내하는데, 상류가 붐비는 동안에는 어떤 이미지도
       // 실패한다(2026-08-21 장애). 같은 입력으로 잠시 뒤 다시 하는 것이 맞다.
+      if (job.error === "ANALYSIS_TIMEOUT") throw analysisTimeoutError();
       const upstream = upstreamAnalysisFailure(job.error);
       if (upstream) throw new AnalysisError(upstream.code, upstream.message);
       throw new AnalysisError(
@@ -527,6 +563,14 @@ function serverJobFor(
   formData.append("width", String(width));
   formData.append("height", String(height));
 
+  const attemptId = crypto.randomUUID();
+  const startedAt = Date.now();
+  featureAction("analysis", "upload_started", undefined, {
+    attemptId,
+    inputId: clientJobId,
+    source,
+    phase: "upload",
+  });
   const created = apiFetch<CreateJobResponse>(endpoints.analysis.jobs, {
     method: "POST",
     body: formData,
@@ -535,10 +579,26 @@ function serverJobFor(
   })
     .then((job) => {
       campaignCounter.analysisStarted(job.jobId);
+      rememberJobSource(job.jobId, source);
+      featureAction("analysis", "upload_completed", job.jobId, {
+        attemptId,
+        inputId: clientJobId,
+        source,
+        phase: "upload",
+        elapsedMs: Date.now() - startedAt,
+      });
       return job.jobId;
     })
     .catch((error) => {
       // 만들지 못했으면 슬롯도 잡히지 않았다. 다음 시도가 다시 만들 수 있게 지운다.
+      featureAction("analysis", signal.aborted ? "cancelled" : "upload_failed", undefined, {
+        attemptId,
+        inputId: clientJobId,
+        source,
+        phase: "upload",
+        elapsedMs: Date.now() - startedAt,
+        ...(!signal.aborted ? failureProperties(error, "analysis") : {}),
+      });
       serverJobByClientJob.delete(clientJobId);
       throw error;
     });
@@ -585,6 +645,7 @@ export const poseHttp: PoseResultService = {
     onProgress,
   }): Promise<AnalysisResult> {
     const timeout = createAnalysisDeadline(parentSignal);
+    let knownServerJobId: string | undefined;
 
     try {
       if (!serverJobByClientJob.has(jobId)) onProgress?.("uploading");
@@ -593,14 +654,26 @@ export const poseHttp: PoseResultService = {
         { file, source, width, height },
         timeout.createSignal,
       );
+      knownServerJobId = serverJobId;
       const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal, onProgress);
       const analysis = await toAnalysisResult(result, timeout.signal);
       if (timeout.signal.aborted) throw timeout.signal.reason;
       campaignCounter.analysisSucceeded(serverJobId);
-      return analysis;
+      return {
+        ...analysis,
+        sourceImage: analysis.sourceImage ?? {
+          identity: `${analysis.jobId}:input`,
+          originalName: file.name,
+          sha256: null,
+          width,
+          height,
+          captureMapping: { status: "unavailable", reason: "not_recorded" },
+        },
+      };
     } catch (error) {
-      if (timeout.didTimeOut()) throw analysisTimeoutError();
-      throw error;
+      const failure = timeout.didTimeOut() ? analysisTimeoutError() : error;
+      rememberAnalysisFailure(failure, knownServerJobId);
+      throw failure;
     } finally {
       timeout.dispose();
     }

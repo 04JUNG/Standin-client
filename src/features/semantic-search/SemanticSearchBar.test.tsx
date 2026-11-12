@@ -51,7 +51,10 @@ beforeEach(() => {
   loadResult.mockReset().mockResolvedValue({ jobId: "job_new", source: "semantic", people: [] });
   usePoseSelectionStore.getState().clearSelection();
 });
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+});
 
 it.each(["app", "bar"] as const)(
   "%s searches from the result screen and keeps the correct surface",
@@ -184,5 +187,33 @@ it.each(["app", "bar"] as const)(
     expect(screen.getByRole("searchbox")).toBe(input);
     expect(input).toHaveFocus();
     expect(input).toHaveValue("다른 작업 문장");
+  },
+);
+
+it.each(["app", "bar"] as const)(
+  "typing on a result screen never creates intermediate jobs (%s)",
+  async (surface) => {
+    api.searchPoses.mockResolvedValue({ status: "no_result", jobId: null });
+    setup(surface);
+    const input = await ready();
+    vi.useFakeTimers();
+    for (const text of ["하늘을", "하늘을 올라가고 있는 포즈", "한쪽 손을 뻗은 형태"]) {
+      fireEvent.change(input, { target: { value: text } });
+      await act(async () => vi.advanceTimersByTime(2000));
+      expect(api.searchPoses).not.toHaveBeenCalled();
+    }
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "한쪽 손을 뻗고 다른 손으로 잡는 자세" } });
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true, keyCode: 229 });
+    fireEvent.compositionEnd(input);
+    await act(async () => vi.advanceTimersByTime(2000));
+    expect(api.searchPoses).not.toHaveBeenCalled();
+    await act(async () => fireEvent.keyDown(input, { key: "Enter", keyCode: 13 }));
+    expect(api.searchPoses).toHaveBeenCalledOnce();
+    expect(api.searchPoses).toHaveBeenCalledWith(
+      "한쪽 손을 뻗고 다른 손으로 잡는 자세",
+      expect.any(AbortSignal),
+      null,
+    );
   },
 );

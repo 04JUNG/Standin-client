@@ -1,3 +1,29 @@
+import { fetchPreparedFbxResponse } from "../lib/preparedFbx";
+import { interactiveController } from "@/features/pose-viewer/interactive/session";
+import { selectedSkin, sameSkin } from "@/features/pose-viewer/skin/skin";
+import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
+import {
+  prepareOriginalScene,
+  validateSceneManifest,
+  SCENE_MANIFEST_VERSION,
+  type SceneManifest,
+  type OriginalSceneReceipt,
+} from "../api/sceneMetadata";
+import {
+  saveCoverage,
+  sceneUnavailableMessage,
+  sceneSelectionAvailable,
+  sceneFallbackNeedsConfirmation,
+} from "../lib/saveCoverage";
+import { saveConsentBinding } from "../lib/saveBinding";
+import { jobFileName } from "../lib/jobFileName";
+import { failureProperties } from "@/features/analytics/featureJourney";
+import { isTauri } from "@tauri-apps/api/core";
+import {
+  attemptProperties,
+  requestExport,
+  takeExportAttempt,
+} from "@/features/analytics/journeyAttempts";
 import { invalidateFinalReview } from "../lib/invalidateFinalReview";
 import {
   downloadBinding,
@@ -25,11 +51,11 @@ import {
   scopeIncludesHands,
   type BodyScope,
 } from "@/features/pose-viewer/api/outputScope";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
-import { ApiError, toAppError } from "@/shared/api/errors";
+import { ApiError, isAppError, toAppError } from "@/shared/api/errors";
 import { copyText } from "@/shared/lib/copyText";
 import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -46,7 +72,7 @@ import {
   type SceneSaveMode,
 } from "../api/scene";
 import { ExportError } from "../api/export.contract";
-import { defaultFileName, personFileName, withFormatExtension } from "../lib/defaultFileName";
+import { personFileName, withFormatExtension } from "../lib/defaultFileName";
 import { mockBvhContent } from "../lib/mockBvhContent";
 import { useModelStore } from "@/features/models/store/modelStore";
 import { useModelCatalog } from "@/features/models/hooks/useModelCatalog";
@@ -113,7 +139,9 @@ async function resolvePoseBytes(
           )
         : url;
     onDownloadPath?.(pinnedUrl);
-    const bytes = await apiFetchBytes(pinnedUrl, { auth: false, ...(signal ? { signal } : {}) });
+    const bytes = new URL(pinnedUrl, "https://standin.invalid").searchParams.has("artifactReceipt")
+      ? new Uint8Array(await (await fetchPreparedFbxResponse(pinnedUrl, signal)).arrayBuffer())
+      : await apiFetchBytes(pinnedUrl, { auth: false, ...(signal ? { signal } : {}) });
     const digest =
       scope && format === "fbx"
         ? reviewedArtifactSha(framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`)
@@ -144,8 +172,10 @@ async function resolvePoseBytes(
  */
 export function useSaveFlow(jobId: string | undefined) {
   const queryClient = useQueryClient();
+  const [savedSceneManifest, setSavedSceneManifest] = useState<SceneManifest>();
   const draft = useUploadStore((s) => s.draft);
   const clearDraft = useUploadStore((s) => s.clearDraft);
+  const excludedPeople = usePoseSelectionStore((s) => s.excludedPeople);
   const selectedByPerson = usePoseSelectionStore((s) => s.selectedByPerson);
   const clearSelection = usePoseSelectionStore((s) => s.clearSelection);
 
@@ -264,14 +294,57 @@ export function useSaveFlow(jobId: string | undefined) {
   const isSceneExport =
     effectiveFormat === "fbx" &&
     analysis?.source !== "semantic" &&
-    analysis?.capabilities.sceneExport === true &&
-    !env.useMockPoseApi &&
-    !analysis.people.some((p) => p.candidates.some((c) => c.source === "generation"));
+    sceneSelectionAvailable(analysis, selectedByPerson) &&
+    !env.useMockPoseApi;
   const sceneContract = isSceneExport ? analysis?.capabilities.sceneSaveContract : undefined;
-  const [sceneMode, setSceneMode] = useState<SceneSaveMode>("original-selection");
-  const [modeChosen, setModeChosen] = useState(false);
-  const choosingSceneMode = !!sceneContract && !modeChosen && status === "idle";
-  const sceneOutputLabel = isSceneExport ? `선택 인물 ${selectionCount}명 · 통합 FBX 1개` : null;
+  const consentBinding = useSyncExternalStore(
+    useCallback(
+      (changed) => {
+        const offCache = queryClient.getQueryCache().subscribe(changed);
+        const offSelection = usePoseSelectionStore.subscribe(changed);
+        const offOwner = useInstallationStore.subscribe(changed);
+        return () => {
+          offCache();
+          offSelection();
+          offOwner();
+        };
+      },
+      [queryClient],
+    ),
+    () => saveConsentBinding(queryClient, jobId),
+  );
+  const coverage = saveCoverage(analysis, selectedByPerson, excludedPeople);
+  const partialConsent = useExportStore((s) => s.partialConsentBinding);
+  const individualConsent = useExportStore((s) => s.individualConsentBinding);
+  const partialRequired = coverage.omitted.length > 0;
+  // 기능 자체가 꺼진 배포는 기존 개별 자동 저장을 쓴다.
+  // 켜진 기능이 선택/자산 조건으로 불가능할 때만 저장 방식 변경을 확인한다.
+  const individualRequired =
+    preferredFormat === "fbx" &&
+    analysis?.source !== "semantic" &&
+    sceneFallbackNeedsConfirmation(analysis, selectedByPerson) &&
+    !env.useMockPoseApi;
+  const needsPartialConfirmation = partialRequired && partialConsent !== consentBinding;
+  const needsIndividualConfirmation = individualRequired && individualConsent !== consentBinding;
+  const waitingForSaveConsent = needsPartialConfirmation || needsIndividualConfirmation;
+  useEffect(() => {
+    if (partialConsent !== consentBinding)
+      useExportStore.setState({ partialConsentBinding: undefined });
+    if (individualConsent !== consentBinding)
+      useExportStore.setState({ individualConsentBinding: undefined });
+  }, [consentBinding, partialConsent, individualConsent]);
+  const currentConsent = useRef({ partialConsent, individualConsent });
+  currentConsent.current = { partialConsent, individualConsent };
+
+  const [sceneChoice, setSceneChoice] = useState<{
+    jobId: string | undefined;
+    mode: SceneSaveMode;
+  }>();
+  const modeChosen = sceneChoice !== undefined && sceneChoice.jobId === jobId;
+  const sceneMode = modeChosen ? sceneChoice.mode : "original-selection";
+  const choosingSceneMode =
+    !!sceneContract && !modeChosen && status === "idle" && !waitingForSaveConsent;
+  const sceneOutputLabel = isSceneExport ? `인물 ${selectionCount}명 · FBX 파일 1개` : null;
 
   // job이 바뀌었으면 앞선 저장 결과를 먼저 비운다. 파일 이름 기본값을 채우기 전에
   // 실행되어야 한다 — 순서가 뒤집히면 방금 채운 이름을 곧바로 지운다.
@@ -293,17 +366,8 @@ export function useSaveFlow(jobId: string | undefined) {
   // 파일 이름은 beginJob이 비울 수 있으므로 마운트 1회가 아니라 비어 있을 때마다 채운다.
   // 확장자는 실제 저장 포맷을 따른다 — 설정에서 포맷을 바꾸면 다음 기본 이름부터 반영된다.
   useEffect(() => {
-    if (!fileName)
-      setFileName(
-        defaultFileName(
-          queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.source ===
-            "semantic"
-            ? "문장검색.png"
-            : draft?.originalName,
-          effectiveFormat,
-        ),
-      );
-  }, [fileName, draft, effectiveFormat, setFileName, queryClient, jobId]);
+    if (!fileName && jobId) setFileName(jobFileName(jobId, analysis, draft, effectiveFormat));
+  }, [fileName, draft, effectiveFormat, setFileName, analysis, jobId]);
 
   // 최신 값을 자동 저장 effect에서 읽되, effect가 값 변화마다 재실행되지는 않게 한다.
   const latest = useRef({
@@ -324,6 +388,7 @@ export function useSaveFlow(jobId: string | undefined) {
   };
 
   const [serverOperationMayContinue, setServerOperationMayContinue] = useState(false);
+  const [errorAllowedActions, setErrorAllowedActions] = useState<string[]>();
   const [selectedSceneImages, setSelectedSceneImages] = useState<Record<number, string>>({});
   const [sceneReview, setSceneReview] = useState<SceneReview | null>(null);
   const sceneDecision = useRef<((accepted: boolean) => void) | null>(null);
@@ -357,6 +422,18 @@ export function useSaveFlow(jobId: string | undefined) {
       });
     };
   }, []);
+  const previousJob = useRef(jobId);
+  useEffect(() => {
+    if (previousJob.current === jobId) return;
+    previousJob.current = jobId;
+    if (!writingFile.current) activeSave.current?.abort(new ExportError("CANCELLED", ""));
+    sceneDecision.current?.(false);
+    sceneDecision.current = null;
+    scenePreviewController.current?.abort();
+    setSceneReview(null);
+    setSelectedSceneImages({});
+  }, [jobId]);
+
   const decideScene = (accepted: boolean) => {
     if (!accepted) {
       cancelSave();
@@ -392,11 +469,34 @@ export function useSaveFlow(jobId: string | undefined) {
         preferredCharacterId: preferred,
       } = latest.current;
       if (!targetFolder || !rawName || !id || picks.length === 0) return;
+      const currentAnalysis = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id));
+      const currentState = usePoseSelectionStore.getState();
+      const currentCoverage = saveCoverage(
+        currentAnalysis,
+        currentState.selectedByPerson,
+        currentState.excludedPeople,
+      );
+      const binding = saveConsentBinding(qc, id);
+      if (
+        (currentCoverage.omitted.length > 0 && currentConsent.current.partialConsent !== binding) ||
+        ((format === "fbx" || preferredFormat === "fbx") &&
+          currentAnalysis?.source !== "semantic" &&
+          sceneFallbackNeedsConfirmation(currentAnalysis, currentState.selectedByPerson) &&
+          !env.useMockPoseApi &&
+          currentConsent.current.individualConsent !== binding)
+      ) {
+        autoSaveStarted.current = undefined;
+        useExportStore.setState({ status: "idle" });
+        return;
+      }
       // 이름의 확장자와 실제 내용이 어긋나면 클립스튜디오는 열지 못하면서 이유는 알려 주지
       // 않는다. 이름은 설정에서 포맷을 바꾸기 전에 정해졌을 수 있으므로 여기서 맞춘다.
       const name = withFormatExtension(rawName, format);
 
       if (activeSave.current || !sceneMounted.current) return;
+      const serverJob = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.jobId;
+      const attempt = serverJob ? takeExportAttempt(serverJob) : undefined;
+      let telemetryPhase = "preparing";
       const controller = new AbortController();
       activeSave.current = controller;
       let settle!: () => void;
@@ -409,6 +509,7 @@ export function useSaveFlow(jobId: string | undefined) {
       let unsubscribeQueries = () => {};
       let unsubscribeOwner = () => {};
       setServerOperationMayContinue(false);
+      setErrorAllowedActions(undefined);
       setPhase("preparing");
       try {
         const analysisResult = qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id));
@@ -417,11 +518,16 @@ export function useSaveFlow(jobId: string | undefined) {
         }
         const snapshot = () =>
           JSON.stringify({
+            routeJob: latest.current.jobId,
             job: usePoseSelectionStore.getState().jobId,
             owner: useInstallationStore.getState().credentials?.installationId,
             selected: usePoseSelectionStore.getState().selectedByPerson,
+            excluded: usePoseSelectionStore.getState().excludedPeople,
             character: usePoseSelectionStore.getState().characterId,
             characters: usePoseSelectionStore.getState().characterByPerson,
+            outlines: usePoseSelectionStore.getState().outlineByPerson,
+            skins: usePoseSelectionStore.getState().skinByPerson,
+            outlineEditing: usePoseSelectionStore.getState().outlineEditingByPerson,
             refine: usePoseSelectionStore.getState().refineByPerson,
             people: qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.people,
             body: qc
@@ -476,6 +582,23 @@ export function useSaveFlow(jobId: string | undefined) {
         const files = await Promise.all(
           picks.map(async ([personIndexStr, candidateId]) => {
             const personIndex = Number(personIndexStr);
+            const outline = selectionState.outlineByPerson[personIndex] ?? 0;
+            const skin = selectedSkin(selectionState.skinByPerson[personIndex] ?? "default");
+            if (
+              skin &&
+              (format !== "fbx" ||
+                !env.interactivePreview ||
+                !analysisResult.capabilities.interactivePreview?.operations)
+            )
+              throw new ApiError(422, "SKIN_UNSUPPORTED", "");
+            if (
+              selectionState.outlineEditingByPerson[personIndex] ||
+              (outline > 0 &&
+                (format !== "fbx" ||
+                  !env.interactivePreview ||
+                  !analysisResult.capabilities.interactivePreview?.operations))
+            )
+              throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
             const person = analysisResult.people.find((p) => p.index === personIndex);
             const scope = previewScope(person);
             const handApplicable =
@@ -505,7 +628,46 @@ export function useSaveFlow(jobId: string | undefined) {
             );
             let content: Uint8Array;
             let downloadPath = "";
-            if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
+            if (currentOutcome?.release) {
+              if (format !== "fbx" || !exportUrl)
+                throw new ApiError(409, "GENERATED_FBX_REQUIRED", "");
+              const parsed = new URL(exportUrl, "https://standin.invalid");
+              if (
+                parsed.origin !== "https://standin.invalid" ||
+                !/^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/refine\/release\/fbx$/.test(
+                  parsed.pathname,
+                )
+              )
+                throw new ApiError(409, "INVALID_EXPORT", "");
+              content = await apiFetchBytes(exportUrl, { auth: false, signal: controller.signal });
+              await verifyDigest(
+                content.buffer.slice(
+                  content.byteOffset,
+                  content.byteOffset + content.byteLength,
+                ) as ArrayBuffer,
+                currentOutcome.release.artifact_sha256,
+              );
+              downloadPath = exportUrl;
+            } else if (
+              env.interactivePreview &&
+              analysisResult.capabilities.interactivePreview?.operations &&
+              format === "fbx"
+            ) {
+              const owner = useInstallationStore.getState().credentials?.installationId ?? "";
+              const current = interactiveController(owner, analysisResult.jobId, personIndex);
+              const interactiveBinding = current.snapshot().binding;
+              if (
+                !owner ||
+                !interactiveBinding ||
+                current.snapshot().operation?.candidateId !== candidateId ||
+                (current.snapshot().operation?.appearance?.width ?? 0) !== outline ||
+                !sameSkin(current.snapshot().operation?.skin, skin)
+              )
+                throw new ApiError(409, "PREVIEW_CHANGED", "");
+              const verified = await current.download(interactiveBinding, controller.signal);
+              content = verified.bytes;
+              downloadPath = current.snapshot().operation!.fileUrl!;
+            } else if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
               if (options.forceDefaultCharacter) throw new ApiError(409, "BODY_PREVIEW_STALE", "");
               const owner = useInstallationStore.getState().credentials?.installationId ?? "";
               const body = qc.getQueryData<BodySelection>(
@@ -586,19 +748,25 @@ export function useSaveFlow(jobId: string | undefined) {
               personIndex,
               candidateId,
               downloadPath,
+              releaseSha: currentOutcome?.release?.artifact_sha256,
             };
           }),
         );
         controller.signal.throwIfAborted();
-        let saveFiles: { fileName: string; content: Uint8Array }[] = files;
+        let saveFiles: { fileName: string; content: Uint8Array; sceneMetadata?: string }[] = files;
         let sceneBinding: string | undefined;
+        let sceneMetadata: SceneManifest | undefined;
         if (
           format === "fbx" &&
+          !files.some((f) => !!f.releaseSha) &&
           analysisResult.source !== "semantic" &&
-          analysisResult.capabilities.sceneExport === true &&
-          !analysisResult.people.some((p) => p.candidates.some((c) => c.source === "generation")) &&
+          sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
           !env.useMockPoseApi
         ) {
+          if (Object.values(selectionState.outlineByPerson).some((width) => width > 0))
+            throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
+          if (Object.values(selectionState.skinByPerson).some((skin) => skin !== "default"))
+            throw new ApiError(422, "SKIN_UNSUPPORTED", "");
           sceneRequest = true;
           if (files.some((f) => !f.downloadPath))
             throw new Error("장면에 사용할 최종 파일을 확인하지 못했습니다.");
@@ -621,15 +789,56 @@ export function useSaveFlow(jobId: string | undefined) {
           );
           const contract = analysisResult.capabilities.sceneSaveContract;
           const mode = options.sceneMode ?? sceneMode;
-          let review: SceneReview | undefined;
           if (contract && !contract.saveModes.includes(mode))
             throw new ApiError(409, "SCENE_CONTRACT_UNSUPPORTED", "");
+          let review: SceneReview | undefined;
+          let originalReceipt: OriginalSceneReceipt | undefined;
+          const hasManifest = contract?.manifestVersion === SCENE_MANIFEST_VERSION;
+          if (
+            hasManifest &&
+            analysisResult.capabilities.sceneAvailability?.manifest.available !== true
+          )
+            throw new ApiError(503, "SCENE_UNAVAILABLE", "");
+          const excluded = Object.keys(selectionState.excludedPeople).map(Number);
+          const validateMetadata = (manifest: unknown, digest: string) =>
+            validateSceneManifest(manifest, {
+              jobId: analysisResult.jobId,
+              mode,
+              sha256: digest,
+              references,
+              detected: analysisResult.people.map((p) => p.index),
+              excluded,
+              noCandidates: analysisResult.people
+                .filter((p) => p.candidates.length === 0)
+                .map((p) => p.index),
+              sourceImage: analysisResult.sourceImage,
+            });
+          if (mode === "original-selection" && hasManifest) {
+            originalReceipt = await prepareOriginalScene(
+              analysisResult.jobId,
+              references,
+              excluded,
+              controller.signal,
+            );
+            sceneMetadata = validateMetadata(
+              originalReceipt.manifest,
+              originalReceipt.artifactSha256,
+            );
+          }
           if (mode === "auto-correct-v4") {
             if (!contract || analysisResult.capabilities.sceneRefinement !== true)
               throw new ApiError(409, "SCENE_CONTRACT_UNSUPPORTED", "");
-            review = await prepareScene(analysisResult.jobId, references, controller.signal);
+            review = await prepareScene(
+              analysisResult.jobId,
+              references,
+              controller.signal,
+              hasManifest ? excluded : undefined,
+            );
+            if (hasManifest)
+              sceneMetadata = validateMetadata(review.manifest, review.artifactSha256);
             controller.signal.throwIfAborted();
             if (!sceneMounted.current) throw new ExportError("CANCELLED", "");
+            telemetryPhase = "confirmation";
             const accepted = await new Promise<boolean>((resolve) => {
               sceneDecision.current = resolve;
               setPhase("awaiting-confirm");
@@ -661,13 +870,33 @@ export function useSaveFlow(jobId: string | undefined) {
                           : current,
                       );
                   })
-                  .catch(() => {
-                    if (!previewController.signal.aborted)
-                      setSceneReview((current) =>
-                        current?.reviewKey === review!.reviewKey
-                          ? { ...current, previewFailed: true }
-                          : current,
-                      );
+                  .catch((error) => {
+                    if (previewController.signal.aborted) return;
+                    // Rendering is optional; rejected review/selection identity is not.
+                    if (
+                      error instanceof ApiError &&
+                      ([
+                        "SCENE_REVIEW_REQUIRED",
+                        "SCENE_REVIEW_EXPIRED",
+                        "SCENE_SOURCE_CHANGED",
+                        "SCENE_CONTRACT_UNSUPPORTED",
+                        "SCENE_INTEGRITY",
+                      ].includes(error.code) ||
+                        poseRecovery(error).action !== "retry" ||
+                        error.status === 401 ||
+                        error.status === 403)
+                    ) {
+                      controller.abort(error);
+                      sceneDecision.current = null;
+                      setSceneReview(null);
+                      resolve(false);
+                      return;
+                    }
+                    setSceneReview((current) =>
+                      current?.reviewKey === review!.reviewKey
+                        ? { ...current, previewFailed: true }
+                        : current,
+                    );
                   });
               }
             });
@@ -677,20 +906,61 @@ export function useSaveFlow(jobId: string | undefined) {
           }
           controller.signal.throwIfAborted();
           startSaving();
-          const content = await downloadScene(analysisResult.jobId, references, review, {
-            signal: controller.signal,
-            negotiated: !!contract,
-          });
+          const content = await downloadScene(
+            analysisResult.jobId,
+            references,
+            review ?? originalReceipt,
+            {
+              signal: controller.signal,
+              negotiated: !!contract,
+            },
+          );
+          if (
+            sceneMetadata &&
+            (await sceneReference(0, "scene", "/", content)).sha256 !==
+              sceneMetadata.artifact.sha256
+          )
+            throw new ApiError(502, "SCENE_INTEGRITY", "");
           sceneBinding = JSON.stringify([
             downloadBinding(format, files),
             mode,
             (await sceneReference(0, "scene", "/", content)).sha256,
           ]);
-          saveFiles = [{ fileName: name.replace(/\.fbx$/i, "_scene.fbx"), content }];
+          saveFiles = [
+            {
+              fileName: name.replace(/\.fbx$/i, "_scene.fbx"),
+              content,
+              ...(sceneMetadata ? { sceneMetadata: JSON.stringify(sceneMetadata) } : {}),
+            },
+          ];
         }
         controller.signal.throwIfAborted();
         // A late response must never write an older selection to disk.
         if (
+          (env.interactivePreview &&
+            analysisResult.capabilities.interactivePreview?.operations &&
+            files.some((f) => {
+              if (f.releaseSha) {
+                const receipt = usePoseSelectionStore.getState().refineByPerson[f.personIndex];
+                return (
+                  receipt?.jobId !== analysisResult.jobId ||
+                  receipt.candidateId !== f.candidateId ||
+                  receipt.release?.artifact_sha256 !== f.releaseSha ||
+                  receipt.exportUrl !== f.downloadPath
+                );
+              }
+              const current = interactiveController(
+                useInstallationStore.getState().credentials?.installationId ?? "",
+                analysisResult.jobId,
+                f.personIndex,
+              );
+              const currentBinding = current.snapshot().binding;
+              return (
+                !currentBinding ||
+                !current.ready(currentBinding) ||
+                current.snapshot().operation?.fileUrl !== f.downloadPath
+              );
+            })) ||
           snapshot() !== bindingAtStart ||
           qc.isMutating({ mutationKey: ["hand-change"] }) ||
           qc.isMutating({ mutationKey: ["body-change"] })
@@ -704,6 +974,8 @@ export function useSaveFlow(jobId: string | undefined) {
         if (!sceneMounted.current) throw new ExportError("CANCELLED", "");
         // Native writes are atomic from the UI's perspective; HTTP cancellation ends here.
         writingFile.current = true;
+        telemetryPhase = "writing";
+        const writingStartedAt = Date.now();
         const results = await exportService.saveCandidates({
           folder: targetFolder,
           files: saveFiles.map((file) => ({
@@ -711,16 +983,14 @@ export function useSaveFlow(jobId: string | undefined) {
             fileName: revisionFileName(file.fileName, revision.ordinal),
           })),
         });
-        rememberDownload(id, binding);
-        if (useExportStore.getState().jobId !== id) return;
-        const paths = results.map((r) => r.path);
-        if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
-        else setSaved(paths);
         // 사용자 기준 성공은 BFF의 BVH 응답이 아니라 로컬 파일 저장이다.
         // 서버 export_events만 보면 저장 단계 실패가 성공으로 집계된다.
         trackEvent(
           "export_completed",
           {
+            ...(attempt ? attemptProperties(attempt) : {}),
+            writingElapsedMs: Math.max(0, Date.now() - writingStartedAt),
+            nativeDiskWrite: isTauri(),
             fileCount: results.length,
             format,
             // 인물마다 다를 수 있으므로 쓰인 값들을 모아 남긴다. 붙지 않은 경우
@@ -731,15 +1001,30 @@ export function useSaveFlow(jobId: string | undefined) {
               : [...new Set(picks.map(([i]) => characterFor(Number(i)) ?? "default"))].join(","),
             surface: currentSurface(),
           },
-          usePoseSelectionStore.getState().serverJobId ?? undefined,
+          serverJob,
         );
+        void rememberSavedArtifacts(serverJob, format, saveFiles, binding).catch(() => {});
+        rememberDownload(id, binding);
+        if (useExportStore.getState().jobId !== id) return;
+        setSavedSceneManifest(sceneMetadata);
+        const paths = results.map((r) => r.path);
+        if (options.append || useExportStore.getState().savedPaths.length > 0) addSaved(paths);
+        else setSaved(paths);
       } catch (failure) {
         const cause = controller.signal.aborted ? controller.signal.reason : failure;
         const err =
           sceneRequest && !(cause instanceof ApiError) && !(cause instanceof ExportError)
-            ? new ApiError(502, "SCENE_FAILED", "")
+            ? new ApiError(502, "SCENE_FAILED", "", undefined, {
+                serverOperationMayContinue: isAppError(cause) && cause.kind === "network",
+              })
             : cause;
         if (err instanceof ExportError && err.code === "CANCELLED") {
+          if (attempt)
+            trackEvent(
+              "export_cancelled",
+              { ...attemptProperties(attempt), phase: telemetryPhase },
+              serverJob,
+            );
           if (sceneMounted.current && useExportStore.getState().jobId === id) setPhase("cancelled");
           return;
         }
@@ -752,7 +1037,10 @@ export function useSaveFlow(jobId: string | undefined) {
           err instanceof ApiError &&
           (!err.code.startsWith("SCENE_") || err.code === "SCENE_SOURCE_CHANGED")
         )
-          invalidateFinalReview(qc, id);
+          invalidateFinalReview(
+            qc,
+            qc.getQueryData<AnalysisResult>(poseQueryKeys.result(id))?.jobId ?? id,
+          );
         if (
           err instanceof ApiError &&
           ["SCENE_REVIEW_REQUIRED", "SCENE_SOURCE_CHANGED"].includes(err.code)
@@ -765,6 +1053,16 @@ export function useSaveFlow(jobId: string | undefined) {
             ],
           });
         const details = err instanceof ApiError ? err.details : undefined;
+        setErrorAllowedActions(
+          typeof details === "object" &&
+            details !== null &&
+            "allowedActions" in details &&
+            Array.isArray(details.allowedActions)
+            ? details.allowedActions.filter(
+                (action): action is string => typeof action === "string",
+              )
+            : undefined,
+        );
         setServerOperationMayContinue(
           typeof details === "object" &&
             details !== null &&
@@ -782,11 +1080,14 @@ export function useSaveFlow(jobId: string | undefined) {
         trackEvent(
           "export_failed",
           {
+            ...(attempt ? attemptProperties(attempt) : {}),
+            ...failureProperties(cause, "export"),
+            phase: telemetryPhase,
             code: err instanceof ExportError || err instanceof ApiError ? err.code : "UNKNOWN",
             format,
             surface: currentSurface(),
           },
-          usePoseSelectionStore.getState().serverJobId ?? undefined,
+          serverJob,
         );
       } finally {
         clearTimeout(expiryTimer);
@@ -798,7 +1099,7 @@ export function useSaveFlow(jobId: string | undefined) {
         settle();
       }
     },
-    [startSaving, setPhase, setSaved, addSaved, setError, queryClient, sceneMode],
+    [startSaving, setPhase, setSaved, addSaved, setError, queryClient, sceneMode, preferredFormat],
   );
 
   /**
@@ -807,13 +1108,17 @@ export function useSaveFlow(jobId: string | undefined) {
    * StrictMode의 effect 이중 실행과 status 변화로 인한 재실행을 ref로 막는다. 재시도와
    * "다른 폴더에 저장"은 사용자 동작이므로 이 경로를 타지 않는다.
    */
-  const autoSaveStarted = useRef(false);
+  const autoSaveStarted = useRef<string>();
   useEffect(() => {
-    if (autoSaveStarted.current) return;
+    if (autoSaveStarted.current === jobId) return;
     if (!folder || !fileName || !jobId || selectionCount === 0) return;
-    if (status !== "idle" || (sceneContract && !modeChosen)) return;
-    autoSaveStarted.current = true;
-    void runSave(folder, effectiveFormat);
+    if (status !== "idle" || (sceneContract && !modeChosen) || waitingForSaveConsent) return;
+    autoSaveStarted.current = jobId;
+    // A cancelled request from the previous job may still be settling.
+    void saveSettled.current.then(() => {
+      if (sceneMounted.current && latest.current.jobId === jobId)
+        void runSave(folder, effectiveFormat);
+    });
   }, [
     folder,
     fileName,
@@ -824,19 +1129,21 @@ export function useSaveFlow(jobId: string | undefined) {
     effectiveFormat,
     sceneContract,
     modeChosen,
+    waitingForSaveConsent,
   ]);
 
   async function saveOriginalSelection() {
     cancelSave();
     await saveSettled.current;
-    setSceneMode("original-selection");
-    setModeChosen(true);
+    if (!sceneMounted.current || latest.current.jobId !== jobId) return;
+    setSceneChoice({ jobId, mode: "original-selection" });
     if (folder) await runSave(folder, effectiveFormat, { sceneMode: "original-selection" });
   }
 
   /** 저장 실패 후 같은 폴더·같은 포맷으로 다시 시도한다. */
   async function retry() {
     await saveSettled.current;
+    if (!sceneMounted.current || latest.current.jobId !== jobId) return;
     if (folder) await runSave(folder, effectiveFormat);
   }
 
@@ -864,8 +1171,35 @@ export function useSaveFlow(jobId: string | undefined) {
    * 기본 폴더를 바꾸려면 설정 화면으로 간다.
    */
   async function saveToAnotherFolder() {
-    const picked = await exportService.chooseFolder(folder ?? undefined);
-    if (picked) await runSave(picked, effectiveFormat);
+    const serverJob = analysis?.jobId;
+    const attempt = serverJob ? requestExport(serverJob, "choose_folder") : undefined;
+    try {
+      const picked = await exportService.chooseFolder(folder ?? undefined);
+      if (picked) await runSave(picked, effectiveFormat);
+      else if (attempt) {
+        takeExportAttempt(serverJob!);
+        trackEvent(
+          "export_cancelled",
+          { ...attemptProperties(attempt), phase: "folder" },
+          serverJob,
+        );
+      }
+    } catch (error) {
+      if (attempt) {
+        takeExportAttempt(serverJob!);
+        trackEvent(
+          "export_failed",
+          {
+            ...attemptProperties(attempt),
+            ...failureProperties(error, "export"),
+            phase: "folder",
+            code: "FOLDER_DIALOG_FAILED",
+          },
+          serverJob,
+        );
+      }
+      setError("저장 폴더를 열지 못했어요. 다시 시도해 주세요.");
+    }
   }
 
   /** 설정 폴더가 사라졌을 때의 복구 경로. 기본값으로 되돌리고 그 폴더에 저장한다. */
@@ -878,10 +1212,11 @@ export function useSaveFlow(jobId: string | undefined) {
 
   /** 저장을 마치고 새 장면을 시작한다. 목적지는 호출부가 정한다. */
   function newScene() {
+    setSavedSceneManifest(undefined);
     reset();
     clearSelection();
     clearDraft();
-    autoSaveStarted.current = false;
+    autoSaveStarted.current = undefined;
   }
 
   function revealSaved() {
@@ -894,6 +1229,22 @@ export function useSaveFlow(jobId: string | undefined) {
   }
 
   return {
+    savedSceneManifest,
+    coverage,
+    needsPartialConfirmation,
+    needsIndividualConfirmation,
+    waitingForSaveConsent,
+    sceneUnavailableReason: sceneUnavailableMessage(
+      analysis?.capabilities.sceneAvailability?.originalSelection.reasons[0] ??
+        (analysis?.capabilities.sceneSaveContract?.manifestVersion
+          ? analysis.capabilities.sceneAvailability?.manifest.reasons[0]
+          : undefined) ??
+        (analysis?.capabilities.sceneExport && !isSceneExport
+          ? "selected_artifact_unsupported"
+          : undefined),
+    ),
+    confirmPartial: () => useExportStore.setState({ partialConsentBinding: consentBinding }),
+    confirmIndividual: () => useExportStore.setState({ individualConsentBinding: consentBinding }),
     cancelSave,
     sceneMode,
     serverOperationMayContinue,
@@ -903,9 +1254,14 @@ export function useSaveFlow(jobId: string | undefined) {
       sceneContract?.saveModes.includes("auto-correct-v4") === true &&
       analysis?.capabilities.sceneRefinement === true,
     canUseOriginal: sceneContract?.saveModes.includes("original-selection") === true,
+    canUseOriginalAfterError:
+      sceneContract?.saveModes.includes("original-selection") === true &&
+      (errorAllowedActions
+        ? errorAllowedActions.includes("use_original_selection")
+        : poseRecovery(errorCode ? new ApiError(409, errorCode, "") : undefined).action ===
+          "retry"),
     chooseSceneMode: (mode: SceneSaveMode) => {
-      setSceneMode(mode);
-      setModeChosen(true);
+      setSceneChoice({ jobId, mode });
     },
     saveOriginalSelection,
     comparison: {
@@ -940,7 +1296,7 @@ export function useSaveFlow(jobId: string | undefined) {
       "SCENE_TIMEOUT",
       "SCENE_INTEGRITY",
     ].includes(errorCode ?? "")
-      ? "장면 다시 준비·확인"
+      ? "결과 다시 확인"
       : ["SCENE_UNAVAILABLE", "SCENE_BUSY", "SCENE_FAILED"].includes(errorCode ?? "")
         ? "잠시 후 다시 시도"
         : "다시 저장",

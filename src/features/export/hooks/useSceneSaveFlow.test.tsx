@@ -19,8 +19,10 @@ const mock = vi.hoisted(() => ({
   download: vi.fn(),
   save: vi.fn(),
   track: vi.fn(),
+  native: false,
 }));
 vi.stubGlobal("crypto", webcrypto);
+vi.mock("@tauri-apps/api/core", () => ({ isTauri: () => mock.native, invoke: vi.fn() }));
 vi.mock("@/shared/lib/env", () => ({ env: { useMockPoseApi: false, isProduction: false } }));
 vi.mock("@/shared/api/client", async (original) => ({
   ...(await original<typeof import("@/shared/api/client")>()),
@@ -53,6 +55,7 @@ const { SavePage } = await import("../pages/SavePage");
 const { BarSavePage } = await import("@/features/bar/pages/BarSavePage");
 beforeEach(() => {
   vi.resetAllMocks();
+  mock.native = false;
   mock.bytes.mockResolvedValue(new Uint8Array([1]));
   mock.prepare.mockImplementation(async () => sceneReviewFixture());
   mock.preview.mockResolvedValue("fixture-png");
@@ -62,6 +65,8 @@ beforeEach(() => {
     credentials: { installationId: "owner", deviceToken: "fixture", consentVersion: "2026-08-02" },
   });
   useExportStore.setState({
+    partialConsentBinding: undefined,
+    individualConsentBinding: undefined,
     jobId: "job",
     folder: "/fixture",
     format: "fbx",
@@ -76,6 +81,7 @@ beforeEach(() => {
     serverJobId: "job",
     selectedByPerson: { 0: "pick0", 1: "pick1" },
     refineByPerson: {},
+    excludedPeople: {},
     characterId: null,
     characterByPerson: {},
   });
@@ -105,6 +111,18 @@ function setup(negotiated = true) {
   );
   return { qc, wrapper };
 }
+function unavailableScene(
+  reason: string,
+): NonNullable<AnalysisResult["capabilities"]["sceneAvailability"]> {
+  return {
+    version: "scene-availability-v1",
+    selectionValidation: "required_on_prepare",
+    originalSelection: { available: false, reasons: [reason] },
+    autoCorrectV4: { available: false, reasons: [reason] },
+    manifest: { available: false, reasons: [reason] },
+    candidateEligibility: [],
+  };
+}
 async function autoCorrect() {
   const { qc, wrapper } = setup();
   const hook = renderHook(() => useSaveFlow("job"), { wrapper });
@@ -129,20 +147,24 @@ it.each(["app", "bar"])(
         </MemoryRouter>
       </Provider>,
     );
-    expect(screen.getByText("선택 인물 2명 · 통합 FBX 1개")).toBeVisible();
+    expect(screen.getByText("인물 2명 · FBX 파일 1개")).toBeVisible();
     expect(mock.prepare).not.toHaveBeenCalled();
     expect(mock.save).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "자동 보정 후 확인" }));
-    await screen.findByRole("button", { name: "이 장면으로 저장" });
+    fireEvent.click(screen.getByRole("button", { name: "자동 보정" }));
+    await screen.findByRole("button", { name: "저장" });
     expect(useExportStore.getState().status).toBe("awaiting-confirm");
     expect(screen.queryByText(/저장하고 있습니다/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "이 장면으로 저장" }));
-    await screen.findByText("통합 파일 1개를 저장했습니다.");
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    await screen.findByText("FBX 파일 1개를 저장했어요.");
     expect(mock.save.mock.calls[0]?.[0].files).toHaveLength(1);
     expect(mock.download.mock.calls[0]?.[2].artifactSha256).toBe("b".repeat(64));
     expect(mock.track).toHaveBeenCalledWith(
       "export_completed",
-      expect.objectContaining({ fileCount: 1 }),
+      expect.objectContaining({
+        fileCount: 1,
+        nativeDiskWrite: false,
+        attemptId: expect.any(String),
+      }),
       "job",
     );
   },
@@ -178,8 +200,16 @@ it("confirmation cancel stays cancelled and emits no export_failed", async () =>
   act(() => hook.result.current.cancelScene());
   await waitFor(() => expect(hook.result.current.status).toBe("cancelled"));
   expect(mock.download).not.toHaveBeenCalled();
+  const request = mock.track.mock.calls.find(([name]) => name === "export_requested")!;
+  expect(mock.track).toHaveBeenCalledWith(
+    "export_cancelled",
+    expect.objectContaining({ attemptId: request[1].attemptId, phase: "confirmation" }),
+    "job",
+  );
   expect(mock.save).not.toHaveBeenCalled();
-  expect(mock.track).not.toHaveBeenCalled();
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
 });
 it.each(["cancel", "leave"])(
   "%s while preparing aborts HTTP and ignores a late success",
@@ -204,7 +234,11 @@ it.each(["cancel", "leave"])(
     await act(async () => finish(sceneReviewFixture()));
     expect(useExportStore.getState().status).toBe("cancelled");
     expect(mock.save).not.toHaveBeenCalled();
-    expect(mock.track).not.toHaveBeenCalled();
+    expect(
+      mock.track.mock.calls.some(
+        ([name]) => name === "export_failed" || name === "export_completed",
+      ),
+    ).toBe(false);
   },
 );
 it.each(["pick", "scope", "body", "hands"])(
@@ -300,11 +334,14 @@ it.each(["app", "bar"])("%s page cancels final scene without a failed export", a
       </MemoryRouter>
     </Provider>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "자동 보정 후 확인" }));
-  fireEvent.click(await screen.findByRole("button", { name: /^취소$/ }));
-  await screen.findByText("저장을 취소했어요. 선택은 유지됩니다.");
+  fireEvent.click(screen.getByRole("button", { name: "자동 보정" }));
+  await screen.findByText("결과 확인");
+  fireEvent.click(screen.getByRole("button", { name: /^취소$/ }));
+  await screen.findByText("저장을 취소했어요. 선택한 포즈는 그대로예요.");
   expect(mock.save).not.toHaveBeenCalled();
-  expect(mock.track).not.toHaveBeenCalled();
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
 });
 it("late scene download after selection change is never written", async () => {
   let finish!: (data: Uint8Array) => void;
@@ -356,4 +393,365 @@ it("preserves the BFF network-disconnect continuation detail for recovery UI", a
   act(() => hook.result.current.chooseSceneMode("auto-correct-v4"));
   await waitFor(() => expect(hook.result.current.serverOperationMayContinue).toBe(true));
   expect(hook.result.current.errorCode).toBe("SCENE_UNAVAILABLE");
+});
+
+it.each([
+  ["SCENE_REVIEW_EXPIRED", "retry"],
+  ["SCENE_REVIEW_REQUIRED", "retry"],
+  ["SCENE_SOURCE_CHANGED", "review"],
+  ["SCENE_INTEGRITY", "retry"],
+  ["SCENE_CONTRACT_UNSUPPORTED", "review"],
+  ["BODY_PREVIEW_STALE", "review"],
+  ["HANDS_CHANGED", "review"],
+  ["PREVIEW_NOT_READY", "review"],
+])("preview %s invalidates the result instead of leaving a save button", async (code, recovery) => {
+  mock.preview.mockRejectedValueOnce(
+    new ApiError(code === "PREVIEW_NOT_READY" ? 503 : 409, code!, "private diagnostic"),
+  );
+  const { wrapper } = setup();
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  act(() => hook.result.current.chooseSceneMode("auto-correct-v4"));
+  await waitFor(() => expect(hook.result.current.errorCode).toBe(code));
+  expect(hook.result.current.sceneReview).toBeNull();
+  expect(hook.result.current.recovery.action).toBe(recovery);
+  act(() => hook.result.current.confirmScene());
+  expect(mock.download).not.toHaveBeenCalled();
+  expect(mock.save).not.toHaveBeenCalled();
+});
+it("an optional preview render failure keeps the checked file available", async () => {
+  mock.preview.mockRejectedValueOnce(new ApiError(503, "SCENE_UNAVAILABLE", ""));
+  const hook = await autoCorrect();
+  await waitFor(() => expect(hook.result.current.sceneReview?.previewFailed).toBe(true));
+  expect(hook.result.current.status).toBe("awaiting-confirm");
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
+  act(() => hook.result.current.confirmScene());
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+});
+it.each(["app", "bar"])(
+  "%s review uses plain copy without internal identifiers",
+  async (surface) => {
+    const receipt = sceneReviewFixture();
+    receipt.summary[0]!.armGoalCount = 99;
+    receipt.summary[0]!.direction = {
+      torso_camera_yaw: null,
+      torso_label: "worker_internal_label",
+      head_label: "plan-private",
+      head_camera_yaw: null,
+      head_relative_yaw: null,
+      head_pitch_degrees: null,
+    };
+    mock.prepare.mockResolvedValueOnce(receipt);
+    const { wrapper: Provider } = setup();
+    const view = render(
+      <Provider>
+        <MemoryRouter
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          initialEntries={[surface === "app" ? "/app/jobs/job/save" : "/bar/save"]}
+        >
+          <Routes>
+            <Route path="/app/jobs/:jobId/save" element={<SavePage />} />
+            <Route path="/bar/save" element={<BarSavePage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    expect(screen.getByRole("button", { name: "선택한 포즈 그대로" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "자동 보정" }));
+    await screen.findByText("결과 확인");
+    const text = view.container.textContent;
+    expect(text).not.toMatch(
+      /v4|reviewKey|SHA|artifact|revision|contract|capability|worker|IK|plan|old0|new0|99곳/i,
+    );
+    expect(screen.getByRole("button", { name: "저장" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "선택한 포즈 그대로 저장" })).toBeVisible();
+    expect(screen.getAllByText("포즈: 변경됨")[0]).toBeVisible();
+  },
+);
+
+it("a different job in the same mounted screen asks for a fresh save mode", async () => {
+  const { qc, wrapper } = setup();
+  const hook = renderHook(({ id }) => useSaveFlow(id), { wrapper, initialProps: { id: "job" } });
+  act(() => hook.result.current.chooseSceneMode("original-selection"));
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  qc.setQueryData(poseQueryKeys.result("next"), {
+    ...qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!,
+    jobId: "next",
+  });
+  act(() => usePoseSelectionStore.setState({ jobId: "next", serverJobId: "next" }));
+  hook.rerender({ id: "next" });
+  await waitFor(() => expect(hook.result.current.choosingSceneMode).toBe(true));
+  expect(mock.save).toHaveBeenCalledTimes(1);
+  act(() => hook.result.current.chooseSceneMode("original-selection"));
+  await waitFor(() => expect(mock.save).toHaveBeenCalledTimes(2));
+});
+
+it("changing route jobs discards the previous result even before selection store catches up", async () => {
+  const { qc, wrapper } = setup();
+  const hook = renderHook(({ id }) => useSaveFlow(id), { wrapper, initialProps: { id: "job" } });
+  act(() => hook.result.current.chooseSceneMode("auto-correct-v4"));
+  await waitFor(() => expect(hook.result.current.sceneReview).not.toBeNull());
+  qc.setQueryData(poseQueryKeys.result("next"), {
+    ...qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!,
+    jobId: "next",
+  });
+  hook.rerender({ id: "next" });
+  await waitFor(() => expect(hook.result.current.choosingSceneMode).toBe(true));
+  expect(hook.result.current.sceneReview).toBeNull();
+  expect(mock.save).not.toHaveBeenCalled();
+  expect(
+    mock.track.mock.calls.some(([name]) => name === "export_failed" || name === "export_completed"),
+  ).toBe(false);
+});
+
+it.each([false, true])("original recovery follows allowedActions (%s)", async (allowed) => {
+  mock.prepare.mockRejectedValueOnce(
+    new ApiError(503, "SCENE_BUSY", "", undefined, {
+      allowedActions: allowed ? ["retry_later", "use_original_selection"] : ["retry_later"],
+    }),
+  );
+  const { wrapper } = setup();
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  act(() => hook.result.current.chooseSceneMode("auto-correct-v4"));
+  await waitFor(() => expect(hook.result.current.status).toBe("error"));
+  expect(hook.result.current.canUseOriginalAfterError).toBe(allowed);
+});
+
+it("native save completion is emitted only after disk write resolves, with the requested attempt", async () => {
+  mock.native = true;
+  let finish!: (value: { path: string }[]) => void;
+  mock.save.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { wrapper } = setup(false);
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+  expect(mock.track.mock.calls.some(([name]) => name === "export_completed")).toBe(false);
+  const request = mock.track.mock.calls.find(([name]) => name === "export_requested")!;
+  await act(async () => finish([{ path: "/private/user/never-transmitted.fbx" }]));
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.track).toHaveBeenCalledWith(
+    "export_completed",
+    expect.objectContaining({
+      attemptId: request[1].attemptId,
+      writingElapsedMs: expect.any(Number),
+      nativeDiskWrite: true,
+      elapsedMs: expect.any(Number),
+    }),
+    "job",
+  );
+  expect(JSON.stringify(mock.track.mock.calls)).not.toContain("never-transmitted");
+});
+it("write failure and explicit retry have separate attempts without leaking native errors", async () => {
+  mock.save.mockRejectedValueOnce(new Error("/private/user/private-name.fbx"));
+  const { wrapper } = setup(false);
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  await waitFor(() => expect(hook.result.current.status).toBe("error"));
+  const failed = mock.track.mock.calls.find(([name]) => name === "export_failed")!;
+  expect(failed[1]).toMatchObject({
+    phase: "writing",
+    code: "UNKNOWN",
+    attemptId: expect.any(String),
+  });
+  await act(async () => hook.result.current.retry());
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  const complete = mock.track.mock.calls.find(([name]) => name === "export_completed")!;
+  expect(complete[1].attemptId).not.toBe(failed[1].attemptId);
+  expect(JSON.stringify(mock.track.mock.calls)).not.toContain("private-name");
+});
+
+it.each(["app", "bar"])(
+  "%s blocks partial save until explicit confirmation and shows no-candidate omissions",
+  async (surface) => {
+    const { qc, wrapper: Provider } = setup();
+    const result = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+    qc.setQueryData(poseQueryKeys.result("job"), {
+      ...result,
+      people: [result.people[0], { ...result.people[1], candidates: [] }],
+    });
+    usePoseSelectionStore.setState({ selectedByPerson: { 0: "pick0" }, excludedPeople: {} });
+    render(
+      <Provider>
+        <MemoryRouter initialEntries={[surface === "app" ? "/app/jobs/job/save" : "/bar/save"]}>
+          <Routes>
+            <Route path="/app/jobs/:jobId/save" element={<SavePage />} />
+            <Route path="/bar/save" element={<BarSavePage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    expect(screen.getByText("감지 2명 · 저장 1명")).toBeVisible();
+    expect(screen.getByText("인물 2 · 후보 없음")).toBeVisible();
+    expect(mock.bytes).not.toHaveBeenCalled();
+    expect(mock.save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "1명만 저장" }));
+    fireEvent.click(screen.getByRole("button", { name: /^선택한 포즈 그대로$/ }));
+    await screen.findByText("FBX 파일 1개를 저장했어요.");
+    expect(mock.save.mock.calls[0][0].files).toHaveLength(1);
+  },
+);
+it("distinguishes explicit user exclusion and invalidates partial confirmation after body/hand/selection changes", async () => {
+  const { qc, wrapper } = setup();
+  usePoseSelectionStore.setState({
+    selectedByPerson: { 0: "pick0" },
+    excludedPeople: { 1: "pick1" },
+  });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.coverage.omitted).toEqual([
+    { personIndex: 1, reason: "user_excluded" },
+  ]);
+  for (const change of [
+    () => usePoseSelectionStore.setState({ characterByPerson: { 0: "changed" } }),
+    () => qc.setQueryData(["hands", "owner", "job", 0], { revision: 2 }),
+    () => qc.setQueryData(["body", "owner", "job", 0, "selection"], { selectionRevision: 2 }),
+    () =>
+      usePoseSelectionStore.setState({
+        selectedByPerson: { 0: "pick0", 1: "pick1" },
+        excludedPeople: {},
+      }),
+  ]) {
+    act(() => hook.result.current.confirmPartial());
+    expect(hook.result.current.needsPartialConfirmation).toBe(false);
+    act(change);
+    if (hook.result.current.coverage.omitted.length)
+      await waitFor(() => expect(hook.result.current.needsPartialConfirmation).toBe(true));
+  }
+  expect(mock.save).not.toHaveBeenCalled();
+});
+it("still confirms individual fallback when an enabled scene lacks required metadata, including retry shortcuts", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    capabilities: {
+      ...data.capabilities,
+      sceneExport: false,
+      sceneAvailability: unavailableScene("observation_missing"),
+      sceneSaveContract: { ...sceneContractFixture, manifestVersion: "csp-scene-manifest-v1" },
+    },
+  });
+  usePoseSelectionStore.setState({ excludedPeople: {} });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.needsIndividualConfirmation).toBe(true);
+  await act(async () => hook.result.current.retry());
+  expect(mock.save).not.toHaveBeenCalled();
+  act(() => hook.result.current.confirmIndividual());
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.download).not.toHaveBeenCalled();
+  expect(mock.save.mock.calls[0][0].files).toHaveLength(2);
+});
+it.each([
+  ["app", 1],
+  ["bar", 1],
+  ["app", 2],
+  ["bar", 2],
+] as const)(
+  "%s automatically saves %i individual files when scene export is disabled",
+  async (surface, count) => {
+    const { qc, wrapper: Provider } = setup();
+    const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+    qc.setQueryData(poseQueryKeys.result("job"), {
+      ...data,
+      capabilities: {
+        ...data.capabilities,
+        sceneExport: false,
+        sceneAvailability: unavailableScene("feature_disabled"),
+      },
+      people: data.people.slice(0, count),
+    });
+    usePoseSelectionStore.setState({
+      selectedByPerson: count === 1 ? { 0: "pick0" } : { 0: "pick0", 1: "pick1" },
+    });
+    render(
+      <Provider>
+        <MemoryRouter initialEntries={[surface === "app" ? "/app/jobs/job/save" : "/bar/save"]}>
+          <Routes>
+            <Route path="/app/jobs/:jobId/save" element={<SavePage />} />
+            <Route path="/bar/save" element={<BarSavePage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    expect(screen.queryByRole("button", { name: "개별 파일로 저장" })).toBeNull();
+    await screen.findByText(`포즈 ${count}개를 저장했습니다.`);
+    expect(screen.getByText("개별 파일 저장 · 러프 배치 제외")).toBeVisible();
+    expect(mock.bytes).toHaveBeenCalledTimes(count);
+    expect(mock.save).toHaveBeenCalledTimes(1);
+    expect(mock.save.mock.calls[0][0].files).toHaveLength(count);
+    expect(mock.prepare).not.toHaveBeenCalled();
+    expect(mock.download).not.toHaveBeenCalled();
+  },
+);
+it("legacy responses without scene capability retain individual automatic saving", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    capabilities: { ...data.capabilities, sceneExport: undefined },
+  });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(hook.result.current.needsIndividualConfirmation).toBe(false);
+  expect(mock.save).toHaveBeenCalledTimes(1);
+  expect(mock.download).not.toHaveBeenCalled();
+});
+it("disabled scene export still requires confirmation when people are omitted", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    capabilities: { ...data.capabilities, sceneExport: false },
+    people: [data.people[0], { ...data.people[1], candidates: [] }],
+  });
+  usePoseSelectionStore.setState({ selectedByPerson: { 0: "pick0" } });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.needsPartialConfirmation).toBe(true);
+  expect(hook.result.current.needsIndividualConfirmation).toBe(false);
+  await act(async () => hook.result.current.retry());
+  expect(mock.save).not.toHaveBeenCalled();
+  act(() => hook.result.current.confirmPartial());
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.save.mock.calls[0][0].files).toHaveLength(1);
+  expect(mock.download).not.toHaveBeenCalled();
+});
+it("unselected generation alternatives cannot disable the selected library scene", async () => {
+  const { qc, wrapper } = setup();
+  const data = qc.getQueryData<AnalysisResult>(poseQueryKeys.result("job"))!;
+  qc.setQueryData(poseQueryKeys.result("job"), {
+    ...data,
+    people: data.people.map((p) => ({
+      ...p,
+      candidates: [
+        ...p.candidates,
+        { id: "unselected", source: "generation", releaseAllowed: false },
+      ],
+    })),
+  });
+  usePoseSelectionStore.setState({ excludedPeople: {} });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(hook.result.current.sceneOutputLabel).toBe("인물 2명 · FBX 파일 1개");
+  act(() => hook.result.current.chooseSceneMode("original-selection"));
+  await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+  expect(mock.download).toHaveBeenCalledTimes(1);
+});
+it("app/bar remount preserves the same partial consent; returning a changed choice requires a new one", async () => {
+  const { wrapper } = setup();
+  usePoseSelectionStore.setState({
+    selectedByPerson: { 0: "pick0" },
+    excludedPeople: { 1: "pick1" },
+  });
+  const app = renderHook(() => useSaveFlow("job"), { wrapper });
+  act(() => app.result.current.confirmPartial());
+  expect(app.result.current.needsPartialConfirmation).toBe(false);
+  app.unmount();
+  const bar = renderHook(() => useSaveFlow("job"), { wrapper });
+  expect(bar.result.current.needsPartialConfirmation).toBe(false);
+  act(() => usePoseSelectionStore.setState({ characterByPerson: { 0: "different" } }));
+  await waitFor(() => expect(bar.result.current.needsPartialConfirmation).toBe(true));
+  act(() => usePoseSelectionStore.setState({ characterByPerson: {} }));
+  expect(bar.result.current.needsPartialConfirmation).toBe(true);
 });

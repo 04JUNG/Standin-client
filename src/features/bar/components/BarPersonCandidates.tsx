@@ -1,3 +1,4 @@
+import { CandidatePreviewProvider } from "@/features/pose-viewer/components/CandidatePreviewContext";
 import { hasPresentationCandidates } from "@/features/pose-viewer/api/presentationState";
 import { cn } from "@/shared/lib/cn";
 import {
@@ -20,16 +21,29 @@ import type { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysis
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { useBarPanelScroll } from "../hooks/useBarPanelScroll";
 
-/** 각 인물의 체형 열림·선택을 독립적으로 유지하며 한 스크롤 목록에 표시한다. */
-export function BarPersonCandidates({
-  person,
-  analysis,
-  onPickPerson,
-}: {
+type BarPersonCandidatesProps = {
   person: PersonResult;
   analysis: ReturnType<typeof useAnalysisResult>;
   onPickPerson(index: number): void;
-}) {
+};
+/** Each person owns a read-only inspector; visible posters never request packets. */
+export function BarPersonCandidates(props: BarPersonCandidatesProps) {
+  const { data } = props.analysis;
+  if (!data) return null;
+  return (
+    <CandidatePreviewProvider
+      job={data.jobId}
+      person={props.person}
+      presentationPosters={data.source === "semantic"}
+      entry={props.analysis.bodies.entries.find((e) => e.personIndex === props.person.index)}
+    >
+      <BarPersonCandidatesContent {...props} />
+    </CandidatePreviewProvider>
+  );
+}
+
+/** 각 인물의 체형 열림·선택을 독립적으로 유지하며 한 스크롤 목록에 표시한다. */
+function BarPersonCandidatesContent({ person, analysis, onPickPerson }: BarPersonCandidatesProps) {
   const {
     data,
     bodies,
@@ -129,6 +143,7 @@ export function BarPersonCandidates({
       {semantic ? (
         person.posePresentation ? (
           <PosePresentationPanel
+            telemetryJob={data.jobId}
             presentation={person.posePresentation}
             bodyPreviewJob={
               data.capabilities.bodyPreviews || data.capabilities.presentationBodyPreviews
@@ -196,6 +211,7 @@ export function BarPersonCandidates({
                         />
                       ) : (
                         <PoseCandidateCard
+                          jobId={data.jobId}
                           candidate={candidate}
                           characterId={characterId}
                           isSelected={candidate.id === selected}

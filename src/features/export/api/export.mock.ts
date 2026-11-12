@@ -1,4 +1,9 @@
-import { ExportError, type ExportService, type SaveCandidateInput, type SavedFile } from "./export.contract";
+import {
+  ExportError,
+  type ExportService,
+  type SaveCandidateInput,
+  type SavedFile,
+} from "./export.contract";
 import { buildZip } from "../lib/zip";
 
 /**
@@ -26,7 +31,10 @@ async function pickDirectory(): Promise<FileSystemDirectoryHandle> {
     cachedDirHandle = handle;
     return handle;
   } catch (err) {
-    if (err instanceof DOMException && (err.name === "AbortError" || err.name === "NotAllowedError")) {
+    if (
+      err instanceof DOMException &&
+      (err.name === "AbortError" || err.name === "NotAllowedError")
+    ) {
       throw new ExportError("CANCELLED", "폴더 선택이 취소되었습니다.");
     }
     throw new ExportError("UNSUPPORTED", "폴더에 접근하지 못했습니다.");
@@ -46,7 +54,11 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return copy;
 }
 
-async function writeFile(dir: FileSystemDirectoryHandle, fileName: string, content: Uint8Array): Promise<void> {
+async function writeFile(
+  dir: FileSystemDirectoryHandle,
+  fileName: string,
+  content: Uint8Array,
+): Promise<void> {
   const fileHandle = await dir.getFileHandle(fileName, { create: true });
   const writable = await fileHandle.createWritable();
   await writable.write(toArrayBuffer(content));
@@ -67,7 +79,11 @@ function triggerBlobDownload(fileName: string, blob: Blob): void {
 const MOCK_DEFAULT_FOLDER = "C:\\Users\\me\\Downloads";
 
 // File System Access 미지원 브라우저에서만 쓰는 가짜 폴더 순환 목록.
-const MOCK_ALT_FOLDERS = ["C:\\Users\\me\\Downloads", "C:\\Users\\me\\Documents", "C:\\Users\\me\\Desktop"];
+const MOCK_ALT_FOLDERS = [
+  "C:\\Users\\me\\Downloads",
+  "C:\\Users\\me\\Documents",
+  "C:\\Users\\me\\Desktop",
+];
 
 export const exportMock: ExportService = {
   async getDefaultFolder(): Promise<string> {
@@ -96,7 +112,10 @@ export const exportMock: ExportService = {
     return true;
   },
 
-  async saveCandidates(input: { folder: string; files: SaveCandidateInput[] }): Promise<SavedFile[]> {
+  async saveCandidates(input: {
+    folder: string;
+    files: SaveCandidateInput[];
+  }): Promise<SavedFile[]> {
     if (input.files.length === 0) return [];
 
     // 이미 폴더 핸들을 받아둔 경우에만 실제 폴더에 쓴다.
@@ -109,21 +128,44 @@ export const exportMock: ExportService = {
       const results: SavedFile[] = [];
       for (const file of input.files) {
         await writeFile(dir, file.fileName, file.content);
+        if (file.sceneMetadata)
+          await writeFile(
+            dir,
+            file.fileName.replace(/\.fbx$/i, ".scene.json"),
+            new TextEncoder().encode(file.sceneMetadata),
+          );
         results.push({ path: `${dir.name}\\${file.fileName}` });
       }
-      console.info(`[export.mock] 실제 폴더(${dir.name})에 파일 ${input.files.length}개를 개별 저장`);
+      console.info(
+        `[export.mock] 실제 폴더(${dir.name})에 파일 ${input.files.length}개를 개별 저장`,
+      );
       return results;
     }
 
     // 폴백: 폴더 핸들이 없거나 File System Access 미지원 브라우저.
     await delay(500);
-    if (input.files.length === 1) {
+    if (input.files.length === 1 && !input.files[0].sceneMetadata) {
       const file = input.files[0];
-      triggerBlobDownload(file.fileName, new Blob([toArrayBuffer(file.content)], { type: "application/octet-stream" }));
+      triggerBlobDownload(
+        file.fileName,
+        new Blob([toArrayBuffer(file.content)], { type: "application/octet-stream" }),
+      );
       return [{ path: `${input.folder}\\${file.fileName}` }];
     }
     const zipName = `standin_poses_${Date.now()}.zip`;
-    const zip = buildZip(input.files.map((f) => ({ name: f.fileName, content: f.content })));
+    const zip = buildZip(
+      input.files.flatMap((f) => [
+        { name: f.fileName, content: f.content },
+        ...(f.sceneMetadata
+          ? [
+              {
+                name: f.fileName.replace(/\.fbx$/i, ".scene.json"),
+                content: new TextEncoder().encode(f.sceneMetadata),
+              },
+            ]
+          : []),
+      ]),
+    );
     triggerBlobDownload(zipName, zip);
     return [{ path: `${input.folder}\\${zipName} (안에 ${input.files.length}개 포함)` }];
   },

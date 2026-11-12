@@ -13,16 +13,28 @@ type BffRefineResponse = {
   exportUrl: string;
   /** 미리보기 PNG의 상대 경로. 서버가 그림을 보관하지 못했으면 null이다. */
   thumbnailUrl?: string | null;
+  release?: RefineOutcome["release"];
 };
 
 export const refineHttp: RefineService = {
-  async refineSelection({ jobId, personIndex, candidateId, deferPreview }): Promise<RefineOutcome> {
+  async refineSelection({
+    jobId,
+    personIndex,
+    candidateId,
+    deferPreview,
+    releaseVersion,
+  }): Promise<RefineOutcome> {
     const res = await apiFetch<BffRefineResponse>(endpoints.analysis.refine(jobId, personIndex), {
       method: "POST",
-      body: { candidateId, ...(deferPreview ? { deferPreview: true } : {}) },
+      body: {
+        candidateId,
+        ...(releaseVersion ? { releaseVersion } : {}),
+        ...(deferPreview ? { deferPreview: true } : {}),
+      },
       auth: false,
     });
     return {
+      release: res.release,
       jobId: res.jobId,
       personIndex: res.personIndex,
       candidateId: res.candidateId,

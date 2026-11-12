@@ -1,3 +1,4 @@
+import { CspResultCapture } from "@/features/replay/CspResultCapture";
 import { SceneSaveControls } from "@/features/export/components/SceneSaveControls";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -112,7 +113,7 @@ export function BarSavePage() {
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
             <p className="text-[12px]">
               {flow.sceneOutputLabel
-                ? "통합 FBX 파일 저장 중…"
+                ? "FBX 파일 저장 중…"
                 : `포즈 ${selections.length}개를 저장하고 있습니다…`}
             </p>
           </div>
@@ -190,14 +191,14 @@ export function BarSavePage() {
             <p className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-text-primary">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-brand-coral" aria-hidden />
               {flow.sceneOutputLabel
-                ? "통합 파일 1개를 저장했습니다."
+                ? "FBX 파일 1개를 저장했어요."
                 : `포즈 ${selections.length}개를 저장했습니다.`}
             </p>
 
             <p className="shrink-0 text-[10px] text-text-secondary">
               {dragService.isSupported
-                ? "파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다."
-                : `폴더를 열고 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`}
+                ? "파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요."
+                : `폴더를 열고 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요.`}
             </p>
             {format === "bvh" && (
               <p className="shrink-0 text-[10px] text-text-secondary">
@@ -213,6 +214,7 @@ export function BarSavePage() {
             </div>
 
             {/* 서버 job이 없으면 보낼 곳이 없다(SavePage와 같은 이유). */}
+            {serverJobId && <CspResultCapture jobId={serverJobId} />}
             {serverJobId && qualityEnabled && (
               <label className="flex shrink-0 items-center gap-2 text-[10px] text-text-secondary">
                 {feedbackError ? (

@@ -144,7 +144,25 @@ describe("useAnalysisResult 실패 계측", () => {
     client.clear();
   });
 
-
+  it("explicit retry claims a failed live route only once and does not create on remount", async () => {
+    analyze.mockRejectedValue(new AnalysisError("TIMEOUT", "timeout"));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const h = renderHook(() => useAnalysisResult("failed-retry"), { wrapper: wrapperFor(client) });
+    await waitFor(() => expect(h.result.current.isError).toBe(true));
+    const startNew = vi.fn();
+    act(() => {
+      h.result.current.retryAnalysis(startNew);
+      h.result.current.retryAnalysis(startNew);
+    });
+    expect(startNew).toHaveBeenCalledOnce();
+    expect(analyze).toHaveBeenCalledOnce();
+    h.unmount();
+    const next = renderHook(() => useAnalysisResult("failed-retry"), {
+      wrapper: wrapperFor(client),
+    });
+    await waitFor(() => expect(next.result.current.isError).toBe(true));
+    expect(analyze).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     setAnalyticsConsent("test-consent");
     safeStorage.removeItem(QUEUE_KEY);
@@ -477,6 +495,30 @@ describe("작업 기록 재진입", () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(queued().some((event) => event.name === "analysis_failed")).toBe(false);
+  });
+
+  it("visible results count zero-candidate people separately from total candidates", async () => {
+    const stored = storedResult();
+    loadResult.mockResolvedValue({
+      ...stored,
+      jobId: "job_count_visibility",
+      people: [
+        {
+          ...stored.people[0],
+          candidates: [
+            { id: "count_candidate", rank: 1, tags: [], bvhAvailable: false, previewImages: [] },
+          ],
+        },
+        { ...stored.people[0], index: 1, candidates: [] },
+      ],
+    });
+    renderHook(() => useAnalysisResult(SERVER_JOB_ID, true), { wrapper });
+    await waitFor(() => expect(queued().some((e) => e.name === "results_viewed")).toBe(true));
+    expect(queued().find((e) => e.name === "results_viewed")!.properties).toMatchObject({
+      peopleCount: 2,
+      zeroCandidatePeople: 1,
+      peopleWithCandidates: 1,
+    });
   });
 
   it("기록에서 다시 본 결과는 results_viewed로 세지 않는다", async () => {

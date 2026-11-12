@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import {
@@ -167,6 +168,7 @@ export function useBodyControls(
       qc.removeQueries({ queryKey: ["body", owner, job, person.index, "review"] });
     },
     onSuccess: (value) => {
+      replayObservation("body_selection", { personIndex: person.index, selection: value }, job);
       if (useInstallationStore.getState().credentials?.installationId === owner)
         qc.setQueryData(bodyKeys.selection(owner, job, person.index), value);
     },

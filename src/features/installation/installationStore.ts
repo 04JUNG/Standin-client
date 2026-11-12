@@ -1,3 +1,4 @@
+import { replayObservation } from "@/shared/lib/replayBridge";
 import { create } from "zustand";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { apiFetch, setInstallationCredentials } from "@/shared/api/client";
@@ -32,6 +33,7 @@ interface InstallationState {
   credentials: InstallationCredentials | null;
   error: string | null;
   initialize(): Promise<void>;
+  reloadCredentials(): Promise<boolean>;
   register(quality?: QualityChoices, acquisition?: boolean): Promise<void>;
   withdraw(): Promise<void>;
 }
@@ -78,9 +80,22 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
   status: "initializing",
   credentials: null,
   error: null,
+  async reloadCredentials() {
+    const owner = get().credentials?.installationId;
+    if (get().status !== "registered" || !owner) return false;
+    const credentials = await installationStorage.get();
+    // Restore only the current installation. A different owner needs the full
+    // startup flow so existing job state cannot silently change ownership.
+    if (!credentials || credentials.installationId !== owner ||
+        credentials.consentVersion !== CONSENT_VERSION ||
+        get().status !== "registered" || get().credentials?.installationId !== owner) return false;
+    setInstallationCredentials(credentials);
+    set({ credentials });
+    return true;
+  },
   async initialize() {
     campaignCounter.purgeExpired();
-    useQualityConsentStore.getState().reset();
+    useQualityConsentStore.getState().reset(true);
     try {
       const credentials = await installationStorage.get();
       if (!credentials || credentials.consentVersion !== CONSENT_VERSION) {
@@ -171,6 +186,7 @@ export const useInstallationStore = create<InstallationState>((set, get) => ({
     }
   },
   async withdraw() {
+    replayObservation("replay_withdraw", {});
     useQualityConsentStore.getState().reset();
     set({ error: null });
     if (get().status === "registered") {

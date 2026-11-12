@@ -1,4 +1,11 @@
-import { completeSearchDraft, readSearchDraft, saveSearchDraft } from "./searchDraft";
+import { pauseSemanticPages, resumeSemanticPages } from "./useSemanticPages";
+import { replayObservation } from "@/shared/lib/replayBridge";
+import {
+  featureAction,
+  useFeatureView,
+  failureProperties,
+} from "@/features/analytics/featureJourney";
+import { isCurrentSearchDraft, readSearchDraft, saveSearchDraft } from "./searchDraft";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -9,23 +16,22 @@ import { poseService } from "@/features/pose-viewer/api/pose.service";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import { searchCapabilities, searchPoses } from "./api";
 
-/** Text search only. Prefetch the full result before navigation to keep the input mounted. */
+/** Text search only. Prefetch the first batch before navigation to keep the input mounted. */
 export function useSemanticSearch(
   initialQuery = "",
   surface: "app" | "bar" = "app",
   resultKey?: string,
 ) {
   const navigate = useNavigate();
+  const searchOrdinal = useRef(0);
   const qc = useQueryClient();
   const owner = useInstallationStore((s) => s.credentials?.installationId);
   const context = resultKey ? `result:${resultKey}` : "entry";
   const draft = readSearchDraft(owner, context, initialQuery);
   const [query, setQuery] = useState(draft?.query ?? initialQuery.slice(0, 500));
-  const [revision, setRevision] = useState(draft?.needsSearch ? 1 : 0);
   const [composing, setComposing] = useState(false);
   const [noResult, setNoResult] = useState(false);
   const generation = useRef(0);
-  const consumedRevision = useRef(0);
   const controller = useRef<AbortController>();
   const activeText = useRef<string>();
   const availability = useQuery({
@@ -44,8 +50,13 @@ export function useSemanticSearch(
       generation: number;
       owner: string | undefined;
       draftVersion: number;
+      attemptId: string;
+      startedAt: number;
+      searchOrdinal: number;
     }) => {
-      const response = await searchPoses(text, signal, null);
+      const response = availability.data?.supportsProgressiveResults
+        ? await searchPoses(text, signal, null, true)
+        : await searchPoses(text, signal, null);
       signal.throwIfAborted();
       if (response.status === "no_result") return { response, result: undefined };
       const result = await poseService.loadResult({ jobId: response.jobId, signal });
@@ -57,10 +68,18 @@ export function useSemanticSearch(
         variables.generation !== generation.current ||
         variables.signal.aborted ||
         variables.owner !== useInstallationStore.getState().credentials?.installationId ||
-        !completeSearchDraft(owner, context, initialQuery, variables.draftVersion)
+        !isCurrentSearchDraft(owner, context, initialQuery, variables.draftVersion)
       )
         return;
       activeText.current = undefined;
+      featureAction("semantic_search", "search_completed", result?.jobId, {
+        attemptId: variables.attemptId,
+        elapsedMs: Date.now() - variables.startedAt,
+        resultCount: result?.people.reduce((n, p) => n + p.candidates.length, 0) ?? 0,
+        searchOrdinal: variables.searchOrdinal,
+        source: "semantic",
+        surface,
+      });
       if (!result || response.status !== "ok") {
         setNoResult(true);
         return;
@@ -71,10 +90,24 @@ export function useSemanticSearch(
         .startJob(response.jobId, useModelStore.getState().preferredCharacterId);
       navigate(surface === "bar" ? "/bar/candidates" : `/app/jobs/${response.jobId}`);
     },
+    onError: (error, variables) => {
+      featureAction(
+        "semantic_search",
+        variables.signal.aborted ? "cancelled" : "search_failed",
+        undefined,
+        {
+          attemptId: variables.attemptId,
+          elapsedMs: Date.now() - variables.startedAt,
+          searchOrdinal: variables.searchOrdinal,
+          source: "semantic",
+          surface,
+          ...(!variables.signal.aborted ? failureProperties(error, "semantic_search") : {}),
+        },
+      );
+    },
     onSettled: (_data, _error, variables) => {
       if (variables.generation === generation.current) {
         activeText.current = undefined;
-        completeSearchDraft(owner, context, initialQuery, variables.draftVersion);
       }
     },
     retry: false,
@@ -91,11 +124,9 @@ export function useSemanticSearch(
     generation.current++;
     controller.current?.abort();
     activeText.current = undefined;
-    consumedRevision.current = 0;
     reset();
     const restored = readSearchDraft(owner, context, initialQuery);
     setQuery(restored?.query ?? initialQuery.slice(0, 500));
-    setRevision(restored?.needsSearch ? 1 : 0);
     setComposing(false);
     setNoResult(false);
   }, [initialQuery, resultKey, owner, context, reset]);
@@ -107,46 +138,58 @@ export function useSemanticSearch(
     [owner, context, initialQuery],
   );
   function edit(text: string) {
-    saveSearchDraft(owner, context, { seed: initialQuery, query: text, needsSearch: true });
+    replayObservation("search_input", { query: text.slice(0, 500), surface });
+    saveSearchDraft(owner, context, { seed: initialQuery, query: text });
+    if (text === initialQuery) resumeSemanticPages(resultKey);
+    else pauseSemanticPages(qc, resultKey);
     generation.current++;
     controller.current?.abort();
     activeText.current = undefined;
     reset();
     setNoResult(false);
     setQuery(text);
-    setRevision((r) => r + 1);
   }
+  useEffect(() => {
+    if (!resultKey) return;
+    if (query === initialQuery) resumeSemanticPages(resultKey);
+    else pauseSemanticPages(qc, resultKey);
+  }, [query, initialQuery, resultKey, owner, qc]);
   const ready = availability.data?.available === true && availability.data.supportsAllResults;
+  useFeatureView("semantic_search", !!ready, "exposure", undefined, context);
+  useFeatureView("semantic_search", !!ready, "open", undefined, context);
   const submit = useCallback(() => {
     const text = query.trim();
+    replayObservation("search_submitted", { query: text.slice(0, 500), surface });
     if (!text || text.length > 500 || !ready || composing || activeText.current === text) return;
     const draftVersion = saveSearchDraft(owner, context, {
       seed: initialQuery,
       query,
-      needsSearch: true,
     });
-    consumedRevision.current = revision;
+    pauseSemanticPages(qc, resultKey);
     controller.current?.abort();
     controller.current = new AbortController();
     generation.current++;
     activeText.current = text;
     setNoResult(false);
+    const attemptId = crypto.randomUUID();
+    const ordinal = ++searchOrdinal.current;
+    featureAction("semantic_search", "search_started", undefined, {
+      attemptId,
+      searchOrdinal: ordinal,
+      source: "semantic",
+      surface,
+    });
     mutate({
+      attemptId,
+      startedAt: Date.now(),
+      searchOrdinal: ordinal,
       text,
       signal: controller.current.signal,
       generation: generation.current,
       owner,
       draftVersion,
     });
-  }, [query, ready, composing, revision, mutate, owner, context, initialQuery]);
-  useEffect(() => {
-    if (!revision || revision === consumedRevision.current || composing || !ready || !query.trim())
-      return;
-    const timer = window.setTimeout(() => {
-      if (consumedRevision.current !== revision) submit();
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [revision, composing, ready, query, submit]);
+  }, [query, ready, composing, mutate, owner, context, initialQuery, surface, qc, resultKey]);
   const pending = search.isPending && search.variables?.generation === generation.current;
   return {
     query,

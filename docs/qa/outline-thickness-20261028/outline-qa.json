@@ -1,0 +1,280 @@
+{
+  "browser": "Chrome / SwiftShader WebGL2, macOS host",
+  "samples": [
+    0,
+    0.65,
+    1.2,
+    2
+  ],
+  "checks": [
+    "0 pixel-identical to direct base render",
+    "monotonic opaque black coverage; geometry/material identity unchanged; no model reloads",
+    "live drag before pointerup; orbit unchanged; per-person independence",
+    "two roots sharing a skin have independent GPU width uniforms",
+    "24 real-model pose/view/gender cases: no detached black pixels outside a 4px (2px width + raster allowance) current-surface neighborhood",
+    "all ten gender/skin combinations preserve skin material references",
+    "real SkinnedMesh bone exercise and synthetic position+normal morph compile and follow deformation",
+    "12 model/skin swaps keep allocations bounded",
+    "DPR 1/2 normalized coverage and zoom .7/1/3 render"
+  ],
+  "cases": [
+    {
+      "model": "male",
+      "angle": "front",
+      "pose": "standing",
+      "ink": 3532,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "front",
+      "pose": "bent",
+      "ink": 3139,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "front",
+      "pose": "seated",
+      "ink": 2992,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "quarter",
+      "pose": "standing",
+      "ink": 3320,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "quarter",
+      "pose": "bent",
+      "ink": 3159,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "quarter",
+      "pose": "seated",
+      "ink": 3097,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "side",
+      "pose": "standing",
+      "ink": 2327,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "side",
+      "pose": "bent",
+      "ink": 2387,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "side",
+      "pose": "seated",
+      "ink": 2514,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "back",
+      "pose": "standing",
+      "ink": 3548,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "back",
+      "pose": "bent",
+      "ink": 2865,
+      "ghosts": 0
+    },
+    {
+      "model": "male",
+      "angle": "back",
+      "pose": "seated",
+      "ink": 2809,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "front",
+      "pose": "standing",
+      "ink": 3535,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "front",
+      "pose": "bent",
+      "ink": 3000,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "front",
+      "pose": "seated",
+      "ink": 2895,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "quarter",
+      "pose": "standing",
+      "ink": 3251,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "quarter",
+      "pose": "bent",
+      "ink": 3001,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "quarter",
+      "pose": "seated",
+      "ink": 3024,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "side",
+      "pose": "standing",
+      "ink": 2225,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "side",
+      "pose": "bent",
+      "ink": 2322,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "side",
+      "pose": "seated",
+      "ink": 2461,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "back",
+      "pose": "standing",
+      "ink": 3512,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "back",
+      "pose": "bent",
+      "ink": 2756,
+      "ghosts": 0
+    },
+    {
+      "model": "female",
+      "angle": "back",
+      "pose": "seated",
+      "ink": 2749,
+      "ghosts": 0
+    }
+  ],
+  "blackPixelCounts": [
+    0,
+    59,
+    1332,
+    3532
+  ],
+  "multiPerson": [
+    [
+      50,
+      3542
+    ],
+    [
+      3484,
+      53
+    ]
+  ],
+  "rig": {
+    "changed": true,
+    "skinned": true,
+    "weights": 31053
+  },
+  "memoryCycles": [
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    },
+    {
+      "geometries": 1,
+      "textures": 2,
+      "programs": 2
+    }
+  ],
+  "dpi": {
+    "dpr1": 3532,
+    "dpr2": 18078,
+    "normalizedRatio": 1.279586636466591
+  },
+  "errors": [],
+  "result": "PASS"
+}

@@ -1,5 +1,12 @@
-import { useState } from "react";
+import {
+  featureAction,
+  useFeatureView,
+  useFeatureFailure,
+  journeyExit,
+} from "@/features/analytics/featureJourney";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useImageInput } from "@/features/upload/hooks/useImageInput";
 import { History, Loader2 } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
@@ -19,8 +26,21 @@ import { formatJobDate } from "../lib/formatJobDate";
  */
 export function JobHistoryPage() {
   const navigate = useNavigate();
-  const { items, isPending, isError, error, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useJobHistory();
+  const retryInput = useRef<HTMLInputElement>(null);
+  const { acceptFile, error: inputError, isProcessing } = useImageInput();
+  useFeatureView("history", true, "exposure");
+  useFeatureView("history", true, "open");
+  const {
+    items,
+    isPending,
+    isError,
+    error,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useJobHistory();
+  useFeatureFailure("history", error);
   const deleteJob = useDeleteJob();
   const [pendingDelete, setPendingDelete] = useState<JobHistoryItem | null>(null);
 
@@ -31,6 +51,19 @@ export function JobHistoryPage() {
 
   return (
     <AppShell title="작업 기록">
+      <input
+        ref={retryInput}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        aria-label="다시 분석할 원본"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file && !isProcessing) void acceptFile(file);
+        }}
+      />
+      {inputError && <p role="alert">{inputError}</p>}
       {isPending ? (
         <div className="flex h-full items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-brand-sky" aria-hidden />
@@ -47,7 +80,14 @@ export function JobHistoryPage() {
         <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
           <History className="h-8 w-8 text-text-secondary" aria-hidden />
           <p className="text-[14px] text-text-secondary">아직 분석한 작업이 없습니다.</p>
-          <Button variant="primary" size="md" onClick={() => navigate("/app/home")}>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => {
+              journeyExit("history", "history", "home");
+              navigate("/app/home");
+            }}
+          >
             새 분석 시작
           </Button>
         </div>
@@ -57,10 +97,15 @@ export function JobHistoryPage() {
             {items.map((item) => (
               <JobHistoryRow
                 key={item.jobId}
+                onRetry={() => retryInput.current?.click()}
+                retrying={isProcessing}
                 item={item}
                 // 기록 상세는 **서버 jobId를 라우트 jobId로 그대로** 쓴다. 라우트를 나누지
                 // 않은 덕분에 선택 상태·저장 흐름·바 모드 전환이 그대로 성립한다(ADR-012).
-                onOpen={(jobId) => navigate(`/app/jobs/${jobId}`)}
+                onOpen={(jobId) => {
+                  featureAction("history", "reused", jobId);
+                  navigate(`/app/jobs/${jobId}`);
+                }}
                 onRequestDelete={setPendingDelete}
                 isDeleting={deleteJob.isPending && deleteJob.variables === item.jobId}
               />

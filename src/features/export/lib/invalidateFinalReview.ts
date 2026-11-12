@@ -1,15 +1,28 @@
+import { forgetPreparedFbx } from "./preparedFbx";
+import { invalidateInteractiveJob } from "@/features/pose-viewer/interactive/session";
+import { useExportStore } from "../store/exportStore";
 import type { QueryClient } from "@tanstack/react-query";
 import { forgetFramedJob } from "./framedExport";
 /** Preferences and explicit picks invalidate final receipts, never analysis or candidate identity. */
-export function invalidateFinalReview(client: QueryClient, job: string) {
+export function invalidateFinalReview(
+  client: QueryClient,
+  job: string,
+  preserveLocalHands = false,
+) {
   forgetFramedJob(job);
+  forgetPreparedFbx(job);
+  invalidateInteractiveJob(job, preserveLocalHands);
+  useExportStore.setState({
+    partialConsentBinding: undefined,
+    individualConsentBinding: undefined,
+  });
   const filters = {
     predicate: (q: import("@tanstack/react-query").Query) => {
       const key = q.queryKey;
       if (key[0] === "prepared-scene" && key[2] === job) return true;
       if (key[0] === "body" && key[2] === job && key[4] === "review") return true;
       if (
-        !["framed-preview", "framed-image"].includes(String(key[0])) ||
+        !["framed-preview", "framed-image", "framed-model"].includes(String(key[0])) ||
         typeof key[2] !== "string"
       )
         return false;

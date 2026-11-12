@@ -1,3 +1,6 @@
+import { applyLocalHands } from "@/features/pose-viewer/interactive/hands";
+import { replayObservation } from "@/shared/lib/replayBridge";
+import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
 import { invalidateFinalReview } from "@/features/export/lib/invalidateFinalReview";
 import {
   useIsMutating,
@@ -51,8 +54,16 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
         throw new Error("이 출력 범위에는 손이 포함되지 않습니다.");
       return putHandSelection(job, selection, patch);
     },
-    onMutate: async ({ selection }) => {
-      invalidateFinalReview(qc, job);
+    onMutate: async ({ selection, patch }) => {
+      invalidateFinalReview(qc, job, true);
+      if (result?.capabilities.interactivePreview?.operations)
+        applyLocalHands(
+          owner,
+          job,
+          selection.personIndex,
+          patch.left ?? selection.left,
+          patch.right ?? selection.right,
+        );
       await qc.cancelQueries({ queryKey: handKeys.selection(owner, job, selection.personIndex) });
       await qc.cancelQueries({
         queryKey: ["body", owner, job, selection.personIndex],
@@ -60,6 +71,18 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       });
     },
     onSuccess: async (selection) => {
+      replayObservation(
+        "hand_selection",
+        {
+          personIndex: selection.personIndex,
+          left: selection.left,
+          right: selection.right,
+          revision: selection.revision,
+          libraryHash: selection.library_sha256,
+        },
+        job,
+      );
+      featureAction("hand_library", "applied", job, { personIndex: selection.personIndex });
       qc.setQueryData(handKeys.selection(owner, job, selection.personIndex), selection);
       await qc.invalidateQueries({
         queryKey: ["body", owner, job, selection.personIndex],
@@ -67,6 +90,10 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       });
     },
     onError: async (error, { selection }) => {
+      featureAction("hand_library", "failed", job, {
+        ...failureProperties(error, "hand_library"),
+        personIndex: selection.personIndex,
+      });
       if (error instanceof ApiError && error.status === 409) {
         await qc.invalidateQueries({ queryKey: handKeys.catalog(owner) });
       }
@@ -110,6 +137,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     !active ||
     (!!catalog.data && entries.every((e) => e.selection && !e.loading && !e.error) && !pending);
   return {
+    jobId: job,
     enabled: active,
     catalog: catalog.data,
     entries,

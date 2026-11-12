@@ -1,5 +1,5 @@
 # dependencies
-node_modules/
+node_modules
 
 # build output
 dist/
@@ -27,3 +27,9 @@ npm-debug.log*
 
 # 실시간 체형 미리보기 자산(개발 Mock용, scripts/shape-runtime)
 public/mock/*.ssr
+
+# Private local sample posters
+/samples/local/
+
+# Local licensed model / recorded QA artifacts; never commit.
+/samples/.local-real/

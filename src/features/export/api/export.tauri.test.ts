@@ -24,3 +24,21 @@ it.each(["INVALID_ACCELERATOR", "REGISTER_FAILED", "UNREGISTER_FAILED", "UNSUPPO
     expect(error.message).not.toMatch(/Invalid accelerator|internal/);
   },
 );
+it("passes a validated scene companion with the same native FBX write without adding it to drag paths", async () => {
+  const sceneMetadata = JSON.stringify({
+    version: "csp-scene-manifest-v1",
+    artifact: { sha256: "a".repeat(64) },
+  });
+  native.invoke.mockResolvedValueOnce({ path: "/fixture/scene (1).fbx" });
+  const saved = await exportTauri.saveCandidates({
+    folder: "/fixture",
+    files: [{ fileName: "scene.fbx", content: new Uint8Array([1, 2]), sceneMetadata }],
+  });
+  expect(native.invoke).toHaveBeenCalledWith("save_pose_file", {
+    folder: "/fixture",
+    fileName: "scene.fbx",
+    contentBase64: "AQI=",
+    sceneMetadata,
+  });
+  expect(saved).toEqual([{ path: "/fixture/scene (1).fbx" }]);
+});

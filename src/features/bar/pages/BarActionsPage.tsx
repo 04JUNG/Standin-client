@@ -1,6 +1,7 @@
+import { startInputAttempt, finishInputAttempt } from "@/features/analytics/analyticsClient";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { AlertCircle, Camera, Loader2, Upload } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { ShortcutKey } from "@/shared/components/ShortcutKey";
@@ -30,6 +31,16 @@ const RECOVERY_BUTTON = cn(
 export function BarActionsPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const input = inputRef.current;
+    const cancel = () => finishInputAttempt("file", "cancelled");
+    input?.addEventListener("cancel", cancel);
+    return () => input?.removeEventListener("cancel", cancel);
+  }, []);
+  function openFilePicker() {
+    startInputAttempt("file");
+    inputRef.current?.click();
+  }
   const { acceptFile, error, isProcessing } = useImageInput({ origin: "bar" });
   const captureStatus = useCaptureStore((s) => s.status);
   const captureError = useCaptureStore((s) => s.error);
@@ -41,7 +52,7 @@ export function BarActionsPage() {
 
   useShortcuts({
     "bar.capture": busy ? undefined : () => void startCaptureFlow("bar"),
-    "bar.upload": busy ? undefined : () => inputRef.current?.click(),
+    "bar.upload": busy ? undefined : openFilePicker,
   });
 
   const message = captureError ?? error;
@@ -65,7 +76,7 @@ export function BarActionsPage() {
             label="파일 업로드"
             accelerator={resolveAccelerator("bar.upload", bindings)}
             disabled={busy}
-            onClick={() => inputRef.current?.click()}
+            onClick={openFilePicker}
           />
         </div>
 

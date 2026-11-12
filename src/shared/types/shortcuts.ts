@@ -27,6 +27,7 @@ export type ShortcutId =
   | "inputPreview.startAnalysis"
   | "inputPreview.discard"
   | "poseViewer.confirm"
+  | "save.captureCspResult"
   | "save.save"
   | "save.revealFolder"
   | "save.chooseFolder"

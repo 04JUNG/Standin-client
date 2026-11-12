@@ -39,6 +39,7 @@ export function referenceMesh(
   const rotation = new THREE.Quaternion();
 
   for (const mesh of template.meshes) {
+    const visible = mesh.triangles.length ? new Set(mesh.triangles) : undefined;
     const positions = new Float32Array(mesh.positions.length);
     const normals = new Float32Array(mesh.normals.length);
     for (let i = 0; i < positions.length / 3; i++) {
@@ -77,7 +78,7 @@ export function referenceMesh(
       }
       positionSum.toArray(positions, i * 3);
       normalSum.normalize().toArray(normals, i * 3);
-      bounds.expandByPoint(positionSum);
+      if (!visible || visible.has(i)) bounds.expandByPoint(positionSum);
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));

@@ -1,3 +1,4 @@
+import { CspResultCapture } from "@/features/replay/CspResultCapture";
 import { SceneSaveControls } from "../components/SceneSaveControls";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
@@ -122,7 +123,7 @@ export function SavePage() {
             <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
             <p className="text-[14px] text-text-secondary">
               {flow.sceneOutputLabel
-                ? "통합 FBX 파일 저장 중…"
+                ? "FBX 파일 저장 중…"
                 : `포즈 ${selections.length}개를 ${format.toUpperCase()}로 저장하고 있습니다…`}
             </p>
             <p className="break-all text-[12px] text-text-secondary">{folder}</p>
@@ -225,7 +226,7 @@ export function SavePage() {
               <CheckCircle2 className="h-10 w-10 text-brand-coral" aria-hidden />
               <p className="text-[15px] font-semibold text-text-primary">
                 {flow.sceneOutputLabel
-                  ? "통합 파일 1개를 저장했습니다."
+                  ? "FBX 파일 1개를 저장했어요."
                   : `포즈 ${selections.length}개를 저장했습니다.`}
               </p>
             </div>
@@ -233,8 +234,8 @@ export function SavePage() {
             <div {...tourAnchor("save.files")} className="flex flex-col gap-2">
               <p className="text-[13px] text-text-secondary">
                 {dragService.isSupported
-                  ? `아래 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`
-                  : `폴더를 열어 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓으면 데생 인형이 만들어집니다.`}
+                  ? `아래 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요.`
+                  : `폴더를 열어 ${format.toUpperCase()} 파일을 클립스튜디오 캔버스로 끌어놓고 결과를 확인해 주세요.`}
               </p>
               {format === "bvh" && (
                 <p className="text-[12px] text-text-secondary">
@@ -261,6 +262,7 @@ export function SavePage() {
 
             {/* 서버 job이 없으면(Mock 후보 등) 보낼 곳이 없다. 눌러도 아무 일이 없는
                 버튼을 두느니 섹션을 감춘다. */}
+            {serverJobId && <CspResultCapture jobId={serverJobId} />}
             {serverJobId && qualityEnabled && (
               <div className="rounded-xl border border-border p-4">
                 <p className="text-[13px] font-semibold text-text-primary">결과는 어땠나요?</p>
