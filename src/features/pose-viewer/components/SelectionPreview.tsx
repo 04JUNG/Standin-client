@@ -112,7 +112,6 @@ export function SelectionPreview({
             key={binding}
             surface={display.surface}
             viewKey={binding}
-            fallback={posterImage}
             large
             rotationOnly
             renderLayer={renderLayer}
@@ -148,7 +147,7 @@ export function SelectionPreview({
           </p>
         )}
         <CandidateAppearanceControls personIndex={person.index} />
-        {surface && !display.surface && (
+        {surface && (display.pending || display.failed) && (
           <p role="status" className="text-[11px] text-text-secondary">
             {display.failed
               ? "스킨을 불러오지 못했어요. 다른 스킨을 선택해 주세요."

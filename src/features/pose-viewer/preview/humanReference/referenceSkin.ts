@@ -101,6 +101,7 @@ export function useReferenceSkin(
     skin: SkinId;
     gender: PreviewGender;
     surface: SurfaceView;
+    release: () => void;
   }>();
   const [failure, setFailure] = useState<{
     source: SurfaceView;
@@ -108,27 +109,43 @@ export function useReferenceSkin(
     gender: PreviewGender;
   }>();
   useEffect(() => {
-    if (!source || skin === "default") return;
+    if (!source || skin === "default") {
+      setLoaded(undefined);
+      return;
+    }
     let cancelled = false;
     let display: ReturnType<typeof referenceSkinSurface> | undefined;
     void loadReferenceSkin(gender, skin)
       .then((texture) => {
         if (cancelled) return;
         display = referenceSkinSurface(source.body, texture, skin);
-        setLoaded({ source, gender, skin, surface: { ...source, body: display.body } });
+        setLoaded({
+          source,
+          gender,
+          skin,
+          surface: { ...source, body: display.body },
+          release: display.release,
+        });
       })
       .catch(() => {
         if (!cancelled) setFailure({ source, gender, skin });
       });
     return () => {
       cancelled = true;
-      display?.release();
     };
   }, [source, gender, skin]);
+  // Keep the currently displayed material alive until its replacement commits.
+  useEffect(() => () => loaded?.release(), [loaded]);
   const matches = (entry: typeof loaded | typeof failure) =>
     entry?.source === source && entry?.skin === skin && entry?.gender === gender;
   return {
-    surface: skin === "default" ? source : matches(loaded) ? loaded?.surface : undefined,
+    surface:
+      skin === "default"
+        ? source
+        : loaded && loaded.source === source && loaded.gender === gender
+          ? loaded.surface
+          : source,
+    pending: !!source && skin !== "default" && !matches(loaded) && !matches(failure),
     failed: matches(failure),
   };
 }
