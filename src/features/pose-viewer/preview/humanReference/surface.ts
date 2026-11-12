@@ -6,6 +6,7 @@ import { referenceMesh } from "./referenceMesh";
 import { sourceFingerPose, type FingerSkin } from "./sourceFingers";
 import { validRotation } from "../modelContract";
 import { correctApprovedPose, type Correctives } from "./correctives";
+import { fitOffsetBody } from "./offsetBody";
 
 export function referenceSurface(
   template: HumanTemplate,
@@ -21,6 +22,7 @@ export function referenceSurface(
     template = corrected.template;
     base = corrected.pose;
   }
+  base = fitOffsetBody(template, base);
   const fingers = skin && sourceFingerPose(template, text, base, skin);
   const surface = fingers
     ? referenceMesh(fingers.template, fingers.matrices, fingers.wrists)

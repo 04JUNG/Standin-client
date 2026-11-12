@@ -1,11 +1,12 @@
 {
   "version": "reference-skinning-v1",
-  "algorithm_sha256": "ef7975bddef9e32dccd832c0550b32cc395ca74c210abe5f9dfcad0818008ef5",
+  "algorithm_sha256": "7c41f757974cc2036a295af9087fd232c141ae3cbbba99f46c4d5409c673bb81",
   "client_source_sha256": {
     "preview/humanReference/template.ts": "67794da01662565a185dac35f5a5575015832596a6e6ad5e3da3b07a422f0a9b",
-    "preview/humanReference/pose.ts": "1ba44a00f39378737788fbb369a932612568f8256565955141bc3ad64dc1d05d",
+    "preview/humanReference/pose.ts": "28b23faf32015239ac1f16f9a28bf7dd8c6390ce192c58853a2db511e20b4bb8",
     "preview/humanReference/render.ts": "8a3a60b0248d455da74c6e6850e55d276eb8bb893ef8fa3018cb431ec5fbc15c",
     "preview/previewStyle.ts": "efc03a8890817e9aa11c1b06bb51108c81b0f00c8b7344661d2056a6636976a9",
-    "preview/previewStyleContract.ts": "07b7002452a4d13e4945cfd1c97587f4f8086357d7693c9c46ca43d5aaf37167"
+    "preview/previewStyleContract.ts": "07b7002452a4d13e4945cfd1c97587f4f8086357d7693c9c46ca43d5aaf37167",
+    "preview/humanReference/offsetBody.ts": "2adc9e6ccfeef1dcdadb3fac17ec2826eb2ff2bd8269eb5d35f3ebb72a236733"
   }
 }
