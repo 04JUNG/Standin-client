@@ -66,4 +66,10 @@ v2 geometry 준비 뒤 살색 첫 적용은 10.43초, 근육→살색 재선택�
 
 서버 최초 capability가 unavailable이었던 경우 명시적 `다시 시도`가 이전 unavailable 값을 영구 재사용하는 문제도 발견했다. 재시도마다 현재 capability·revision을 다시 조회하되, 불확실한 POST의 mutation body는 유지하도록 보완했다. skin/outline 각각 disabled→enabled 회복과 기존 불확실 POST idempotency 회귀 테스트가 통과했다.
 
-2인 기본+살색 가이드선·외곽선 2 조합은 로컬 Converter의 정식 `CONVERTER_OUTLINE_ENABLED` 설정이 꺼져 있어 두 번째 인물 prepare 전에 정확히 차단됐다. 로컬 설정만 켜고 재시작했다. 재시작 안전정책상 이전 snapshot은 만료되며, 이를 우회하지 않고 재준비한다. 최신 재시도 앱으로 다인물 검수를 계속하려는 시점에 Mac이 잠겨 수동 잠금 해제를 요청했다. **이 시점의 2인 전체 앱 저장 성공은 아직 주장하지 않는다.** 기존 1인 기본/살색 실제 앱 저장 성공과 구분한다.
+2인 살색 가이드선·외곽선 2 조합을 처음 시도할 때 로컬 Converter의 정식 `CONVERTER_OUTLINE_ENABLED` 설정이 꺼져 있어 두 번째 인물 prepare 전에 정확히 차단됐다. 로컬 설정만 켜고 재시작했다. 재시작 안전정책상 이전 snapshot은 만료되며 이를 우회하지 않았다.
+
+Mac 잠금 해제 후 최신 복구 수정 앱을 다시 실행해 작업 기록에서 같은 2인 작업을 열었다. 재실행 후 외형 설정은 기본으로 돌아갔으므로 **2인 기본 스킨 저장 사례**로 기록한다. 이전 person 0 snapshot의 model 조회는 410으로 실패했지만, 앱에서 `다시 시도`를 눌러 새 revision으로 재준비했다. 두 인물의 3D가 표시되고 다운로드가 활성화돼 실제 Rust 저장 명령으로 FBX 두 개와 `저장 완료`를 확인했다. 두 파일은 각각 9,067,820·9,056,268 bytes이며 서버 delivery/receipt SHA와 일치한다. 앞선 1인 기본/살색과 합친 **실제 앱 저장 4파일 모두 Blender 재로드 통과**다. 2인 살색·외곽선 조합까지 UI에서 저장했다고 주장하지 않는다.
+
+독립 API 매트릭스는 gray-guide·muscle·flesh-guide·flesh-muscle·outline2·flesh-guide+outline2·flesh-muscle+outline2·취소 후 gray-guide **8건 통과, 실패 0건**이다. 실제 v2 모델·FBX receipt·디스크 SHA를 검증했다. 503 두 번 뒤 같은 operation 유지, 동일 mutation 재전송 idempotency, 반복 변경 후 이전 revision supersede, 취소한 model/file의 409 차단, 취소 후 새 저장도 확인했다. UI 작업과 별도 DB/job/포트를 사용하고 기존 proof 14개를 보존했다.
+
+정리된 비밀정보 없는 [검수 증거](qa/appearance_native_20261113.json)에 4개 앱 저장 파일과 API 8건의 해시·시간·복구 범위·한계를 남겼다.
