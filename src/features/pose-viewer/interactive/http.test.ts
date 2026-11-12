@@ -161,6 +161,38 @@ it("queries appearance-aware head and leaves missing or malformed capability una
   ).toEqual(appearance);
 });
 
+it("keeps the skin unavailable reason only beside an unavailable capability", async () => {
+  const response = {
+    schemaVersion: "standin.interactive-http.v1",
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: { version: "fbx-skin-v1", available: false, supportedIds: ["default"] },
+  };
+  const head = async (extra: Record<string, unknown>) => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...response, ...extra });
+    return interactiveHttp.head(target, "candidate", new AbortController().signal);
+  };
+  expect(
+    (await head({ skinUnavailable: { code: "SKIN_UNSUPPORTED", outputScope: "half" } }))
+      .skinUnavailable,
+  ).toEqual({ code: "SKIN_UNSUPPORTED", outputScope: "half" });
+  // Older servers: no reason. Malformed reasons are ignored, never trusted.
+  expect((await head({})).skinUnavailable).toBeUndefined();
+  expect((await head({ skinUnavailable: { code: "rm -rf" } })).skinUnavailable).toBeUndefined();
+  expect(
+    (await head({ skinUnavailable: { code: "SKIN_UNSUPPORTED", outputScope: "knees" } }))
+      .skinUnavailable,
+  ).toBeUndefined();
+  // A reason never qualifies an available capability.
+  const available = await head({
+    skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+    skinUnavailable: { code: "SKIN_UNSUPPORTED", outputScope: "half" },
+  });
+  expect(available.skinExport?.available).toBe(true);
+  expect(available.skinUnavailable).toBeUndefined();
+});
+
 it("cannot accept a selected skin with a legacy untextured file receipt", () => {
   const current = op();
   current.skin = { version: "fbx-skin-v1", id: "flesh" };

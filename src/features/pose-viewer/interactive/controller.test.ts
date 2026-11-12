@@ -58,7 +58,10 @@ function harness() {
     client: new InteractiveController({ jobId: "job_test", personIndex: 0 }, transport, 250, 10),
   };
 }
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 it("keeps the accepted operation while polling returns 503 for 51 seconds", async () => {
   vi.useFakeTimers();
@@ -79,7 +82,9 @@ it("keeps the accepted operation while polling returns 503 for 51 seconds", asyn
   expect(client.ready("one")).toBe(true);
   expect(transport.prepare).toHaveBeenCalledOnce();
   expect(transport.cancel).not.toHaveBeenCalled();
-  expect(vi.mocked(transport.poll).mock.calls.every(([, op]) => op.operationId === "op_1")).toBe(true);
+  expect(vi.mocked(transport.poll).mock.calls.every(([, op]) => op.operationId === "op_1")).toBe(
+    true,
+  );
   client.dispose();
 });
 
@@ -87,7 +92,8 @@ it("resumes the accepted head after retry exhaustion without creating another jo
   vi.useFakeTimers();
   const { client, transport } = harness();
   vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
-    ...operation(body), expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    ...operation(body),
+    expiresAt: new Date(Date.now() + 600_000).toISOString(),
   }));
   const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
   vi.mocked(transport.poll).mockRejectedValue(new ApiError(503, "UNAVAILABLE", ""));
@@ -96,7 +102,9 @@ it("resumes the accepted head after retry exhaustion without creating another jo
   expect(client.snapshot().failure).toMatchObject({ code: "INTERACTIVE_POLL_TIMEOUT" });
   const accepted = client.snapshot().operation!;
   vi.mocked(transport.head).mockResolvedValueOnce({
-    currentRevision: accepted.revision, currentStateHash: accepted.stateHash, operation: accepted,
+    currentRevision: accepted.revision,
+    currentStateHash: accepted.stateHash,
+    operation: accepted,
   });
   vi.mocked(transport.poll).mockImplementation(normalPoll);
   client.retry();
@@ -110,10 +118,16 @@ it("resumes the accepted head after retry exhaustion without creating another jo
 it("waits through 180-second preparation with a late 503 and keeps the same operation", async () => {
   vi.useFakeTimers();
   const { transport } = harness();
-  const client = new InteractiveController({ jobId: "job_test", personIndex: 0 }, transport, 250, 1000);
+  const client = new InteractiveController(
+    { jobId: "job_test", personIndex: 0 },
+    transport,
+    250,
+    1000,
+  );
   const started = Date.now();
   vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
-    ...operation(body), expiresAt: new Date(started + 600_000).toISOString(),
+    ...operation(body),
+    expiresAt: new Date(started + 600_000).toISOString(),
   }));
   const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
   vi.mocked(transport.poll).mockImplementation(async (...args) => {
@@ -405,6 +419,107 @@ it("blocks an explicitly unavailable skin capability before prepare, polling or 
   expect(transport.file).not.toHaveBeenCalled();
   client.dispose();
 });
+it("names a cropped output scope as a permanent skin failure without prepare or auto-retry", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: { version: "fbx-skin-v1", available: false, supportedIds: ["default"] },
+    skinUnavailable: { code: "SKIN_UNSUPPORTED", outputScope: "half" },
+  });
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "flesh" });
+  await vi.advanceTimersByTimeAsync(60_000);
+  const failure = client.snapshot().failure as ApiError;
+  expect(failure).toMatchObject({ status: 422, code: "SKIN_UNSUPPORTED" });
+  expect(failure.details).toEqual({ outputScope: "half" });
+  expect(client.snapshot().skinUnavailable).toEqual({
+    code: "SKIN_UNSUPPORTED",
+    outputScope: "half",
+  });
+  expect(transport.head).toHaveBeenCalledOnce();
+  expect(transport.prepare).not.toHaveBeenCalled();
+  // The one-click fix: the same pose with the default skin prepares normally.
+  client.select("default", "candidate", true);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(vi.mocked(transport.prepare).mock.calls[0][1]).not.toHaveProperty("skin");
+  expect(client.ready("default")).toBe(true);
+  client.dispose();
+});
+it("re-reads a transiently unavailable skin capability instead of replaying it", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const { client, transport } = harness();
+  const unavailable = {
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: {
+      version: "fbx-skin-v1" as const,
+      available: false,
+      supportedIds: ["default" as const],
+    },
+  };
+  vi.mocked(transport.head)
+    .mockResolvedValueOnce({ ...unavailable, skinUnavailable: { code: "SKIN_UNAVAILABLE" } })
+    .mockResolvedValue({
+      ...unavailable,
+      skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+    });
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    skin: body.skin,
+  }));
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "flesh" });
+  await vi.advanceTimersByTimeAsync(300);
+  expect(client.snapshot().error).toBe(false);
+  await vi.advanceTimersByTimeAsync(2_000);
+  expect(transport.head).toHaveBeenCalledTimes(2);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(client.ready("skin")).toBe(true);
+  client.dispose();
+});
+it("lets an explicit retry read the skin capability again after SKIN_DISABLED", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head)
+    .mockResolvedValueOnce({ currentRevision: 0, currentStateHash: null, operation: null })
+    .mockResolvedValue({
+      currentRevision: 0,
+      currentStateHash: null,
+      operation: null,
+      skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+    });
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    skin: body.skin,
+  }));
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "flesh" });
+  await vi.advanceTimersByTimeAsync(300);
+  expect(client.snapshot().failure).toMatchObject({ code: "SKIN_DISABLED" });
+  client.retry();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(transport.head).toHaveBeenCalledTimes(2);
+  expect(client.ready("skin")).toBe(true);
+  client.dispose();
+});
+it("treats an available capability without the chosen id as unsupported, not disabled", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+  });
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "muscle" });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(client.snapshot().failure).toMatchObject({ status: 422, code: "SKIN_UNSUPPORTED" });
+  expect(transport.prepare).not.toHaveBeenCalled();
+  client.dispose();
+});
 it("preserves gray-guide at width 0.01 after prepare 400 without fallback, polling or file access", async () => {
   vi.useFakeTimers();
   const { client, transport } = harness();
@@ -508,7 +623,9 @@ it("recovers a busy head and prepare on its own, reusing the exact uncertain POS
   client.subscribe(() => {
     if (client.snapshot().error) errors.push(client.snapshot().failure);
   });
-  vi.mocked(transport.head).mockRejectedValueOnce(new ApiError(503, "BODY_PREVIEW_UNAVAILABLE", ""));
+  vi.mocked(transport.head).mockRejectedValueOnce(
+    new ApiError(503, "BODY_PREVIEW_UNAVAILABLE", ""),
+  );
   vi.mocked(transport.prepare).mockRejectedValueOnce(new ApiError(503, "HANDS_UNAVAILABLE", ""));
   client.select("one", "candidate", true);
   await vi.advanceTimersByTimeAsync(260);
@@ -529,16 +646,23 @@ it("recovers a busy export request through the accepted head without another cre
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   const { client, transport } = harness();
   vi.mocked(transport.poll).mockImplementationOnce(async (_target, op) => ({
-    ...op, stateHash: "b".repeat(64), previewState: "authoritative", eventSequence: op.eventSequence + 1,
+    ...op,
+    stateHash: "b".repeat(64),
+    previewState: "authoritative",
+    eventSequence: op.eventSequence + 1,
   }));
-  vi.mocked(transport.export).mockRejectedValueOnce(new ApiError(503, "INTERACTIVE_CONVERTER_UNAVAILABLE", ""));
+  vi.mocked(transport.export).mockRejectedValueOnce(
+    new ApiError(503, "INTERACTIVE_CONVERTER_UNAVAILABLE", ""),
+  );
   client.select("one", "candidate", true);
   await vi.advanceTimersByTimeAsync(300);
   const accepted = client.snapshot().operation!;
   expect(accepted.previewState).toBe("authoritative");
   expect(client.snapshot().error).toBe(false);
   vi.mocked(transport.head).mockResolvedValueOnce({
-    currentRevision: accepted.revision, currentStateHash: accepted.stateHash, operation: accepted,
+    currentRevision: accepted.revision,
+    currentStateHash: accepted.stateHash,
+    operation: accepted,
   });
   await vi.advanceTimersByTimeAsync(1_500);
   expect(client.ready("one")).toBe(true);
@@ -557,7 +681,10 @@ it("stops automatic recovery after a bounded outage and leaves an explicit retry
   await vi.advanceTimersByTimeAsync(30_000);
   expect(client.snapshot().error).toBe(false);
   await vi.advanceTimersByTimeAsync(5_000);
-  expect(client.snapshot()).toMatchObject({ error: true, failure: { status: 503, code: "HANDS_UNAVAILABLE" } });
+  expect(client.snapshot()).toMatchObject({
+    error: true,
+    failure: { status: 503, code: "HANDS_UNAVAILABLE" },
+  });
   expect(transport.prepare).toHaveBeenCalledTimes(7);
   const calls = vi.mocked(transport.prepare).mock.calls;
   expect(calls.every(([, body]) => body.mutationId === calls[0]![1].mutationId)).toBe(true);

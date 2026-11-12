@@ -40,6 +40,8 @@ export function BarReviewPage() {
     retryPreview,
   } = useFramedReview(jobId ?? undefined);
 
+  // A skin that cannot be prepared must not dead-end the download: offer the default skin.
+  const switchSkin = preparationError ? previewFailure.switchToDefaultSkin : undefined;
   if (!jobId) return <Navigate to="/bar/actions" replace />;
   if (!isRefining && items.length === 0) return <Navigate to="/bar/candidates" replace />;
 
@@ -125,16 +127,25 @@ export function BarReviewPage() {
             {preparationError
               ? previewFailure.message
               : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
-            <button
-              onClick={() =>
-                previewFailure.action === "choose"
-                  ? navigate("/bar/candidates")
-                  : void retryPreview()
-              }
-              className="underline"
-            >
-              {previewFailure.label}
-            </button>
+            {switchSkin && (
+              <>
+                <button onClick={switchSkin} className="font-semibold underline">
+                  기본 스킨으로 바꾸기
+                </button>{" "}
+              </>
+            )}
+            {!(switchSkin && previewFailure.retryUseless) && (
+              <button
+                onClick={() =>
+                  previewFailure.action === "choose"
+                    ? navigate("/bar/candidates")
+                    : void retryPreview()
+                }
+                className="underline"
+              >
+                {previewFailure.label}
+              </button>
+            )}
           </p>
         )}
         {!previewLoading && !previewError && !requiresFbx && previewNotice && (

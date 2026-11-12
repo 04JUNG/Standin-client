@@ -2,6 +2,7 @@ import { SKIN_ASSET_PINS } from "../skin/skinAssetPins";
 import { skinReceiptSchema } from "../skin/skinReceipt";
 import { skinPreviewSchema, checkSkinPreviewPaths } from "../skin/skinPreview";
 import { skinSchema, skinCapabilitySchema, sameSkin, type Skin } from "../skin/skin";
+import { skinUnavailableSchema, type SkinUnavailable } from "../skin/skinScope";
 import { z } from "zod";
 import {
   appearanceSchema,
@@ -98,11 +99,19 @@ export function operationPath(target: Target, operationId: string) {
 }
 export function checkOperation(raw: unknown, target: Target): Operation {
   const op = operationSchema.parse(raw);
-  if (op.skin && op.appearance && op.appearance.width !== 2 &&
-    !SKIN_ASSET_PINS.some((pin) => pin.continuousOutline && pin.skinId === op.skin!.id &&
-      pin.manifestSha256 === op.skinPreview?.assetManifestSha256 &&
-      pin.characterId === op.skinPreview.compatibility.characterId &&
-      pin.characterSha256 === op.skinPreview.compatibility.characterSha256))
+  if (
+    op.skin &&
+    op.appearance &&
+    op.appearance.width !== 2 &&
+    !SKIN_ASSET_PINS.some(
+      (pin) =>
+        pin.continuousOutline &&
+        pin.skinId === op.skin!.id &&
+        pin.manifestSha256 === op.skinPreview?.assetManifestSha256 &&
+        pin.characterId === op.skinPreview.compatibility.characterId &&
+        pin.characterSha256 === op.skinPreview.compatibility.characterSha256,
+    )
+  )
     throw Error("unsupported skin outline combination");
   const root = operationPath(target, op.operationId);
   if (op.skinPreview) {
@@ -222,6 +231,8 @@ export interface InteractiveTransport {
   ): Promise<{
     appearanceExport?: z.infer<typeof appearanceCapabilitySchema>;
     skinExport?: z.infer<typeof skinCapabilitySchema>;
+    /** Why `skinExport` is unavailable; omitted by older servers. */
+    skinUnavailable?: SkinUnavailable;
     currentRevision: number;
     currentStateHash: string | null;
     operation: Operation | null;
@@ -288,6 +299,7 @@ export const interactiveHttp: InteractiveTransport = {
         // Unknown/malformed future capability stays unavailable on old clients.
         appearanceExport: z.unknown().optional(),
         skinExport: z.unknown().optional(),
+        skinUnavailable: z.unknown().optional(),
       })
       .parse(
         await apiFetch(
@@ -307,11 +319,17 @@ export const interactiveHttp: InteractiveTransport = {
       throw Error("head binding changed");
     const capability = appearanceCapabilitySchema.safeParse(raw.appearanceExport);
     const skinCapability = skinCapabilitySchema.safeParse(raw.skinExport);
+    const skinUnavailable = skinUnavailableSchema.safeParse(raw.skinUnavailable);
     return {
       ...raw,
       operation,
       appearanceExport: capability.success ? capability.data : undefined,
       skinExport: skinCapability.success ? skinCapability.data : undefined,
+      // A reason only qualifies an unavailable capability; it never grants or denies one.
+      skinUnavailable:
+        skinCapability.success && !skinCapability.data.available && skinUnavailable.success
+          ? skinUnavailable.data
+          : undefined,
     };
   },
   async prepare(target, body) {

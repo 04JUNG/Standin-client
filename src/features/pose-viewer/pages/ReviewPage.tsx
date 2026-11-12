@@ -42,6 +42,8 @@ export function ReviewPage() {
     retryPreview,
   } = useFramedReview(jobId);
 
+  // A skin that cannot be prepared must not dead-end the download: offer the default skin.
+  const switchSkin = preparationError ? previewFailure.switchToDefaultSkin : undefined;
   if (!jobId) return <Navigate to="/app/home" replace />;
   if (!isRefining && items.length === 0) return <Navigate to={`/app/jobs/${jobId}`} replace />;
 
@@ -134,16 +136,25 @@ export function ReviewPage() {
             {preparationError
               ? previewFailure.message
               : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
-            <button
-              onClick={() =>
-                previewFailure.action === "choose"
-                  ? navigate(`/app/jobs/${jobId}`)
-                  : void retryPreview()
-              }
-              className="underline"
-            >
-              {previewFailure.label}
-            </button>
+            {switchSkin && (
+              <>
+                <button onClick={switchSkin} className="font-semibold underline">
+                  기본 스킨으로 바꾸기
+                </button>{" "}
+              </>
+            )}
+            {!(switchSkin && previewFailure.retryUseless) && (
+              <button
+                onClick={() =>
+                  previewFailure.action === "choose"
+                    ? navigate(`/app/jobs/${jobId}`)
+                    : void retryPreview()
+                }
+                className="underline"
+              >
+                {previewFailure.label}
+              </button>
+            )}
           </div>
         )}
         <div className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
