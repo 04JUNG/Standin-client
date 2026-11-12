@@ -1,0 +1,60 @@
+# TEMPORARY test build for draft PR 04JUNG/Standin-client#225 (binary solved state v2).
+# Lives only on branch test/binary-state-prod-dev-build; delete the branch after testing.
+# Same steps as ci.yml build-develop (Windows), but against the production API:
+# separate "Standin Dev" identity/keychain, updater disabled, unsigned installer.
+name: Temp prod-API Dev build (binary state v2)
+
+on:
+  push:
+    branches: [test/binary-state-prod-dev-build]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Standin Dev against production API (Windows)
+    runs-on: windows-latest
+    env:
+      STANDIN_KEYRING_SERVICE: app.standin.desktop.dev
+      VITE_API_BASE_URL: https://api.standinpose.com
+      VITE_WEB_BASE_URL: https://standin-seven.vercel.app
+      VITE_USE_MOCK_API: "false"
+      VITE_USE_MOCK_POSE_API: "false"
+      # Not "production": keeps installer campaign counting off for this test app.
+      VITE_APP_ENV: staging
+      VITE_INTERACTIVE_POSE_PREVIEW: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: x86_64-pc-windows-msvc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set develop build version
+        run: node scripts/set-version.mjs --develop-build "${{ github.run_number }}"
+
+      - name: Build Standin Dev
+        run: npm run tauri build -- --config src-tauri/tauri.dev.conf.json --target x86_64-pc-windows-msvc --bundles nsis
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: standin-dev-prod-api-binary-state-${{ github.run_number }}
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*
+          if-no-files-found: error
+          retention-days: 7
