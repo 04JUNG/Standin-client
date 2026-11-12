@@ -468,7 +468,7 @@ export class InteractiveController {
     this.controller?.abort();
     clearTimeout(this.timer);
     clearTimeout(this.expiry);
-    this.publish({ error: false, modelError: false, exportState: "queued" });
+    this.publish({ error: false, failure: undefined, modelError: false, exportState: "queued" });
     void this.run(this.generation);
   }
   ready(binding: string) {
