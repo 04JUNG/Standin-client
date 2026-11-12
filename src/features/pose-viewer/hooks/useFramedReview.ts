@@ -457,10 +457,6 @@ export function useFramedReview(jobId: string | undefined) {
                   revision: interactive.snapshots[index]!.operation!.revision,
                 }
               : undefined,
-            skinControl: {
-              personIndex: item.personIndex,
-              available: interactive.snapshots[index]?.supportedSkins ?? ["default"],
-            },
             outlineWidth: outlines?.[item.personIndex] ?? 0,
             model:
               interactive.snapshots[index]?.model?.state.identity.selection.candidate ===

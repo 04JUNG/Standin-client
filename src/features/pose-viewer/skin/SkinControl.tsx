@@ -1,41 +1,73 @@
-import { useId } from "react";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
-import { SKIN_CHOICES, type SkinId } from "./skinChoices";
+import type { SkinId } from "./skinChoices";
 
-/** Only explicit server-supported choices can be selected; prior choices stay visible for recovery. */
+type Base = "default" | "flesh";
+type Lines = "none" | "guide" | "muscle";
+function splitSkin(skin: SkinId): { base: Base; lines: Lines } {
+  return {
+    base: skin.startsWith("flesh") ? "flesh" : "default",
+    lines: skin.endsWith("guide") ? "guide" : skin.endsWith("muscle") ? "muscle" : "none",
+  };
+}
+function composeSkin(base: Base, lines: Lines): SkinId {
+  if (lines === "guide") return base === "flesh" ? "flesh-guide" : "gray-guide";
+  if (lines === "muscle") return base === "flesh" ? "flesh-muscle" : "muscle";
+  return base;
+}
+/** Color and one optional line layer share the same final-export selection. */
 export function SkinControl({
   personIndex,
   available,
+  compact = false,
 }: {
   personIndex: number;
   available: readonly SkinId[];
+  compact?: boolean;
 }) {
-  const id = useId();
   const selected = usePoseSelectionStore((s) => s.skinByPerson[personIndex] ?? "default");
+  const width = usePoseSelectionStore((s) => s.outlineByPerson[personIndex] ?? 0);
   const choose = usePoseSelectionStore((s) => s.setPersonSkin);
+  const { base, lines } = splitSkin(selected);
+  const choices = [
+    { label: "기본", active: base === "default", next: composeSkin("default", lines) },
+    { label: "살색", active: base === "flesh", next: composeSkin("flesh", lines) },
+    {
+      label: "가이드선",
+      active: lines === "guide",
+      next: composeSkin(base, lines === "guide" ? "none" : "guide"),
+    },
+    {
+      label: "근육선",
+      active: lines === "muscle",
+      next: composeSkin(base, lines === "muscle" ? "none" : "muscle"),
+    },
+  ];
   return (
-    <div className="flex items-center gap-2 px-2 py-2 text-xs">
-      <label htmlFor={id}>스킨</label>
-      <select
-        id={id}
-        aria-label={`인물 ${personIndex + 1} 스킨`}
-        className="min-w-0 flex-1 rounded border border-border bg-surface-0 px-2 py-1 text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky"
-        value={selected}
-        onChange={(event) => {
-          const value = event.target.value as SkinId;
-          if (value === "default" || available.includes(value)) choose(personIndex, value);
-        }}
-      >
-        {SKIN_CHOICES.map(({ id: value, label }) => (
-          <option
-            key={value}
-            value={value}
-            disabled={value !== "default" && !available.includes(value)}
-          >
-            {label}
-          </option>
-        ))}
-      </select>
+    <div
+      role="group"
+      aria-label={`인물 ${personIndex + 1} 스킨`}
+      className={`flex items-center gap-1 text-xs ${compact ? "flex-nowrap" : "flex-wrap px-2 py-2"}`}
+    >
+      <span className="mr-1 shrink-0">스킨</span>
+      {choices.map(({ label, active, next }) => (
+        <button
+          key={label}
+          type="button"
+          aria-pressed={active}
+          disabled={!active && next !== "default" && !available.includes(next)}
+          className={`min-w-0 rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky disabled:cursor-not-allowed disabled:opacity-40 ${active ? "border-brand-coral text-brand-coral" : "border-border hover:bg-surface-2"}`}
+          onClick={() => {
+            if (next === "default" || available.includes(next)) {
+              if (splitSkin(next).lines !== "none" && width > 0 && width < 2)
+                usePoseSelectionStore.getState().setPersonOutline(personIndex, 2);
+              choose(personIndex, next);
+            } else if (active && (label === "가이드선" || label === "근육선"))
+              choose(personIndex, "default");
+          }}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
