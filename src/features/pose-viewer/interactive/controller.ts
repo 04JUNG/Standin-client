@@ -20,6 +20,15 @@ export type PreviewState = "loading" | "local-draft" | "solving" | "authoritativ
 const preparedAtlases = new Map<InteractiveController, LoadedVariants>();
 const expiredError = (error: unknown) =>
   !!error && typeof error === "object" && "code" in error && error.code === "INTERACTIVE_EXPIRED";
+/**
+ * A busy BFF or Converter answers one head/prepare/export request with 429/5xx or drops it.
+ * That is not a failed selection: retry it a few times before asking the user. Polls already
+ * retry for 120 s inside pollWithRecovery, so their exhaustion still stops here.
+ */
+const AUTO_RECOVERY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 8_000, 8_000];
+const autoRecoverable = (error: unknown) =>
+  transientPollError(error) &&
+  !(error instanceof ApiError && error.code === "INTERACTIVE_POLL_TIMEOUT");
 export type ExportState =
   "not-requested" | "queued" | "building" | "validating" | "ready" | "failed" | "superseded";
 export type InteractiveSnapshot = {
@@ -78,6 +87,7 @@ export class InteractiveController {
   };
   private mutation?: Prepare;
   private handAtlas?: LoadedVariants;
+  private autoRecoveries = 0;
   constructor(
     readonly target: Target,
     private readonly transport: InteractiveTransport = interactiveHttp,
@@ -113,6 +123,7 @@ export class InteractiveController {
       return;
     const changed = this.desired?.binding !== binding;
     const poseChanged = this.desired?.poseBinding !== poseBinding;
+    this.autoRecoveries = 0;
     const baseChanged = poseChanged || this.desired?.baseBinding !== baseBinding;
     this.desired = { binding, baseBinding, poseBinding, candidateId, ready, appearance, skin };
     this.generation++;
@@ -150,6 +161,7 @@ export class InteractiveController {
     this.generation++;
     this.desired = undefined;
     this.mutation = undefined;
+    this.autoRecoveries = 0;
     clearTimeout(this.timer);
     clearTimeout(this.expiry);
     this.controller?.abort();
@@ -433,6 +445,7 @@ export class InteractiveController {
                 /* Uncached hands keep the authoritative surface. */
               });
           }
+          this.autoRecoveries = 0;
           measure("file-ready", inputAt);
           const expiresIn = Date.parse(op.expiresAt) - Date.now();
           this.expiry = setTimeout(
@@ -475,12 +488,35 @@ export class InteractiveController {
         this.recovered = false;
         this.mutation = undefined;
       }
+      if (autoRecoverable(error) && this.autoRecoveries < AUTO_RECOVERY_DELAYS_MS.length) {
+        this.scheduleRecovery(generation);
+        return;
+      }
       this.publish({ error: true, failure: error, exportState: "failed" });
       measure("error", performance.now());
     }
   }
+  /** Keep the current "preparing" state and run again; the user sees no failure meanwhile. */
+  private scheduleRecovery(generation: number) {
+    const base = AUTO_RECOVERY_DELAYS_MS[this.autoRecoveries++]!;
+    const delay = base * (0.8 + Math.random() * 0.4);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      if (generation !== this.generation || !this.desired?.ready) return;
+      // Same recovery rules as retry(): find an accepted operation before any create, and
+      // reuse an uncertain POST's exact body and idempotency key.
+      if (this.value.operation) {
+        this.recovered = false;
+        this.mutation = undefined;
+      }
+      this.generation++;
+      this.controller?.abort();
+      void this.run(this.generation);
+    }, delay);
+  }
   retry() {
     if (!this.desired?.ready) return;
+    this.autoRecoveries = 0;
     // After a read outage, recover the accepted operation before considering a create.
     if (this.value.operation && transientPollError(this.value.failure)) {
       this.recovered = false;
