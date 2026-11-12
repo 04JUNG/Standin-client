@@ -4,7 +4,7 @@ import { humanFixture, bvhFixture } from "@/test/humanReferenceFixture";
 import { fitOffsetBody, isOffsetBody } from "./offsetBody";
 import { referencePose } from "./pose";
 
-function bakedFixture() {
+function bakedFixture(rootYaw = 0) {
   const template = humanFixture();
   const names = [
     "Hips",
@@ -52,20 +52,23 @@ function bakedFixture() {
     return `${joint.parent < 0 ? "ROOT" : "JOINT"} mixamorig:${names[i]}\n{\nOFFSET ${offset.toArray().join(" ")}\nCHANNELS 6 Xposition Yposition Zposition Xrotation Yrotation Zrotation\n${children.length ? children.map(bone).join("\n") : `End Site\n{\nOFFSET ${tip.toArray().join(" ")}\n}`}\n}`;
   }
   const header = bone(0);
+  const values = Array(count * 6).fill(0);
+  values[4] = rootYaw;
   return {
     template,
     heads,
-    turn,
-    text: `HIERARCHY\n${header}\nMOTION\nFrames: 1\nFrame Time: 0.033333\n${Array(count * 6)
-      .fill(0)
-      .join(" ")}\n`,
+    turn: new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(rootYaw))
+      .multiply(turn),
+    text: `HIERARCHY\n${header}\nMOTION\nFrames: 1\nFrame Time: 0.033333\n${values.join(" ")}\n`,
   };
 }
 
 it("transfers baked-offset head, torso, pelvis and limbs while retaining target lengths", () => {
-  const { template, text, turn } = bakedFixture();
+  const { template, text, turn } = bakedFixture(15);
   expect(isOffsetBody(text)).toBe(true);
   const base = referencePose(template, text, true);
+  expect(base.bakedOffsets).toBe(false);
   const before = base.rotations.map((q) => q.toArray());
   const fixed = fitOffsetBody(template, base);
   const head = fixed.roles.indexOf("head");
@@ -91,6 +94,23 @@ it("transfers baked-offset head, torso, pelvis and limbs while retaining target 
     expect(actual.angleTo(edge.applyQuaternion(turn)), joint.role).toBeLessThan(0.01);
   }
   expect(base.rotations.map((q) => q.toArray())).toEqual(before);
+});
+
+it("retains the upstream authored-geometry path without a second body transfer", () => {
+  const { template, text, turn } = bakedFixture();
+  expect(isOffsetBody(text)).toBe(true);
+  const base = referencePose(template, text, true);
+  expect(base.bakedOffsets).toBe(true);
+  expect(base.offsetBody).toBeUndefined();
+  expect(fitOffsetBody(template, base)).toBe(base);
+  for (const [i, joint] of template.joints.entries()) {
+    if (joint.parent < 0) continue;
+    const expected = new THREE.Vector3(...joint.head)
+      .sub(new THREE.Vector3(...template.joints[joint.parent].head))
+      .applyQuaternion(turn);
+    const actual = base.positions[i].clone().sub(base.positions[joint.parent]);
+    expect(actual.distanceTo(expected), joint.role).toBeLessThan(1e-6);
+  }
 });
 
 it("keeps ordinary motion BVHs unchanged and rejects non-delta six-channel formats", () => {

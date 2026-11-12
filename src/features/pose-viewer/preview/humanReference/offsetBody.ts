@@ -37,7 +37,9 @@ export function isOffsetBody(text: string) {
  * No network, server solve, or new model is needed for this library format. */
 export function fitOffsetBody(template: HumanTemplate, pose: ReturnType<typeof referencePose>) {
   const source = pose.offsetBody;
-  if (!source) return pose;
+  // referencePose already preserves reviewed zero-motion geometry directly.
+  // Only transfer OFFSET poses with motion deltas that need the neutral path.
+  if (!source || pose.bakedOffsets) return pose;
   const spine = ["spine", "spine1", "spine2", "neck", "head"];
   const limbs = ["L", "R"].flatMap((s) => [
     ["upperarm", "forearm", "hand"].map((r) => `${r}.${s}`),
