@@ -77,6 +77,7 @@ export class InteractiveController {
   };
   private mutation?: Prepare;
   private handAtlas?: LoadedVariants;
+  private appearanceModelBinding?: string;
   constructor(
     readonly target: Target,
     private readonly transport: InteractiveTransport = interactiveHttp,
@@ -112,7 +113,10 @@ export class InteractiveController {
       return;
     const changed = this.desired?.binding !== binding;
     const poseChanged = this.desired?.poseBinding !== poseBinding;
-    const baseChanged = poseChanged || this.desired?.baseBinding !== baseBinding;
+    const baseChanged = this.desired
+      ? poseChanged || this.desired.baseBinding !== baseBinding
+      : this.appearanceModelBinding !== baseBinding;
+    this.appearanceModelBinding = undefined;
     this.desired = { binding, baseBinding, poseBinding, candidateId, ready, appearance, skin };
     this.generation++;
     this.controller?.abort();
@@ -142,6 +146,15 @@ export class InteractiveController {
       }, this.debounceMs);
   }
   invalidate(preserveLocalHands = false) {
+    this.invalidateSelection(preserveLocalHands, false);
+  }
+  invalidateAppearance() {
+    this.invalidateSelection(false, true);
+  }
+  private invalidateSelection(preserveLocalHands: boolean, keepAppearanceModel: boolean) {
+    // A cached model is display-only. The next selection must match its exact base
+    // binding, and the old operation loses download authority immediately.
+    this.appearanceModelBinding = keepAppearanceModel ? this.value.modelBinding : undefined;
     if (!preserveLocalHands) {
       this.clearDraft();
       this.releaseHandAtlas();

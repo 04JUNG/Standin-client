@@ -1,7 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { InteractiveController } from "./controller";
 import { ApiError } from "@/shared/api/errors";
-import type { InteractiveTransport, Operation, Prepare } from "./http";
+import { interactiveHttp, type InteractiveTransport, type Operation, type Prepare } from "./http";
+import { forgetInteractiveJob, interactiveController } from "./session";
+import { usePoseSelectionStore } from "../store/poseSelectionStore";
 function operation(body: Prepare): Operation {
   return {
     schemaVersion: "standin.interactive-http.v1",
@@ -368,6 +370,55 @@ it("keeps a same-base model for appearance changes while revoking download readi
   expect(client.snapshot().model).toBeUndefined();
   client.dispose();
 });
+it.each(["skin", "outline"] as const)(
+  "retains the displayed model through a %s store change without reusing the old download",
+  async (kind) => {
+    vi.useFakeTimers();
+    const { transport } = harness();
+    vi.spyOn(interactiveHttp, "head").mockImplementation(transport.head);
+    vi.spyOn(interactiveHttp, "prepare").mockImplementation(transport.prepare);
+    vi.spyOn(interactiveHttp, "poll").mockImplementation(transport.poll);
+    vi.spyOn(interactiveHttp, "cancel").mockImplementation(transport.cancel);
+    const model = { packet: { stateHash: "b".repeat(64) }, frame: {} } as Awaited<
+      ReturnType<InteractiveTransport["model"]>
+    >;
+    vi.spyOn(interactiveHttp, "model").mockResolvedValue(model);
+    const file = vi.spyOn(interactiveHttp, "file").mockImplementation(transport.file);
+    const job = "job_appearance_model";
+    const old = usePoseSelectionStore.getState();
+    usePoseSelectionStore.setState({
+      serverJobId: job, selectedByPerson: { 0: "candidate" }, skinByPerson: {},
+      outlineByPerson: {}, outlineEditingByPerson: {},
+    });
+    const client = interactiveController("owner", job, 0);
+    try {
+      client.select("plain", "candidate", true, undefined, undefined, "base-a");
+      await vi.advanceTimersByTimeAsync(1300);
+      expect(client.ready("plain")).toBe(true);
+      const store = usePoseSelectionStore.getState();
+      if (kind === "skin") store.setPersonSkin(0, "flesh");
+      else store.setOutlineEditing(0, true);
+      expect(client.ready("plain")).toBe(false);
+      await expect(client.download("plain", new AbortController().signal)).rejects.toThrow(
+        "current file unavailable",
+      );
+      expect(file).not.toHaveBeenCalled();
+      client.select(
+        kind, "candidate", false,
+        kind === "outline" ? { version: "fbx-outline-v1", width: 1 } : undefined,
+        kind === "skin" ? { version: "fbx-skin-v1", id: "flesh" } : undefined,
+        "base-a",
+      );
+      expect(client.snapshot().model).toBe(model);
+      expect(client.snapshot().operation).toBeUndefined();
+      client.select("new-body", "candidate", false, undefined, undefined, "base-b");
+      expect(client.snapshot().model).toBeUndefined();
+    } finally {
+      forgetInteractiveJob(job);
+      usePoseSelectionStore.setState(old);
+    }
+  },
+);
 it("preserves a local hand draft only while the pose and body identity remain unchanged", () => {
   const { client } = harness();
   client.select("original", "candidate", false, undefined, undefined, "hands-a", "body-a");
