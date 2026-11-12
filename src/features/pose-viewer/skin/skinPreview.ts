@@ -14,7 +14,7 @@ const asset = z
       .number()
       .int()
       .positive()
-      .max(2 * 1024 * 1024),
+      .max(16 * 1024 * 1024),
     url: ownedPath,
   })
   .strict();
@@ -30,7 +30,7 @@ export const skinPreviewSchema = z
         characterSha256: digest,
         previewMesh: z.string().min(1).max(200),
         vertices: z.number().int().positive().max(500000),
-        bones: z.literal(52),
+        bones: z.number().int().positive().max(256),
         polygonIndicesSha256: digest,
         weightsSha256: digest,
         trianglesSha256: digest,
@@ -66,6 +66,10 @@ export const skinPreviewSchema = z
   });
 export type SkinPreview = z.infer<typeof skinPreviewSchema>;
 const downloads = new BoundedQueue(2);
+// Read-only selection descriptors authorize these immutable public model assets.
+// Cache verified bytes only; operation-bound legacy reads keep their original fences.
+const verifiedSelectionAssets = new Map<string, ArrayBuffer>();
+let verifiedAssetBytes = 0;
 export function checkSkinPreviewPaths(preview: SkinPreview, root: string) {
   for (const a of [preview.uv, preview.texture])
     if (a.url !== `${root}/skin-assets/${a.sha256}`) throw Error("skin asset escaped operation");
@@ -73,7 +77,7 @@ export function checkSkinPreviewPaths(preview: SkinPreview, root: string) {
 /** Exact prebuilt asset bytes; no source URLs, per-pose painting or canonical model changes. */
 export async function loadSkinSurface(
   preview: SkinPreview,
-  expected: { stateHash: string; revision: number },
+  expected: { stateHash: string; revision: number } | { baseSelectionHash: string },
   source: THREE.Group,
   model: PoseModel,
   signal: AbortSignal,
@@ -90,26 +94,46 @@ export async function loadSkinSurface(
   const triangleBytes = new TextEncoder().encode(JSON.stringify(mesh.triangles));
   await verifyBytes(triangleBytes.buffer, c.trianglesSha256);
   async function fetchAsset(a: SkinPreview["uv"], contentType: string) {
+    const cached = "baseSelectionHash" in expected && verifiedSelectionAssets.get(a.sha256);
+    if (cached) {
+      signal.throwIfAborted();
+      return cached;
+    }
     return downloads.run(async () => {
       const response = await apiFetchResponse(a.url, { auth: false, signal, cache: "no-store" });
       if (
         response.headers.get("Content-Type")?.split(";")[0] !== contentType ||
         response.headers.get("X-Skin-Asset-SHA256") !== a.sha256 ||
-        response.headers.get("X-Standin-State-Hash") !== expected.stateHash ||
-        response.headers.get("X-Standin-Revision") !== String(expected.revision)
+        ("baseSelectionHash" in expected
+          ? response.headers.get("X-Standin-Base-Selection-Hash") !== expected.baseSelectionHash
+          : response.headers.get("X-Standin-State-Hash") !== expected.stateHash ||
+            response.headers.get("X-Standin-Revision") !== String(expected.revision))
       )
         throw Error("skin asset binding changed");
       const bytes = await boundedBytes(response, a.bytes, signal);
       if (bytes.byteLength !== a.bytes) throw Error("skin asset length changed");
       await verifyBytes(bytes, a.sha256);
       signal.throwIfAborted();
+      if ("baseSelectionHash" in expected && !verifiedSelectionAssets.has(a.sha256)) {
+        while (
+          verifiedAssetBytes + bytes.byteLength > 64 * 1024 * 1024 ||
+          verifiedSelectionAssets.size >= 16
+        ) {
+          const oldest = verifiedSelectionAssets.keys().next().value;
+          if (!oldest) break;
+          verifiedAssetBytes -= verifiedSelectionAssets.get(oldest)!.byteLength;
+          verifiedSelectionAssets.delete(oldest);
+        }
+        verifiedSelectionAssets.set(a.sha256, bytes);
+        verifiedAssetBytes += bytes.byteLength;
+      }
       return bytes;
     }, signal);
   }
   const compressed = await fetchAsset(preview.uv, "application/gzip");
   const unpacked = await boundedBytes(
     new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))),
-    16 * 1024 * 1024,
+    64 * 1024 * 1024,
     signal,
   );
   const uv = skinUvSchema.parse(JSON.parse(new TextDecoder().decode(unpacked)));

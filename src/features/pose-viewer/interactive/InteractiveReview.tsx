@@ -1,3 +1,4 @@
+import { selectionSkinPreview } from "../skin/selectionSkinPreview";
 import { useEffect, useMemo, useState } from "react";
 import { ExpandablePose, type SurfaceView } from "./InteractivePose";
 import { prepareSurface, solvedCamera } from "./solved";
@@ -5,13 +6,11 @@ import type { ModelResult } from "./http";
 import type { StaticAsset } from "./contract";
 import { loadSkinSurface, sameSkin, type SkinPreview } from "../skin/skinPreview";
 import { selectedSkin, type Skin } from "../skin/skin";
-import { SkinControl } from "../skin/SkinControl";
-import type { SkinId } from "../skin/skinChoices";
 export type InteractiveReviewData = {
   skin?: Skin;
+  selectionSkin?: { location: string; candidateId: string; baseBinding: string };
   skinPreview?: SkinPreview;
   skinState?: { stateHash: string; revision: number };
-  skinControl?: { personIndex: number; available: readonly SkinId[] };
   outlineWidth?: number;
   model?: ModelResult;
   asset?: StaticAsset;
@@ -60,6 +59,32 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
     () => (previewJson ? JSON.parse(previewJson) : undefined),
     [previewJson],
   );
+  const location = data.selectionSkin?.location,
+    candidateId = data.selectionSkin?.candidateId,
+    baseBinding = data.selectionSkin?.baseBinding;
+  const [selectedPreview, setSelectedPreview] = useState<
+    Awaited<ReturnType<typeof selectionSkinPreview>> & { baseBinding: string; skin: Skin }
+  >();
+  useEffect(() => {
+    if (!chosenSkin || !location || !candidateId || !baseBinding || !source) return;
+    const abort = new AbortController();
+    void selectionSkinPreview(location, candidateId, chosenSkin, abort.signal)
+      .then((result) => {
+        if (!abort.signal.aborted) setSelectedPreview({ ...result, baseBinding, skin: chosenSkin });
+      })
+      .catch(() => {
+        if (!abort.signal.aborted) setSkinFailed(true);
+      });
+    return () => abort.abort();
+  }, [location, candidateId, baseBinding, chosenSkin, source]);
+  const localPreview =
+    selectedPreview &&
+    selectedPreview.baseBinding === baseBinding &&
+    chosenSkin &&
+    sameSkin(selectedPreview.skin, chosenSkin)
+      ? selectedPreview
+      : undefined;
+  const effectivePreview = localPreview?.skinPreview ?? preview;
   const stateHash = data.skinState?.stateHash,
     revision = data.skinState?.revision;
   const [overlay, setOverlay] = useState<{
@@ -69,34 +94,33 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
   }>();
   const [skinFailed, setSkinFailed] = useState(false);
   useEffect(() => {
-    setOverlay(undefined);
     setSkinFailed(false);
     if (
       !chosenSkin ||
       !source ||
-      !preview ||
-      !stateHash ||
-      !revision ||
+      !effectivePreview ||
+      (!localPreview && (!stateHash || !revision)) ||
       !data.model ||
-      !sameSkin(chosenSkin, preview.skin)
+      !sameSkin(chosenSkin, effectivePreview.skin)
     )
       return;
     const identity = data.model.state.identity;
     if (
       identity.scope !== "full" ||
-      identity.body.characterId !== preview.compatibility.characterId ||
-      identity.body.characterSha256 !== preview.compatibility.characterSha256 ||
-      data.model.packet.stateHash !== stateHash ||
-      data.model.packet.revision !== revision
+      identity.body.characterId !== effectivePreview.compatibility.characterId ||
+      identity.body.characterSha256 !== effectivePreview.compatibility.characterSha256 ||
+      (!localPreview &&
+        (data.model.packet.stateHash !== stateHash || data.model.packet.revision !== revision))
     ) {
       setSkinFailed(true);
       return;
     }
     const abort = new AbortController();
-    let result: Awaited<ReturnType<typeof loadSkinSurface>> | undefined;
     void loadSkinSurface(
-      preview,
-      { stateHash, revision },
+      effectivePreview,
+      localPreview
+        ? { baseSelectionHash: localPreview.baseSelectionHash }
+        : { stateHash: stateHash!, revision: revision! },
       source.body,
       data.model.state.model,
       abort.signal,
@@ -106,32 +130,28 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
           display.release();
           return;
         }
-        result = display;
-        setOverlay({ source, preview: preview!, display });
+        setOverlay({ source, preview: effectivePreview!, display });
       })
       .catch(() => {
         if (!abort.signal.aborted) setSkinFailed(true);
       });
     return () => {
       abort.abort();
-      result?.release();
     };
-  }, [source, chosenSkin, preview, stateHash, revision, data.model]);
+  }, [source, chosenSkin, effectivePreview, localPreview, stateHash, revision, data.model]);
+  useEffect(() => () => overlay?.display.release(), [overlay]);
   const display = useMemo(
     () =>
       chosenSkin
-        ? overlay &&
-          source &&
-          overlay.source === source &&
-          overlay.preview === preview &&
-          sameSkin(chosenSkin, overlay.preview.skin)
+        ? overlay && source && overlay.source === source
           ? { ...source!, body: overlay.display.body }
-          : undefined
+          : source
         : source,
-    [chosenSkin, overlay, source, preview],
+    [chosenSkin, overlay, source],
   );
   const skinNotice =
-    data.skin && !display
+    data.skin &&
+    (!overlay || overlay.source !== source || !sameSkin(data.skin, overlay.preview.skin))
       ? skinFailed
         ? "스킨을 불러오지 못했어요. 다시 시도해 주세요."
         : "스킨 불러오는 중"
@@ -140,18 +160,16 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
     <div className="relative h-full w-full">
       <ExpandablePose
         loading={
-          (!source && !data.asset && !data.failed) || (!!data.skin && !display && !skinFailed)
+          (!source && !data.asset && !data.failed) ||
+          (!!data.skin &&
+            (!overlay || overlay.source !== source || !sameSkin(data.skin, overlay.preview.skin)) &&
+            !skinFailed)
         }
         asset={data.model || data.skin ? undefined : data.asset}
         surface={display}
         viewKey={data.viewKey}
         outlineWidth={data.outlineWidth}
         onFrame={data.onFrame}
-        footer={
-          data.skinControl && (data.skinControl.available.length > 1 || data.skin) ? (
-            <SkinControl {...data.skinControl} />
-          ) : undefined
-        }
       />
       {(skinNotice || data.notice) && (
         <div

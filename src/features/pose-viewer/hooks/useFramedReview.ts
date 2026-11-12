@@ -154,7 +154,7 @@ export function useFramedReview(jobId: string | undefined) {
     }
     const appearance = outlineAppearance(outlines?.[item.personIndex] ?? 0);
     const skin = selectedSkin(skins?.[item.personIndex] ?? "default");
-    const binding = JSON.stringify([
+    const baseIdentity = [
       owner,
       item.personIndex,
       item.candidate.id,
@@ -163,12 +163,14 @@ export function useFramedReview(jobId: string | undefined) {
       item.refined,
       scope,
       bodyMode ? [body?.selectionRevision, body?.resolvedBody, body?.shape] : characterId,
-      handEntry?.selection,
-      appearance,
-      ...(skin ? [skin] : []),
-    ]);
+    ];
+    const poseBinding = JSON.stringify(baseIdentity);
+    const baseBinding = JSON.stringify([...baseIdentity, handEntry?.selection]);
+    const binding = JSON.stringify([...baseIdentity, appearance, ...(skin ? [skin] : [])]);
     return {
       binding,
+      baseBinding,
+      poseBinding,
       appearance,
       skin,
       editing: outlineEditing?.[item.personIndex] === true,
@@ -195,6 +197,8 @@ export function useFramedReview(jobId: string | undefined) {
     jobId: review.data?.jobId,
     requests: requests.map((r, i) => ({
       binding: r.binding,
+      baseBinding: r.baseBinding,
+      poseBinding: r.poseBinding,
       personIndex: review.items[i].personIndex,
       candidateId: review.items[i].candidate.id,
       ready: requestReady(r),
@@ -447,24 +451,26 @@ export function useFramedReview(jobId: string | undefined) {
       interactivePreview: interactiveEnabled
         ? ({
             skin: requests[index]!.skin,
+            selectionSkin: {
+              location: `/v1/analysis/jobs/${review.data?.jobId}/people/${item.personIndex}`,
+              candidateId: item.candidate.id,
+              baseBinding: requests[index]!.baseBinding,
+            },
             skinPreview:
-              interactive.snapshots[index]?.binding === requests[index]!.binding
-                ? interactive.snapshots[index]?.operation?.skinPreview
+              interactive.snapshots[index]?.modelBinding === requests[index]!.baseBinding
+                ? interactive.snapshots[index]?.modelOperation?.skinPreview
                 : undefined,
-            skinState: interactive.snapshots[index]?.operation?.stateHash
+            skinState: interactive.snapshots[index]?.modelOperation?.stateHash
               ? {
-                  stateHash: interactive.snapshots[index]!.operation!.stateHash!,
-                  revision: interactive.snapshots[index]!.operation!.revision,
+                  stateHash: interactive.snapshots[index]!.modelOperation!.stateHash!,
+                  revision: interactive.snapshots[index]!.modelOperation!.revision,
                 }
               : undefined,
-            skinControl: {
-              personIndex: item.personIndex,
-              available: interactive.snapshots[index]?.supportedSkins ?? ["default"],
-            },
             outlineWidth: outlines?.[item.personIndex] ?? 0,
             model:
+              interactive.snapshots[index]?.modelBinding === requests[index]!.baseBinding &&
               interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
-              item.candidate.id
+                item.candidate.id
                 ? interactive.snapshots[index]?.model
                 : undefined,
             asset: item.candidate.interactivePreview?.asset,

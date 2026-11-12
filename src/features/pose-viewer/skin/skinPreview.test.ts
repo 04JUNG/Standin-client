@@ -23,3 +23,11 @@ it("binds both asset URLs to this operation even for valid immutable hashes", ()
     checkSkinPreviewPaths({ ...v, texture: { ...v.texture, url: v.uv.url } }, root),
   ).toThrow();
 });
+
+it("pins current anatomy bone counts instead of accepting the previous 52-bone identity", () => {
+  const value = previewFixture();
+  expect(value.compatibility.bones).toBe(54);
+  expect(skinPreviewSchema.safeParse(value).success).toBe(true);
+  value.compatibility.bones = 52;
+  expect(skinPreviewSchema.safeParse(value).success).toBe(false);
+});

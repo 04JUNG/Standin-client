@@ -15,6 +15,7 @@ export type HumanTemplate = {
   joints: { role: string; parent: number; head: number[]; tail: number[] }[];
   profiles: Record<string, Record<string, string>>;
   meshes: {
+    uv?: number[];
     positions: number[];
     normals: number[];
     skinIndices: number[];
@@ -95,6 +96,11 @@ export function parseHumanTemplate(
       !m.positions.length ||
       !finite(m.normals) ||
       m.normals.length !== m.positions.length
+    )
+      return fail();
+    if (
+      m.uv &&
+      (!finite(m.uv) || m.uv.length !== m.triangles.length * 2 || m.uv.some((v) => v < -1 || v > 1))
     )
       return fail();
     const n = m.positions.length / 3;
