@@ -14,7 +14,7 @@ const asset = z
       .number()
       .int()
       .positive()
-      .max(2 * 1024 * 1024),
+      .max(16 * 1024 * 1024),
     url: ownedPath,
   })
   .strict();
@@ -109,7 +109,7 @@ export async function loadSkinSurface(
   const compressed = await fetchAsset(preview.uv, "application/gzip");
   const unpacked = await boundedBytes(
     new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))),
-    16 * 1024 * 1024,
+    64 * 1024 * 1024,
     signal,
   );
   const uv = skinUvSchema.parse(JSON.parse(new TextDecoder().decode(unpacked)));
