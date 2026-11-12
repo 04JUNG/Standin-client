@@ -11,8 +11,8 @@ export const skinUvSchema = z
     triangles: z
       .array(z.tuple([index, index, index]))
       .min(1)
-      .max(200000),
-    uv: z.array(pair).min(3).max(600000),
+      .max(333333),
+    uv: z.array(pair).min(3).max(1000000),
   })
   .strict()
   .refine((v) => v.uv.length === v.triangles.length * 3);

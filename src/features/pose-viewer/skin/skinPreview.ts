@@ -30,7 +30,7 @@ export const skinPreviewSchema = z
         characterSha256: digest,
         previewMesh: z.string().min(1).max(200),
         vertices: z.number().int().positive().max(500000),
-        bones: z.literal(52),
+        bones: z.number().int().positive().max(256),
         polygonIndicesSha256: digest,
         weightsSha256: digest,
         trianglesSha256: digest,
