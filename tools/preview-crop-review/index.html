@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>빠른 미리보기 수정 비교</title>
+    <style>
+      body {
+        margin: 16px;
+        background: #fafafa;
+        font: 15px system-ui;
+        color: #202c3b;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      canvas {
+        width: min(100%, 1200px);
+        height: auto;
+        display: block;
+      }
+      a {
+        display: inline-block;
+        margin: 12px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>빠른 미리보기 · 어깨 / 반신 절단면 비교</h1>
+    <p>같은 승인 모델과 BVH로 이전 경로와 수정 코드를 비교합니다. 서버 solve 없이 로컬 렌더링.</p>
+    <p id="status">렌더링 중</p>
+    <div id="output"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

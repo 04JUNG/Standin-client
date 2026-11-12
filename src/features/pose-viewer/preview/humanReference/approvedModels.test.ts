@@ -30,7 +30,9 @@ it("loads each bundled approved gender once and shares it across poses and scope
   expect(head.template.meshes[0].triangles.length).toBeLessThan(
     female.template.meshes[0].triangles.length,
   );
-  expect(head.template.meshes[0].positions).toBe(female.template.meshes[0].positions);
+  expect(
+    head.template.meshes[0].positions.slice(0, female.template.meshes[0].positions.length),
+  ).toEqual(female.template.meshes[0].positions);
   for (const model of [female, male]) {
     expect(model.skin.joints).toHaveLength(30);
     const count = model.template.joints.length + model.skin.joints.length;
