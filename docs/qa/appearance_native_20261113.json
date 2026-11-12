@@ -34,9 +34,37 @@
     "blender": "5.2.0 LTS",
     "files": [
       {
+        "file": "standin_job_29fd33f3-7376-43dc-9c66-d5890c30dd56_standin_pose_인물1 (1).fbx",
+        "bytes": 9067820,
+        "sha256": "8f2a55d332a8d47b820353b5a91e8ff93d3fe367232cf5a4b403cffb70b7d4e8",
+        "importFinished": true,
+        "meshes": 1,
+        "vertices": 139474,
+        "armatures": 1,
+        "bones": 67,
+        "materials": 1,
+        "images": 0,
+        "finiteVertices": true,
+        "passed": true
+      },
+      {
         "file": "standin_job_29fd33f3-7376-43dc-9c66-d5890c30dd56_standin_pose_인물1.fbx",
         "bytes": 9067820,
         "sha256": "8f2a55d332a8d47b820353b5a91e8ff93d3fe367232cf5a4b403cffb70b7d4e8",
+        "importFinished": true,
+        "meshes": 1,
+        "vertices": 139474,
+        "armatures": 1,
+        "bones": 67,
+        "materials": 1,
+        "images": 0,
+        "finiteVertices": true,
+        "passed": true
+      },
+      {
+        "file": "standin_job_29fd33f3-7376-43dc-9c66-d5890c30dd56_standin_pose_인물2 (1).fbx",
+        "bytes": 9056268,
+        "sha256": "4e445cad72ef3172f0bd3036db103c9f36afb84f8a44c4d4e56d3855a3005c24",
         "importFinished": true,
         "meshes": 1,
         "vertices": 139474,
@@ -58,6 +86,20 @@
         "bones": 67,
         "materials": 1,
         "images": 0,
+        "finiteVertices": true,
+        "passed": true
+      },
+      {
+        "file": "문장검색_standin_pose (1).fbx",
+        "bytes": 13783500,
+        "sha256": "7aa2e7a8e1c38bbe008ebe213ab3e87b8fc2a1893aa859c0a7aa633967821037",
+        "importFinished": true,
+        "meshes": 1,
+        "vertices": 139474,
+        "armatures": 1,
+        "bones": 67,
+        "materials": 2,
+        "images": 1,
         "finiteVertices": true,
         "passed": true
       },
@@ -205,5 +247,76 @@
       "sha256": "4e445cad72ef3172f0bd3036db103c9f36afb84f8a44c4d4e56d3855a3005c24"
     }
   ],
-  "latestIntegratedNativeRepeatPassed": true
+  "latestIntegratedNativeRepeatPassed": true,
+  "latestBffNativeFlesh": {
+    "file": "문장검색_standin_pose (1).fbx",
+    "bytes": 13783500,
+    "sha256": "7aa2e7a8e1c38bbe008ebe213ab3e87b8fc2a1893aa859c0a7aa633967821037",
+    "receiptAndDeliveryMatch": true,
+    "operationId": "op_a91c6852-fd15-40eb-aaa6-d235192e7a84",
+    "bffCommit": "aa3803c8d2920813ed38fd118b073fd7a99b166f",
+    "bffMain": "295507f",
+    "pr200": "8106d30",
+    "pr201": "46caf21",
+    "metrics": [
+      {
+        "event": "artifact_prepare_started",
+        "stage": "preview",
+        "elapsedMs": 32
+      },
+      {
+        "event": "artifact_converter_solve",
+        "stage": "preview",
+        "elapsedMs": 24862.512166
+      },
+      {
+        "event": "artifact_converter_model",
+        "stage": "preview",
+        "elapsedMs": 20.230000000010477
+      },
+      {
+        "event": "artifact_packet_validation",
+        "stage": "preview",
+        "elapsedMs": 144.40420900000026
+      },
+      {
+        "event": "artifact_prepare_ready",
+        "stage": "preview",
+        "elapsedMs": 25069
+      },
+      {
+        "event": "artifact_model_delivery_validation",
+        "stage": "validation",
+        "elapsedMs": 5.8211670000018785
+      },
+      {
+        "event": "artifact_prepare_started",
+        "stage": "export",
+        "elapsedMs": 25788
+      },
+      {
+        "event": "artifact_converter_export",
+        "stage": "export",
+        "elapsedMs": 3988.0085830000025
+      },
+      {
+        "event": "artifact_prepare_ready",
+        "stage": "export",
+        "elapsedMs": 14713
+      }
+    ],
+    "uvEvents": [
+      {
+        "ts": "2026-11-12T16:41:26.661Z",
+        "level": "info",
+        "service": "bff",
+        "version": "development",
+        "type": "skin_uv_verification",
+        "durationMs": 366.27683299999626,
+        "verdict": "ok",
+        "payloadBytes": 8844484
+      }
+    ],
+    "blenderReloadPassed": true
+  }
 }
