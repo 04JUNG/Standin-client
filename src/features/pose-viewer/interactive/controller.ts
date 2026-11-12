@@ -68,6 +68,7 @@ export class InteractiveController {
   private desired?: {
     binding: string;
     baseBinding: string;
+    poseBinding: string;
     candidateId: string;
     ready: boolean;
     appearance?: Appearance;
@@ -99,6 +100,7 @@ export class InteractiveController {
     appearance?: Appearance,
     skin?: Skin,
     baseBinding = binding,
+    poseBinding = baseBinding,
   ) {
     if (
       this.desired?.binding === binding &&
@@ -108,8 +110,9 @@ export class InteractiveController {
     )
       return;
     const changed = this.desired?.binding !== binding;
-    const baseChanged = this.desired?.baseBinding !== baseBinding;
-    this.desired = { binding, baseBinding, candidateId, ready, appearance, skin };
+    const poseChanged = this.desired?.poseBinding !== poseBinding;
+    const baseChanged = poseChanged || this.desired?.baseBinding !== baseBinding;
+    this.desired = { binding, baseBinding, poseBinding, candidateId, ready, appearance, skin };
     this.generation++;
     this.controller?.abort();
     clearTimeout(this.timer);
@@ -125,9 +128,9 @@ export class InteractiveController {
             model: undefined,
             modelBinding: undefined,
             modelOperation: undefined,
-            localSurface: undefined,
           }
         : {}),
+      ...(poseChanged ? { localSurface: undefined } : {}),
       error: false,
       failure: undefined,
       modelError: false,

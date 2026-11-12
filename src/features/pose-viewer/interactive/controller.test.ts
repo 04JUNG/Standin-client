@@ -281,3 +281,14 @@ it("keeps a same-base model for appearance changes while revoking download readi
   expect(client.snapshot().model).toBeUndefined();
   client.dispose();
 });
+it("preserves a local hand draft only while the pose and body identity remain unchanged", () => {
+  const { client } = harness();
+  client.select("original", "candidate", false, undefined, undefined, "hands-a", "body-a");
+  const surface = { body: {}, camera: {} } as Parameters<InteractiveController["localDraft"]>[0];
+  client.localDraft(surface);
+  client.select("edited-hand", "candidate", false, undefined, undefined, "hands-b", "body-a");
+  expect(client.snapshot().localSurface).toBe(surface);
+  client.select("edited-body", "candidate", false, undefined, undefined, "hands-b", "body-b");
+  expect(client.snapshot().localSurface).toBeUndefined();
+  client.dispose();
+});
