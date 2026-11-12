@@ -5,13 +5,10 @@ import type { ModelResult } from "./http";
 import type { StaticAsset } from "./contract";
 import { loadSkinSurface, sameSkin, type SkinPreview } from "../skin/skinPreview";
 import { selectedSkin, type Skin } from "../skin/skin";
-import { SkinControl } from "../skin/SkinControl";
-import type { SkinId } from "../skin/skinChoices";
 export type InteractiveReviewData = {
   skin?: Skin;
   skinPreview?: SkinPreview;
   skinState?: { stateHash: string; revision: number };
-  skinControl?: { personIndex: number; available: readonly SkinId[] };
   outlineWidth?: number;
   model?: ModelResult;
   asset?: StaticAsset;
@@ -147,11 +144,6 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
         viewKey={data.viewKey}
         outlineWidth={data.outlineWidth}
         onFrame={data.onFrame}
-        footer={
-          data.skinControl && (data.skinControl.available.length > 1 || data.skin) ? (
-            <SkinControl {...data.skinControl} />
-          ) : undefined
-        }
       />
       {(skinNotice || data.notice) && (
         <div

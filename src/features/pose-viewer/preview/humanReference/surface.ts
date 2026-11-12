@@ -6,6 +6,7 @@ import { referenceMesh } from "./referenceMesh";
 import { sourceFingerPose, type FingerSkin } from "./sourceFingers";
 import { validRotation } from "../modelContract";
 import { correctApprovedPose, type Correctives } from "./correctives";
+import { fitOffsetBody } from "./offsetBody";
 
 export function referenceSurface(
   template: HumanTemplate,
@@ -14,11 +15,14 @@ export function referenceSurface(
   corrections?: Correctives,
 ) {
   let base = referencePose(template, text, !!corrections);
-  if (corrections) {
+  // The reviewed geometry already includes the authored shoulder placement.
+  // Applying the neutral-rig drivers would rebuild those sockets again.
+  if (corrections && !base.bakedOffsets) {
     const corrected = correctApprovedPose(template, base, corrections);
     template = corrected.template;
     base = corrected.pose;
   }
+  base = fitOffsetBody(template, base);
   const fingers = skin && sourceFingerPose(template, text, base, skin);
   const surface = fingers
     ? referenceMesh(fingers.template, fingers.matrices, fingers.wrists)
@@ -26,6 +30,10 @@ export function referenceSurface(
   // PSDs alter the surface, so neutral normals no longer describe the joints.
   if (corrections)
     for (const mesh of surface.body.children) (mesh as THREE.Mesh).geometry.computeVertexNormals();
+  for (const [i, child] of surface.body.children.entries()) {
+    const uv = template.meshes[i].uv;
+    if (uv) (child as THREE.Mesh).geometry.userData.previewCornerUv = uv;
+  }
   return surface;
 }
 

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it } from "vitest";
-import { fireEvent, render, screen, cleanup } from "@testing-library/react";
+import { fireEvent, render, screen, cleanup, within } from "@testing-library/react";
 import { SkinControl } from "./SkinControl";
 import { SKIN_CHOICES } from "./skinChoices";
 import { usePoseSelectionStore as store } from "../store/poseSelectionStore";
@@ -7,26 +7,52 @@ beforeEach(() => {
   cleanup();
   store.getState().clearSelection();
 });
-it("offers the existing five named skins and stores a supported per-person choice", () => {
-  render(<SkinControl personIndex={1} available={SKIN_CHOICES.map((s) => s.id)} />);
-  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+const all = SKIN_CHOICES.map((s) => s.id);
+const click = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
+it("keeps flesh while switching mutually exclusive lines and toggles a line off", () => {
+  render(<SkinControl personIndex={1} available={all} />);
+  expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual([
     "기본",
-    "회색 가이드",
     "살색",
-    "살색 가이드",
+    "가이드선",
     "근육선",
   ]);
-  fireEvent.change(screen.getByRole("combobox", { name: "인물 2 스킨" }), {
-    target: { value: "flesh-guide" },
-  });
-  expect(store.getState().skinByPerson).toEqual({ 1: "flesh-guide" });
+  click("살색");
+  click("근육선");
+  expect(store.getState().skinByPerson[1]).toBe("flesh-muscle");
+  expect(screen.getByRole("button", { name: "살색" })).toHaveAttribute("aria-pressed", "true");
+  click("가이드선");
+  expect(store.getState().skinByPerson[1]).toBe("flesh-guide");
+  expect(screen.getByRole("button", { name: "근육선" })).toHaveAttribute("aria-pressed", "false");
+  click("가이드선");
+  expect(store.getState().skinByPerson[1]).toBe("flesh");
+  click("근육선");
+  click("근육선");
+  expect(store.getState().skinByPerson[1]).toBe("flesh");
 });
-it("does not select an unsupported skin and always permits returning to default", () => {
+it("preserves lines when changing base and shares the result with the final preview controls", () => {
+  render(
+    <>
+      <SkinControl personIndex={0} available={all} />
+      <SkinControl personIndex={0} available={all} />
+    </>,
+  );
+  const [large, final] = screen.getAllByRole("group");
+  fireEvent.click(within(large).getByRole("button", { name: "근육선" }));
+  fireEvent.click(within(large).getByRole("button", { name: "살색" }));
+  expect(store.getState().skinByPerson[0]).toBe("flesh-muscle");
+  expect(within(final).getByRole("button", { name: "살색" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  fireEvent.click(within(final).getByRole("button", { name: "기본" }));
+  expect(store.getState().skinByPerson[0]).toBe("muscle");
+});
+it("disables unavailable combinations and still allows clearing a stale line choice", () => {
   store.getState().setPersonSkin(0, "muscle");
   render(<SkinControl personIndex={0} available={[]} />);
-  expect(screen.getByRole("option", { name: "살색" })).toBeDisabled();
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "flesh" } });
-  expect(store.getState().skinByPerson[0]).toBe("muscle");
-  fireEvent.change(screen.getByRole("combobox"), { target: { value: "default" } });
+  expect(screen.getByRole("button", { name: "살색" })).toBeDisabled();
+  click("근육선");
   expect(store.getState().skinByPerson).toEqual({});
 });

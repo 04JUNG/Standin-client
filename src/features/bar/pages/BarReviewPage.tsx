@@ -1,5 +1,3 @@
-import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
-import { SkinControl } from "@/features/pose-viewer/skin/SkinControl";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
@@ -71,7 +69,7 @@ export function BarReviewPage() {
               {items.map((item) => (
                 <li
                   key={item.personIndex}
-                  className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[320px]" : "max-w-[256px]"}`}
+                  className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[192px]" : "max-w-[192px]"}`}
                 >
                   <ReviewPosePreview
                     telemetryJobId={hands?.jobId}
@@ -88,12 +86,7 @@ export function BarReviewPage() {
                     error={previewError}
                     onModelStatus={item.onModelStatus}
                   />
-                  {(item.outlineAvailable || item.outlineWidth > 0) && (
-                    <OutlineControl personIndex={item.personIndex} />
-                  )}
-                  {(item.skinAvailable || item.skin) && (
-                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
-                  )}
+
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">
                       포즈만 확인하는 모습이에요. BVH에는 체형{item.includesHands ? "·손 모양" : ""}{" "}

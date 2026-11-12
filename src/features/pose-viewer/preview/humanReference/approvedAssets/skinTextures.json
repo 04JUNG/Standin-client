@@ -1,0 +1,46 @@
+{
+  "male": {
+    "gray-guide": {
+      "bytes": 147170,
+      "sha256": "517f839e6862fbb16a96fe9a1763f20fea769cc71f3d5144880bc0401996a8d1"
+    },
+    "flesh": {
+      "bytes": 16918,
+      "sha256": "080c7e83a10c9139bd91a49eb9125f9caf5706838169c2919f0455fa698ae5b5"
+    },
+    "flesh-guide": {
+      "bytes": 150033,
+      "sha256": "12d7b8c576dbb94c7c13cd764e7f41026a3289e3c7c6b3f71c7125170799e927"
+    },
+    "muscle": {
+      "bytes": 93411,
+      "sha256": "9d7d3cb808682ff21e8157eb076e2a551c1f89997b208e2403553ae9fe93135d"
+    },
+    "flesh-muscle": {
+      "bytes": 94141,
+      "sha256": "11c69da227b96d9bafefd33f64689b2813b0b7833f8c4914f53b8afd4923bb16"
+    }
+  },
+  "female": {
+    "gray-guide": {
+      "bytes": 148330,
+      "sha256": "11583dc9a8cf780efb0821bd47e3a4936cd0f335d86e32955ce5456395e15ebc"
+    },
+    "flesh": {
+      "bytes": 16918,
+      "sha256": "080c7e83a10c9139bd91a49eb9125f9caf5706838169c2919f0455fa698ae5b5"
+    },
+    "flesh-guide": {
+      "bytes": 150295,
+      "sha256": "56140b46009ce64f55010f105a7ec213d8cad7c9dba40a5f2dddd4176cd9a692"
+    },
+    "muscle": {
+      "bytes": 93273,
+      "sha256": "69bf3f77aaf518c1a3bf75309fecc878120ed0df0e490a33b048070be58a63b4"
+    },
+    "flesh-muscle": {
+      "bytes": 93729,
+      "sha256": "0da20074a24c94b5a463788ab07ed153a91d2ad10ced16c3f801e350e4b11d37"
+    }
+  }
+}
