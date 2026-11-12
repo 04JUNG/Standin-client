@@ -2,6 +2,7 @@ import type { SkinId } from "../skin/skinChoices";
 import { sameSkin, type Skin } from "../skin/skin";
 import { sameAppearance, type Appearance } from "../outline/appearance";
 import { ApiError } from "@/shared/api/errors";
+import { pollWithRecovery, transientPollError } from "./pollRecovery";
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
 import { localHandSurface, solvedCamera, type LoadedVariants } from "./solved";
@@ -337,6 +338,7 @@ export class InteractiveController {
       let requestedExport = false,
         requestedModel = false;
       const inputAt = performance.now();
+      const pollingDeadline = Date.now() + 10 * 60_000;
       for (;;) {
         signal.throwIfAborted();
         if (generation !== this.generation) return;
@@ -434,7 +436,11 @@ export class InteractiveController {
         }
         if (op.exportState === "failed") return;
         await wait(this.pollingMs, signal);
-        const next = await this.transport.poll(this.target, op, signal);
+        const next = await pollWithRecovery(
+          (attemptSignal) => this.transport.poll(this.target, op, attemptSignal),
+          signal,
+          Math.min(pollingDeadline, Date.parse(op.expiresAt)),
+        );
         if (next.eventSequence < op.eventSequence) continue;
         if (!this.accept(next, op, generation)) throw Error("stale operation event");
         op = next;
@@ -463,6 +469,11 @@ export class InteractiveController {
   }
   retry() {
     if (!this.desired?.ready) return;
+    // After a read outage, recover the accepted operation before considering a create.
+    if (this.value.operation && transientPollError(this.value.failure)) {
+      this.recovered = false;
+      this.mutation = undefined;
+    }
     // Retrying an uncertain POST reuses its exact body/idempotency key.
     this.generation++;
     this.controller?.abort();
