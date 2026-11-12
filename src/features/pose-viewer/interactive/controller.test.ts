@@ -59,6 +59,71 @@ function harness() {
   };
 }
 afterEach(() => vi.useRealTimers());
+it("keeps preparing the same accepted operation across transient status failures", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.poll)
+    .mockRejectedValueOnce(new ApiError(503, "INTERACTIVE_UNAVAILABLE", ""))
+    .mockRejectedValueOnce(new ApiError(503, "INTERACTIVE_CONVERTER_UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(260);
+  const accepted = client.snapshot().operation;
+  expect(accepted).toBeDefined();
+  expect(client.snapshot().error).toBe(false);
+  expect(client.snapshot().previewState).toBe("solving");
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(vi.mocked(transport.poll).mock.calls.map(([, op]) => op)).toEqual([
+    accepted,
+    accepted,
+    accepted,
+  ]);
+  expect(transport.prepare).toHaveBeenCalledTimes(1);
+  expect(transport.export).not.toHaveBeenCalled();
+  expect(client.ready("one")).toBe(true);
+  client.invalidate();
+});
+it("waits for the accepted export to finish when status is unavailable for 51 seconds", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  const readyAfter = Date.now() + 51000;
+  vi.mocked(transport.poll).mockImplementation(async (_target, op) => {
+    if (op.previewState === "solving") return {
+      ...op,
+      previewState: "authoritative",
+      stateHash: "b".repeat(64),
+      eventSequence: op.eventSequence + 1,
+    };
+    if (Date.now() < readyAfter) throw new ApiError(503, "HTTP_503", "");
+    return {
+      ...op,
+      exportState: "ready",
+      eventSequence: op.eventSequence + 1,
+      fileUrl: "/v1/file",
+    };
+  });
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(49000);
+  expect(client.snapshot()).toMatchObject({ error: false, exportState: "queued" });
+  expect(transport.export).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(8000);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledTimes(1);
+  expect(transport.export).toHaveBeenCalledTimes(1);
+  client.invalidate();
+});
+it("stops a status retry when the accepted operation is superseded locally", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.poll).mockRejectedValueOnce(new ApiError(503, "INTERACTIVE_UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(260);
+  client.select("two", "other-candidate", false);
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(transport.poll).toHaveBeenCalledTimes(1);
+  expect(client.ready("one")).toBe(false);
+  client.invalidate();
+});
+
 it("debounces server preparation only, invalidates old-ready immediately, and keeps file ready despite a model failure", async () => {
   vi.useFakeTimers();
   const { client, transport } = harness();

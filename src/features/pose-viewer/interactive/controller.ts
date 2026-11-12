@@ -18,6 +18,10 @@ export type PreviewState = "loading" | "local-draft" | "solving" | "authoritativ
 const preparedAtlases = new Map<InteractiveController, LoadedVariants>();
 const expiredError = (error: unknown) =>
   !!error && typeof error === "object" && "code" in error && error.code === "INTERACTIVE_EXPIRED";
+const retryablePollError = (error: unknown) =>
+  error instanceof ApiError &&
+  [502, 503, 504].includes(error.status) &&
+  error.code !== "INTERACTIVE_DISABLED";
 export type ExportState =
   "not-requested" | "queued" | "building" | "validating" | "ready" | "failed" | "superseded";
 export type InteractiveSnapshot = {
@@ -245,6 +249,24 @@ export class InteractiveController {
     if (Date.parse(op.expiresAt) <= Date.now()) return false;
     return true;
   }
+  private async pollCurrent(op: Operation, signal: AbortSignal) {
+    let delayMs = this.pollingMs;
+    const expiresAt = Date.parse(op.expiresAt);
+    for (;;) {
+      await wait(Math.max(0, Math.min(delayMs, expiresAt - Date.now())), signal);
+      signal.throwIfAborted();
+      if (Date.now() >= expiresAt) throw new ApiError(410, "INTERACTIVE_EXPIRED", "");
+      try {
+        return await this.transport.poll(this.target, op, signal);
+      } catch (error) {
+        if (!retryablePollError(error)) throw error;
+        // The accepted operation can still be running. Back off and read the
+        // same revision without sending another prepare or export request.
+        delayMs = Math.min(8000, Math.max(1000, delayMs * 2));
+      }
+    }
+  }
+
   private async run(generation: number) {
     const desired = this.desired;
     if (!desired?.ready || generation !== this.generation) return;
@@ -433,8 +455,7 @@ export class InteractiveController {
           return;
         }
         if (op.exportState === "failed") return;
-        await wait(this.pollingMs, signal);
-        const next = await this.transport.poll(this.target, op, signal);
+        const next = await this.pollCurrent(op, signal);
         if (next.eventSequence < op.eventSequence) continue;
         if (!this.accept(next, op, generation)) throw Error("stale operation event");
         op = next;
