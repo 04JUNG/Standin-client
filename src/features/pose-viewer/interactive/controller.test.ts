@@ -60,7 +60,175 @@ function harness() {
     client: new InteractiveController({ jobId: "job_test", personIndex: 0 }, transport, 250, 10),
   };
 }
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+function verifiedGeometryHarness() {
+  const { client, transport } = harness();
+  let geometryHash = "d".repeat(64);
+  let runtimeRevision = "e".repeat(64);
+  const model = {
+    packet: { stateHash: "b".repeat(64) },
+    state: { identity: { selection: { candidate: "candidate" } } },
+    frame: {},
+  } as Awaited<ReturnType<InteractiveTransport["model"]>>;
+  vi.mocked(transport.model).mockResolvedValue(model);
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    appearanceExport: { version: "fbx-outline-v1", available: true },
+    skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+  });
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    appearance: body.appearance,
+    skin: body.skin,
+  }));
+  vi.mocked(transport.poll).mockImplementation(async (_target, op) => ({
+    ...op,
+    stateHash: "b".repeat(64),
+    previewState: "authoritative",
+    exportState: op.previewState === "solving" ? "not-requested" : "ready",
+    eventSequence: op.eventSequence + 1,
+    exportReceipt:
+      op.previewState === "solving"
+        ? null
+        : {
+            schema: "interactive-fbx-receipt-v1",
+            operationId: op.operationId,
+            revision: op.revision,
+            stateHash: "b".repeat(64),
+            artifactSha256: "c".repeat(64),
+            artifactBytes: 2,
+            runtimeRevision,
+            packetModelSha256: geometryHash,
+            solverVersion: "chain-transport-v3.2.5",
+            validationVersion: "final-fbx-v1",
+            initialFbxRequired: true,
+            nativeSaved: false,
+          },
+  }));
+  return {
+    client,
+    transport,
+    model,
+    changeRuntime: () => {
+      runtimeRevision = "f".repeat(64);
+    },
+    changeGeometry: () => {
+      geometryHash = "f".repeat(64);
+    },
+  };
+}
+
+it("keeps the displayed geometry across appearance invalidation and skips the packet only with a fresh matching receipt", async () => {
+  vi.useFakeTimers();
+  const { client, transport, model } = verifiedGeometryHarness();
+  client.select("plain", "candidate", true, undefined, undefined, "base-a");
+  await vi.advanceTimersByTimeAsync(290);
+  expect(client.ready("plain")).toBe(true);
+  expect(transport.model).toHaveBeenCalledOnce();
+  client.invalidateAppearance();
+  expect(client.snapshot().model).toBe(model);
+  expect(client.snapshot().modelBinding).toBe("base-a");
+  await expect(client.download("plain", new AbortController().signal)).rejects.toThrow();
+  expect(transport.cancel).not.toHaveBeenCalled();
+  client.select(
+    "flesh",
+    "candidate",
+    true,
+    undefined,
+    { version: "fbx-skin-v1", id: "flesh" },
+    "base-a",
+  );
+  await vi.advanceTimersByTimeAsync(290);
+  expect(client.ready("flesh")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledTimes(2); // A new file still needs current authority.
+  expect(transport.export).toHaveBeenCalledTimes(2);
+  expect(transport.model).toHaveBeenCalledOnce();
+  expect(client.snapshot().model).toBe(model);
+  client.dispose();
+});
+
+it("reloads geometry when the new receipt differs, and when hands/body change", async () => {
+  vi.useFakeTimers();
+  const { client, transport, changeGeometry } = verifiedGeometryHarness();
+  client.select("plain", "candidate", true, undefined, undefined, "base-a");
+  await vi.advanceTimersByTimeAsync(290);
+  changeGeometry();
+  client.invalidateAppearance();
+  client.select(
+    "outline",
+    "candidate",
+    true,
+    { version: "fbx-outline-v1", width: 2 },
+    undefined,
+    "base-a",
+  );
+  await vi.advanceTimersByTimeAsync(290);
+  expect(transport.model).toHaveBeenCalledTimes(2);
+  client.select("hands", "candidate", true, undefined, undefined, "base-new-hands", "pose-a");
+  expect(client.snapshot().model).toBeUndefined();
+  await vi.advanceTimersByTimeAsync(290);
+  expect(transport.model).toHaveBeenCalledTimes(3);
+  client.dispose();
+});
+
+it("rechecks skin capability for a new valid choice after a previous unsupported choice", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = verifiedGeometryHarness();
+  vi.mocked(transport.head).mockResolvedValueOnce({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: { version: "fbx-skin-v1", available: false, supportedIds: ["default"] },
+  });
+  client.select(
+    "unsupported",
+    "candidate",
+    true,
+    undefined,
+    { version: "fbx-skin-v1", id: "gray-guide" },
+    "base-a",
+  );
+  await vi.advanceTimersByTimeAsync(290);
+  expect(client.snapshot().error).toBe(true);
+  client.select(
+    "flesh",
+    "candidate",
+    true,
+    undefined,
+    { version: "fbx-skin-v1", id: "flesh" },
+    "base-a",
+  );
+  await vi.advanceTimersByTimeAsync(290);
+  expect(transport.head).toHaveBeenCalledTimes(2);
+  expect(client.ready("flesh")).toBe(true);
+  client.dispose();
+});
+
+it("requires a new packet if runtime changes even when geometry SHA is unchanged", async () => {
+  vi.useFakeTimers();
+  const { client, transport, changeRuntime } = verifiedGeometryHarness();
+  client.select("plain", "candidate", true, undefined, undefined, "base-a");
+  await vi.advanceTimersByTimeAsync(290);
+  changeRuntime();
+  client.invalidateAppearance();
+  client.select(
+    "outline",
+    "candidate",
+    true,
+    { version: "fbx-outline-v1", width: 2 },
+    undefined,
+    "base-a",
+  );
+  await vi.advanceTimersByTimeAsync(290);
+  expect(transport.model).toHaveBeenCalledTimes(2);
+  client.dispose();
+});
 
 it("keeps the accepted operation while polling returns 503 for 51 seconds", async () => {
   vi.useFakeTimers();
@@ -81,7 +249,9 @@ it("keeps the accepted operation while polling returns 503 for 51 seconds", asyn
   expect(client.ready("one")).toBe(true);
   expect(transport.prepare).toHaveBeenCalledOnce();
   expect(transport.cancel).not.toHaveBeenCalled();
-  expect(vi.mocked(transport.poll).mock.calls.every(([, op]) => op.operationId === "op_1")).toBe(true);
+  expect(vi.mocked(transport.poll).mock.calls.every(([, op]) => op.operationId === "op_1")).toBe(
+    true,
+  );
   client.dispose();
 });
 
@@ -89,7 +259,8 @@ it("resumes the accepted head after retry exhaustion without creating another jo
   vi.useFakeTimers();
   const { client, transport } = harness();
   vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
-    ...operation(body), expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    ...operation(body),
+    expiresAt: new Date(Date.now() + 600_000).toISOString(),
   }));
   const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
   vi.mocked(transport.poll).mockRejectedValue(new ApiError(503, "UNAVAILABLE", ""));
@@ -98,7 +269,9 @@ it("resumes the accepted head after retry exhaustion without creating another jo
   expect(client.snapshot().failure).toMatchObject({ code: "INTERACTIVE_POLL_TIMEOUT" });
   const accepted = client.snapshot().operation!;
   vi.mocked(transport.head).mockResolvedValueOnce({
-    currentRevision: accepted.revision, currentStateHash: accepted.stateHash, operation: accepted,
+    currentRevision: accepted.revision,
+    currentStateHash: accepted.stateHash,
+    operation: accepted,
   });
   vi.mocked(transport.poll).mockImplementation(normalPoll);
   client.retry();
@@ -112,10 +285,16 @@ it("resumes the accepted head after retry exhaustion without creating another jo
 it("waits through 180-second preparation with a late 503 and keeps the same operation", async () => {
   vi.useFakeTimers();
   const { transport } = harness();
-  const client = new InteractiveController({ jobId: "job_test", personIndex: 0 }, transport, 250, 1000);
+  const client = new InteractiveController(
+    { jobId: "job_test", personIndex: 0 },
+    transport,
+    250,
+    1000,
+  );
   const started = Date.now();
   vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
-    ...operation(body), expiresAt: new Date(started + 600_000).toISOString(),
+    ...operation(body),
+    expiresAt: new Date(started + 600_000).toISOString(),
   }));
   const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
   vi.mocked(transport.poll).mockImplementation(async (...args) => {
@@ -387,8 +566,11 @@ it.each(["skin", "outline"] as const)(
     const job = "job_appearance_model";
     const old = usePoseSelectionStore.getState();
     usePoseSelectionStore.setState({
-      serverJobId: job, selectedByPerson: { 0: "candidate" }, skinByPerson: {},
-      outlineByPerson: {}, outlineEditingByPerson: {},
+      serverJobId: job,
+      selectedByPerson: { 0: "candidate" },
+      skinByPerson: {},
+      outlineByPerson: {},
+      outlineEditingByPerson: {},
     });
     const client = interactiveController("owner", job, 0);
     try {
@@ -404,7 +586,9 @@ it.each(["skin", "outline"] as const)(
       );
       expect(file).not.toHaveBeenCalled();
       client.select(
-        kind, "candidate", false,
+        kind,
+        "candidate",
+        false,
         kind === "outline" ? { version: "fbx-outline-v1", width: 1 } : undefined,
         kind === "skin" ? { version: "fbx-skin-v1", id: "flesh" } : undefined,
         "base-a",

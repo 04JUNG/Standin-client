@@ -50,7 +50,7 @@ function ensureSubscriptions() {
       const candidate = next.selectedByPerson[entry.personIndex];
       const baseChanged =
         job !== entry.jobId ||
-        (s.operation && candidate !== s.operation.candidateId) ||
+        candidate !== prev.selectedByPerson[entry.personIndex] ||
         next.characterId !== prev.characterId ||
         next.characterByPerson[entry.personIndex] !== prev.characterByPerson[entry.personIndex] ||
         next.refineByPerson[entry.personIndex] !== prev.refineByPerson[entry.personIndex];
