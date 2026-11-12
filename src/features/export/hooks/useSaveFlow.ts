@@ -1,3 +1,4 @@
+import { fetchPreparedFbxResponse } from "../lib/preparedFbx";
 import { interactiveController } from "@/features/pose-viewer/interactive/session";
 import { selectedSkin, sameSkin } from "@/features/pose-viewer/skin/skin";
 import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
@@ -138,7 +139,9 @@ async function resolvePoseBytes(
           )
         : url;
     onDownloadPath?.(pinnedUrl);
-    const bytes = await apiFetchBytes(pinnedUrl, { auth: false, ...(signal ? { signal } : {}) });
+    const bytes = new URL(pinnedUrl, "https://standin.invalid").searchParams.has("artifactReceipt")
+      ? new Uint8Array(await (await fetchPreparedFbxResponse(pinnedUrl, signal)).arrayBuffer())
+      : await apiFetchBytes(pinnedUrl, { auth: false, ...(signal ? { signal } : {}) });
     const digest =
       scope && format === "fbx"
         ? reviewedArtifactSha(framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`)

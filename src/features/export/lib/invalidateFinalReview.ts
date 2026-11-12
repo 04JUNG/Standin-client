@@ -1,3 +1,4 @@
+import { forgetPreparedFbx } from "./preparedFbx";
 import { invalidateInteractiveJob } from "@/features/pose-viewer/interactive/session";
 import { useExportStore } from "../store/exportStore";
 import type { QueryClient } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ export function invalidateFinalReview(
   preserveLocalHands = false,
 ) {
   forgetFramedJob(job);
+  forgetPreparedFbx(job);
   invalidateInteractiveJob(job, preserveLocalHands);
   useExportStore.setState({
     partialConsentBinding: undefined,
@@ -20,7 +22,7 @@ export function invalidateFinalReview(
       if (key[0] === "prepared-scene" && key[2] === job) return true;
       if (key[0] === "body" && key[2] === job && key[4] === "review") return true;
       if (
-        !["framed-preview", "framed-image"].includes(String(key[0])) ||
+        !["framed-preview", "framed-image", "framed-model"].includes(String(key[0])) ||
         typeof key[2] !== "string"
       )
         return false;
