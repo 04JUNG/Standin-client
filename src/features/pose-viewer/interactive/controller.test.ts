@@ -255,3 +255,29 @@ it("refuses skin preparation on an older server without a skin capability", asyn
   expect(client.ready("skin-flesh")).toBe(false);
   client.invalidate();
 });
+it("keeps a same-base model for appearance changes while revoking download readiness, but drops it on body changes", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  const model = { packet: { stateHash: "b".repeat(64) }, frame: {} } as Awaited<
+    ReturnType<InteractiveTransport["model"]>
+  >;
+  vi.mocked(transport.model).mockResolvedValue(model);
+  client.select("plain", "candidate", true, undefined, undefined, "base-a");
+  await vi.advanceTimersByTimeAsync(280);
+  expect(client.snapshot().model).toBe(model);
+  expect(client.ready("plain")).toBe(true);
+  client.select(
+    "outline",
+    "candidate",
+    false,
+    { version: "fbx-outline-v1", width: 1 },
+    undefined,
+    "base-a",
+  );
+  expect(client.snapshot().model).toBe(model);
+  expect(client.ready("outline")).toBe(false);
+  expect(client.snapshot().operation).toBeUndefined();
+  client.select("new-body", "candidate", false, undefined, undefined, "base-b");
+  expect(client.snapshot().model).toBeUndefined();
+  client.dispose();
+});
