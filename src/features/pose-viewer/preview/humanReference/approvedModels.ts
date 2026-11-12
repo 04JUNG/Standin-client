@@ -3,6 +3,7 @@ import { referenceDigest, boundedReferenceBytes } from "../../api/humanReference
 import { parseHumanTemplate, humanScopes, type HumanScope, type HumanTemplate } from "./template";
 import type { FingerSkin } from "./sourceFingers";
 import type { Correctives } from "./correctives";
+import { cropReferenceMesh, mixWeights } from "./crop";
 import manifest from "./approvedAssets/manifest.json";
 import female from "./approvedAssets/female.json.gz?url";
 import male from "./approvedAssets/male.json.gz?url";
@@ -11,7 +12,7 @@ export type PreviewGender = "female" | "male";
 export type ApprovedModel = { template: HumanTemplate; skin: FingerSkin; corrections: Correctives };
 const urls = { female, male };
 const models = new Map<PreviewGender, Promise<ApprovedModel>>();
-const scopes = new WeakMap<HumanTemplate, Map<HumanScope, HumanTemplate>>();
+const scopes = new WeakMap<HumanTemplate, Map<HumanScope, ApprovedModel>>();
 
 // Static, app-bundled data: fetched and parsed once per gender, never sent to Blender.
 async function readModel(gender: PreviewGender): Promise<ApprovedModel> {
@@ -40,8 +41,9 @@ async function readModel(gender: PreviewGender): Promise<ApprovedModel> {
   return { template, skin: decoded.skin, corrections: decoded.corrections };
 }
 
-function scopedTemplate(template: HumanTemplate, scope: HumanScope) {
-  if (scope === "full") return template;
+function scopedModel(model: ApprovedModel, scope: HumanScope) {
+  if (scope === "full") return model;
+  const { template, skin, corrections } = model;
   if (!scopes.has(template)) scopes.set(template, new Map());
   const cache = scopes.get(template)!;
   if (!cache.has(scope)) {
@@ -52,17 +54,46 @@ function scopedTemplate(template: HumanTemplate, scope: HumanScope) {
       shoulder_head: y("shoulder.L") - 0.08,
       head: y("neck"),
     }[scope];
+    const cropped = template.meshes.map((mesh) => cropReferenceMesh(mesh, cut));
     cache.set(scope, {
-      ...template,
-      scope,
-      meshes: template.meshes.map((mesh) => {
-        const triangles: number[] = [];
-        for (let i = 0; i < mesh.triangles.length; i += 3) {
-          const face = mesh.triangles.slice(i, i + 3);
-          if (face.every((v) => mesh.positions[v * 3 + 1] >= cut)) triangles.push(...face);
-        }
-        return { ...mesh, triangles };
-      }),
+      template: { ...template, scope, meshes: cropped.map((c) => c.mesh) },
+      skin: {
+        ...skin,
+        weights: skin.weights.map((weights, meshIndex) => {
+          const mesh = template.meshes[meshIndex];
+          const overrides = new Map(weights);
+          const effective = (i: number) =>
+            overrides.get(i) ??
+            Array.from({ length: 8 }, (_, k) => [
+              mesh.skinIndices[i * 8 + k],
+              mesh.skinWeights[i * 8 + k],
+            ]);
+          const added: typeof weights = [];
+          for (const { index, a, b, t } of cropped[meshIndex].inserted)
+            if (overrides.has(a) || overrides.has(b))
+              added.push([index, mixWeights(effective(a), effective(b), t)]);
+          return [...weights, ...added];
+        }),
+      },
+      corrections: {
+        ...corrections,
+        shapes: corrections.shapes.map((shape) => {
+          const offsets = new Map(shape.offsets.map(([i, x, y, z]) => [i, [x, y, z]]));
+          const added: typeof shape.offsets = [];
+          for (const { index, a, b, t } of cropped[0].inserted) {
+            if (!offsets.has(a) && !offsets.has(b)) continue;
+            const left = offsets.get(a) ?? [0, 0, 0],
+              right = offsets.get(b) ?? [0, 0, 0];
+            added.push([index, ...left.map((v, k) => v * (1 - t) + right[k] * t)] as [
+              number,
+              number,
+              number,
+              number,
+            ]);
+          }
+          return { ...shape, offsets: [...shape.offsets, ...added] };
+        }),
+      },
     });
   }
   return cache.get(scope)!;
@@ -80,5 +111,5 @@ export async function loadApprovedModel(gender: PreviewGender, scope: string, si
     );
   const model = await models.get(gender)!;
   signal.throwIfAborted();
-  return { ...model, template: scopedTemplate(model.template, scope as HumanScope) };
+  return scopedModel(model, scope as HumanScope);
 }
