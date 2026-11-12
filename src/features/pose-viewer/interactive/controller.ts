@@ -6,6 +6,7 @@ import { pollWithRecovery, transientPollError } from "./pollRecovery";
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
 import { localHandSurface, solvedCamera, type LoadedVariants } from "./solved";
+import { ENCODING as BINARY_STATE_ENCODING } from "./shared/interactive_pose_v2.mjs";
 import {
   interactiveHttp,
   type Operation,
@@ -337,6 +338,8 @@ export class InteractiveController {
       }
       let requestedExport = false,
         requestedModel = false;
+      // Settles with the verified model, or undefined if it failed; never rejects.
+      let modelLoad: Promise<ModelResult | undefined> = Promise.resolve(undefined);
       const inputAt = performance.now();
       const pollingDeadline = Date.now() + 10 * 60_000;
       for (;;) {
@@ -365,8 +368,9 @@ export class InteractiveController {
         if (op.previewState === "authoritative" && op.stateHash && !requestedModel) {
           requestedModel = true;
           const immutable = op;
-          void this.transport
-            .model(this.target, immutable, desired.candidateId, signal)
+          const loading = this.transport.model(this.target, immutable, desired.candidateId, signal);
+          modelLoad = loading.catch(() => undefined);
+          void loading
             .then((model) => {
               if (
                 generation !== this.generation ||
@@ -401,11 +405,19 @@ export class InteractiveController {
           continue;
         }
         if (op.exportState === "ready") {
-          if (this.transport.variants) {
+          const variants = this.transport.variants?.bind(this.transport);
+          if (variants) {
             const immutable = op;
-            void this.transport
-              .variants(this.target, immutable, signal)
+            // Binary v2 states have no hand-variant atlas (the server answers 409 at once):
+            // skip the request, keeping the authoritative surface and server-side hands.
+            void modelLoad
+              .then((model) =>
+                signal.aborted || model?.packet.canonicalEncoding === BINARY_STATE_ENCODING
+                  ? undefined
+                  : variants(this.target, immutable, signal),
+              )
               .then((atlas) => {
+                if (!atlas) return;
                 if (
                   generation !== this.generation ||
                   signal.aborted ||

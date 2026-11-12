@@ -450,3 +450,52 @@ it("preserves gray-guide at width 0.01 after prepare 400 without fallback, polli
   expect(transport.file).not.toHaveBeenCalled();
   client.dispose();
 });
+
+it("requests the hand atlas for v1 states but never for binary v2 states", async () => {
+  vi.useFakeTimers();
+  const atlas = () => ({
+    table: {},
+    surfaces: new Map(),
+    bytes: 1,
+    gpuBytes: 1,
+    release: vi.fn(),
+  });
+  const model = (canonicalEncoding: string) =>
+    ({ packet: { stateHash: "b".repeat(64), canonicalEncoding }, frame: {} }) as unknown as Awaited<
+      ReturnType<InteractiveTransport["model"]>
+    >;
+  for (const [encoding, requested] of [
+    ["typed-f64be-json-v1", 1],
+    ["standin-binary-f64le-v2", 0],
+  ] as const) {
+    const { client, transport } = harness();
+    transport.variants = vi.fn(async () => atlas());
+    vi.mocked(transport.model).mockResolvedValue(model(encoding));
+    client.select("one", "candidate", true);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(client.ready("one")).toBe(true);
+    expect(client.snapshot().model?.packet.canonicalEncoding).toBe(encoding);
+    expect(client.snapshot().error).toBe(false);
+    expect(transport.variants).toHaveBeenCalledTimes(requested);
+    // No atlas means no local hand draft; the authoritative surface stays.
+    expect(client.applyHands("left", null)).toBe(false);
+    expect(client.snapshot().localSurface).toBeUndefined();
+    client.dispose();
+  }
+});
+
+it("keeps requesting the v1 atlas when the model download failed", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  transport.variants = vi.fn(async () => {
+    throw new ApiError(409, "VARIANTS_UNAVAILABLE", "");
+  });
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(300);
+  expect(client.snapshot().modelError).toBe(true);
+  expect(transport.variants).toHaveBeenCalledOnce();
+  // An unavailable atlas is silent: the file stays ready and no error is published.
+  expect(client.ready("one")).toBe(true);
+  expect(client.snapshot().error).toBe(false);
+  client.dispose();
+});

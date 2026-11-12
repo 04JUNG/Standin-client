@@ -8,3 +8,4 @@ src-tauri/Cargo.lock
 *.md
 # Byte-for-byte upstream shared consumer; provenance SHA is checked separately.
 src/features/pose-viewer/interactive/shared/interactive_pose_v1.mjs
+src/features/pose-viewer/interactive/shared/interactive_pose_v2.mjs
