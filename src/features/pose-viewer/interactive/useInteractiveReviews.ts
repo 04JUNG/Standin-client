@@ -14,6 +14,7 @@ export function useInteractiveReviews({
   requests: {
     binding: string;
     baseBinding?: string;
+    poseBinding?: string;
     personIndex: number;
     candidateId: string;
     ready: boolean;
@@ -30,7 +31,15 @@ export function useInteractiveReviews({
   useEffect(() => {
     controllers.forEach((controller, i) => {
       const r = requests[i];
-      controller.select(r.binding, r.candidateId, r.ready, r.appearance, r.skin, r.baseBinding);
+      controller.select(
+        r.binding,
+        r.candidateId,
+        r.ready,
+        r.appearance,
+        r.skin,
+        r.baseBinding,
+        r.poseBinding,
+      );
     });
     // Controller identity is session-scoped. Main↔bar remount is not cancellation.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -163,13 +163,14 @@ export function useFramedReview(jobId: string | undefined) {
       item.refined,
       scope,
       bodyMode ? [body?.selectionRevision, body?.resolvedBody, body?.shape] : characterId,
-      handEntry?.selection,
     ];
-    const baseBinding = JSON.stringify(baseIdentity);
+    const poseBinding = JSON.stringify(baseIdentity);
+    const baseBinding = JSON.stringify([...baseIdentity, handEntry?.selection]);
     const binding = JSON.stringify([...baseIdentity, appearance, ...(skin ? [skin] : [])]);
     return {
       binding,
       baseBinding,
+      poseBinding,
       appearance,
       skin,
       editing: outlineEditing?.[item.personIndex] === true,
@@ -197,6 +198,7 @@ export function useFramedReview(jobId: string | undefined) {
     requests: requests.map((r, i) => ({
       binding: r.binding,
       baseBinding: r.baseBinding,
+      poseBinding: r.poseBinding,
       personIndex: review.items[i].personIndex,
       candidateId: review.items[i].candidate.id,
       ready: requestReady(r),
