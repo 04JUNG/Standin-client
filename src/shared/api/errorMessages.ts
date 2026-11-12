@@ -114,6 +114,7 @@ const MESSAGES: Record<string, string> = {
   FBX_UNAVAILABLE: "지금은 포즈 파일을 만들 수 없어요. 잠시 후 다시 시도해 주세요.",
   CONVERTER_UNAVAILABLE: "지금은 포즈 파일을 만들 수 없어요. 잠시 후 다시 시도해 주세요.",
   CONVERTER_TIMEOUT: "FBX 변환이 시간 안에 끝나지 않았습니다. 잠시 후 다시 시도해 주세요.",
+  INTERACTIVE_POLL_TIMEOUT: "파일 준비 상태를 확인하는 데 시간이 걸리고 있어요. 다시 시도하면 기존 작업을 이어서 확인해요.",
   CONVERTER_REJECTED: "이 포즈는 저장할 수 있는 파일로 만들지 못했어요. 다른 후보를 선택해 주세요.",
   CONVERTER_INTEGRITY:
     "선택한 포즈와 저장 파일이 같은지 확인하지 못했어요. 다른 포즈를 골라 보거나, 문제가 계속되면 문의해 주세요.",

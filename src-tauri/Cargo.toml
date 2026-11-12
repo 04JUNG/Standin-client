@@ -1,6 +1,6 @@
 [package]
 name = "standin-desktop"
-version = "2.10.2"
+version = "2.10.3"
 description = "Standin Desktop"
 edition = "2021"
 

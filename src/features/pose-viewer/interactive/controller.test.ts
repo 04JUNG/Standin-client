@@ -58,7 +58,93 @@ function harness() {
     client: new InteractiveController({ jobId: "job_test", personIndex: 0 }, transport, 250, 10),
   };
 }
-afterEach(() => vi.useRealTimers());
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+it("keeps the accepted operation while polling returns 503 for 51 seconds", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const { client, transport } = harness();
+  const recoverAt = Date.now() + 51_000;
+  const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
+  vi.mocked(transport.poll).mockImplementation(async (...args) => {
+    if (Date.now() < recoverAt) throw new ApiError(503, "INTERACTIVE_UNAVAILABLE", "");
+    return normalPoll(...args);
+  });
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(50_000);
+  expect(client.snapshot().error).toBe(false);
+  expect(client.snapshot().operation?.operationId).toBe("op_1");
+  expect(client.ready("one")).toBe(false);
+  await vi.advanceTimersByTimeAsync(9_000);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(transport.cancel).not.toHaveBeenCalled();
+  expect(vi.mocked(transport.poll).mock.calls.every(([, op]) => op.operationId === "op_1")).toBe(true);
+  client.dispose();
+});
+
+it("resumes the accepted head after retry exhaustion without creating another job", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body), expiresAt: new Date(Date.now() + 600_000).toISOString(),
+  }));
+  const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
+  vi.mocked(transport.poll).mockRejectedValue(new ApiError(503, "UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(121_000);
+  expect(client.snapshot().failure).toMatchObject({ code: "INTERACTIVE_POLL_TIMEOUT" });
+  const accepted = client.snapshot().operation!;
+  vi.mocked(transport.head).mockResolvedValueOnce({
+    currentRevision: accepted.revision, currentStateHash: accepted.stateHash, operation: accepted,
+  });
+  vi.mocked(transport.poll).mockImplementation(normalPoll);
+  client.retry();
+  await vi.advanceTimersByTimeAsync(20);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(transport.cancel).not.toHaveBeenCalled();
+  client.dispose();
+});
+
+it("waits through 180-second preparation with a late 503 and keeps the same operation", async () => {
+  vi.useFakeTimers();
+  const { transport } = harness();
+  const client = new InteractiveController({ jobId: "job_test", personIndex: 0 }, transport, 250, 1000);
+  const started = Date.now();
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body), expiresAt: new Date(started + 600_000).toISOString(),
+  }));
+  const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
+  vi.mocked(transport.poll).mockImplementation(async (...args) => {
+    const elapsed = Date.now() - started;
+    if (elapsed >= 129_000 && elapsed < 180_000) throw new ApiError(503, "UNAVAILABLE", "");
+    return elapsed < 180_000 ? args[1] : normalPoll(...args);
+  });
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(179_000);
+  expect(client.snapshot().error).toBe(false);
+  expect(client.ready("one")).toBe(false);
+  await vi.advanceTimersByTimeAsync(11_000);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  client.dispose();
+});
+
+it("selection changes abort a retry without publishing the previous operation", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.poll).mockRejectedValue(new ApiError(503, "UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(270);
+  client.select("two", "candidate", false);
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(transport.poll).toHaveBeenCalledOnce();
+  expect(client.snapshot().binding).toBe("two");
+  expect(client.snapshot().error).toBe(false);
+  expect(client.snapshot().operation).toBeUndefined();
+  client.dispose();
+});
 it("debounces server preparation only, invalidates old-ready immediately, and keeps file ready despite a model failure", async () => {
   vi.useFakeTimers();
   const { client, transport } = harness();
