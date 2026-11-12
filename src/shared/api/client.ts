@@ -4,6 +4,11 @@ import { CLIENT_VERSION_HEADER } from "@/shared/lib/clientVersion";
 import { env } from "@/shared/lib/env";
 import { ApiError, networkError, type AppError, type ServerErrorBody } from "./errors";
 
+/** `pose-body-only-v1` stays required by the BFF; `solved-state-binary-v2` opts into binary states. */
+export const INTERACTIVE_PROTOCOL = "pose-body-only-v1, solved-state-binary-v2";
+const LEGACY_INTERACTIVE_PROTOCOL = "pose-body-only-v1";
+let binaryStateSupported = false;
+
 /**
  * 공통 HTTP client. base URL, 인증 헤더, 오류 정규화, access token 재발급만 담당한다(docs/02 §4).
  * access token은 메모리에만 둔다(docs/06 §6).
@@ -18,6 +23,8 @@ export function setAccessToken(token: string | null): void {
 export function setInstallationCredentials(
   credentials: { installationId: string; deviceToken: string } | null,
 ): void {
+  if (installationCredentials?.installationId !== credentials?.installationId)
+    binaryStateSupported = false;
   installationCredentials = credentials;
 }
 
@@ -57,6 +64,7 @@ function refreshOnce(): Promise<string | null> {
 
 /** 테스트에서 모듈 상태를 초기화한다. */
 export function __resetApiClient(): void {
+  binaryStateSupported = false;
   accessToken = null;
   installationCredentials = null;
   refreshHandler = null;
@@ -133,16 +141,21 @@ export async function apiFetchResponse(
     installation = true,
     skipRefresh = false,
   } = options;
+  const firstParty = !/^https?:\/\//.test(path) || path.startsWith(`${env.apiBaseUrl}/`);
 
-  async function send(): Promise<Response> {
+  async function send(legacyProtocol = false): Promise<Response> {
     const headers: Record<string, string> = {
       Accept: "application/json",
       [CLIENT_VERSION_HEADER]: import.meta.env.VITE_APP_VERSION,
     };
     // Explicit protocol opt-in lets the BFF keep legacy clients on verified FBX
-    // fallback rather than sending a packet schema they cannot read.
-    if (!/^https?:\/\//.test(path) || path.startsWith(`${env.apiBaseUrl}/`))
-      headers["X-Standin-Interactive-Protocol"] = "pose-body-only-v1";
+    // fallback rather than sending a packet schema they cannot read. Comma-separated
+    // tokens: `solved-state-binary-v2` additionally accepts binary `/model` states.
+    if (firstParty)
+      headers["X-Standin-Interactive-Protocol"] =
+        binaryStateSupported && !legacyProtocol
+          ? INTERACTIVE_PROTOCOL
+          : LEGACY_INTERACTIVE_PROTOCOL;
     const multipart = isFormData(body);
     if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
     if (auth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
@@ -174,6 +187,27 @@ export async function apiFetchResponse(
 
   let res = await send();
 
+  // A BFF rollback may restore the old exact-token parser. A protocol rejection
+  // happens before preparation; retry once with the legacy token, not on a timeout.
+  if (res.status === 426 && binaryStateSupported && firstParty) {
+    const value: unknown = await res
+      .clone()
+      .json()
+      .catch(() => null);
+    if (
+      value &&
+      typeof value === "object" &&
+      "error" in value &&
+      value.error &&
+      typeof value.error === "object" &&
+      "code" in value.error &&
+      value.error.code === "INTERACTIVE_PROTOCOL_REQUIRED"
+    ) {
+      binaryStateSupported = false;
+      res = await send(true);
+    }
+  }
+
   // access token 만료(기본 15분)로 401을 받으면 한 번 재발급하고 그대로 다시 보낸다.
   // 사용자는 작업 도중 갑자기 로그인 화면으로 튕기지 않아야 한다.
   if (res.status === 401 && auth && !skipRefresh) {
@@ -203,7 +237,28 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   const res = await apiFetchResponse(path, options);
 
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  const value: unknown = await res.json();
+  const relative = path.startsWith(`${env.apiBaseUrl}/`) ? path.slice(env.apiBaseUrl.length) : path;
+  if (/^\/v1\/analysis\/jobs\/job_[A-Za-z0-9_-]+\/result(?:\?.*)?$/.test(relative)) {
+    const capabilities =
+      value && typeof value === "object" && "capabilities" in value ? value.capabilities : null;
+    const binary =
+      capabilities && typeof capabilities === "object" && "solvedStateBinary" in capabilities
+        ? capabilities.solvedStateBinary
+        : null;
+    // Old BFFs keep the exact v1 token. Only the explicit first-party result
+    // advertisement enables the additive token, with no extra network request.
+    binaryStateSupported =
+      !!binary &&
+      typeof binary === "object" &&
+      "available" in binary &&
+      binary.available === true &&
+      "protocolToken" in binary &&
+      binary.protocolToken === "solved-state-binary-v2" &&
+      "mediaType" in binary &&
+      binary.mediaType === "application/vnd.standin.solved-pose-state-v2";
+  }
+  return value as T;
 }
 
 /** 인증·토큰 재발급을 유지하면서 BVH 같은 텍스트 응답을 받는다. */

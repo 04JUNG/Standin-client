@@ -2,9 +2,11 @@ import type { SkinId } from "../skin/skinChoices";
 import { sameSkin, type Skin } from "../skin/skin";
 import { sameAppearance, type Appearance } from "../outline/appearance";
 import { ApiError } from "@/shared/api/errors";
+import { pollWithRecovery, transientPollError } from "./pollRecovery";
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
 import { localHandSurface, solvedCamera, type LoadedVariants } from "./solved";
+import { ENCODING as BINARY_STATE_ENCODING } from "./shared/interactive_pose_v2.mjs";
 import {
   interactiveHttp,
   type Operation,
@@ -361,7 +363,10 @@ export class InteractiveController {
       }
       let requestedExport = false,
         requestedModel = false;
+      // Settles with the verified model, or undefined if it failed; never rejects.
+      let modelLoad: Promise<ModelResult | undefined> = Promise.resolve(undefined);
       const inputAt = performance.now();
+      const pollingDeadline = Date.now() + 10 * 60_000;
       for (;;) {
         signal.throwIfAborted();
         if (generation !== this.generation) return;
@@ -398,12 +403,19 @@ export class InteractiveController {
             op.exportReceipt?.runtimeRevision === this.modelProof?.runtimeRevision
           ) {
             requestedModel = true;
+            modelLoad = Promise.resolve(this.value.model);
           } else {
             requestedModel = true;
             if (retained) this.publish({ model: undefined, modelBinding: undefined });
             const immutable = op;
-            void this.transport
-              .model(this.target, immutable, desired.candidateId, signal)
+            const loading = this.transport.model(
+              this.target,
+              immutable,
+              desired.candidateId,
+              signal,
+            );
+            modelLoad = loading.catch(() => undefined);
+            void loading
               .then((model) => {
                 if (
                   generation !== this.generation ||
@@ -442,11 +454,19 @@ export class InteractiveController {
         if (op.exportState === "ready") {
           if (this.value.modelOperation?.stateHash === op.stateHash && this.value.model)
             this.modelProof = op.exportReceipt ?? undefined;
-          if (this.transport.variants) {
+          const variants = this.transport.variants?.bind(this.transport);
+          if (variants) {
             const immutable = op;
-            void this.transport
-              .variants(this.target, immutable, signal)
+            // Binary v2 states have no hand-variant atlas (the server answers 409 at once):
+            // skip the request, keeping the authoritative surface and server-side hands.
+            void modelLoad
+              .then((model) =>
+                signal.aborted || model?.packet.canonicalEncoding === BINARY_STATE_ENCODING
+                  ? undefined
+                  : variants(this.target, immutable, signal),
+              )
               .then((atlas) => {
+                if (!atlas) return;
                 if (
                   generation !== this.generation ||
                   signal.aborted ||
@@ -477,7 +497,11 @@ export class InteractiveController {
         }
         if (op.exportState === "failed") return;
         await wait(this.pollingMs, signal);
-        const next = await this.transport.poll(this.target, op, signal);
+        const next = await pollWithRecovery(
+          (attemptSignal) => this.transport.poll(this.target, op, attemptSignal),
+          signal,
+          Math.min(pollingDeadline, Date.parse(op.expiresAt)),
+        );
         if (next.eventSequence < op.eventSequence) continue;
         if (!this.accept(next, op, generation)) throw Error("stale operation event");
         op = next;
@@ -506,6 +530,11 @@ export class InteractiveController {
   }
   retry() {
     if (!this.desired?.ready) return;
+    // After a read outage, recover the accepted operation before considering a create.
+    if (this.value.operation && transientPollError(this.value.failure)) {
+      this.recovered = false;
+      this.mutation = undefined;
+    }
     // Retrying an uncertain POST reuses its exact body/idempotency key.
     this.generation++;
     this.controller?.abort();

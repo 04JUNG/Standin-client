@@ -1,8 +1,12 @@
 import { previewFixture } from "../skin/__fixtures__/skinPreview";
 import { skinPreviewSchema } from "../skin/skinPreview";
 import { webcrypto } from "node:crypto";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { interactiveHttp, checkOperation, type Operation } from "./http";
+import v1Fixture from "./__fixtures__/converter-packet.json";
+import v2Fixture from "./__fixtures__/converter-packet-v2.json";
+import { joinState, sha256, splitState, stateBytes } from "./__fixtures__/binaryState";
+import { ENCODING, MEDIA_TYPE } from "./shared/interactive_pose_v2.mjs";
 import { boundedBytes, BoundedQueue } from "./assets";
 import { apiFetch, apiFetchResponse } from "@/shared/api/client";
 vi.mock("@/shared/api/client", () => ({ apiFetch: vi.fn(), apiFetchResponse: vi.fn() }));
@@ -176,4 +180,105 @@ it("cannot accept a selected skin with a legacy untextured file receipt", () => 
     nativeSaved: false,
   };
   expect(() => checkOperation(current, target)).toThrow("appearance receipt changed");
+});
+
+describe("solved state /model encodings", () => {
+  const modelOp = (stateHash: string, revision = 1): Operation => ({
+    ...op(),
+    operationId: "op_fixture",
+    revision,
+    stateHash,
+    exportState: "not-requested",
+    fileUrl: null,
+    modelUrl: "/v1/analysis/jobs/job_fixture/people/0/interactive-state/op_fixture/model",
+  });
+  const serve = (body: BodyInit, contentType: string, stateHash: string, revision = "1") =>
+    vi.mocked(apiFetchResponse).mockResolvedValueOnce(
+      new Response(body, {
+        headers: {
+          "Content-Type": contentType,
+          "X-Standin-State-Hash": stateHash,
+          "X-Standin-Revision": revision,
+        },
+      }),
+    );
+  const load = (current: Operation, candidateId = "candidate") =>
+    interactiveHttp.model(target, current, candidateId, new AbortController().signal);
+
+  it("reads raw v2 bytes by media type without retaining a canonical string", async () => {
+    const hash = v2Fixture.packet.stateHash;
+    serve(stateBytes(v2Fixture), MEDIA_TYPE, hash);
+    const result = await load(modelOp(hash));
+    expect(result.packet).toMatchObject({
+      operation: "op_fixture",
+      revision: 1,
+      stateHash: hash,
+      canonicalEncoding: ENCODING,
+      modelSha256: v2Fixture.packet.modelSha256,
+    });
+    expect(result.packet).not.toHaveProperty("canonicalState");
+    expect(result.state.model.meshes[0].triangles).toBeInstanceOf(Uint32Array);
+    expect(result.state.identity.selection).toEqual({
+      operation: "op_fixture",
+      revision: 1,
+      person: "0",
+      candidate: "candidate",
+    });
+    expect(result.frame).toBeUndefined();
+    expect(vi.mocked(apiFetchResponse).mock.calls[0][0]).toBe(modelOp(hash).modelUrl);
+  });
+
+  it("keeps the v1 JSON envelope path unchanged", async () => {
+    const hash = v1Fixture.packet.stateHash;
+    serve(
+      JSON.stringify(v1Fixture.packet),
+      "application/vnd.standin.solved-pose-state-v1+json",
+      hash,
+    );
+    const result = await load(modelOp(hash));
+    expect(result.packet.canonicalEncoding).toBe("typed-f64be-json-v1");
+    expect(Array.isArray(result.state.model.meshes[0].triangles)).toBe(true);
+  });
+
+  it("adds the fixed converter frame for v2 bytes from the canonical-snapshot adapter", async () => {
+    const { stateHeader, modelHeader, body } = splitState(stateBytes(v2Fixture));
+    (stateHeader.identity as { solver: { adapterVersion: string } }).solver.adapterVersion =
+      "post-frozen-file-canonical-snapshot-v2";
+    const bytes = joinState(stateHeader, modelHeader, body);
+    const hash = await sha256(bytes);
+    serve(bytes, `${MEDIA_TYPE}; charset=binary`, hash);
+    const result = await load(modelOp(hash));
+    expect(result.frame).toEqual({
+      target: [0, 0, 0],
+      referenceAspect: 1,
+      projectionIncludesCenterScaleCrop: true,
+    });
+  });
+
+  it("refuses wrong media types, changed headers, tampered bytes and stale selections", async () => {
+    const hash = v2Fixture.packet.stateHash,
+      bytes = stateBytes(v2Fixture);
+    serve(bytes, "application/octet-stream", hash);
+    await expect(load(modelOp(hash))).rejects.toThrow("invalid packet type");
+    // v2 bytes labelled as the v1 envelope are never decoded as binary.
+    serve(bytes, "application/vnd.standin.solved-pose-state-v1+json", hash);
+    await expect(load(modelOp(hash))).rejects.toThrow();
+    serve(bytes, MEDIA_TYPE, hash, "2");
+    await expect(load(modelOp(hash))).rejects.toThrow("packet headers changed");
+    serve(bytes, MEDIA_TYPE, "a".repeat(64));
+    await expect(load(modelOp(hash))).rejects.toThrow("packet headers changed");
+    const flipped = bytes.slice();
+    flipped[flipped.length - 1] ^= 1;
+    serve(flipped, MEDIA_TYPE, hash);
+    await expect(load(modelOp(hash))).rejects.toThrow("state hash mismatch");
+    // Headers and hash agree with the operation, but the state belongs to another selection.
+    serve(bytes, MEDIA_TYPE, hash, "2");
+    await expect(load(modelOp(hash, 2))).rejects.toThrow("solved selection mismatch");
+    serve(bytes, MEDIA_TYPE, hash);
+    await expect(load({ ...modelOp(hash), operationId: "op_other" })).rejects.toThrow(
+      "solved selection mismatch",
+    );
+    serve(bytes, MEDIA_TYPE, hash);
+    await expect(load(modelOp(hash), "other")).rejects.toThrow("solved selection mismatch");
+  });
 });

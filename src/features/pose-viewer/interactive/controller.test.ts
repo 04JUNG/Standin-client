@@ -1,7 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { InteractiveController } from "./controller";
 import { ApiError } from "@/shared/api/errors";
-import type { InteractiveTransport, Operation, Prepare } from "./http";
+import { interactiveHttp, type InteractiveTransport, type Operation, type Prepare } from "./http";
+import { forgetInteractiveJob, interactiveController } from "./session";
+import { usePoseSelectionStore } from "../store/poseSelectionStore";
 function operation(body: Prepare): Operation {
   return {
     schemaVersion: "standin.interactive-http.v1",
@@ -58,7 +60,10 @@ function harness() {
     client: new InteractiveController({ jobId: "job_test", personIndex: 0 }, transport, 250, 10),
   };
 }
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 function verifiedGeometryHarness() {
   const { client, transport } = harness();
@@ -222,6 +227,103 @@ it("requires a new packet if runtime changes even when geometry SHA is unchanged
   );
   await vi.advanceTimersByTimeAsync(290);
   expect(transport.model).toHaveBeenCalledTimes(2);
+  client.dispose();
+});
+
+it("keeps the accepted operation while polling returns 503 for 51 seconds", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const { client, transport } = harness();
+  const recoverAt = Date.now() + 51_000;
+  const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
+  vi.mocked(transport.poll).mockImplementation(async (...args) => {
+    if (Date.now() < recoverAt) throw new ApiError(503, "INTERACTIVE_UNAVAILABLE", "");
+    return normalPoll(...args);
+  });
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(50_000);
+  expect(client.snapshot().error).toBe(false);
+  expect(client.snapshot().operation?.operationId).toBe("op_1");
+  expect(client.ready("one")).toBe(false);
+  await vi.advanceTimersByTimeAsync(9_000);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(transport.cancel).not.toHaveBeenCalled();
+  expect(vi.mocked(transport.poll).mock.calls.every(([, op]) => op.operationId === "op_1")).toBe(
+    true,
+  );
+  client.dispose();
+});
+
+it("resumes the accepted head after retry exhaustion without creating another job", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    expiresAt: new Date(Date.now() + 600_000).toISOString(),
+  }));
+  const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
+  vi.mocked(transport.poll).mockRejectedValue(new ApiError(503, "UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(121_000);
+  expect(client.snapshot().failure).toMatchObject({ code: "INTERACTIVE_POLL_TIMEOUT" });
+  const accepted = client.snapshot().operation!;
+  vi.mocked(transport.head).mockResolvedValueOnce({
+    currentRevision: accepted.revision,
+    currentStateHash: accepted.stateHash,
+    operation: accepted,
+  });
+  vi.mocked(transport.poll).mockImplementation(normalPoll);
+  client.retry();
+  await vi.advanceTimersByTimeAsync(20);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(transport.cancel).not.toHaveBeenCalled();
+  client.dispose();
+});
+
+it("waits through 180-second preparation with a late 503 and keeps the same operation", async () => {
+  vi.useFakeTimers();
+  const { transport } = harness();
+  const client = new InteractiveController(
+    { jobId: "job_test", personIndex: 0 },
+    transport,
+    250,
+    1000,
+  );
+  const started = Date.now();
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    expiresAt: new Date(started + 600_000).toISOString(),
+  }));
+  const normalPoll = vi.mocked(transport.poll).getMockImplementation()!;
+  vi.mocked(transport.poll).mockImplementation(async (...args) => {
+    const elapsed = Date.now() - started;
+    if (elapsed >= 129_000 && elapsed < 180_000) throw new ApiError(503, "UNAVAILABLE", "");
+    return elapsed < 180_000 ? args[1] : normalPoll(...args);
+  });
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(179_000);
+  expect(client.snapshot().error).toBe(false);
+  expect(client.ready("one")).toBe(false);
+  await vi.advanceTimersByTimeAsync(11_000);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  client.dispose();
+});
+
+it("selection changes abort a retry without publishing the previous operation", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.poll).mockRejectedValue(new ApiError(503, "UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(270);
+  client.select("two", "candidate", false);
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(transport.poll).toHaveBeenCalledOnce();
+  expect(client.snapshot().binding).toBe("two");
+  expect(client.snapshot().error).toBe(false);
+  expect(client.snapshot().operation).toBeUndefined();
   client.dispose();
 });
 it("debounces server preparation only, invalidates old-ready immediately, and keeps file ready despite a model failure", async () => {
@@ -447,6 +549,60 @@ it("keeps a same-base model for appearance changes while revoking download readi
   expect(client.snapshot().model).toBeUndefined();
   client.dispose();
 });
+it.each(["skin", "outline"] as const)(
+  "retains the displayed model through a %s store change without reusing the old download",
+  async (kind) => {
+    vi.useFakeTimers();
+    const { transport } = harness();
+    vi.spyOn(interactiveHttp, "head").mockImplementation(transport.head);
+    vi.spyOn(interactiveHttp, "prepare").mockImplementation(transport.prepare);
+    vi.spyOn(interactiveHttp, "poll").mockImplementation(transport.poll);
+    vi.spyOn(interactiveHttp, "cancel").mockImplementation(transport.cancel);
+    const model = { packet: { stateHash: "b".repeat(64) }, frame: {} } as Awaited<
+      ReturnType<InteractiveTransport["model"]>
+    >;
+    vi.spyOn(interactiveHttp, "model").mockResolvedValue(model);
+    const file = vi.spyOn(interactiveHttp, "file").mockImplementation(transport.file);
+    const job = "job_appearance_model";
+    const old = usePoseSelectionStore.getState();
+    usePoseSelectionStore.setState({
+      serverJobId: job,
+      selectedByPerson: { 0: "candidate" },
+      skinByPerson: {},
+      outlineByPerson: {},
+      outlineEditingByPerson: {},
+    });
+    const client = interactiveController("owner", job, 0);
+    try {
+      client.select("plain", "candidate", true, undefined, undefined, "base-a");
+      await vi.advanceTimersByTimeAsync(1300);
+      expect(client.ready("plain")).toBe(true);
+      const store = usePoseSelectionStore.getState();
+      if (kind === "skin") store.setPersonSkin(0, "flesh");
+      else store.setOutlineEditing(0, true);
+      expect(client.ready("plain")).toBe(false);
+      await expect(client.download("plain", new AbortController().signal)).rejects.toThrow(
+        "current file unavailable",
+      );
+      expect(file).not.toHaveBeenCalled();
+      client.select(
+        kind,
+        "candidate",
+        false,
+        kind === "outline" ? { version: "fbx-outline-v1", width: 1 } : undefined,
+        kind === "skin" ? { version: "fbx-skin-v1", id: "flesh" } : undefined,
+        "base-a",
+      );
+      expect(client.snapshot().model).toBe(model);
+      expect(client.snapshot().operation).toBeUndefined();
+      client.select("new-body", "candidate", false, undefined, undefined, "base-b");
+      expect(client.snapshot().model).toBeUndefined();
+    } finally {
+      forgetInteractiveJob(job);
+      usePoseSelectionStore.setState(old);
+    }
+  },
+);
 it("preserves a local hand draft only while the pose and body identity remain unchanged", () => {
   const { client } = harness();
   client.select("original", "candidate", false, undefined, undefined, "hands-a", "body-a");
@@ -527,5 +683,54 @@ it("preserves gray-guide at width 0.01 after prepare 400 without fallback, polli
   expect(client.snapshot().failure).toMatchObject({ code: "SKIN_UNSUPPORTED" });
   expect(transport.poll).not.toHaveBeenCalled();
   expect(transport.file).not.toHaveBeenCalled();
+  client.dispose();
+});
+
+it("requests the hand atlas for v1 states but never for binary v2 states", async () => {
+  vi.useFakeTimers();
+  const atlas = () => ({
+    table: {},
+    surfaces: new Map(),
+    bytes: 1,
+    gpuBytes: 1,
+    release: vi.fn(),
+  });
+  const model = (canonicalEncoding: string) =>
+    ({ packet: { stateHash: "b".repeat(64), canonicalEncoding }, frame: {} }) as unknown as Awaited<
+      ReturnType<InteractiveTransport["model"]>
+    >;
+  for (const [encoding, requested] of [
+    ["typed-f64be-json-v1", 1],
+    ["standin-binary-f64le-v2", 0],
+  ] as const) {
+    const { client, transport } = harness();
+    transport.variants = vi.fn(async () => atlas());
+    vi.mocked(transport.model).mockResolvedValue(model(encoding));
+    client.select("one", "candidate", true);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(client.ready("one")).toBe(true);
+    expect(client.snapshot().model?.packet.canonicalEncoding).toBe(encoding);
+    expect(client.snapshot().error).toBe(false);
+    expect(transport.variants).toHaveBeenCalledTimes(requested);
+    // No atlas means no local hand draft; the authoritative surface stays.
+    expect(client.applyHands("left", null)).toBe(false);
+    expect(client.snapshot().localSurface).toBeUndefined();
+    client.dispose();
+  }
+});
+
+it("keeps requesting the v1 atlas when the model download failed", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  transport.variants = vi.fn(async () => {
+    throw new ApiError(409, "VARIANTS_UNAVAILABLE", "");
+  });
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(300);
+  expect(client.snapshot().modelError).toBe(true);
+  expect(transport.variants).toHaveBeenCalledOnce();
+  // An unavailable atlas is silent: the file stays ready and no error is published.
+  expect(client.ready("one")).toBe(true);
+  expect(client.snapshot().error).toBe(false);
   client.dispose();
 });
