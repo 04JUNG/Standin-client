@@ -4,6 +4,9 @@ import { CLIENT_VERSION_HEADER } from "@/shared/lib/clientVersion";
 import { env } from "@/shared/lib/env";
 import { ApiError, networkError, type AppError, type ServerErrorBody } from "./errors";
 
+/** `pose-body-only-v1` stays required by the BFF; `solved-state-binary-v2` opts into binary states. */
+export const INTERACTIVE_PROTOCOL = "pose-body-only-v1, solved-state-binary-v2";
+
 /**
  * 공통 HTTP client. base URL, 인증 헤더, 오류 정규화, access token 재발급만 담당한다(docs/02 §4).
  * access token은 메모리에만 둔다(docs/06 §6).
@@ -140,9 +143,10 @@ export async function apiFetchResponse(
       [CLIENT_VERSION_HEADER]: import.meta.env.VITE_APP_VERSION,
     };
     // Explicit protocol opt-in lets the BFF keep legacy clients on verified FBX
-    // fallback rather than sending a packet schema they cannot read.
+    // fallback rather than sending a packet schema they cannot read. Comma-separated
+    // tokens: `solved-state-binary-v2` additionally accepts binary `/model` states.
     if (!/^https?:\/\//.test(path) || path.startsWith(`${env.apiBaseUrl}/`))
-      headers["X-Standin-Interactive-Protocol"] = "pose-body-only-v1";
+      headers["X-Standin-Interactive-Protocol"] = INTERACTIVE_PROTOCOL;
     const multipart = isFormData(body);
     if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
     if (auth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
