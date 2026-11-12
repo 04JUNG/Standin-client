@@ -139,6 +139,10 @@ export async function apiFetchResponse(
       Accept: "application/json",
       [CLIENT_VERSION_HEADER]: import.meta.env.VITE_APP_VERSION,
     };
+    // Explicit protocol opt-in lets the BFF keep legacy clients on verified FBX
+    // fallback rather than sending a packet schema they cannot read.
+    if (!/^https?:\/\//.test(path) || path.startsWith(`${env.apiBaseUrl}/`))
+      headers["X-Standin-Interactive-Protocol"] = "pose-body-only-v1";
     const multipart = isFormData(body);
     if (body !== undefined && !multipart) headers["Content-Type"] = "application/json";
     if (auth && accessToken) headers["Authorization"] = `Bearer ${accessToken}`;

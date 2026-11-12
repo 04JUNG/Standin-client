@@ -29,6 +29,8 @@ export type InteractiveSnapshot = {
   exportState: ExportState;
   operation?: Operation;
   model?: ModelResult;
+  modelBinding?: string;
+  modelOperation?: Operation;
   modelError?: boolean;
   error?: boolean;
   failure?: unknown;
@@ -65,6 +67,8 @@ export class InteractiveController {
   private creating: Promise<Operation> | undefined;
   private desired?: {
     binding: string;
+    baseBinding: string;
+    poseBinding: string;
     candidateId: string;
     ready: boolean;
     appearance?: Appearance;
@@ -95,6 +99,8 @@ export class InteractiveController {
     ready: boolean,
     appearance?: Appearance,
     skin?: Skin,
+    baseBinding = binding,
+    poseBinding = baseBinding,
   ) {
     if (
       this.desired?.binding === binding &&
@@ -104,7 +110,9 @@ export class InteractiveController {
     )
       return;
     const changed = this.desired?.binding !== binding;
-    this.desired = { binding, candidateId, ready, appearance, skin };
+    const poseChanged = this.desired?.poseBinding !== poseBinding;
+    const baseChanged = poseChanged || this.desired?.baseBinding !== baseBinding;
+    this.desired = { binding, baseBinding, poseBinding, candidateId, ready, appearance, skin };
     this.generation++;
     this.controller?.abort();
     clearTimeout(this.timer);
@@ -115,6 +123,14 @@ export class InteractiveController {
       previewState: "solving",
       exportState: "superseded",
       operation: undefined,
+      ...(baseChanged
+        ? {
+            model: undefined,
+            modelBinding: undefined,
+            modelOperation: undefined,
+          }
+        : {}),
+      ...(poseChanged ? { localSurface: undefined } : {}),
       error: false,
       failure: undefined,
       modelError: false,
@@ -355,7 +371,13 @@ export class InteractiveController {
                 this.value.operation?.stateHash !== immutable.stateHash
               )
                 return;
-              this.publish({ model, modelError: false, localSurface: undefined });
+              this.publish({
+                model,
+                modelBinding: desired.baseBinding,
+                modelOperation: immutable,
+                modelError: false,
+                localSurface: undefined,
+              });
               measure("packet", inputAt);
             })
             .catch((error) => {
