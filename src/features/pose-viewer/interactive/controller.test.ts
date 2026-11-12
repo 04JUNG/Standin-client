@@ -776,3 +776,100 @@ it.each(["skin", "outline"] as const)(
     client.dispose();
   },
 );
+
+it("recovers a busy head and prepare on its own, reusing the exact uncertain POST", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const { client, transport } = harness();
+  const errors: unknown[] = [];
+  client.subscribe(() => {
+    if (client.snapshot().error) errors.push(client.snapshot().failure);
+  });
+  vi.mocked(transport.head).mockRejectedValueOnce(
+    new ApiError(503, "BODY_PREVIEW_UNAVAILABLE", ""),
+  );
+  vi.mocked(transport.prepare).mockRejectedValueOnce(new ApiError(503, "HANDS_UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(260);
+  expect(client.snapshot().error).toBe(false);
+  await vi.advanceTimersByTimeAsync(4_000);
+  expect(client.ready("one")).toBe(true);
+  expect(errors).toEqual([]);
+  expect(transport.head).toHaveBeenCalledTimes(2);
+  expect(transport.prepare).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(transport.prepare).mock.calls[1][1]).toEqual(
+    vi.mocked(transport.prepare).mock.calls[0][1],
+  );
+  client.dispose();
+});
+
+it("recovers a busy export request through the accepted head without another create", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const { client, transport } = harness();
+  vi.mocked(transport.poll).mockImplementationOnce(async (_target, op) => ({
+    ...op,
+    stateHash: "b".repeat(64),
+    previewState: "authoritative",
+    eventSequence: op.eventSequence + 1,
+  }));
+  vi.mocked(transport.export).mockRejectedValueOnce(
+    new ApiError(503, "INTERACTIVE_CONVERTER_UNAVAILABLE", ""),
+  );
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(300);
+  const accepted = client.snapshot().operation!;
+  expect(accepted.previewState).toBe("authoritative");
+  expect(client.snapshot().error).toBe(false);
+  vi.mocked(transport.head).mockResolvedValueOnce({
+    currentRevision: accepted.revision,
+    currentStateHash: accepted.stateHash,
+    operation: accepted,
+  });
+  await vi.advanceTimersByTimeAsync(1_500);
+  expect(client.ready("one")).toBe(true);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(transport.export).toHaveBeenCalledTimes(2);
+  expect(transport.cancel).not.toHaveBeenCalled();
+  client.dispose();
+});
+
+it("stops automatic recovery after a bounded outage and leaves an explicit retry", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const { client, transport } = harness();
+  vi.mocked(transport.prepare).mockRejectedValue(new ApiError(503, "HANDS_UNAVAILABLE", ""));
+  client.select("one", "candidate", true);
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(client.snapshot().error).toBe(false);
+  await vi.advanceTimersByTimeAsync(5_000);
+  expect(client.snapshot()).toMatchObject({
+    error: true,
+    failure: { status: 503, code: "HANDS_UNAVAILABLE" },
+  });
+  expect(transport.prepare).toHaveBeenCalledTimes(7);
+  const calls = vi.mocked(transport.prepare).mock.calls;
+  expect(calls.every(([, body]) => body.mutationId === calls[0]![1].mutationId)).toBe(true);
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => operation(body));
+  client.retry();
+  await vi.advanceTimersByTimeAsync(50);
+  expect(client.ready("one")).toBe(true);
+  client.dispose();
+});
+
+it("integrity and conflict failures are never retried automatically", async () => {
+  vi.useFakeTimers();
+  for (const failure of [
+    new ApiError(409, "CONVERTER_INTEGRITY", ""),
+    new ApiError(503, "INTERACTIVE_DISABLED", ""),
+    new ApiError(409, "HAND_LIBRARY_CHANGED", ""),
+  ]) {
+    const { client, transport } = harness();
+    vi.mocked(transport.prepare).mockRejectedValue(failure);
+    client.select("one", "candidate", true);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(transport.prepare).toHaveBeenCalledOnce();
+    expect(client.snapshot()).toMatchObject({ error: true, failure: { code: failure.code } });
+    client.dispose();
+  }
+});

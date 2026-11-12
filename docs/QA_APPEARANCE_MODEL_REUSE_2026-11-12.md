@@ -51,7 +51,7 @@ Tauri 검수 앱(Standin Final QA) → 로컬 BFF 실제 InteractiveService·Ope
 - 하네스가 응답 후 CORS 헤더를 누락해 앱의 model/file 검증이 실패했다. 실제 BFF CORS middleware로 교체한 뒤 같은 operation/파일로 앱 검수가 통과했다. 이 실패를 제품 서버의 새 원인으로 보고하지 않는다.
 - 근거: `/private/tmp/standin-native-final-qa-20261112/`의 `control-plane.jsonl`, `native-saved-proofs.json`, `native-blender-reload.json`, `native-source-manifest.json`. 인증 파일·토큰은 저장소에 올리지 않는다.
 
-main 대응 전체 테스트 1,705개, develop 대응 1,661개 통과(각 opt-in 6개 제외). 양쪽 build/typecheck 통과, lint 오류 0·기존 경고 2. PR CI와 실제 앱 QA는 별개다. 본 작업에서 main/develop 병합·운영/스테이징 배포·릴리스·인프라 적용을 실행하지 않았다.
+main 대응 전체 테스트 1,713개, develop 대응 1,669개 통과(각 opt-in 6개 제외). 양쪽 build/typecheck 통과, lint 오류 0·기존 경고 2. PR CI와 실제 앱 QA는 별개다. 본 작업에서 main/develop 병합·운영/스테이징 배포·릴리스·인프라 적용을 실행하지 않았다.
 
 ## 추가 측정과 명시적 재시도
 
@@ -73,3 +73,7 @@ Mac 잠금 해제 후 최신 복구 수정 앱을 다시 실행해 작업 기록
 독립 API 매트릭스는 gray-guide·muscle·flesh-guide·flesh-muscle·outline2·flesh-guide+outline2·flesh-muscle+outline2·취소 후 gray-guide **8건 통과, 실패 0건**이다. 실제 v2 모델·FBX receipt·디스크 SHA를 검증했다. 503 두 번 뒤 같은 operation 유지, 동일 mutation 재전송 idempotency, 반복 변경 후 이전 revision supersede, 취소한 model/file의 409 차단, 취소 후 새 저장도 확인했다. UI 작업과 별도 DB/job/포트를 사용하고 기존 proof 14개를 보존했다.
 
 정리된 비밀정보 없는 [검수 증거](qa/appearance_native_20261113.json)에 4개 앱 저장 파일과 API 8건의 해시·시간·복구 범위·한계를 남겼다.
+
+마지막 코드 통합 기준은 main `e27e7d5`(#227 손·3D 자동 복구 포함)이다. #227의 제한된 head/prepare/export 자동 재시도·손 선택 배경 재조회 유지와 본 PR의 모델 재사용·명시적 재시도 capability 갱신을 함께 보존했다. 충돌 해결 후 전체 테스트 1,713/1,669개 및 양쪽 build/typecheck/lint를 다시 확인했다. #227의 손 readiness 서버 보완 BFF #203은 별도 PR이며, 이 로컬 BFF 검수에 포함했다고 주장하지 않는다.
+
+#227 통합 후 앱을 다시 빌드해 같은 작업 기록에서 2인 기본 스킨을 다시 저장했다. 최신 앱에서도 `저장 완료` 및 디스크 2파일을 확인했고, 기존 파일을 덮어쓰지 않고 `(1)` 접미사로 저장됐다. 두 파일의 SHA는 앞선 2인 파일과 각각 동일하다. 최종 앱 제품 코드 491개 비교에서 로컬 인증·진단 3곳만 QA 전용 차이임을 다시 확인했다. 검수가 끝난 뒤 오류 주입 설정은 0으로 복구했다.

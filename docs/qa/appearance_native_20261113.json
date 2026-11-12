@@ -190,5 +190,20 @@
     "Search/VLM, installation credentials, catalog and object storage are fixtures.",
     "Real BFF service/SQL with PGlite, Converter/Blender, native app and Rust disk writes; PostgreSQL advisory locking/S3/OS Keychain/CSP/Windows UI not tested.",
     "All native UI appearance cases are not claimed: basic/flesh and two-person basic saved through UI; remaining skin/outline combinations are API-level."
-  ]
+  ],
+  "latestIntegratedMain": "e27e7d5",
+  "latestIntegratedProductCommit": "0ae7023",
+  "latestIntegratedNativeRepeat": [
+    {
+      "file": "standin_job_29fd33f3-7376-43dc-9c66-d5890c30dd56_standin_pose_인물1 (1).fbx",
+      "bytes": 9067820,
+      "sha256": "8f2a55d332a8d47b820353b5a91e8ff93d3fe367232cf5a4b403cffb70b7d4e8"
+    },
+    {
+      "file": "standin_job_29fd33f3-7376-43dc-9c66-d5890c30dd56_standin_pose_인물2 (1).fbx",
+      "bytes": 9056268,
+      "sha256": "4e445cad72ef3172f0bd3036db103c9f36afb84f8a44c4d4e56d3855a3005c24"
+    }
+  ],
+  "latestIntegratedNativeRepeatPassed": true
 }
