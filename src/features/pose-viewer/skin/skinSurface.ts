@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { z } from "zod";
-import type { PoseModel } from "../interactive/solved";
+import { meshTopology, type AnyPoseModel } from "../interactive/poseModel";
 import { libraryPreviewMaterial } from "../preview/previewStyle";
 import type { SkinId } from "./skinChoices";
 const pair = z.tuple([z.number().finite().min(0).max(1), z.number().finite().min(0).max(1)]);
@@ -44,7 +44,7 @@ export function skinMaterial(texture: THREE.Texture, skin: SkinId) {
 /** Own only display geometry/materials. Never mutate canonical points, normals, bones or cached surfaces. */
 export function skinDisplaySurface(
   source: THREE.Group,
-  model: PoseModel,
+  model: AnyPoseModel,
   uv: SkinUv,
   characterSha256: string,
   texture: THREE.Texture,
@@ -54,13 +54,14 @@ export function skinDisplaySurface(
   source.traverse((o) => {
     if (o instanceof THREE.Mesh) meshes.push(o);
   });
+  const mesh = model.meshes.length === 1 ? meshTopology(model, 0) : undefined;
   if (
     uv.source_sha256 !== characterSha256 ||
-    model.meshes.length !== 1 ||
+    !mesh ||
     meshes.length !== 1 ||
-    uv.triangles.length !== model.meshes[0].triangles.length ||
+    uv.triangles.length !== mesh.triangleCount ||
     uv.uv.length !== uv.triangles.length * 3 ||
-    uv.triangles.some((t, i) => t.some((v, c) => v !== model.meshes[0].triangles[i][c])) ||
+    uv.triangles.some((t, i) => t.some((v, c) => v !== mesh.corner(i, c))) ||
     meshes[0].geometry.getAttribute("position").count !== uv.uv.length
   )
     throw Error("skin UV topology changed");

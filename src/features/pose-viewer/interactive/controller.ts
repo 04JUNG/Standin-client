@@ -2,9 +2,11 @@ import type { SkinId } from "../skin/skinChoices";
 import { sameSkin, type Skin } from "../skin/skin";
 import { sameAppearance, type Appearance } from "../outline/appearance";
 import { ApiError } from "@/shared/api/errors";
+import { pollWithRecovery, transientPollError } from "./pollRecovery";
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
 import { localHandSurface, solvedCamera, type LoadedVariants } from "./solved";
+import { ENCODING as BINARY_STATE_ENCODING } from "./shared/interactive_pose_v2.mjs";
 import {
   interactiveHttp,
   type Operation,
@@ -18,6 +20,15 @@ export type PreviewState = "loading" | "local-draft" | "solving" | "authoritativ
 const preparedAtlases = new Map<InteractiveController, LoadedVariants>();
 const expiredError = (error: unknown) =>
   !!error && typeof error === "object" && "code" in error && error.code === "INTERACTIVE_EXPIRED";
+/**
+ * A busy BFF or Converter answers one head/prepare/export request with 429/5xx or drops it.
+ * That is not a failed selection: retry it a few times before asking the user. Polls already
+ * retry for 120 s inside pollWithRecovery, so their exhaustion still stops here.
+ */
+const AUTO_RECOVERY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 8_000, 8_000];
+const autoRecoverable = (error: unknown) =>
+  transientPollError(error) &&
+  !(error instanceof ApiError && error.code === "INTERACTIVE_POLL_TIMEOUT");
 export type ExportState =
   "not-requested" | "queued" | "building" | "validating" | "ready" | "failed" | "superseded";
 export type InteractiveSnapshot = {
@@ -62,6 +73,11 @@ export class InteractiveController {
   private expiry?: ReturnType<typeof setTimeout>;
   private controller?: AbortController;
   private head?: Operation;
+  // Proof for the displayed geometry, independent of the current appearance operation.
+  private modelProof?: Pick<
+    NonNullable<Operation["exportReceipt"]>,
+    "packetModelSha256" | "runtimeRevision"
+  >;
   private recovered = false;
   private fence = { revision: 0, stateHash: null as string | null };
   private creating: Promise<Operation> | undefined;
@@ -76,6 +92,7 @@ export class InteractiveController {
   };
   private mutation?: Prepare;
   private handAtlas?: LoadedVariants;
+  private autoRecoveries = 0;
   constructor(
     readonly target: Target,
     private readonly transport: InteractiveTransport = interactiveHttp,
@@ -103,6 +120,7 @@ export class InteractiveController {
     poseBinding = baseBinding,
   ) {
     if (
+      this.value.binding === binding &&
       this.desired?.binding === binding &&
       this.desired.ready === ready &&
       sameAppearance(this.desired.appearance, appearance) &&
@@ -111,7 +129,14 @@ export class InteractiveController {
       return;
     const changed = this.desired?.binding !== binding;
     const poseChanged = this.desired?.poseBinding !== poseBinding;
+    this.autoRecoveries = 0;
     const baseChanged = poseChanged || this.desired?.baseBinding !== baseBinding;
+    if (baseChanged) this.modelProof = undefined;
+    if (
+      !sameAppearance(this.desired?.appearance, appearance) ||
+      !sameSkin(this.desired?.skin, skin)
+    )
+      this.recovered = false; // Capability depends on the exact skin/width combination.
     this.desired = { binding, baseBinding, poseBinding, candidateId, ready, appearance, skin };
     this.generation++;
     this.controller?.abort();
@@ -148,6 +173,7 @@ export class InteractiveController {
     this.generation++;
     this.desired = undefined;
     this.mutation = undefined;
+    this.autoRecoveries = 0;
     clearTimeout(this.timer);
     clearTimeout(this.expiry);
     this.controller?.abort();
@@ -159,6 +185,19 @@ export class InteractiveController {
     });
     // Best effort cancellation, while local readiness is already synchronously revoked.
     if (this.head) void this.transport.cancel(this.target, this.head).catch(() => undefined);
+  }
+  /** Revoke the old file immediately, retaining the pose/body/hand display and its binding.
+   * The next debounced prepare supersedes server authority. Do not cancel the shared
+   * base preparation on every slider event or discard the model before select runs.
+   */
+  invalidateAppearance() {
+    this.generation++;
+    this.controller?.abort();
+    clearTimeout(this.timer);
+    clearTimeout(this.expiry);
+    this.mutation = undefined;
+    this.recovered = false;
+    this.publish({ binding: undefined, operation: undefined, exportState: "superseded" });
   }
   localDraft(surface: SurfaceView) {
     this.publish({ localSurface: surface, previewState: "local-draft", exportState: "superseded" });
@@ -336,7 +375,10 @@ export class InteractiveController {
       }
       let requestedExport = false,
         requestedModel = false;
+      // Settles with the verified model, or undefined if it failed; never rejects.
+      let modelLoad: Promise<ModelResult | undefined> = Promise.resolve(undefined);
       const inputAt = performance.now();
+      const pollingDeadline = Date.now() + 10 * 60_000;
       for (;;) {
         signal.throwIfAborted();
         if (generation !== this.generation) return;
@@ -361,31 +403,54 @@ export class InteractiveController {
         });
         if (inactive || op.previewState === "error") return;
         if (op.previewState === "authoritative" && op.stateHash && !requestedModel) {
-          requestedModel = true;
-          const immutable = op;
-          void this.transport
-            .model(this.target, immutable, desired.candidateId, signal)
-            .then((model) => {
-              if (
-                generation !== this.generation ||
-                this.value.operation?.stateHash !== immutable.stateHash
-              )
-                return;
-              this.publish({
-                model,
-                modelBinding: desired.baseBinding,
-                modelOperation: immutable,
-                modelError: false,
-                localSurface: undefined,
+          const retained =
+            this.value.model && this.value.modelBinding === desired.baseBinding && this.modelProof;
+          // Keep the existing surface while the new file is prepared. Only a fresh
+          // receipt proving identical geometry permits skipping another large packet.
+          if (retained && !op.exportReceipt) {
+            // Export starts below; the old packet is display-only, never file authority.
+          } else if (
+            retained &&
+            op.exportReceipt?.packetModelSha256 === this.modelProof?.packetModelSha256 &&
+            op.exportReceipt?.runtimeRevision === this.modelProof?.runtimeRevision
+          ) {
+            requestedModel = true;
+            modelLoad = Promise.resolve(this.value.model);
+          } else {
+            requestedModel = true;
+            if (retained) this.publish({ model: undefined, modelBinding: undefined });
+            const immutable = op;
+            const loading = this.transport.model(
+              this.target,
+              immutable,
+              desired.candidateId,
+              signal,
+            );
+            modelLoad = loading.catch(() => undefined);
+            void loading
+              .then((model) => {
+                if (
+                  generation !== this.generation ||
+                  this.value.operation?.stateHash !== immutable.stateHash
+                )
+                  return;
+                this.publish({
+                  model,
+                  modelBinding: desired.baseBinding,
+                  modelOperation: immutable,
+                  modelError: false,
+                  localSurface: undefined,
+                });
+                this.modelProof = this.value.operation?.exportReceipt ?? undefined;
+                measure("packet", inputAt);
+              })
+              .catch((error) => {
+                if (!signal.aborted && generation === this.generation) {
+                  if (expiredError(error)) this.expire();
+                  else this.publish({ modelError: true });
+                }
               });
-              measure("packet", inputAt);
-            })
-            .catch((error) => {
-              if (!signal.aborted && generation === this.generation) {
-                if (expiredError(error)) this.expire();
-                else this.publish({ modelError: true });
-              }
-            });
+          }
         }
         if (
           op.previewState === "authoritative" &&
@@ -399,11 +464,21 @@ export class InteractiveController {
           continue;
         }
         if (op.exportState === "ready") {
-          if (this.transport.variants) {
+          if (this.value.modelOperation?.stateHash === op.stateHash && this.value.model)
+            this.modelProof = op.exportReceipt ?? undefined;
+          const variants = this.transport.variants?.bind(this.transport);
+          if (variants) {
             const immutable = op;
-            void this.transport
-              .variants(this.target, immutable, signal)
+            // Binary v2 states have no hand-variant atlas (the server answers 409 at once):
+            // skip the request, keeping the authoritative surface and server-side hands.
+            void modelLoad
+              .then((model) =>
+                signal.aborted || model?.packet.canonicalEncoding === BINARY_STATE_ENCODING
+                  ? undefined
+                  : variants(this.target, immutable, signal),
+              )
               .then((atlas) => {
+                if (!atlas) return;
                 if (
                   generation !== this.generation ||
                   signal.aborted ||
@@ -419,6 +494,7 @@ export class InteractiveController {
                 /* Uncached hands keep the authoritative surface. */
               });
           }
+          this.autoRecoveries = 0;
           measure("file-ready", inputAt);
           const expiresIn = Date.parse(op.expiresAt) - Date.now();
           this.expiry = setTimeout(
@@ -434,7 +510,11 @@ export class InteractiveController {
         }
         if (op.exportState === "failed") return;
         await wait(this.pollingMs, signal);
-        const next = await this.transport.poll(this.target, op, signal);
+        const next = await pollWithRecovery(
+          (attemptSignal) => this.transport.poll(this.target, op, attemptSignal),
+          signal,
+          Math.min(pollingDeadline, Date.parse(op.expiresAt)),
+        );
         if (next.eventSequence < op.eventSequence) continue;
         if (!this.accept(next, op, generation)) throw Error("stale operation event");
         op = next;
@@ -457,12 +537,41 @@ export class InteractiveController {
         this.recovered = false;
         this.mutation = undefined;
       }
+      if (autoRecoverable(error) && this.autoRecoveries < AUTO_RECOVERY_DELAYS_MS.length) {
+        this.scheduleRecovery(generation);
+        return;
+      }
       this.publish({ error: true, failure: error, exportState: "failed" });
       measure("error", performance.now());
     }
   }
+  /** Keep the current "preparing" state and run again; the user sees no failure meanwhile. */
+  private scheduleRecovery(generation: number) {
+    const base = AUTO_RECOVERY_DELAYS_MS[this.autoRecoveries++]!;
+    const delay = base * (0.8 + Math.random() * 0.4);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      if (generation !== this.generation || !this.desired?.ready) return;
+      // Same recovery rules as retry(): find an accepted operation before any create, and
+      // reuse an uncertain POST's exact body and idempotency key.
+      if (this.value.operation) {
+        this.recovered = false;
+        this.mutation = undefined;
+      }
+      this.generation++;
+      this.controller?.abort();
+      void this.run(this.generation);
+    }, delay);
+  }
   retry() {
     if (!this.desired?.ready) return;
+    this.autoRecoveries = 0;
+    // Re-read the current capability/fence: a failed initial probe must not stay
+    // unavailable forever after the service recovers. Keep uncertain POST bodies.
+    this.recovered = false;
+    if (this.value.operation && transientPollError(this.value.failure)) {
+      this.mutation = undefined;
+    }
     // Retrying an uncertain POST reuses its exact body/idempotency key.
     this.generation++;
     this.controller?.abort();

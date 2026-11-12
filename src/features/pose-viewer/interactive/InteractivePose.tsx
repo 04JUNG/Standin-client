@@ -372,7 +372,9 @@ export function ExpandablePose({
   outlineWidth = 0,
   footer,
   loading = false,
+  fallback,
 }: {
+  fallback?: ReactNode;
   loading?: boolean;
   footer?: ReactNode;
   outlineWidth?: number;
@@ -401,6 +403,7 @@ export function ExpandablePose({
     <>
       <InteractivePose
         loading={loading}
+        fallback={fallback}
         asset={asset}
         surface={surface}
         viewKey={viewKey}
@@ -455,6 +458,7 @@ export function ExpandablePose({
               <div className="min-h-0 flex-1">
                 <InteractivePose
                   loading={loading}
+                  fallback={fallback}
                   asset={asset}
                   surface={surface}
                   viewKey={viewKey}

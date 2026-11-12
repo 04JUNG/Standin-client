@@ -1,4 +1,5 @@
 import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
+import { transientPollError } from "@/features/pose-viewer/interactive/pollRecovery";
 import { applyLocalHands } from "@/features/pose-viewer/interactive/hands";
 import { replayObservation } from "@/shared/lib/replayBridge";
 import { featureAction, failureProperties } from "@/features/analytics/featureJourney";
@@ -17,6 +18,22 @@ import { getHandCatalog, getHandSelection, putHandSelection, handKeys } from "./
 import type { HandSelection } from "./contract";
 import { previewScope, scopeIncludesHands } from "@/features/pose-viewer/api/outputScope";
 
+/**
+ * A busy BFF/Converter answers hand reads with 429/5xx or not at all. Those reads are
+ * retried with backoff, and a read that still fails keeps retrying every 15 s, so the page
+ * recovers without a click. Library changes and disabled hands are never retried.
+ */
+const transientRetry = (failureCount: number, error: unknown) =>
+  failureCount < 3 && transientPollError(error);
+const retryDelay = (attempt: number) => Math.min(8_000, 1_000 * 2 ** attempt);
+const healInterval = (query: { state: { status: string; error: unknown } }) =>
+  query.state.status === "error" && transientPollError(query.state.error) ? 15_000 : false;
+/** A failed re-read of a server answer we already hold is not a new failure. */
+const visibleError = (query: { data?: unknown; error: unknown }) =>
+  query.error && !(query.data !== undefined && transientPollError(query.error))
+    ? query.error
+    : null;
+
 export function useHands(result: AnalysisResult | undefined, people: number[], enabled: boolean) {
   const owner = useBodyOwner(),
     qc = useQueryClient(),
@@ -30,7 +47,10 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     queryKey: handKeys.catalog(owner),
     queryFn: ({ signal }) => getHandCatalog(signal),
     enabled: active && !!owner,
-    retry: false,
+    retry: transientRetry,
+    retryDelay,
+    refetchInterval: healInterval,
+    refetchIntervalInBackground: true,
     staleTime: 300_000,
   });
   const queries = useQueries({
@@ -38,7 +58,10 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       queryKey: handKeys.selection(owner, job, person),
       queryFn: ({ signal }: { signal: AbortSignal }) => getHandSelection(job, person, signal),
       enabled: active && !!owner && !!job,
-      retry: false,
+      retry: transientRetry,
+      retryDelay,
+      refetchInterval: healInterval,
+      refetchIntervalInBackground: true,
       staleTime: 0,
     })),
   });
@@ -115,13 +138,20 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
       }
     },
   });
+  const catalogError = visibleError(catalog);
   const entries = (active ? applicablePeople : []).map((personIndex, i) => ({
     personIndex,
     selection: queries[i]?.data,
-    loading: queries[i]?.isPending || queries[i]?.isFetching,
+    // A background re-read of a held selection keeps it usable; the server re-checks hands
+    // on every prepare, poll and file. Only an invalidated selection (e.g. after a failed
+    // change whose PUT may have committed) waits for the new answer.
+    loading:
+      queries[i]?.isPending ||
+      (queries[i]?.isFetching &&
+        qc.getQueryState(handKeys.selection(owner, job, personIndex))?.isInvalidated !== false),
     error:
-      queries[i]?.error ??
-      catalog.error ??
+      (queries[i] ? visibleError(queries[i]!) : null) ??
+      catalogError ??
       (catalog.data &&
       queries[i]?.data &&
       catalog.data.library_sha256 !== queries[i]!.data!.library_sha256
@@ -144,7 +174,7 @@ export function useHands(result: AnalysisResult | undefined, people: number[], e
     entries,
     ready,
     pending,
-    error: active && (catalog.isError || entries.some((e) => e.error)),
+    error: active && (!!catalogError || entries.some((e) => e.error)),
     changeError: mutation.error,
     change: (selection: HandSelection, patch: { left?: string; right?: string }) => {
       if (active && applicablePeople.includes(selection.personIndex))
