@@ -2,6 +2,7 @@
 /** Opt-in: built BFF + local Converter/Blender + private approved fixture assets.
  * Required env: STANDIN_BFF_WORKTREE, CONVERTER_BASE_URL, STANDIN_QA_FIXTURE.
  * Fixture JSON: tokenFile, roughBvh, textBvh, characters, shapes, output.
+ * Optional searches selects one or both of "rough" and "text".
  * Ownership, search results and object storage are fixtures; export bytes are real.
  */
 import { createHash } from "node:crypto";
@@ -52,6 +53,7 @@ it.skipIf(!root || !fixture)("rough and text selections prepare and download ver
   const runtime = () => getPreviewRuntime(transport.fetch);
   const owner = "inst_download_qa", jobs = new Map(), sources = new Map();
   for (const [kind, bvh, poseId] of [["rough", f.roughBvh, "ob_083"], ["text", f.textBvh, "Asking Question_01"]]) {
+    if (f.searches && !f.searches.includes(kind)) continue;
     const jobId = "job_download_" + kind + "_" + process.pid;
     const bytes = await readFile(bvh);
     const camera = {
