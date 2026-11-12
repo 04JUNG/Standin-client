@@ -3,11 +3,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { env } from "@/shared/lib/env";
+import { ApiError } from "@/shared/api/errors";
+import type { InteractiveSnapshot } from "../interactive/controller";
+import type { useInteractiveReviews } from "../interactive/useInteractiveReviews";
 import { SKIN_CHOICES, type SkinId } from "../skin/skinChoices";
 import { reviewedExportUrl, framedExportUrl } from "@/features/export/lib/framedExport";
 const m = vi.hoisted(() => ({
   skin: "default" as SkinId,
   finalCapability: false,
+  snapshot: undefined as Partial<InteractiveSnapshot> | undefined,
+  staleSnapshot: false,
+  outline: 0,
   interactive: vi.fn(),
   scope: "full",
   format: "fbx",
@@ -21,9 +27,27 @@ const m = vi.hoisted(() => ({
   reload: vi.fn(),
 }));
 vi.mock("../interactive/useInteractiveReviews", () => ({
-  useInteractiveReviews: (options: unknown) => {
+  useInteractiveReviews: (options: Parameters<typeof useInteractiveReviews>[0]) => {
     m.interactive(options);
-    return { controllers: [], snapshots: [], ready: false, failed: false, retry: vi.fn() };
+    const snapshots = m.snapshot
+      ? [
+          {
+            binding: m.staleSnapshot ? "previous-selection" : options.requests[0]?.binding,
+            previewState: "solving",
+            exportState: "not-requested",
+            ...m.snapshot,
+          },
+        ]
+      : [];
+    return {
+      controllers: [],
+      snapshots,
+      ready: false,
+      failed: snapshots.some(
+        (s) => !m.staleSnapshot && (s.error || s.failure || s.exportState === "failed"),
+      ),
+      retry: vi.fn(),
+    };
   },
 }));
 vi.mock("@/shared/api/client", () => ({ apiFetchResponse: m.ready }));
@@ -90,7 +114,12 @@ vi.mock("@/features/export/store/exportStore", () => ({ useExportStore: () => m.
 vi.mock("@/features/models/store/modelStore", () => ({ useModelStore: () => null }));
 vi.mock("../store/poseSelectionStore", () => ({
   usePoseSelectionStore: (select: (s: unknown) => unknown) =>
-    select({ characterId: null, characterByPerson: {}, skinByPerson: { 0: m.skin } }),
+    select({
+      characterId: null,
+      characterByPerson: {},
+      skinByPerson: { 0: m.skin },
+      outlineByPerson: { 0: m.outline },
+    }),
 }));
 vi.mock("@/features/models/hooks/useModelCatalog", () => ({
   useModelCatalog: () => ({
@@ -126,6 +155,9 @@ beforeEach(() => {
   Object.assign(m, {
     skin: "default",
     finalCapability: false,
+    snapshot: undefined,
+    staleSnapshot: false,
+    outline: 0,
     scope: "full",
     format: "fbx",
     refining: false,
@@ -324,3 +356,59 @@ it.each(SKIN_CHOICES)(
     }
   },
 );
+
+it.each([
+  {
+    name: "head rejects skin availability",
+    snapshot: { error: true, failure: new ApiError(503, "SKIN_DISABLED", "server detail") },
+  },
+  {
+    name: "prepare rejects gray-guide at width 0.01",
+    snapshot: {
+      error: true,
+      failure: new ApiError(400, "SKIN_UNSUPPORTED", "server detail"),
+      exportState: "failed" as const,
+    },
+  },
+  {
+    name: "failure without error flag",
+    snapshot: { failure: new ApiError(400, "SKIN_UNSUPPORTED", "server detail") },
+  },
+  { name: "export fails without an error code", snapshot: { exportState: "failed" as const } },
+])("shows recovery inside the card when $name", ({ snapshot }) => {
+  const previous = env.interactivePreview;
+  Object.defineProperty(env, "interactivePreview", { value: true, configurable: true });
+  try {
+    m.finalCapability = true;
+    m.skin = "gray-guide";
+    m.outline = 0.01;
+    m.snapshot = snapshot;
+    const { result, rerender, unmount } = mount();
+    const preview = result.current.items[0].interactivePreview!;
+    expect(preview.failed).toBe(true);
+    expect(preview.notice).not.toContain("준비 중");
+    expect(preview.notice).not.toContain("server detail");
+    expect(preview.notice).toBe(result.current.previewFailure.message);
+    expect(result.current.preparationNotice).toBe(preview.notice);
+    if (snapshot.failure?.code === "SKIN_UNSUPPORTED")
+      expect(preview.notice).toContain("외곽선 0 또는 2");
+    expect(result.current.preparationLoading).toBe(false);
+    expect(result.current.previewLoading).toBe(false);
+    expect(result.current.previewError).toBe(true);
+    expect(result.current.downloadReady).toBe(false);
+    expect(result.current.requestDownload()).toBe(false);
+    expect(m.ready).not.toHaveBeenCalled();
+    expect(m.image).not.toHaveBeenCalled();
+    expect(m.interactive.mock.lastCall?.[0].requests[0]).toMatchObject({
+      skin: { version: "fbx-skin-v1", id: "gray-guide" },
+      appearance: { version: "fbx-outline-v1", width: 0.01 },
+    });
+    m.staleSnapshot = true;
+    rerender();
+    expect(result.current.items[0].interactivePreview?.failed).toBe(false);
+    expect(result.current.previewError).toBe(false);
+    unmount();
+  } finally {
+    Object.defineProperty(env, "interactivePreview", { value: previous, configurable: true });
+  }
+});

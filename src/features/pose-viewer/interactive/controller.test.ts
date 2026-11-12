@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { InteractiveController } from "./controller";
+import { ApiError } from "@/shared/api/errors";
 import type { InteractiveTransport, Operation, Prepare } from "./http";
 function operation(body: Prepare): Operation {
   return {
@@ -290,5 +291,76 @@ it("preserves a local hand draft only while the pose and body identity remain un
   expect(client.snapshot().localSurface).toBe(surface);
   client.select("edited-body", "candidate", false, undefined, undefined, "hands-b", "body-b");
   expect(client.snapshot().localSurface).toBeUndefined();
+  client.dispose();
+});
+
+it("blocks an explicitly unavailable skin capability before prepare, polling or file access", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: { version: "fbx-skin-v1", available: false, supportedIds: ["default"] },
+  });
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "gray-guide" });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(client.snapshot()).toMatchObject({
+    error: true,
+    exportState: "failed",
+    failure: { code: "SKIN_DISABLED" },
+  });
+  expect(transport.prepare).not.toHaveBeenCalled();
+  expect(transport.poll).not.toHaveBeenCalled();
+  expect(transport.export).not.toHaveBeenCalled();
+  await expect(client.download("skin", new AbortController().signal)).rejects.toThrow(
+    "current file unavailable",
+  );
+  expect(transport.file).not.toHaveBeenCalled();
+  client.dispose();
+});
+it("preserves gray-guide at width 0.01 after prepare 400 without fallback, polling or file access", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    appearanceExport: { version: "fbx-outline-v1", available: true },
+    skinExport: {
+      version: "fbx-skin-v1",
+      available: true,
+      supportedIds: ["default", "gray-guide"],
+    },
+  });
+  vi.mocked(transport.prepare).mockRejectedValue(new ApiError(400, "SKIN_UNSUPPORTED", ""));
+  const appearance = { version: "fbx-outline-v1" as const, width: 0.01 };
+  const skin = { version: "fbx-skin-v1" as const, id: "gray-guide" as const };
+  client.select("skin-outline", "candidate", true, appearance, skin);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(vi.mocked(transport.prepare).mock.calls[0][1]).toMatchObject({ appearance, skin });
+  expect(client.snapshot()).toMatchObject({
+    error: true,
+    exportState: "failed",
+    failure: { status: 400, code: "SKIN_UNSUPPORTED" },
+  });
+  expect(transport.poll).not.toHaveBeenCalled();
+  expect(transport.export).not.toHaveBeenCalled();
+  await expect(client.download("skin-outline", new AbortController().signal)).rejects.toThrow(
+    "current file unavailable",
+  );
+  expect(transport.file).not.toHaveBeenCalled();
+  // An explicit retry clears the prior error while reusing the exact user selection.
+  client.retry();
+  expect(client.snapshot().failure).toBeUndefined();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(transport.prepare).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(transport.prepare).mock.calls[1][1]).toEqual(
+    vi.mocked(transport.prepare).mock.calls[0][1],
+  );
+  expect(client.snapshot().failure).toMatchObject({ code: "SKIN_UNSUPPORTED" });
+  expect(transport.poll).not.toHaveBeenCalled();
+  expect(transport.file).not.toHaveBeenCalled();
   client.dispose();
 });

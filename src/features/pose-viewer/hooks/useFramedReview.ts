@@ -207,6 +207,12 @@ export function useFramedReview(jobId: string | undefined) {
       skin: r.skin,
     })),
   });
+  const interactiveErrors = interactive.snapshots.map(
+    (s, i) =>
+      s.binding === requests[i]?.binding &&
+      (!!s.error || !!s.failure || s.exportState === "failed"),
+  );
+  const interactiveFailure = interactive.snapshots.find((_, i) => interactiveErrors[i]);
   const queries = useQueries({
     queries: requests.map((request, index) => ({
       queryKey: bodyMode
@@ -378,6 +384,7 @@ export function useFramedReview(jobId: string | undefined) {
     ready: downloadReady,
     failed: (interactiveEnabled ? interactive.failed : !!preparationError) || requiresFbx,
     error:
+      interactiveFailure?.failure ??
       queries.find((q) => q.error)?.error ??
       hands.entries.find((e) => e.error)?.error ??
       review.bodies.entries.find((e) => e.error)?.error ??
@@ -478,7 +485,7 @@ export function useFramedReview(jobId: string | undefined) {
                 : undefined,
             asset: item.candidate.interactivePreview?.asset,
             viewKey: `${review.data?.jobId}:${item.personIndex}:review`,
-            failed: interactive.snapshots[index]?.modelError === true,
+            failed: interactiveErrors[index] || interactive.snapshots[index]?.modelError === true,
             localSurface: interactive.snapshots[index]?.localSurface,
             onFrame:
               index === 0
@@ -498,15 +505,17 @@ export function useFramedReview(jobId: string | undefined) {
                 : undefined,
             notice: review.isRefining
               ? "포즈 보정 중"
-              : interactive.snapshots[index]?.localSurface
-                ? "변경 적용 중"
-                : interactive.snapshots[index]?.binding !== requests[index]?.binding
+              : interactiveErrors[index]
+                ? poseRecovery(interactive.snapshots[index]?.failure).message
+                : interactive.snapshots[index]?.localSurface
                   ? "변경 적용 중"
-                  : interactive.snapshots[index]?.modelError
-                    ? "3D를 다시 준비해 주세요. 파일은 준비되면 다운로드할 수 있어요."
-                    : interactive.ready
-                      ? ""
-                      : "파일 준비 중",
+                  : interactive.snapshots[index]?.binding !== requests[index]?.binding
+                    ? "변경 적용 중"
+                    : interactive.snapshots[index]?.modelError
+                      ? "3D를 다시 준비해 주세요. 파일은 준비되면 다운로드할 수 있어요."
+                      : interactive.ready
+                        ? ""
+                        : "파일 준비 중",
           } as InteractiveReviewData)
         : undefined,
       previewModel: item.release
@@ -546,20 +555,23 @@ export function useFramedReview(jobId: string | undefined) {
     previewError: releaseMode
       ? releaseModels.some((q) => q.isError)
       : interactiveEnabled
-        ? interactive.snapshots.some((s) => s.modelError)
+        ? interactiveErrors.some(Boolean) || interactive.snapshots.some((s) => s.modelError)
         : previewError,
     downloadLabel: revision.repeated
       ? "다시 다운로드"
       : revision.changed || handsChanged
         ? "변경한 포즈 다운로드"
         : "포즈 다운로드",
-    preparationNotice: preparationError
-      ? "파일을 준비하지 못했어요. 다시 시도해 주세요."
-      : hands.pending || handsChanged
-        ? "변경한 손을 적용하고 있어요…"
-        : "다운로드할 파일을 준비하고 있어요…",
+    preparationNotice:
+      interactiveEnabled && interactive.failed
+        ? poseRecovery(interactiveFailure?.failure).message
+        : preparationError
+          ? "파일을 준비하지 못했어요. 다시 시도해 주세요."
+          : hands.pending || handsChanged
+            ? "변경한 손을 적용하고 있어요…"
+            : "다운로드할 파일을 준비하고 있어요…",
     previewFailure: poseRecovery(
-      interactive.snapshots.find((s) => s.failure)?.failure ??
+      interactiveFailure?.failure ??
         (outlineUnsupported ? new ApiError(422, "OUTLINE_UNSUPPORTED", "") : undefined) ??
         (skinUnsupported ? new ApiError(422, "SKIN_UNSUPPORTED", "") : undefined) ??
         queries.find((q) => q.isError)?.error ??
