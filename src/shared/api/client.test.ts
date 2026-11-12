@@ -52,14 +52,8 @@ describe("apiFetch", () => {
     await apiFetch("/v1/analysis/jobs/job_test/people/0/interactive-state", { auth: false });
     for (const call of fetchMock.mock.calls) {
       const headers = (call[1] as RequestInit).headers as Record<string, string>;
-      // Comma-separated tokens; the BFF keeps requiring the first one.
-      expect(headers["X-Standin-Interactive-Protocol"]).toBe(
-        "pose-body-only-v1, solved-state-binary-v2",
-      );
-      expect(headers["X-Standin-Interactive-Protocol"].split(",").map((t) => t.trim())).toEqual([
-        "pose-body-only-v1",
-        "solved-state-binary-v2",
-      ]);
+      // Old BFFs require the exact v1 token until the result advertises v2.
+      expect(headers["X-Standin-Interactive-Protocol"]).toBe("pose-body-only-v1");
     }
   });
   const binaryCapability = {
