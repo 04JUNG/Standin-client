@@ -84,7 +84,6 @@ it.each([undefined, "fill"] as const)(
     expect(zoom).toHaveClass("bottom-1", "right-1");
     await userEvent.click(zoom);
     const dialog = await screen.findByRole("dialog", { name: "포즈 크게 보기" });
-    // The verified 3D must stay visible without a static poster overlay.
     expect(within(dialog).queryByRole("img")).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "닫기" })).toHaveFocus();
     await waitFor(() => expect(useLocalPreview).toHaveBeenCalled());

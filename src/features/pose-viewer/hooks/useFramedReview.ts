@@ -4,6 +4,14 @@ import { apiFetchBytes } from "@/shared/api/client";
 import { verifyDigest } from "@/features/body-selection/api";
 import { outlineAppearance } from "../outline/appearance";
 import { selectedSkin } from "../skin/skin";
+import {
+  isSkinFailure,
+  permanentSkinFailure,
+  SKIN_SCOPE_NOTE,
+  skinFailureScope,
+  skinScopeError,
+  skinSupportsScope,
+} from "../skin/skinScope";
 import { queueRepresentativeFrame } from "../interactive/history";
 import { historyUpload } from "../interactive/historyHttp";
 import { solvedCamera } from "../interactive/solved";
@@ -50,6 +58,19 @@ type PreparedReview = Partial<BodyReview> & {
   handReceipt?: HandReview;
   downloadUrl: string;
 };
+
+/** poseRecovery, plus skin failures that only a skin change can fix. */
+function reviewRecovery(error: unknown) {
+  const recovery = poseRecovery(error);
+  const scope = skinFailureScope(error);
+  return {
+    ...recovery,
+    message: scope
+      ? `${SKIN_SCOPE_NOTE} 이 포즈는 ${SCOPE_LABELS[scope]} 범위예요. 기본 스킨으로 바꾸면 저장할 수 있어요.`
+      : recovery.message,
+    retryUseless: permanentSkinFailure(error),
+  };
+}
 
 /** A verified final FBX receipt controls download; its image is independent. */
 export function useFramedReview(jobId: string | undefined) {
@@ -104,6 +125,7 @@ export function useFramedReview(jobId: string | undefined) {
   );
   const outlines = usePoseSelectionStore((s) => s.outlineByPerson);
   const skins = usePoseSelectionStore((s) => s.skinByPerson);
+  const setPersonSkin = usePoseSelectionStore((s) => s.setPersonSkin);
   const outlineEditing = usePoseSelectionStore((s) => s.outlineEditingByPerson);
   const pinned = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
@@ -212,7 +234,20 @@ export function useFramedReview(jobId: string | undefined) {
       s.binding === requests[i]?.binding &&
       (!!s.error || !!s.failure || s.exportState === "failed"),
   );
-  const interactiveFailure = interactive.snapshots.find((_, i) => interactiveErrors[i]);
+  // Older servers only answer SKIN_DISABLED; the person's cropped scope is known here too.
+  const reviewFailure = (i: number) => {
+    const failure = interactive.snapshots[i]?.failure,
+      request = requests[i];
+    return request?.skin &&
+      !skinSupportsScope(request.scope) &&
+      isSkinFailure(failure) &&
+      !skinFailureScope(failure)
+      ? skinScopeError(request.scope)
+      : failure;
+  };
+  const failingIndex = interactiveErrors.findIndex(Boolean);
+  const interactiveFailure =
+    failingIndex >= 0 ? { failure: reviewFailure(failingIndex) } : undefined;
   const queries = useQueries({
     queries: requests.map((request, index) => ({
       queryKey: bodyMode
@@ -436,6 +471,29 @@ export function useFramedReview(jobId: string | undefined) {
       })),
     ),
   );
+  const failure =
+    interactiveFailure?.failure ??
+    (outlineUnsupported ? new ApiError(422, "OUTLINE_UNSUPPORTED", "") : undefined) ??
+    (skinUnsupported ? new ApiError(422, "SKIN_UNSUPPORTED", "") : undefined) ??
+    queries.find((q) => q.isError)?.error ??
+    review.bodies.entries.find((e) => e.error)?.error ??
+    hands.entries.find((e) => e.error)?.error ??
+    catalog.error;
+  // Only the skins that failed (or never fit their scope) go back to default; nothing else changes.
+  const skinBlocked = requests.map(
+    (r, i) =>
+      !!r.skin &&
+      (skinUnsupported ||
+        !skinSupportsScope(r.scope) ||
+        (interactiveErrors[i] === true && isSkinFailure(reviewFailure(i)))),
+  );
+  const switchToDefaultSkin =
+    isSkinFailure(failure) && skinBlocked.some(Boolean)
+      ? () =>
+          review.items.forEach((item, i) => {
+            if (skinBlocked[i]) setPersonSkin(item.personIndex, "default");
+          })
+      : undefined;
   return {
     ...review,
     hands,
@@ -506,7 +564,7 @@ export function useFramedReview(jobId: string | undefined) {
             notice: review.isRefining
               ? "포즈 보정 중"
               : interactiveErrors[index]
-                ? poseRecovery(interactive.snapshots[index]?.failure).message
+                ? reviewRecovery(reviewFailure(index)).message
                 : interactive.snapshots[index]?.localSurface
                   ? "변경 적용 중"
                   : interactive.snapshots[index]?.binding !== requests[index]?.binding
@@ -564,21 +622,16 @@ export function useFramedReview(jobId: string | undefined) {
         : "포즈 다운로드",
     preparationNotice:
       interactiveEnabled && interactive.failed
-        ? poseRecovery(interactiveFailure?.failure).message
+        ? reviewRecovery(interactiveFailure?.failure).message
         : preparationError
           ? "파일을 준비하지 못했어요. 다시 시도해 주세요."
           : hands.pending || handsChanged
             ? "변경한 손을 적용하고 있어요…"
             : "다운로드할 파일을 준비하고 있어요…",
-    previewFailure: poseRecovery(
-      interactiveFailure?.failure ??
-        (outlineUnsupported ? new ApiError(422, "OUTLINE_UNSUPPORTED", "") : undefined) ??
-        (skinUnsupported ? new ApiError(422, "SKIN_UNSUPPORTED", "") : undefined) ??
-        queries.find((q) => q.isError)?.error ??
-        review.bodies.entries.find((e) => e.error)?.error ??
-        hands.entries.find((e) => e.error)?.error ??
-        catalog.error,
-    ),
+    previewFailure: {
+      ...reviewRecovery(failure),
+      switchToDefaultSkin,
+    },
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
     previewNotice: releaseMode
       ? "검증한 원본 체형으로 보정한 포즈입니다. 체형·손·출력 범위 변경은 적용되지 않습니다."

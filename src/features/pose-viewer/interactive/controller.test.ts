@@ -640,6 +640,107 @@ it("blocks an explicitly unavailable skin capability before prepare, polling or 
   expect(transport.file).not.toHaveBeenCalled();
   client.dispose();
 });
+it("names a cropped output scope as a permanent skin failure without prepare or auto-retry", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: { version: "fbx-skin-v1", available: false, supportedIds: ["default"] },
+    skinUnavailable: { code: "SKIN_UNSUPPORTED", outputScope: "half" },
+  });
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "flesh" });
+  await vi.advanceTimersByTimeAsync(60_000);
+  const failure = client.snapshot().failure as ApiError;
+  expect(failure).toMatchObject({ status: 422, code: "SKIN_UNSUPPORTED" });
+  expect(failure.details).toEqual({ outputScope: "half" });
+  expect(client.snapshot().skinUnavailable).toEqual({
+    code: "SKIN_UNSUPPORTED",
+    outputScope: "half",
+  });
+  expect(transport.head).toHaveBeenCalledOnce();
+  expect(transport.prepare).not.toHaveBeenCalled();
+  // The one-click fix: the same pose with the default skin prepares normally.
+  client.select("default", "candidate", true);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(vi.mocked(transport.prepare).mock.calls[0][1]).not.toHaveProperty("skin");
+  expect(client.ready("default")).toBe(true);
+  client.dispose();
+});
+it("re-reads a transiently unavailable skin capability instead of replaying it", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  const { client, transport } = harness();
+  const unavailable = {
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: {
+      version: "fbx-skin-v1" as const,
+      available: false,
+      supportedIds: ["default" as const],
+    },
+  };
+  vi.mocked(transport.head)
+    .mockResolvedValueOnce({ ...unavailable, skinUnavailable: { code: "SKIN_UNAVAILABLE" } })
+    .mockResolvedValue({
+      ...unavailable,
+      skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+    });
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    skin: body.skin,
+  }));
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "flesh" });
+  await vi.advanceTimersByTimeAsync(300);
+  expect(client.snapshot().error).toBe(false);
+  await vi.advanceTimersByTimeAsync(2_000);
+  expect(transport.head).toHaveBeenCalledTimes(2);
+  expect(transport.prepare).toHaveBeenCalledOnce();
+  expect(client.ready("skin")).toBe(true);
+  client.dispose();
+});
+it("lets an explicit retry read the skin capability again after SKIN_DISABLED", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head)
+    .mockResolvedValueOnce({ currentRevision: 0, currentStateHash: null, operation: null })
+    .mockResolvedValue({
+      currentRevision: 0,
+      currentStateHash: null,
+      operation: null,
+      skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+    });
+  vi.mocked(transport.prepare).mockImplementation(async (_target, body) => ({
+    ...operation(body),
+    skin: body.skin,
+  }));
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "flesh" });
+  await vi.advanceTimersByTimeAsync(300);
+  expect(client.snapshot().failure).toMatchObject({ code: "SKIN_DISABLED" });
+  client.retry();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(transport.head).toHaveBeenCalledTimes(2);
+  expect(client.ready("skin")).toBe(true);
+  client.dispose();
+});
+it("treats an available capability without the chosen id as unsupported, not disabled", async () => {
+  vi.useFakeTimers();
+  const { client, transport } = harness();
+  vi.mocked(transport.head).mockResolvedValue({
+    currentRevision: 0,
+    currentStateHash: null,
+    operation: null,
+    skinExport: { version: "fbx-skin-v1", available: true, supportedIds: ["default", "flesh"] },
+  });
+  client.select("skin", "candidate", true, undefined, { version: "fbx-skin-v1", id: "muscle" });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(client.snapshot().failure).toMatchObject({ status: 422, code: "SKIN_UNSUPPORTED" });
+  expect(transport.prepare).not.toHaveBeenCalled();
+  client.dispose();
+});
 it("preserves gray-guide at width 0.01 after prepare 400 without fallback, polling or file access", async () => {
   vi.useFakeTimers();
   const { client, transport } = harness();
