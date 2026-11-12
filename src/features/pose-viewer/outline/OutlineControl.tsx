@@ -37,9 +37,9 @@ export function OutlineControl({
         max={MAX_OUTLINE_WIDTH}
         step={hasLines ? 2 : 0.05}
         value={width}
-        className="min-w-0 flex-1 accent-brand-sky"
+        className="h-[18px] min-w-0 flex-1 accent-brand-sky"
         onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId);
+          event.stopPropagation();
           edit(true);
         }}
         onPointerUp={() => edit(false)}
