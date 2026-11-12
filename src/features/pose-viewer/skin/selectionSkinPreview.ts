@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiFetchResponse } from "@/shared/api/client";
+import { pollWithRecovery } from "../interactive/pollRecovery";
 import { boundedBytes } from "../interactive/assets";
 import { sameSkin, type Skin } from "./skin";
 import { skinPreviewSchema } from "./skinPreview";
@@ -16,12 +17,14 @@ export async function selectionSkinPreview(
   if (!/^\/v1\/analysis\/jobs\/job_[A-Za-z0-9_-]+\/people\/\d+$/.test(location))
     throw Error("invalid skin location");
   const query = new URLSearchParams({ candidateId, skin: JSON.stringify(skin) });
-  const response = await apiFetchResponse(`${location}/selection-skin-preview?${query}`, {
-    auth: false,
-    signal,
-    cache: "no-store",
-  });
-  const bytes = await boundedBytes(response, 64 * 1024, signal);
+  const bytes = await pollWithRecovery(async (attempt) => {
+    const response = await apiFetchResponse(`${location}/selection-skin-preview?${query}`, {
+      auth: false,
+      signal: attempt,
+      cache: "no-store",
+    });
+    return boundedBytes(response, 64 * 1024, attempt);
+  }, signal, Date.now() + 30_000);
   const result = descriptor.parse(JSON.parse(new TextDecoder().decode(bytes)));
   if (!sameSkin(result.skinPreview.skin, skin)) throw Error("skin selection changed");
   for (const asset of [result.skinPreview.uv, result.skinPreview.texture]) {

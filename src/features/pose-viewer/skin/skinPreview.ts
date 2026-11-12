@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { z } from "zod";
 import { apiFetchResponse } from "@/shared/api/client";
 import { boundedBytes, verifyBytes, BoundedQueue } from "../interactive/assets";
+import { pollWithRecovery } from "../interactive/pollRecovery";
 import { digest, ownedPath } from "../interactive/contract";
 import type { PoseModel } from "../interactive/solved";
 import { skinSchema, sameSkin } from "./skin";
@@ -93,14 +94,19 @@ export async function loadSkinSurface(
     throw Error("skin model changed");
   const triangleBytes = new TextEncoder().encode(JSON.stringify(mesh.triangles));
   await verifyBytes(triangleBytes.buffer, c.trianglesSha256);
+  signal.throwIfAborted();
+  const assetsAbort = new AbortController();
+  const cancelAssets = () => assetsAbort.abort(signal.reason);
+  signal.addEventListener("abort", cancelAssets, { once: true });
+  const assetSignal = assetsAbort.signal;
   async function fetchAsset(a: SkinPreview["uv"], contentType: string) {
     const cached = "baseSelectionHash" in expected && verifiedSelectionAssets.get(a.sha256);
     if (cached) {
-      signal.throwIfAborted();
+      assetSignal.throwIfAborted();
       return cached;
     }
-    return downloads.run(async () => {
-      const response = await apiFetchResponse(a.url, { auth: false, signal, cache: "no-store" });
+    return pollWithRecovery((attempt) => downloads.run(async () => {
+      const response = await apiFetchResponse(a.url, { auth: false, signal: attempt, cache: "no-store" });
       if (
         response.headers.get("Content-Type")?.split(";")[0] !== contentType ||
         response.headers.get("X-Skin-Asset-SHA256") !== a.sha256 ||
@@ -108,12 +114,14 @@ export async function loadSkinSurface(
           ? response.headers.get("X-Standin-Base-Selection-Hash") !== expected.baseSelectionHash
           : response.headers.get("X-Standin-State-Hash") !== expected.stateHash ||
             response.headers.get("X-Standin-Revision") !== String(expected.revision))
-      )
+      ) {
+        await response.body?.cancel().catch(() => {});
         throw Error("skin asset binding changed");
-      const bytes = await boundedBytes(response, a.bytes, signal);
+      }
+      const bytes = await boundedBytes(response, a.bytes, attempt);
       if (bytes.byteLength !== a.bytes) throw Error("skin asset length changed");
       await verifyBytes(bytes, a.sha256);
-      signal.throwIfAborted();
+      attempt.throwIfAborted();
       if ("baseSelectionHash" in expected && !verifiedSelectionAssets.has(a.sha256)) {
         while (
           verifiedAssetBytes + bytes.byteLength > 64 * 1024 * 1024 ||
@@ -128,9 +136,15 @@ export async function loadSkinSurface(
         verifiedAssetBytes += bytes.byteLength;
       }
       return bytes;
-    }, signal);
+    }, attempt), assetSignal, Date.now() + 30_000);
   }
-  const compressed = await fetchAsset(preview.uv, "application/gzip");
+  const [compressed, image] = await Promise.all([
+    fetchAsset(preview.uv, "application/gzip"),
+    fetchAsset(preview.texture, "image/png"),
+  ]).finally(() => {
+    signal.removeEventListener("abort", cancelAssets);
+    assetsAbort.abort();
+  });
   const unpacked = await boundedBytes(
     new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"))),
     64 * 1024 * 1024,
@@ -143,7 +157,6 @@ export async function loadSkinSurface(
     uv.triangles.some((t, i) => t.some((v, j) => v !== mesh.triangles[i][j]))
   )
     throw Error("skin UV correspondence changed");
-  const image = await fetchAsset(preview.texture, "image/png");
   const bytes = new Uint8Array(image),
     header = new DataView(image);
   if (
