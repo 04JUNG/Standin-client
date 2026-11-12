@@ -147,7 +147,7 @@ export function InteractiveReview({ data }: { data: InteractiveReviewData }) {
           ? { ...source!, body: overlay.display.body }
           : source
         : source,
-    [chosenSkin, overlay, source, preview],
+    [chosenSkin, overlay, source],
   );
   const skinNotice =
     data.skin &&
