@@ -1,0 +1,194 @@
+{
+  "date": "2026-11-13",
+  "productionDeployed": false,
+  "nativePlatform": "macOS arm64 Tauri",
+  "nativeAppSaved": [
+    {
+      "case": "text-default",
+      "bytes": 9067820,
+      "sha256": "02bcb4c38365371b288880649690dc740a3eaa695e8fc5fcc7509dfc4571eb30"
+    },
+    {
+      "case": "text-flesh",
+      "bytes": 13783500,
+      "sha256": "8974276fa375ad7176dab9a98228991f2ed53ef872e687c9028cc2eb80ecc63e"
+    },
+    {
+      "case": "rough-two-person-1-default",
+      "bytes": 9067820,
+      "sha256": "8f2a55d332a8d47b820353b5a91e8ff93d3fe367232cf5a4b403cffb70b7d4e8"
+    },
+    {
+      "case": "rough-two-person-2-default",
+      "bytes": 9056268,
+      "sha256": "4e445cad72ef3172f0bd3036db103c9f36afb84f8a44c4d4e56d3855a3005c24"
+    }
+  ],
+  "native503Recovery": {
+    "flesh503Faults": 2,
+    "fleshAcceptedPreparePosts": 1,
+    "fleshAdditionalModelDownloads": 0
+  },
+  "nativeRestartRecovery": "Expired person 0 model returned 410; explicit retry re-read head, created a newer fenced operation, and both files were saved through the real Rust command.",
+  "blenderReload": {
+    "blender": "5.2.0 LTS",
+    "files": [
+      {
+        "file": "standin_job_29fd33f3-7376-43dc-9c66-d5890c30dd56_standin_pose_인물1.fbx",
+        "bytes": 9067820,
+        "sha256": "8f2a55d332a8d47b820353b5a91e8ff93d3fe367232cf5a4b403cffb70b7d4e8",
+        "importFinished": true,
+        "meshes": 1,
+        "vertices": 139474,
+        "armatures": 1,
+        "bones": 67,
+        "materials": 1,
+        "images": 0,
+        "finiteVertices": true,
+        "passed": true
+      },
+      {
+        "file": "standin_job_29fd33f3-7376-43dc-9c66-d5890c30dd56_standin_pose_인물2.fbx",
+        "bytes": 9056268,
+        "sha256": "4e445cad72ef3172f0bd3036db103c9f36afb84f8a44c4d4e56d3855a3005c24",
+        "importFinished": true,
+        "meshes": 1,
+        "vertices": 139474,
+        "armatures": 1,
+        "bones": 67,
+        "materials": 1,
+        "images": 0,
+        "finiteVertices": true,
+        "passed": true
+      },
+      {
+        "file": "문장검색_standin_pose.fbx",
+        "bytes": 9067820,
+        "sha256": "02bcb4c38365371b288880649690dc740a3eaa695e8fc5fcc7509dfc4571eb30",
+        "importFinished": true,
+        "meshes": 1,
+        "vertices": 139474,
+        "armatures": 1,
+        "bones": 67,
+        "materials": 1,
+        "images": 0,
+        "finiteVertices": true,
+        "passed": true
+      },
+      {
+        "file": "문장검색_standin_pose_v2.fbx",
+        "bytes": 13783500,
+        "sha256": "8974276fa375ad7176dab9a98228991f2ed53ef872e687c9028cc2eb80ecc63e",
+        "importFinished": true,
+        "meshes": 1,
+        "vertices": 139474,
+        "armatures": 1,
+        "bones": 67,
+        "materials": 2,
+        "images": 1,
+        "finiteVertices": true,
+        "passed": true
+      }
+    ]
+  },
+  "apiMatrix": [
+    {
+      "case": "gray-guide",
+      "bytes": 14155420,
+      "sha256": "967c6c52695c37cfb0fe4b53e6a3be5a2195ff03e5d9658a86c2e6229ac7adc8",
+      "elapsedMs": 38116
+    },
+    {
+      "case": "muscle",
+      "bytes": 14006348,
+      "sha256": "eb32c25be07e6c6cff8e0705543a30191d0313884deb9e0f9a2218f02edf2f71",
+      "elapsedMs": 12083
+    },
+    {
+      "case": "flesh-guide",
+      "bytes": 14161580,
+      "sha256": "717aabaa87763b840a0f642d1e2cfed41e5a79f95882b392975ce88fca5a8965",
+      "elapsedMs": 12048
+    },
+    {
+      "case": "flesh-muscle",
+      "bytes": 14009836,
+      "sha256": "e2b08621832fb9cf99bb2d785ee6111906a809f017af9e6deb9bfa1262661269",
+      "elapsedMs": 13043
+    },
+    {
+      "case": "outline2",
+      "bytes": 17934716,
+      "sha256": "c773a014a6ddd0f9232a7a385f2338bd532d2f019a20d9dfc0fc2c2ab4edda08",
+      "elapsedMs": 11200
+    },
+    {
+      "case": "flesh-guide-outline2",
+      "bytes": 23028460,
+      "sha256": "e55712addc6c1e487ba47394096c8e1035fac8f5b867abb435b1bbc129d07692",
+      "elapsedMs": 12626
+    },
+    {
+      "case": "flesh-muscle-outline2",
+      "bytes": 22876716,
+      "sha256": "e1b08acdbc054eb02657c5920ae19e1d951d616e01c2d50265c6fff86a498f0b",
+      "elapsedMs": 12508
+    },
+    {
+      "case": "gray-guide-after-cancel",
+      "bytes": 14155420,
+      "sha256": "967c6c52695c37cfb0fe4b53e6a3be5a2195ff03e5d9658a86c2e6229ac7adc8",
+      "elapsedMs": 3039
+    }
+  ],
+  "apiFailures": [],
+  "apiRecoveryEvents": [
+    {
+      "type": "poll503-recovery",
+      "operationId": "op_c2785e64-0f36-4bf9-820d-8bc5b56de310",
+      "statuses": [
+        503,
+        503,
+        200
+      ],
+      "sameOperation": true,
+      "prepareRequests": 1
+    },
+    {
+      "type": "idempotent-prepare",
+      "operationId": "op_dc662847-7487-4caf-a8a8-d1bfdfa4178f",
+      "replayStatus": 200,
+      "sameRevision": true
+    },
+    {
+      "type": "repeated-change-cancel",
+      "operations": [
+        "op_30f97ab3-8e8b-41a0-b25d-09ee89945e16",
+        "op_47554b3c-057d-4ca4-b9fe-5d53f1c877f4",
+        "op_60c34a51-89af-4013-b65f-740d14f7d707"
+      ],
+      "revisions": [
+        8,
+        9,
+        10
+      ],
+      "previousSuperseded": true,
+      "cancelReplay": true,
+      "cancelledFileStatus": 409,
+      "cancelledModelStatus": 409,
+      "cancelledReadyState": "cancelled"
+    }
+  ],
+  "converterOnlyBenchmark": {
+    "baseColdSeconds": 31.714078,
+    "baseWarmSeconds": 0.206377,
+    "fleshFirstTotalSeconds": 10.426558,
+    "fleshRepeatTotalSeconds": 0.609856
+  },
+  "limits": [
+    "Local each benchmark once, not production SLA.",
+    "Search/VLM, installation credentials, catalog and object storage are fixtures.",
+    "Real BFF service/SQL with PGlite, Converter/Blender, native app and Rust disk writes; PostgreSQL advisory locking/S3/OS Keychain/CSP/Windows UI not tested.",
+    "All native UI appearance cases are not claimed: basic/flesh and two-person basic saved through UI; remaining skin/outline combinations are API-level."
+  ]
+}
