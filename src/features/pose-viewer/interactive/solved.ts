@@ -322,6 +322,21 @@ export function solvedCamera(
     baked: c.baked ? "view" : "none",
   };
 }
+/**
+ * The search projection can deliberately reflect screen X to preserve its
+ * image-coordinate convention. Final review displays the exported body's
+ * handedness instead. Remove that display reflection, retaining the camera
+ * pose, crop and source identity (including any intentional pose mirror).
+ * Keep solvedCamera unchanged for exact search/selection projections.
+ */
+export function finalReviewCamera(
+  state: { identity: SolvedState["identity"] },
+  frame: CameraFrame,
+): SearchCamera {
+  const camera = solvedCamera(state, frame);
+  if (camera.projectionMatrix[0] < 0) camera.projectionMatrix[0] *= -1;
+  return camera;
+}
 const SURFACE_GPU_BUDGET = 48 * 1024 * 1024;
 function boneTransforms(
   bones: readonly {

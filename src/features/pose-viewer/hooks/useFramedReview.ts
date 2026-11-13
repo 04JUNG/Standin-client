@@ -14,7 +14,7 @@ import {
 } from "../skin/skinScope";
 import { queueRepresentativeFrame } from "../interactive/history";
 import { historyUpload } from "../interactive/historyHttp";
-import { solvedCamera } from "../interactive/solved";
+import { finalReviewCamera } from "../interactive/solved";
 import { useInteractiveReviews } from "../interactive/useInteractiveReviews";
 import { env } from "@/shared/lib/env";
 import type { InteractiveReviewData } from "../interactive/InteractiveReview";
@@ -556,7 +556,7 @@ export function useFramedReview(jobId: string | undefined) {
                     queueRepresentativeFrame(
                       controller,
                       element,
-                      solvedCamera(model.state, model.frame),
+                      finalReviewCamera(model.state, model.frame),
                       historyUpload(controller.target, operation),
                     );
                   }
