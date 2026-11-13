@@ -876,6 +876,13 @@ full/half/shoulder_head/head 범위를 적용하며 카메라 또는 범위가 �
 ## 손 라이브러리·직접 문장 검색 통합 (2026-10-18)
 
 GET /v1/hands/catalog 및 좌우 thumbnail, GET/PUT /v1/analysis/jobs/:id/people/:index/hands를 사용한다.
+2026-11-13 보강: 손 목록·선택 조회의 일시 오류(429/502/503/504, 네트워크)는 1·2·4초 간격으로 3번
+다시 읽고, 그래도 실패하면 오류 상태인 동안 15초마다 다시 읽는다. 이미 받은 선택이 있으면 배경
+재조회가 진행 중이거나 일시 오류여도 카드와 다운로드 준비를 유지한다(서버가 준비·폴링·파일마다 다시
+확인한다). 손 변경 실패 뒤처럼 선택을 무효화한 경우는 새 응답을 기다린다. `HAND_LIBRARY_CHANGED`·
+`*_DISABLED`·무결성 오류는 다시 시도하지 않는다. 인터랙티브 head/prepare/export의 일시 오류도
+사용자 조작 없이 최대 6번(1·2·4·8·8·8초) 다시 시도한다. 같은 prepare는 같은 mutationId로 보낸다.
+폴링은 기존대로 `pollWithRecovery`가 120초까지 재시도하고, 그 뒤에는 `다시 시도`를 보여 준다.
 직접 검색은 GET /v1/semantic-search/capabilities와 POST /v1/semantic-search {query,topK?}이며,
 2026-10-19 확장: `topK:null`은 검색 기준을 통과한 전체 후보를 반환한다. 양의 정수는 명시한 개수,
 생략은 서버 기본 5이며 BFF가 null을 5로 바꾸거나 20개로 자르면 안 된다. `supportsAllResults:true`를
