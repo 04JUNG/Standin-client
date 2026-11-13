@@ -2,6 +2,7 @@ import type { SkinId } from "../skin/skinChoices";
 import { sameSkin, type Skin } from "../skin/skin";
 import { sameAppearance, type Appearance } from "../outline/appearance";
 import { ApiError } from "@/shared/api/errors";
+import { skinUnavailableError, type SkinUnavailable } from "../skin/skinScope";
 import { pollWithRecovery, transientPollError } from "./pollRecovery";
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
@@ -35,6 +36,8 @@ export type InteractiveSnapshot = {
   appearanceAvailable?: boolean;
   skinAvailable?: boolean;
   supportedSkins?: readonly SkinId[];
+  /** Server reason for an unavailable skin capability (cropped scope, outage…). */
+  skinUnavailable?: SkinUnavailable;
   binding?: string;
   previewState: PreviewState;
   exportState: ExportState;
@@ -318,6 +321,7 @@ export class InteractiveController {
           supportedSkins: recovery.skinExport?.available
             ? recovery.skinExport.supportedIds
             : ["default"],
+          skinUnavailable: recovery.skinUnavailable,
         });
         resumed = recovery.operation;
         if (
@@ -333,8 +337,11 @@ export class InteractiveController {
       if (
         desired.skin &&
         (this.value.skinAvailable !== true || !this.value.supportedSkins?.includes(desired.skin.id))
-      )
-        throw new ApiError(503, "SKIN_DISABLED", "");
+      ) {
+        // Read the capability again next time: a retry must not replay an outage's answer.
+        this.recovered = false;
+        throw skinUnavailableError(this.value.skinUnavailable, this.value.skinAvailable === true);
+      }
       let op: Operation;
       if (resumed) op = resumed;
       else {

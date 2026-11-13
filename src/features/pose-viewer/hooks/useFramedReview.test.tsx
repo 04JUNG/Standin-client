@@ -26,6 +26,7 @@ const m = vi.hoisted(() => ({
   ready: vi.fn(),
   image: vi.fn(),
   reload: vi.fn(),
+  setSkin: vi.fn(),
 }));
 vi.mock("../interactive/useInteractiveReviews", () => ({
   useInteractiveReviews: (options: Parameters<typeof useInteractiveReviews>[0]) => {
@@ -125,6 +126,7 @@ vi.mock("../store/poseSelectionStore", () => ({
       characterByPerson: {},
       skinByPerson: { 0: m.skin },
       outlineByPerson: { 0: m.outline },
+      setPersonSkin: m.setSkin,
     }),
 }));
 vi.mock("@/features/models/hooks/useModelCatalog", () => ({
@@ -173,6 +175,7 @@ beforeEach(() => {
     local: false,
   });
   m.interactive.mockClear();
+  m.setSkin.mockClear();
   m.model.mockReset().mockResolvedValue(new ArrayBuffer(32));
   m.ready.mockReset().mockImplementation(async (url: string) => ready(url));
   m.image.mockReset().mockResolvedValue("final-image");
@@ -440,3 +443,64 @@ it.each([
     Object.defineProperty(env, "interactivePreview", { value: previous, configurable: true });
   }
 });
+
+function withInteractive(run: () => void) {
+  const previous = env.interactivePreview;
+  Object.defineProperty(env, "interactivePreview", { value: true, configurable: true });
+  try {
+    m.finalCapability = true;
+    run();
+  } finally {
+    Object.defineProperty(env, "interactivePreview", { value: previous, configurable: true });
+  }
+}
+it.each([
+  { name: "an older server's SKIN_DISABLED", failure: new ApiError(503, "SKIN_DISABLED", "") },
+  {
+    name: "the server's scope reason",
+    failure: new ApiError(422, "SKIN_UNSUPPORTED", "", undefined, { outputScope: "half" }),
+  },
+])("explains a cropped scope and offers only the default skin after $name", ({ failure }) =>
+  withInteractive(() => {
+    m.skin = "flesh";
+    m.scope = "half";
+    m.snapshot = { error: true, failure, exportState: "failed" };
+    const { result, unmount } = mount();
+    const recovery = result.current.previewFailure;
+    expect(recovery.message).toBe(
+      "전신 포즈에서만 스킨을 쓸 수 있어요. 이 포즈는 반신 범위예요. 기본 스킨으로 바꾸면 저장할 수 있어요.",
+    );
+    expect(recovery.retryUseless).toBe(true);
+    expect(result.current.items[0].interactivePreview?.notice).toBe(recovery.message);
+    expect(result.current.preparationNotice).toBe(recovery.message);
+    expect(result.current.downloadReady).toBe(false);
+    act(() => recovery.switchToDefaultSkin!());
+    expect(m.setSkin).toHaveBeenCalledOnce();
+    expect(m.setSkin).toHaveBeenCalledWith(0, "default");
+    unmount();
+  }),
+);
+it("keeps retry beside the default skin for a full-body skin outage", () =>
+  withInteractive(() => {
+    m.skin = "flesh";
+    m.snapshot = { error: true, failure: new ApiError(503, "SKIN_UNAVAILABLE", "") };
+    const { result, unmount } = mount();
+    const recovery = result.current.previewFailure;
+    expect(recovery.message).toBe("스킨을 불러오지 못했어요. 다시 시도해 주세요.");
+    expect(recovery.action).toBe("retry");
+    expect(recovery.retryUseless).toBe(false);
+    act(() => recovery.switchToDefaultSkin!());
+    expect(m.setSkin).toHaveBeenCalledOnce();
+    expect(m.setSkin).toHaveBeenCalledWith(0, "default");
+    unmount();
+  }));
+it("does not offer a skin change for a failure unrelated to skin", () =>
+  withInteractive(() => {
+    m.skin = "flesh";
+    m.scope = "half";
+    m.snapshot = { error: true, failure: new ApiError(409, "PREVIEW_CHANGED", "") };
+    const { result, unmount } = mount();
+    expect(result.current.previewFailure.switchToDefaultSkin).toBeUndefined();
+    expect(result.current.previewFailure.retryUseless).toBe(false);
+    unmount();
+  }));
