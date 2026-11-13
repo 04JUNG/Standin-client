@@ -323,10 +323,11 @@ export function solvedCamera(
   };
 }
 /**
- * The search projection can deliberately reflect screen X to preserve its
- * image-coordinate convention. Final review displays the exported body's
- * handedness instead. Remove that display reflection, retaining the camera
- * pose, crop and source identity (including any intentional pose mirror).
+ * Converter encodes its +Z search camera with a local Y half-turn and a
+ * negative horizontal focal length. Undo both for physical FBX presentation:
+ * changing the projection alone leaves the viewer behind the character.
+ * Keep the target's depth/framing and the full fitted search rotation. This
+ * changes only the viewing convention, never the body or intentional mirror.
  * Keep solvedCamera unchanged for exact search/selection projections.
  */
 export function finalReviewCamera(
@@ -334,7 +335,15 @@ export function finalReviewCamera(
   frame: CameraFrame,
 ): SearchCamera {
   const camera = solvedCamera(state, frame);
-  if (camera.projectionMatrix[0] < 0) camera.projectionMatrix[0] *= -1;
+  if (camera.projectionMatrix[0] < 0) {
+    const view = new THREE.Matrix4().fromArray(camera.viewMatrix);
+    const targetDepth = new THREE.Vector3(...frame.target).applyMatrix4(view).z;
+    // A proper rotation (determinant +1), not a reflection of the mesh.
+    view.premultiply(new THREE.Matrix4().makeScale(-1, 1, -1));
+    view.elements[14] += 2 * targetDepth;
+    camera.viewMatrix = view.toArray();
+    camera.projectionMatrix[0] *= -1;
+  }
   return camera;
 }
 const SURFACE_GPU_BUDGET = 48 * 1024 * 1024;
