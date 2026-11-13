@@ -5,7 +5,7 @@ import { ApiError } from "@/shared/api/errors";
 import { pollWithRecovery, transientPollError } from "./pollRecovery";
 import type { SurfaceView } from "./InteractivePose";
 import { measure } from "./metrics";
-import { localHandSurface, solvedCamera, type LoadedVariants } from "./solved";
+import { localHandSurface, finalReviewCamera, type LoadedVariants } from "./solved";
 import { ENCODING as BINARY_STATE_ENCODING } from "./shared/interactive_pose_v2.mjs";
 import {
   interactiveHttp,
@@ -253,7 +253,7 @@ export class InteractiveController {
       if (!surface) return false;
       this.localDraft({
         body: surface.body,
-        camera: solvedCamera(model.state, model.frame),
+        camera: finalReviewCamera(model.state, model.frame),
         onFirstFrame: () => measure("hand-frame", started),
       });
       return true;
