@@ -28,9 +28,11 @@
 ## 빌드 없는 Apple 확인
 
 `notarization_preflight=true`로 실행하면 Apple의 공증 이력 API에만 인증한다. 앱 빌드,
-자산 업로드, 태그·릴리스·업데이트 피드 변경은 실행하지 않는다. 이 검사만 별도 Intel
-Mac 러너를 사용해 ARM 빌드 러너의 용량 부족과 자격 오류를 구분한다. 임시 키 파일은
-종료 시 삭제한다. API 응답의 계약 미서명·만료 오류는 우회하지 않는다.
+자산 업로드, 태그·릴리스·업데이트 피드 변경은 실행하지 않는다. 이 검사는 Apple의 공식
+Notary API를 Linux에서 읽어 Mac 빌드 러너의 용량 부족과 자격 오류를 구분한다. 키와
+짧은 만료 시간의 JWT는 메모리에서만 사용하고 출력하지 않는다. 실제 앱 빌드의
+`notarytool` 공증과 서명·stapler 검증은 그대로 유지한다. API 응답의 계약 미서명·만료
+오류는 우회하지 않는다.
 
 검증: `node --test scripts/validate-staging-update.test.mjs`, TypeScript 검사, 웹 빌드.
 실제 Mac 서명·공증·설치·업데이트 확인은 해당 릴리스 실행 결과로 별도 기록한다.

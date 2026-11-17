@@ -27,32 +27,45 @@ concurrency:
 jobs:
   notarization-preflight:
     if: ${{ inputs.notarization_preflight }}
-    # Keep the credential-only probe independent of ARM build-runner capacity.
-    runs-on: macos-15-intel
+    # Apple's documented read-only Notary API also works outside macOS.
+    # A credential probe must not wait for scarce Mac build runners.
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Check Apple notarization without building a release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check Apple Notary API without building a release
         shell: bash
         env:
           APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
-          set -euo pipefail
-          for required in APPLE_API_KEY_CONTENT APPLE_API_KEY APPLE_API_ISSUER; do
-            if [ -z "${!required:-}" ]; then
-              echo "Required notarization credential is missing: $required"
-              exit 1
-            fi
-          done
-          KEY_PATH="$RUNNER_TEMP/notarization-preflight.p8"
-          trap 'rm -f "$KEY_PATH"' EXIT
-          printf '%s' "$APPLE_API_KEY_CONTENT" | base64 --decode > "$KEY_PATH"
-          chmod 600 "$KEY_PATH"
-          xcrun notarytool history --key "$KEY_PATH" --key-id "$APPLE_API_KEY" \
-            --issuer "$APPLE_API_ISSUER" >/dev/null
-          echo "Apple notarization credentials accepted. No release was built or changed."
+          node --input-type=module <<'JS'
+          import { createPrivateKey, sign } from 'node:crypto';
+          for (const name of ['APPLE_API_KEY_CONTENT','APPLE_API_KEY','APPLE_API_ISSUER']) {
+            if (!process.env[name]) throw new Error(`Required notarization credential missing: ${name}`);
+          }
+          const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
+          const now = Math.floor(Date.now()/1000);
+          const header = encode({alg:'ES256',kid:process.env.APPLE_API_KEY,typ:'JWT'});
+          const claims = encode({iss:process.env.APPLE_API_ISSUER,iat:now,exp:now+120,aud:'appstoreconnect-v1'});
+          const payload = `${header}.${claims}`;
+          const key = createPrivateKey(Buffer.from(process.env.APPLE_API_KEY_CONTENT,'base64'));
+          const token = `${payload}.${sign('sha256',Buffer.from(payload),{key,dsaEncoding:'ieee-p1363'}).toString('base64url')}`;
+          const response = await fetch('https://appstoreconnect.apple.com/notary/v2/submissions',{
+            method:'GET',headers:{Authorization:`Bearer ${token}`},redirect:'error',signal:AbortSignal.timeout(30000)});
+          if (!response.ok) {
+            let errors=[];
+            try { errors=(await response.json()).errors ?? []; } catch {}
+            console.error(`Apple Notary API HTTP ${response.status}`);
+            for (const error of errors) console.error(JSON.stringify({code:error.code,title:error.title,detail:error.detail}));
+            process.exit(1);
+          }
+          console.log('Apple Notary API accepted the current credentials. No software was submitted or release changed.');
+          JS
 
   build:
     if: ${{ !inputs.notarization_preflight }}
