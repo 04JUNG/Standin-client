@@ -3,6 +3,10 @@ name: Build desktop release
 on:
   workflow_dispatch:
     inputs:
+      notarization_preflight:
+        description: "Apple 공증 자격만 확인 (빌드·업로드·게시 없음)"
+        type: boolean
+        default: false
       draft:
         description: "Publish as a draft release (verify signatures before it goes public)"
         type: boolean
@@ -21,7 +25,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  notarization-preflight:
+    if: ${{ inputs.notarization_preflight }}
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check Apple notarization without building a release
+        shell: bash
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          for required in APPLE_API_KEY_CONTENT APPLE_API_KEY APPLE_API_ISSUER; do
+            if [ -z "${!required:-}" ]; then
+              echo "Required notarization credential is missing: $required"
+              exit 1
+            fi
+          done
+          KEY_PATH="$RUNNER_TEMP/notarization-preflight.p8"
+          trap 'rm -f "$KEY_PATH"' EXIT
+          printf '%s' "$APPLE_API_KEY_CONTENT" | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          xcrun notarytool history --key "$KEY_PATH" --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" >/dev/null
+          echo "Apple notarization credentials accepted. No release was built or changed."
+
   build:
+    if: ${{ !inputs.notarization_preflight }}
     strategy:
       fail-fast: false
       matrix:
