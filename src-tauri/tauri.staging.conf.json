@@ -5,16 +5,18 @@
   "plugins": {
     "deep-link": {
       "desktop": {
-        "schemes": ["standin-staging"]
+        "schemes": [
+          "standin-staging"
+        ]
       }
     },
     "updater": {
-      "endpoints": []
+      "endpoints": [
+        "https://github.com/04JUNG/Standin-client/releases/download/staging-updates/latest.json"
+      ]
     }
   },
   "bundle": {
-    "macOS": {
-      "signingIdentity": "-"
-    }
+    "createUpdaterArtifacts": true
   }
 }

@@ -27,7 +27,8 @@ concurrency:
 jobs:
   notarization-preflight:
     if: ${{ inputs.notarization_preflight }}
-    runs-on: macos-latest
+    # Keep the credential-only probe independent of ARM build-runner capacity.
+    runs-on: macos-15-intel
     permissions:
       contents: read
     steps:
@@ -157,16 +158,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # staging 빌드는 자동 업데이트를 켜지 않는다. 켜면 latest.json을 보고
-          # **스스로 프로덕션 빌드로 갈아타** 검증하던 환경이 사라진다.
-          # tauri.staging.conf.json이 endpoints를 비우고, 여기서 서명 자산도 만들지 않는다.
-          if [ "${{ inputs.environment }}" = "staging" ]; then
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "extraArgs=--config src-tauri/tauri.staging.conf.json" >> "$GITHUB_OUTPUT"
-            echo "staging build: updater disabled, separate app identifier."
-            exit 0
-          fi
-
           PUBKEY="$(node -p "require('./src-tauri/tauri.conf.json').plugins.updater.pubkey")"
 
           # Half a keypair always fails at verification time. Stop before shipping assets.
@@ -181,9 +172,18 @@ jobs:
             exit 1
           fi
 
+          if [ "${{ inputs.environment }}" = staging ] && [ -z "${UPDATER_KEY:-}" ]; then
+            echo "Signed updater artifacts are required for this staging release."
+            exit 1
+          fi
+
           if [ -n "${UPDATER_KEY:-}" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "extraArgs=--config src-tauri/tauri.release.conf.json" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.environment }}" = staging ]; then
+              echo "extraArgs=--config src-tauri/tauri.staging.conf.json" >> "$GITHUB_OUTPUT"
+            else
+              echo "extraArgs=--config src-tauri/tauri.release.conf.json" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "extraArgs=" >> "$GITHUB_OUTPUT"
@@ -273,8 +273,19 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          TARGET_ENV: ${{ inputs.environment }}
         run: |
           set -euo pipefail
+
+          if [ "$TARGET_ENV" = staging ]; then
+            for required in APPLE_CERTIFICATE APPLE_TEAM_ID APPLE_SIGNING_IDENTITY APPLE_API_KEY_CONTENT APPLE_API_KEY APPLE_API_ISSUER; do
+              if [ -z "${!required:-}" ]; then
+                echo "Signed and notarized staging build requires $required."
+                exit 1
+              fi
+            done
+          fi
 
           # Signing succeeds without a Team ID; notarization does not. Catch it here
           # instead of after the (slow) universal build.
@@ -504,7 +515,7 @@ jobs:
   finalize:
     name: Validate updater feed and finalize release
     needs: build
-    if: ${{ inputs.environment == 'production' }}
+    if: ${{ !inputs.notarization_preflight }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -519,13 +530,28 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
-          gh release download "v$VERSION" --pattern latest.json --dir updater-feed
+          TAG="v$VERSION"
+          if [ "${{ inputs.environment }}" = staging ]; then TAG="$TAG-staging"; fi
+          gh release download "$TAG" --pattern latest.json --dir updater-feed
           node scripts/release-notes.mjs --manifest updater-feed/latest.json
-          gh release upload "v$VERSION" updater-feed/latest.json --clobber
+          if [ "${{ inputs.environment }}" = staging ]; then
+            node scripts/validate-staging-update.mjs updater-feed/latest.json "$VERSION"
+          fi
+          gh release upload "$TAG" updater-feed/latest.json --clobber
       - name: Publish verified release
         if: ${{ !inputs.draft }}
         shell: bash
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
-          gh release edit "v$VERSION" --draft=false --latest
+          if [ "${{ inputs.environment }}" = staging ]; then
+            gh release edit "v$VERSION-staging" --draft=false --prerelease --latest=false
+            # The separate feed tag can never become the production latest release.
+            if ! gh release view staging-updates >/dev/null 2>&1; then
+              gh release create staging-updates --target "$GITHUB_SHA" --prerelease --latest=false \
+                --title "Standin Staging updates" --notes "스테이징 앱 전용 서명 업데이트 피드"
+            fi
+            gh release upload staging-updates updater-feed/latest.json --clobber
+          else
+            gh release edit "v$VERSION" --draft=false --latest
+          fi
