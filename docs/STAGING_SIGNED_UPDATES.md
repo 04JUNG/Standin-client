@@ -34,5 +34,5 @@ Notary API를 Linux에서 읽어 Mac 빌드 러너의 용량 부족과 자격 �
 `notarytool` 공증과 서명·stapler 검증은 그대로 유지한다. API 응답의 계약 미서명·만료
 오류는 우회하지 않는다.
 
-검증: `node --test scripts/validate-staging-update.test.mjs`, TypeScript 검사, 웹 빌드.
+검증: `npx vitest run scripts/validate-staging-update.test.mjs`, TypeScript 검사, 웹 빌드.
 실제 Mac 서명·공증·설치·업데이트 확인은 해당 릴리스 실행 결과로 별도 기록한다.

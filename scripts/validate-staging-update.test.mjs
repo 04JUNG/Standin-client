@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateStagingUpdate } from './validate-staging-update.mjs';
@@ -12,8 +12,8 @@ test('staging updates require every signed platform and the versioned staging re
   }
 });
 test('staging app identity and feed stay separate from production', () => {
-  const staging=JSON.parse(readFileSync(new URL('../src-tauri/tauri.staging.conf.json',import.meta.url)));
-  const production=JSON.parse(readFileSync(new URL('../src-tauri/tauri.conf.json',import.meta.url)));
+  const staging=JSON.parse(readFileSync('src-tauri/tauri.staging.conf.json','utf8'));
+  const production=JSON.parse(readFileSync('src-tauri/tauri.conf.json','utf8'));
   assert.equal(staging.identifier,'app.standin.desktop.staging');
   assert.deepEqual(staging.plugins.updater.endpoints,['https://github.com/04JUNG/Standin-client/releases/download/staging-updates/latest.json']);
   assert.ok(production.plugins.updater.endpoints[0].includes('/releases/latest/'));
