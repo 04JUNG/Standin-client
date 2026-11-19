@@ -402,3 +402,109 @@ it.each([false, true])(
     }
   },
 );
+
+it.each([false, true])("decorates only an executing selected request (compact=%s)", (compact) => {
+  const entry = {
+    jobId: "job",
+    personIndex: 1,
+    candidateId: "selected",
+    status: "refining" as const,
+    enteredAt: 0,
+  };
+  const view = render(
+    <PoseSearchPending
+      mode="refine"
+      compact={compact}
+      refinement={entry}
+      selectionPreviewUrl="blob:selected"
+    />,
+  );
+  expect(view.container.querySelector(".pose-loading__selected-glint")).toBeInTheDocument();
+  expect(view.container.querySelector(".pose-loading__polish-sheen")).toBeInTheDocument();
+  // A phase-only stream must not invent observed joints, fitting, a percent, or a sixth step.
+  expect(
+    view.container.querySelector("[data-joint], animate, animateMotion"),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
+  expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
+  for (const status of [
+    "requested",
+    "preparing",
+    "improved",
+    "unchanged",
+    "reverted",
+    "skipped",
+    "failed",
+    "cancelled",
+  ] as const) {
+    view.rerender(
+      <PoseSearchPending
+        mode="refine"
+        compact={compact}
+        refinement={{ ...entry, status }}
+        selectionPreviewUrl="blob:selected"
+      />,
+    );
+    expect(view.container.querySelector(".pose-loading__selected-effects")).not.toBeInTheDocument();
+    expect(view.container.querySelector(".pose-loading__polish-sheen")).not.toBeInTheDocument();
+  }
+  view.rerender(
+    <PoseSearchPending mode="refine" refinement={entry} selectionPreviewUrl="blob:selected" />,
+  );
+  fireEvent.error(screen.getByRole("img", { name: "조정 중인 선택 포즈" }));
+  expect(view.container.querySelector(".pose-loading__selected-effects")).not.toBeInTheDocument();
+  expect(screen.getByText("선택한 포즈를 처리하고 있어요.")).toBeInTheDocument();
+});
+
+it("keeps reduced-motion refinement static and follows preference changes", () => {
+  let update: (() => void) | undefined;
+  const query = {
+    matches: true,
+    addEventListener: vi.fn((_: string, cb: () => void) => {
+      update = cb;
+    }),
+    removeEventListener: vi.fn(),
+  };
+  vi.stubGlobal("matchMedia", () => query);
+  const view = render(
+    <PoseSearchPending
+      mode="refine"
+      refinement={{
+        jobId: "job",
+        personIndex: 0,
+        candidateId: "pick",
+        status: "refining",
+        enteredAt: 0,
+      }}
+      selectionPreviewUrl="blob:selected"
+    />,
+  );
+  expect(view.container.querySelector(".pose-loading__selected-halo")).toBeInTheDocument();
+  expect(
+    view.container.querySelector(".pose-loading__selected-glint, .pose-loading__polish-sheen"),
+  ).not.toBeInTheDocument();
+  act(() => {
+    query.matches = false;
+    update?.();
+  });
+  expect(view.container.querySelector(".pose-loading__selected-glint")).toBeInTheDocument();
+  view.unmount();
+  expect(query.removeEventListener).toHaveBeenCalled();
+  vi.unstubAllGlobals();
+});
+
+it("keeps the highlighted ring and sparkle attached throughout an actual joint transition", () => {
+  const before = structuredClone(exampleSkeleton);
+  before.points[8] = [0.4, 0.6];
+  const view = render(
+    <ProgressSkeleton skeleton={exampleSkeleton} before={before} highlighted={[8]} polishing />,
+  );
+  const ring = view.container.querySelector('[data-active-joint="8"]')!;
+  expect(ring.querySelector('animate[attributeName="cx"]')).toHaveAttribute("from", "400");
+  expect(ring.querySelector('animate[attributeName="cy"]')).toHaveAttribute("from", "600");
+  expect(ring.querySelector("animate")).toHaveAttribute("dur", "900ms");
+  expect(view.container.querySelector('[data-polish-joint="8"] animateTransform')).toHaveAttribute(
+    "dur",
+    "900ms",
+  );
+});

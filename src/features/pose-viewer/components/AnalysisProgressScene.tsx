@@ -139,7 +139,22 @@ export function ProgressSkeleton({
             cy={p[1] * height}
             r={21 * unit}
             vectorEffect="non-scaling-stroke"
-          />
+          >
+            {animate(
+              "cx",
+              before?.points[index]?.[0] === undefined
+                ? undefined
+                : before.points[index]![0] * 1000,
+              p[0] * 1000,
+            )}
+            {animate(
+              "cy",
+              before?.points[index]?.[1] === undefined
+                ? undefined
+                : before.points[index]![1] * height,
+              p[1] * height,
+            )}
+          </circle>
         );
       })}
       {polishing &&
@@ -157,6 +172,17 @@ export function ProgressSkeleton({
                   key={i}
                   transform={`translate(${p[0] * 1000 + dx * unit} ${p[1] * height + dy * unit}) scale(${unit})`}
                 >
+                  {!reduced && before?.points[index] && (
+                    <animateTransform
+                      attributeName="transform"
+                      type="translate"
+                      from={`${((before.points[index]![0] - p[0]) * 1000) / unit} ${((before.points[index]![1] - p[1]) * height) / unit}`}
+                      to="0 0"
+                      additive="sum"
+                      dur="900ms"
+                      fill="freeze"
+                    />
+                  )}
                   <path
                     className="pose-loading__joint-glint"
                     style={{ "--order": order * 2 + i } as CSSProperties}

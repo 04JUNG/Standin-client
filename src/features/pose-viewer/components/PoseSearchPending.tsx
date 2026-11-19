@@ -25,6 +25,7 @@ import {
   observedSceneFacts,
 } from "../lib/loadingCopy";
 import "./PoseSearchPending.css";
+import { SelectedRefineEffects } from "./SelectedRefineEffects";
 
 type Props = {
   preview?: Pick<UploadDraft, "previewUrl" | "originalName"> | null;
@@ -191,6 +192,7 @@ export function PoseSearchPending({
             className="pose-loading__visual"
             data-source-small={shrinkSource}
             data-focused={!!focus && !!showImage}
+            data-selected-refining={refining && !!showImage}
           >
             {stages.length > 0 && (
               <div className="pose-loading__scene-number" aria-hidden="true">
@@ -242,7 +244,9 @@ export function PoseSearchPending({
               className="pose-loading__artwork"
               key={`${stage}:${person?.personIndex ?? "pending"}`}
             >
-              {(!selected || refining) && (
+              {refining && showImage ? (
+                <SelectedRefineEffects />
+              ) : !selected ? (
                 <AnalysisProgressScene
                   stage={stage}
                   finishingSearch={finishingSearch || completed}
@@ -252,7 +256,7 @@ export function PoseSearchPending({
                   sourceImage={focus && showImage ? imageUrl : undefined}
                   provisionalSkeleton={provisional?.skeleton}
                 />
-              )}
+              ) : null}
             </div>
             {showUnderstanding && (!!observations?.length || sceneFacts.length > 0) && (
               <ObservedKeywords
