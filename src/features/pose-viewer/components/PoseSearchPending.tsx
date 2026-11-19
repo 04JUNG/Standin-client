@@ -63,6 +63,7 @@ export function PoseSearchPending({
 }: Props) {
   const selected = mode === "refine";
   const refining = selected && refinement?.status === "refining";
+  const selectedTarget = refining && preview?.previewUrl ? refinement?.target : undefined;
   const completed = !selected && searchCompleted;
   const settled =
     selected && !!refinement && !["requested", "refining", "preparing"].includes(refinement.status);
@@ -131,9 +132,17 @@ export function PoseSearchPending({
             (selected ? (refinement?.enteredAt ?? mountedAt) : (progress?.enteredAt ?? mountedAt)),
         ),
       );
-  const imageUrl = selected ? selectionPreviewUrl || preview?.previewUrl : preview?.previewUrl;
+  const imageUrl = selectedTarget
+    ? preview?.previewUrl
+    : selected
+      ? selectionPreviewUrl || preview?.previewUrl
+      : preview?.previewUrl;
   const showImage = imageUrl && imageUrl !== failedPreviewUrl;
-  const ratio = imageSize && imageSize.url === imageUrl ? imageSize.ratio : 1;
+  const ratio = selectedTarget
+    ? selectedTarget.width / selectedTarget.height
+    : imageSize && imageSize.url === imageUrl
+      ? imageSize.ratio
+      : 1;
   const title = selected
     ? refinement
       ? SELECTED_REFINE_COPY[refinement.status]
@@ -192,7 +201,7 @@ export function PoseSearchPending({
             className="pose-loading__visual"
             data-source-small={shrinkSource}
             data-focused={!!focus && !!showImage}
-            data-selected-refining={refining && !!showImage}
+            data-selected-refining={!!selectedTarget && !!showImage}
           >
             {stages.length > 0 && (
               <div className="pose-loading__scene-number" aria-hidden="true">
@@ -214,7 +223,11 @@ export function PoseSearchPending({
               {showImage ? (
                 <img
                   src={imageUrl}
-                  alt={selected && selectionPreviewUrl ? "조정 중인 선택 포즈" : "검색 중인 러프"}
+                  alt={
+                    selected && selectionPreviewUrl && !selectedTarget
+                      ? "조정 중인 선택 포즈"
+                      : "검색 중인 러프"
+                  }
                   decoding="async"
                   onError={() => setFailedPreviewUrl(imageUrl)}
                   onLoad={(event) => {
@@ -244,8 +257,8 @@ export function PoseSearchPending({
               className="pose-loading__artwork"
               key={`${stage}:${person?.personIndex ?? "pending"}`}
             >
-              {refining && showImage ? (
-                <SelectedRefineEffects />
+              {selectedTarget && showImage ? (
+                <SelectedRefineEffects target={selectedTarget} />
               ) : !selected ? (
                 <AnalysisProgressScene
                   stage={stage}
@@ -280,7 +293,7 @@ export function PoseSearchPending({
             </div>
           </div>
           <figcaption title={preview?.originalName}>
-            {selected && selectionPreviewUrl ? "선택한 포즈" : "검색 중인 러프"}
+            {selected && selectionPreviewUrl && !selectedTarget ? "선택한 포즈" : "검색 중인 러프"}
             {preview?.originalName && <span> · {preview.originalName}</span>}
           </figcaption>
           {(stage === "understanding" || stage === "searching" || stage === "ranking") &&

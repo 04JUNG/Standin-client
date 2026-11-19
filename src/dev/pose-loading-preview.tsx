@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { RefreshCw, Moon, Sun, Check, AlertTriangle, Play, Pause } from "lucide-react";
 import { AnalysisResultsTransition } from "@/features/pose-viewer/components/AnalysisResultsTransition";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
-import { exampleSnapshot, previewCandidates } from "./analysis-progress-fixture";
+import { exampleSnapshot, exampleSkeleton, previewCandidates } from "./analysis-progress-fixture";
 import { readAnalysisProgress } from "@/features/pose-viewer/api/analysisProgress";
 import { ProgressImage } from "@/features/pose-viewer/components/AnalysisProgressScene";
 import {
@@ -168,6 +168,17 @@ export function Preview() {
                   candidateId: previewCandidates[selected].id,
                   status: outcome === "running" ? "refining" : outcome,
                   enteredAt: Date.now(),
+                  ...(!localImage && !multi
+                    ? {
+                        target: {
+                          version: "selected-refine-target.v1" as const,
+                          width: 250,
+                          height: 315,
+                          skeleton: exampleSkeleton,
+                          targetJoints: [8, 10],
+                        },
+                      }
+                    : {}),
                 }}
               />
             ) : (

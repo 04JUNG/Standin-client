@@ -83,6 +83,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
         personIndex: number,
         candidateId: string,
         status: SelectedRefineProgress["status"],
+        target?: SelectedRefineProgress["target"],
       ) => {
         if (!current()) return;
         const entry = {
@@ -91,6 +92,7 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
           candidateId,
           status,
           enteredAt: Date.now(),
+          ...(status === "refining" && target ? { target } : {}),
         };
         const index = entries.findIndex((p) => p.personIndex === personIndex);
         if (index < 0) entries.push(entry);
@@ -151,7 +153,8 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
                 personIndex: next.personIndex,
                 candidateId: next.candidateId,
                 signal: controller.signal,
-                onProgress: (phase) => report(target.personIndex, target.candidateId, phase),
+                onProgress: (phase, observedTarget) =>
+                  report(target.personIndex, target.candidateId, phase, observedTarget),
                 ...(result.capabilities.refineRelease ? { releaseVersion: "RC4" as const } : {}),
                 ...((canUseInteractiveOperations(result.capabilities) ||
                   (result.capabilities.modelPreview &&

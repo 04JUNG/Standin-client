@@ -14,6 +14,7 @@ export type SelectedRefineProgress = {
     | "failed"
     | "cancelled";
   enteredAt: number;
+  target?: import("../api/selectedRefineTarget").SelectedRefineTarget;
 };
 export function refineResultStatus(outcome: RefineOutcome): SelectedRefineProgress["status"] {
   if (outcome.refined) return "improved";

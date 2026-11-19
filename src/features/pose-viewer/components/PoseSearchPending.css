@@ -1106,52 +1106,49 @@
   animation: pose-selected-wait 1.8s ease-in-out infinite alternate;
 }
 
-/* Only mounted during the selected request's confirmed refining interval.
-   The two glints decorate the preview edges; they do not identify solver joints. */
+/* Same image viewport as the observed COCO points. No guessed mannequin positions. */
 .pose-loading__selected-effects {
   position: absolute;
   inset: 38px 24px;
   pointer-events: none;
 }
-.pose-loading__selected-halo {
-  position: absolute;
-  inset: -10px;
-  background: radial-gradient(ellipse at center, #ff6b571a, #ff6b5708 40%, transparent 70%);
-}
 .pose-loading__visual[data-selected-refining="true"] .pose-loading__source {
-  opacity: 0.85;
+  opacity: 0.38;
 }
-.pose-loading__selected-glint {
-  position: absolute;
-  width: 26px;
-  height: 26px;
-  color: var(--brand-coral);
-  fill: var(--brand-paper);
-  filter: drop-shadow(0 0 4px #ff6b5740);
-  stroke-width: 1.3;
-  opacity: 0;
-  animation: pose-joint-glint 3.2s ease-in-out infinite;
+.pose-loading__selected-effects .pose-loading__joint-glint {
+  animation: pose-target-glint 2.1s ease-in-out infinite;
+  animation-delay: calc(var(--order) * 370ms);
 }
-.pose-loading__selected-glint--start {
-  left: 8%;
-  top: 39%;
+.pose-loading__selected-effects .pose-loading__joint-input rect,
+.pose-loading__selected-effects .pose-loading__joint-input text {
+  display: none;
 }
-.pose-loading__selected-glint--end {
-  right: 8%;
-  top: 62%;
-  width: 20px;
-  height: 20px;
-  animation-delay: 0.8s;
+.pose-loading__selected-effects .pose-loading__joint-feed {
+  bottom: 0;
+}
+.pose-loading__selected-effects .pose-loading__joint-status {
+  bottom: -23px;
 }
 .pose-loading--compact .pose-loading__selected-effects {
   inset: 29px 13px 28px;
 }
-.pose-loading--compact .pose-loading__selected-glint {
-  width: 16px;
-  height: 16px;
+.pose-loading--compact .pose-loading__selected-effects .pose-loading__joint-feed {
+  display: none;
+}
+@keyframes pose-target-glint {
+  0%,
+  50%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pose-loading__selected-glint {
+  .pose-loading__selected-effects .pose-loading__joint-glint {
     display: none;
   }
 }

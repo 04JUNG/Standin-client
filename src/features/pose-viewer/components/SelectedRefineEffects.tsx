@@ -1,19 +1,33 @@
-import { Sparkles } from "lucide-react";
-import { useReducedLoadingMotion } from "../lib/useReducedLoadingMotion";
+import type { SelectedRefineTarget } from "../api/selectedRefineTarget";
+import { JOINT_LABELS } from "../lib/loadingGeometry";
+import { ProgressSkeleton } from "./AnalysisProgressScene";
 
-/** Processing decoration, not joint positions or evidence that a pose improved. */
-export function SelectedRefineEffects() {
-  const reduced = useReducedLoadingMotion();
+/** Effects stay on observed rough targets; no invented movement or mannequin coordinates. */
+export function SelectedRefineEffects({ target }: { target: SelectedRefineTarget }) {
   return (
-    <div className="pose-loading__selected-effects" aria-hidden="true">
-      <span className="pose-loading__selected-halo" />
-      {!reduced && (
-        <>
-          <span className="pose-loading__polish-sheen" />
-          <Sparkles className="pose-loading__selected-glint pose-loading__selected-glint--start" />
-          <Sparkles className="pose-loading__selected-glint pose-loading__selected-glint--end" />
-        </>
-      )}
+    <div className="pose-loading__selected-effects" data-refinement="running">
+      <ProgressSkeleton
+        skeleton={target.skeleton}
+        ratio={target.width / target.height}
+        highlighted={target.targetJoints}
+        inputJoints={target.targetJoints}
+        inputRunning
+        polishing
+      />
+      <div className="pose-loading__joint-feed">
+        <span>러프 위치</span>
+        <span aria-hidden="true">→</span>
+        <span>
+          {target.targetJoints
+            .slice(0, 2)
+            .map((i) => JOINT_LABELS[i])
+            .join(" · ")}
+        </span>
+      </div>
+      <div className="pose-loading__joint-status">
+        <span />
+        보정 대상 관절
+      </div>
     </div>
   );
 }

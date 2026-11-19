@@ -3,6 +3,7 @@ import type { PropsWithChildren } from "react";
 import { act, renderHook as baseRenderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult, PersonResult } from "../api/pose.contract";
+import { exampleSkeleton } from "@/dev/analysis-progress-fixture";
 
 function renderHook<T>(callback: () => T) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -352,18 +353,26 @@ it("shares real execution across app/bar remount and ignores late progress after
   const app = baseRenderHook(() => useRefineSelection(data), { wrapper });
   await waitFor(() => expect(refineSelection).toHaveBeenCalledOnce());
   expect(app.result.current.selectedRefineProgress[0].status).toBe("requested");
-  act(() => input.onProgress?.("refining"));
+  const target = {
+    version: "selected-refine-target.v1" as const,
+    width: 250,
+    height: 315,
+    skeleton: exampleSkeleton,
+    targetJoints: [8, 10],
+  };
+  act(() => input.onProgress?.("refining", target));
   await waitFor(() => expect(app.result.current.selectedRefineProgress[0].status).toBe("refining"));
   app.unmount();
   const bar = baseRenderHook(() => useRefineSelection(data), { wrapper });
   expect(bar.result.current.selectedRefineProgress[0].status).toBe("refining");
+  expect(bar.result.current.selectedRefineProgress[0].target).toEqual(target);
   expect(refineSelection).toHaveBeenCalledOnce();
   act(() =>
     usePoseSelectionStore.setState({ serverJobId: "new-job", selectedByPerson: { 0: "new" } }),
   );
   expect(input.signal?.aborted).toBe(true);
   await act(async () => {
-    input.onProgress?.("refining");
+    input.onProgress?.("refining", target);
     resolve({
       jobId: "server-job",
       personIndex: 0,

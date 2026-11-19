@@ -403,60 +403,76 @@ it.each([false, true])(
   },
 );
 
-it.each([false, true])("decorates only an executing selected request (compact=%s)", (compact) => {
-  const entry = {
-    jobId: "job",
-    personIndex: 1,
-    candidateId: "selected",
-    status: "refining" as const,
-    enteredAt: 0,
-  };
-  const view = render(
-    <PoseSearchPending
-      mode="refine"
-      compact={compact}
-      refinement={entry}
-      selectionPreviewUrl="blob:selected"
-    />,
-  );
-  expect(view.container.querySelector(".pose-loading__selected-glint")).toBeInTheDocument();
-  expect(view.container.querySelector(".pose-loading__polish-sheen")).toBeInTheDocument();
-  // A phase-only stream must not invent observed joints, fitting, a percent, or a sixth step.
-  expect(
-    view.container.querySelector("[data-joint], animate, animateMotion"),
-  ).not.toBeInTheDocument();
-  expect(screen.getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
-  expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
-  for (const status of [
-    "requested",
-    "preparing",
-    "improved",
-    "unchanged",
-    "reverted",
-    "skipped",
-    "failed",
-    "cancelled",
-  ] as const) {
-    view.rerender(
-      <PoseSearchPending
-        mode="refine"
-        compact={compact}
-        refinement={{ ...entry, status }}
-        selectionPreviewUrl="blob:selected"
-      />,
-    );
-    expect(view.container.querySelector(".pose-loading__selected-effects")).not.toBeInTheDocument();
-    expect(view.container.querySelector(".pose-loading__polish-sheen")).not.toBeInTheDocument();
-  }
-  view.rerender(
-    <PoseSearchPending mode="refine" refinement={entry} selectionPreviewUrl="blob:selected" />,
-  );
-  fireEvent.error(screen.getByRole("img", { name: "조정 중인 선택 포즈" }));
-  expect(view.container.querySelector(".pose-loading__selected-effects")).not.toBeInTheDocument();
-  expect(screen.getByText("선택한 포즈를 처리하고 있어요.")).toBeInTheDocument();
-});
+const observedTarget = {
+  version: "selected-refine-target.v1" as const,
+  width: 250,
+  height: 315,
+  skeleton: exampleSkeleton,
+  targetJoints: [8, 10],
+};
 
-it("keeps reduced-motion refinement static and follows preference changes", () => {
+it.each([false, true])(
+  "anchors effects only to the current observed rough targets (compact=%s)",
+  (compact) => {
+    const entry = {
+      jobId: "job",
+      personIndex: 1,
+      candidateId: "selected",
+      status: "refining" as const,
+      enteredAt: 0,
+      target: observedTarget,
+    };
+    const props = {
+      mode: "refine" as const,
+      compact,
+      preview,
+      selectionPreviewUrl: "blob:selected",
+    };
+    const view = render(<PoseSearchPending {...props} refinement={entry} />);
+    expect(screen.getByRole("img", { name: "검색 중인 러프" })).toHaveAttribute(
+      "src",
+      preview.previewUrl,
+    );
+    const ring = view.container.querySelector('[data-active-joint="8"]')!;
+    expect(ring).toHaveAttribute("cx", String(exampleSkeleton.points[8]![0] * 1000));
+    expect(ring).toHaveAttribute("cy", String(exampleSkeleton.points[8]![1] * 1260));
+    expect(view.container.querySelector('[data-active-joint="7"]')).not.toBeInTheDocument();
+    expect(view.container.querySelector('[data-polish-joint="8"] path')).toHaveAttribute(
+      "d",
+      "M 0 -15 L 3 -3 L 15 0 L 3 3 L 0 15 L -3 3 L -15 0 L -3 -3 Z",
+    );
+    expect(view.container.querySelector("animateMotion")).toBeInTheDocument();
+    expect(
+      view.container.querySelector(".pose-loading__selected-glint, .pose-loading__polish-sheen"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
+    expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
+    for (const status of [
+      "requested",
+      "preparing",
+      "improved",
+      "unchanged",
+      "reverted",
+      "skipped",
+      "failed",
+      "cancelled",
+    ] as const) {
+      view.rerender(<PoseSearchPending {...props} refinement={{ ...entry, status }} />);
+      expect(
+        view.container.querySelector(".pose-loading__selected-effects"),
+      ).not.toBeInTheDocument();
+    }
+    view.rerender(<PoseSearchPending {...props} refinement={{ ...entry, target: undefined }} />);
+    expect(view.container.querySelector(".pose-loading__selected-effects")).not.toBeInTheDocument();
+    view.rerender(<PoseSearchPending {...props} preview={null} refinement={entry} />);
+    expect(view.container.querySelector(".pose-loading__selected-effects")).not.toBeInTheDocument();
+    view.rerender(<PoseSearchPending {...props} refinement={entry} />);
+    fireEvent.error(screen.getByRole("img", { name: "검색 중인 러프" }));
+    expect(view.container.querySelector(".pose-loading__selected-effects")).not.toBeInTheDocument();
+  },
+);
+
+it("keeps reduced-motion joint rings static and follows preference changes", () => {
   let update: (() => void) | undefined;
   const query = {
     matches: true,
@@ -469,25 +485,27 @@ it("keeps reduced-motion refinement static and follows preference changes", () =
   const view = render(
     <PoseSearchPending
       mode="refine"
+      preview={preview}
       refinement={{
         jobId: "job",
         personIndex: 0,
         candidateId: "pick",
         status: "refining",
         enteredAt: 0,
+        target: observedTarget,
       }}
       selectionPreviewUrl="blob:selected"
     />,
   );
-  expect(view.container.querySelector(".pose-loading__selected-halo")).toBeInTheDocument();
+  expect(view.container.querySelector('[data-active-joint="8"]')).toBeInTheDocument();
   expect(
-    view.container.querySelector(".pose-loading__selected-glint, .pose-loading__polish-sheen"),
+    view.container.querySelector(".pose-loading__joint-glint, animate, animateMotion"),
   ).not.toBeInTheDocument();
   act(() => {
     query.matches = false;
     update?.();
   });
-  expect(view.container.querySelector(".pose-loading__selected-glint")).toBeInTheDocument();
+  expect(view.container.querySelector(".pose-loading__joint-glint")).toBeInTheDocument();
   view.unmount();
   expect(query.removeEventListener).toHaveBeenCalled();
   vi.unstubAllGlobals();

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readSelectedRefineResponse } from "./selectedRefineProgress";
+import { exampleSkeleton } from "@/dev/analysis-progress-fixture";
 const identity = { jobId: "job", personIndex: 1, candidateId: "pick" };
 const event = (phase: string, change = {}) => ({ type: "progress", ...identity, phase, ...change });
 function stream(events: object[]) {
@@ -18,6 +19,46 @@ function stream(events: object[]) {
   );
 }
 describe("selected refine wire", () => {
+  it("passes only valid observed targets from the bound refining event and clears them for preparing", async () => {
+    const target = {
+      version: "selected-refine-target.v1",
+      width: 250,
+      height: 315,
+      skeleton: exampleSkeleton,
+      targetJoints: [8, 10],
+    };
+    const onProgress = vi.fn();
+    await readSelectedRefineResponse(
+      stream([
+        event("refining", { target }),
+        event("preparing", { target }),
+        { type: "result", status: 200, body: {} },
+      ]),
+      { ...identity, onProgress },
+    );
+    expect(onProgress.mock.calls).toEqual([["refining", target], ["preparing"]]);
+    for (const bad of [
+      { ...target, width: 0 },
+      { ...target, targetJoints: [8, 8] },
+      { ...target, targetJoints: [99] },
+      { ...target, skeleton: { ...exampleSkeleton, points: Array(17).fill(null) } },
+    ]) {
+      const observed = vi.fn();
+      await readSelectedRefineResponse(
+        stream([event("refining", { target: bad }), { type: "result", status: 200, body: {} }]),
+        { ...identity, onProgress: observed },
+      );
+      expect(observed).toHaveBeenCalledWith("refining");
+    }
+    const stale = vi.fn();
+    await expect(
+      readSelectedRefineResponse(stream([event("refining", { candidateId: "old", target })]), {
+        ...identity,
+        onProgress: stale,
+      }),
+    ).rejects.toThrow("selection");
+    expect(stale).not.toHaveBeenCalled();
+  });
   it("uses only matching server events and returns the terminal response", async () => {
     const onProgress = vi.fn();
     const body = { ...identity, refined: false, reasonCode: "no_gain" };

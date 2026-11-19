@@ -1,11 +1,12 @@
 import { ApiError } from "@/shared/api/errors";
+import { readSelectedRefineTarget, type SelectedRefineTarget } from "./selectedRefineTarget";
 
 type Request = {
   jobId: string;
   personIndex: number;
   candidateId: string;
   signal?: AbortSignal;
-  onProgress?: (phase: "refining" | "preparing") => void;
+  onProgress?: (phase: "refining" | "preparing", target?: SelectedRefineTarget) => void;
 };
 /** One response stream is one selected request. Old BFF JSON never implies execution. */
 export async function readSelectedRefineResponse<T>(
@@ -37,8 +38,12 @@ export async function readSelectedRefineResponse<T>(
             event.candidateId !== request.candidateId
           )
             throw new Error("Refine progress changed selection");
-          if (event.phase === "refining" || event.phase === "preparing")
-            request.onProgress?.(event.phase);
+          if (event.phase === "refining" || event.phase === "preparing") {
+            const target =
+              event.phase === "refining" ? readSelectedRefineTarget(event.target) : undefined;
+            if (target) request.onProgress?.(event.phase, target);
+            else request.onProgress?.(event.phase);
+          }
         } else if (event.type === "result") {
           if (!Number.isInteger(event.status) || event.status < 200 || event.status >= 300)
             throw new ApiError(

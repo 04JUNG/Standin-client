@@ -11,6 +11,7 @@ import {
 import { env } from "@/shared/lib/env";
 import { previewCandidates } from "./analysis-progress-fixture";
 import "@/app/styles/index.css";
+import rough from "./loading-rough.svg";
 if (!import.meta.env.DEV || !["localhost", "127.0.0.1"].includes(new URL(env.apiBaseUrl).hostname))
   throw Error("Wire QA is loopback-only");
 export function SelectedRefineWireQA() {
@@ -31,9 +32,9 @@ export function SelectedRefineWireQA() {
       const outcome = await refineHttp.refineSelection({
         ...identity,
         signal: abort.signal,
-        onProgress: (phase) => {
+        onProgress: (phase, target) => {
           record(`BFF HTTP → ${phase}`);
-          setEntry({ ...identity, status: phase, enteredAt: Date.now() });
+          setEntry({ ...identity, status: phase, enteredAt: Date.now(), target });
         },
       });
       record(`BFF HTTP → refined=${outcome.refined}, reason=${outcome.reasonCode}`);
@@ -83,6 +84,7 @@ export function SelectedRefineWireQA() {
       <div className={compact ? "w-[360px]" : "w-full"}>
         <PoseSearchPending
           mode="refine"
+          preview={{ previewUrl: rough, originalName: "관절 위치 검증 fixture" }}
           refinement={entry}
           compact={compact}
           selectionPreviewUrl={previewCandidates[0].thumbnailUrl}
