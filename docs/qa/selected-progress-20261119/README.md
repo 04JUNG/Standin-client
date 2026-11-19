@@ -1,4 +1,4 @@
-# 검색 1~5 / 선택 후 실제 보정 6 검증 · 2026-11-19
+# 검색 1~5 / 선택 후 번호 없는 독립 보정 UI 검증 · 2026-11-19
 
 ## 기준과 범위
 
@@ -18,7 +18,7 @@ BFF는 별도 main `d257c34`에서 분기한 [PR #209](https://github.com/04JUNG
 기존 화면: 러프 확인 → 자세 읽기 → 동작 이해 → 포즈 찾기(숨긴 ranking 포함) → 러프 맞춤.
 선택 후 화면은 `mode="refine"`만으로 보정 단계를 강제했다.
 
-수정: **01 러프 확인 → 02 자세 읽기 → 03 동작 이해 → 04 포즈 찾기 → 05 후보 정리 → Top5 → 사용자 선택 → 실제 실행 동안만 06 러프 맞춤 → 최종 결과·파일 준비·저장**.
+수정: **01 러프 확인 → 02 자세 읽기 → 03 동작 이해 → 04 포즈 찾기 → 05 후보 정리 → Top5 → 사용자 선택 → 실제 실행 동안만 번호 없는 독립 러프 맞춤 UI → 최종 결과·파일 준비·저장**.
 
 검색 snapshot의 legacy `refining`, 완료/생략 목록에 들어온 `refining`은 검색 화면에 노출하지 않는다.
 `ranking`은 독립된 5번이다. 타이머는 검색 예상 숫자와 장식 모션에만 쓰며 단계를 진행시키지 않는다.
@@ -26,10 +26,10 @@ BFF는 별도 main `d257c34`에서 분기한 [PR #209](https://github.com/04JUNG
 선택 후 실행은 검색 퍼센트/완료 목록을 재사용하지 않는다.
 
 선택 후 `refineHttp`가 BFF의 opt-in NDJSON POST 응답에서 현재 job/person/candidate와
-일치하는 `refining` 이벤트를 수신해야 6번을 표시한다. BFF가 로컬 정책·캐시·입력 확인을
+일치하는 `refining` 이벤트를 수신해야 독립 리파인 UI를 표시한다. BFF가 로컬 정책·캐시·입력 확인을
 마친 후 실제 upstream `/refine` 또는 이미 켜져 있던 RC4 호출을 실행하는 구간이다.
 **BFF의 upstream 요청 실행 증거이며 solver 내부 반복이나 성공 보장은 아니다.**
-해당 호출이 끝나면 `preparing`으로 전환하며 artifact 보관·미리보기 fetch/render·파일 준비는 6번이 아니다.
+해당 호출이 끝나면 `preparing`으로 전환하며 artifact 보관·미리보기 fetch/render·파일 준비에는 리파인 UI를 표시하지 않는다.
 구 BFF의 JSON에는 실행 시작 증거가 없으므로 일반 준비 상태만 표시한다.
 
 완료(`refined:true`), 원본 유지, 안전 복구, 스킵, 실패, 취소를 실제 응답/사유로 구분한다.
@@ -43,7 +43,7 @@ BFF는 별도 main `d257c34`에서 분기한 [PR #209](https://github.com/04JUNG
 - 클라이언트 전체 Vitest: **1,760 passed / 기존 외부 opt-in 6 skipped**.
 - 타입 검사(프로덕션 build의 tsc 포함), 웹 빌드, lint 오류 0. 기존 Fast Refresh 경고 2와 큰 번들 경고 유지.
 - icons:check Windows, release:check, 캠페인 publication gate 검사 통과.
-- 검색 1~5/6 부재·ranking 독립, 선택만으로 6 불가, 실제 서버 실행만 6, preparing/원본 유지/실패/취소에서 6 제거,
+- 검색 1~5/리파인 부재·ranking 독립, 선택만으로 리파인 UI 표시 불가, 실제 서버 실행에만 독립 리파인 UI, preparing/원본 유지/실패/취소에서 리파인 UI 제거,
   완료 경계·부분/다인물·활성 인물의 다른 사람 정보 대체 금지·기록 복원·자연어·재시도·늦은 job/선택 이벤트·앱↔바 요청 재사용·캐시 보정 결과의 기록 재방문 복구 검사.
 - BFF 전체: **1,201 passed / 기존 opt-in 2 skipped**, 후속 패키지 검사 **6 passed**,
   CI 설정 스크립트 **27 passed**, typecheck/build/diff check 통과.
@@ -58,7 +58,7 @@ CI는 기존 Node22 설정을 유지한다. loopback HTTP 테스트는 샌드박
 아래 이미지는 **수정한 실제 컴포넌트의 Chrome 캡처**다.
 `search-*` / `refine-*`는 DEV 예시 snapshot이며 실제 추론 결과가 아니다.
 
-| 검색 05/05 | 선택 후 실행 06/06 |
+| 검색 05/05 | 선택 후 실행 · 번호 없는 독립 UI |
 | --- | --- |
 | ![앱 검색](search-app.jpg) | ![앱 선택 후 보정](refine-app.jpg) |
 | ![바 검색](search-bar.jpg) | ![바 선택 후 보정](refine-bar.jpg) |
@@ -69,8 +69,8 @@ CI는 기존 Node22 설정을 유지한다. loopback HTTP 테스트는 샌드박
 타이머로 단계를 흉내내지 않고, upstream fixture의 응답을 수동 해제해 관찰했다.
 
 ![실제 BFF 스트림 수신 중](bff-wire-running.jpg)
-![no_gain 이후 원본 유지, 6 제거](bff-wire-unchanged.jpg)
-![HTTP 사용자 취소, 6/완료 표시 제거](bff-wire-cancelled.jpg)
+![no_gain 이후 원본 유지, 리파인 UI 제거](bff-wire-unchanged.jpg)
+![HTTP 사용자 취소, 리파인/완료 표시 제거](bff-wire-cancelled.jpg)
 
 재현: BFF PR #209에서 `npx tsx scripts/selected-refine-progress-qa.ts`,
 클라이언트에서 `npm run dev -- --host 127.0.0.1 --port 1431` 후
@@ -85,5 +85,5 @@ DEV entry는 loopback만 허용하고 production bundle에 포함되지 않는�
 운영 배포·공개 릴리스·병합은 수행하지 않았다.
 
 추후 별도 배포 승인 시 **BFF #209 → 클라이언트** 순서로 반영한다. 역순에서도 구 BFF JSON
-fallback은 동작하지만 6번을 추정하지 않는다. 최소 1명 실제 리뷰와 필수 CI를 유지한다.
+fallback은 동작하지만 리파인 실행을 추정하지 않는다. 최소 1명 실제 리뷰와 필수 CI를 유지한다.
 develop에는 이번 main용 변경을 별도로 검토해 이식해야 하며 신규 인형/선행 보정 PR에 섞지 않았다.

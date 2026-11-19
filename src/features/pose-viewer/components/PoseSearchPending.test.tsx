@@ -342,47 +342,63 @@ describe("actual analysis loading", () => {
   });
 });
 
-it.each([false, true])("step six needs server execution evidence on compact=%s", (compact) => {
-  const refinement = {
-    jobId: "job",
-    personIndex: 1,
-    candidateId: "pick",
-    status: "requested" as const,
-    enteredAt: 0,
-  };
-  const view = render(
-    <PoseSearchPending mode="refine" compact={compact} refinement={refinement} />,
-  );
-  expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
-  view.rerender(
-    <PoseSearchPending
-      mode="refine"
-      compact={compact}
-      refinement={{ ...refinement, status: "refining" }}
-    />,
-  );
-  expect(screen.getAllByRole("listitem")).toHaveLength(1);
-  expect(view.container.querySelector(".pose-loading__scene-number")).toHaveTextContent("06 / 06");
-  expect(screen.getByTitle("러프 맞춤")).toHaveAttribute("data-complete", "false");
-  for (const status of [
-    "preparing",
-    "skipped",
-    "unchanged",
-    "reverted",
-    "failed",
-    "cancelled",
-    "improved",
-  ] as const) {
+it.each([false, true])(
+  "unnumbered standalone refinement needs server execution evidence on compact=%s",
+  (compact) => {
+    const refinement = {
+      jobId: "job",
+      personIndex: 1,
+      candidateId: "pick",
+      status: "requested" as const,
+      enteredAt: 0,
+    };
+    const view = render(
+      <PoseSearchPending mode="refine" compact={compact} refinement={refinement} />,
+    );
+    expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
     view.rerender(
       <PoseSearchPending
         mode="refine"
         compact={compact}
-        completed
-        refinement={{ ...refinement, status }}
+        refinement={{ ...refinement, status: "refining" }}
       />,
     );
     expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
-    expect(view.container.querySelector('[data-completed="true"]')).not.toBeInTheDocument();
-    expect(view.container.querySelector('[aria-valuenow="100"]')).not.toBeInTheDocument();
-  }
-});
+    expect(view.container.querySelector(".pose-loading__scene-number")).not.toBeInTheDocument();
+    expect(view.container.querySelector(".pose-loading__step-marker")).not.toBeInTheDocument();
+    expect(view.container.querySelector(".pose-loading")).toHaveAttribute(
+      "aria-label",
+      "포즈 조정 진행",
+    );
+    expect(screen.getByRole("heading")).toHaveTextContent("러프에 맞춰 조정하고 있어요");
+    expect(view.container.querySelector(".pose-loading__eyebrow")).toHaveTextContent("POSE REFINE");
+    for (const status of [
+      "preparing",
+      "skipped",
+      "unchanged",
+      "reverted",
+      "failed",
+      "cancelled",
+      "improved",
+    ] as const) {
+      view.rerender(
+        <PoseSearchPending
+          mode="refine"
+          compact={compact}
+          completed
+          refinement={{ ...refinement, status }}
+        />,
+      );
+      expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
+      expect(view.container.querySelector(".pose-loading")).not.toHaveAttribute(
+        "data-stage",
+        "refining",
+      );
+      expect(view.container.querySelector(".pose-loading__eyebrow")).not.toHaveTextContent(
+        "POSE REFINE",
+      );
+      expect(view.container.querySelector('[data-completed="true"]')).not.toBeInTheDocument();
+      expect(view.container.querySelector('[aria-valuenow="100"]')).not.toBeInTheDocument();
+    }
+  },
+);

@@ -82,7 +82,7 @@ export function PoseSearchPending({
     : (snapshot?.stage ?? progress?.phase ?? "running");
   const finishingSearch = phase === "ranking" || phase === "preparing";
   const stage = refining ? "refining" : completed ? "ranking" : loadingVisualStage(phase);
-  const stages = selected ? (refining ? ["refining" as const] : []) : POSE_LOADING_STAGES;
+  const stages = selected ? [] : POSE_LOADING_STAGES;
   const copy =
     COPY[
       phase === "preparing" ? "ranking" : phase === "refining" && !selected ? "searching" : phase
@@ -182,7 +182,7 @@ export function PoseSearchPending({
       data-completed={completed}
       data-focused-person={selected ? refinement?.personIndex : person?.personIndex}
       data-focus-id={provisional?.id}
-      aria-label={selected ? "포즈 조정 진행" : "포즈 검색 진행"}
+      aria-label={refining ? "포즈 조정 진행" : selected ? "결과 준비 진행" : "포즈 검색 진행"}
       aria-busy={!completed && !settled}
     >
       {!restoring && (
@@ -194,8 +194,8 @@ export function PoseSearchPending({
           >
             {stages.length > 0 && (
               <div className="pose-loading__scene-number" aria-hidden="true">
-                {refining ? "06" : String(current + 1).padStart(2, "0")}
-                <span> / {refining ? "06" : "05"}</span>
+                {String(current + 1).padStart(2, "0")}
+                <span> / 05</span>
               </div>
             )}
             {person && snapshot && snapshot.people.length > 1 && (
@@ -289,7 +289,10 @@ export function PoseSearchPending({
       )}
       <div className="pose-loading__info">
         <div className="pose-loading__eyebrow">
-          STANDIN <span>/ POSE SEARCH</span>
+          STANDIN{" "}
+          <span>
+            {refining ? "/ POSE REFINE" : selected ? "/ RESULT PREPARATION" : "/ POSE SEARCH"}
+          </span>
         </div>
         <div className="pose-loading__heading">
           <h2 key={title}>{title}</h2>
@@ -390,8 +393,6 @@ export function PoseSearchPending({
                       <Minus size={10} />
                     ) : complete ? (
                       <Check size={10} />
-                    ) : refining ? (
-                      "06"
                     ) : (
                       String(i + 1).padStart(2, "0")
                     )}

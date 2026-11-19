@@ -112,8 +112,8 @@ export function Preview() {
           <span>SEARCH → TOP5 → SELECT → REFINE → READY</span>
           <h1>러프에서 포즈까지.</h1>
           <p>
-            예시 데이터로 검색 1~5와 선택 후 자동 보정 6을 확인해요. 실제 서버 분석과 연결된 화면은
-            아닙니다.
+            예시 데이터로 검색 1~5와 선택 후 번호 없는 독립 자동 보정 UI를 확인해요. 실제 서버
+            분석과 연결된 화면은 아닙니다.
           </p>
         </div>
         <div className="loading-preview__timeline" aria-label="로딩 구간 미리보기">
@@ -136,7 +136,7 @@ export function Preview() {
               setPlaying(false);
             }}
           >
-            06 선택 후 러프 맞춤
+            선택 후 러프 맞춤
           </button>
         </div>
         <div
