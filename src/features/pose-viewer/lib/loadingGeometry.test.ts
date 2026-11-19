@@ -4,12 +4,14 @@ import { activeProgressPerson } from "../api/analysisProgress";
 import { exampleSkeleton, exampleSnapshot } from "@/dev/analysis-progress-fixture";
 
 describe("real-person loading geometry", () => {
-  it("focuses the person with usable joints rather than an empty first slot", () => {
+  it("does not borrow joints from another explicitly active person", () => {
     const snapshot = exampleSnapshot("extracting", { multi: true });
     snapshot.activePersonIndex = 0;
     delete snapshot.people[0].skeleton;
+    expect(activeProgressPerson(snapshot, "skeleton")?.personIndex).toBe(0);
+    expect(activeProgressPerson(snapshot, "skeleton")?.skeleton).toBeUndefined();
+    delete snapshot.activePersonIndex;
     expect(activeProgressPerson(snapshot, "skeleton")?.personIndex).toBe(1);
-    expect(activeProgressPerson(snapshot, "skeleton")?.skeleton).toBe(snapshot.people[1].skeleton);
   });
   it("honors a valid server focus and never merges two people's joints", () => {
     const snapshot = exampleSnapshot("extracting", { multi: true });

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PoseSearchPending } from "./PoseSearchPending";
-import { ProgressSkeleton } from "./AnalysisProgressScene";
+import { AnalysisProgressScene, ProgressSkeleton } from "./AnalysisProgressScene";
 import { POSE_LOADING_STAGES, LOADING_STAGE_LABELS } from "../lib/loadingProgress";
 import { exampleSnapshot, exampleSkeleton } from "@/dev/analysis-progress-fixture";
 
@@ -147,30 +147,17 @@ describe("actual analysis loading", () => {
       "0 0 1000 1000",
     );
   });
-  it("marks explicit refining joints and their incoming data without guessing active joints", () => {
+  it("ignores pre-selection refine events and their joint animation", () => {
     const snapshot = exampleSnapshot("refining", { outcome: "running" });
-    const view = render(
+    const { container } = render(
       <PoseSearchPending
         preview={preview}
-        progress={{ phase: snapshot.stage, enteredAt: 0, snapshot }}
+        progress={{ phase: "refining", enteredAt: 0, snapshot }}
       />,
     );
-    expect(view.container.querySelectorAll("[data-active-joint]")).toHaveLength(2);
-    expect(view.container.querySelectorAll("[data-input-joint]")).toHaveLength(2);
-    expect(
-      [...view.container.querySelectorAll("[data-polish-joint]")].map((node) =>
-        node.getAttribute("data-polish-joint"),
-      ),
-    ).toEqual(["8", "10"]);
-    delete snapshot.people[0].refinement!.activeJoints;
-    view.rerender(
-      <PoseSearchPending
-        preview={preview}
-        progress={{ phase: snapshot.stage, enteredAt: 0, snapshot: { ...snapshot, sequence: 20 } }}
-      />,
-    );
-    expect(view.container.querySelector("[data-active-joint]")).not.toBeInTheDocument();
-    expect(view.container.querySelector("[data-input-joint]")).not.toBeInTheDocument();
+    expect(screen.queryByText("러프 맞춤")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-active-joint]")).not.toBeInTheDocument();
+    expect(container.querySelector(".pose-loading")).toHaveAttribute("data-stage", "searching");
   });
   it("keeps exactly the real candidate images in the moving reel", () => {
     const snapshot = exampleSnapshot("searching");
@@ -215,7 +202,7 @@ describe("actual analysis loading", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent("자세와 동작을 함께 비교");
   });
-  it("keeps server ranking inside step four and shows ranked candidates", () => {
+  it("shows server ranking as step five and shows ranked candidates", () => {
     const searching = exampleSnapshot("searching");
     const snapshot = exampleSnapshot("ranking");
     snapshot.skippedStages = ["refining"];
@@ -227,7 +214,7 @@ describe("actual analysis loading", () => {
         progress={{ phase: searching.stage, enteredAt: 0, snapshot: searching }}
       />,
     );
-    const step = screen.getByTitle("포즈 찾기");
+    const step = screen.getByTitle("후보 정리");
     rerender(
       <PoseSearchPending
         preview={preview}
@@ -239,9 +226,9 @@ describe("actual analysis loading", () => {
     ).toHaveLength(5);
     expect(step).toHaveAttribute("aria-current", "step");
     expect(step).toHaveAttribute("data-complete", "false");
-    expect(container.querySelector(".pose-loading__scene-number")).toHaveTextContent("04 / 05");
-    expect(screen.getByTitle("러프 맞춤 · 생략")).toHaveAttribute("data-skipped", "true");
-    expect(screen.queryByText("후보 정리")).not.toBeInTheDocument();
+    expect(container.querySelector(".pose-loading__scene-number")).toHaveTextContent("05 / 05");
+    expect(screen.queryByTitle("러프 맞춤 · 생략")).not.toBeInTheDocument();
+    expect(screen.getByTitle("후보 정리")).toBeInTheDocument();
     expect(
       [...container.querySelectorAll("[data-candidate-id]")].map((el) =>
         el.getAttribute("data-candidate-id"),
@@ -264,12 +251,14 @@ describe("actual analysis loading", () => {
       expect(screen.queryByText("자세를 러프에 맞췄어요")).not.toBeInTheDocument();
     },
   );
-  it("interpolates actual before/after coordinates only", () => {
+  it("keeps actual before/after rendering available without exposing it during search", () => {
     const snapshot = exampleSnapshot("refining");
     const { container } = render(
-      <PoseSearchPending
-        preview={preview}
-        progress={{ phase: snapshot.stage, enteredAt: 0, snapshot }}
+      <AnalysisProgressScene
+        stage="refining"
+        finishingSearch={false}
+        person={snapshot.people[0]}
+        ratio={1}
       />,
     );
     expect(container.querySelector("animate")).toHaveAttribute("dur", "900ms");
@@ -305,7 +294,7 @@ describe("actual analysis loading", () => {
       />,
     );
     expect(container.querySelectorAll('[data-complete="true"]')).toHaveLength(1);
-    expect(screen.getByTitle("러프 맞춤 · 생략")).toHaveAttribute("data-skipped", "true");
+    expect(screen.queryByTitle("러프 맞춤 · 생략")).not.toBeInTheDocument();
   });
   it("keeps legacy progress generic, estimated and below completion", () => {
     vi.useFakeTimers();
@@ -348,6 +337,52 @@ describe("actual analysis loading", () => {
       "src",
       "blob:selected",
     );
-    expect(screen.getByRole("heading")).toHaveTextContent("러프에 맞춰 조정하고 있어요");
+    expect(screen.getByRole("heading")).toHaveTextContent("선택한 포즈를 확인하고 있어요");
+    expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
   });
+});
+
+it.each([false, true])("step six needs server execution evidence on compact=%s", (compact) => {
+  const refinement = {
+    jobId: "job",
+    personIndex: 1,
+    candidateId: "pick",
+    status: "requested" as const,
+    enteredAt: 0,
+  };
+  const view = render(
+    <PoseSearchPending mode="refine" compact={compact} refinement={refinement} />,
+  );
+  expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
+  view.rerender(
+    <PoseSearchPending
+      mode="refine"
+      compact={compact}
+      refinement={{ ...refinement, status: "refining" }}
+    />,
+  );
+  expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  expect(view.container.querySelector(".pose-loading__scene-number")).toHaveTextContent("06 / 06");
+  expect(screen.getByTitle("러프 맞춤")).toHaveAttribute("data-complete", "false");
+  for (const status of [
+    "preparing",
+    "skipped",
+    "unchanged",
+    "reverted",
+    "failed",
+    "cancelled",
+    "improved",
+  ] as const) {
+    view.rerender(
+      <PoseSearchPending
+        mode="refine"
+        compact={compact}
+        completed
+        refinement={{ ...refinement, status }}
+      />,
+    );
+    expect(screen.queryByRole("list", { name: "작업 단계" })).not.toBeInTheDocument();
+    expect(view.container.querySelector('[data-completed="true"]')).not.toBeInTheDocument();
+    expect(view.container.querySelector('[aria-valuenow="100"]')).not.toBeInTheDocument();
+  }
 });

@@ -1,7 +1,17 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { PropsWithChildren } from "react";
+import { act, renderHook as baseRenderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult, PersonResult } from "../api/pose.contract";
 
+function renderHook<T>(callback: () => T) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return baseRenderHook(callback, {
+    wrapper: ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+}
 const refineSelection = vi.fn();
 vi.mock("../api/refine.service", () => ({
   refineService: { refineSelection: (...args: unknown[]) => refineSelection(...args) },
@@ -316,5 +326,124 @@ it("explicit qualified library selection refines despite soft search confidence 
     personIndex: 0,
   });
   unmount();
+  usePoseSelectionStore.getState().clearSelection();
+});
+
+it("shares real execution across app/bar remount and ignores late progress after a job change", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    selectedByPerson: { 0: "cand-0" },
+    refineByPerson: {},
+  });
+  let input!: Parameters<import("../api/refine.contract").RefineService["refineSelection"]>[0];
+  let resolve!: (outcome: import("../api/refine.contract").RefineOutcome) => void;
+  refineSelection.mockReset();
+  refineSelection.mockImplementation((request) => {
+    input = request;
+    return new Promise((r) => {
+      resolve = r;
+    });
+  });
+  const data = analysis([person({ index: 0 })]);
+  const app = baseRenderHook(() => useRefineSelection(data), { wrapper });
+  await waitFor(() => expect(refineSelection).toHaveBeenCalledOnce());
+  expect(app.result.current.selectedRefineProgress[0].status).toBe("requested");
+  act(() => input.onProgress?.("refining"));
+  await waitFor(() => expect(app.result.current.selectedRefineProgress[0].status).toBe("refining"));
+  app.unmount();
+  const bar = baseRenderHook(() => useRefineSelection(data), { wrapper });
+  expect(bar.result.current.selectedRefineProgress[0].status).toBe("refining");
+  expect(refineSelection).toHaveBeenCalledOnce();
+  act(() =>
+    usePoseSelectionStore.setState({ serverJobId: "new-job", selectedByPerson: { 0: "new" } }),
+  );
+  expect(input.signal?.aborted).toBe(true);
+  await act(async () => {
+    input.onProgress?.("refining");
+    resolve({
+      jobId: "server-job",
+      personIndex: 0,
+      candidateId: "cand-0",
+      refined: true,
+      reasonCode: "ok",
+      adjustedLimbs: [],
+      exportUrl: "old",
+      previewUrl: "",
+    });
+  });
+  expect(usePoseSelectionStore.getState().refineByPerson).toEqual({});
+  expect(bar.result.current.selectedRefineProgress).toEqual([]);
+  bar.unmount();
+  client.clear();
+  usePoseSelectionStore.getState().clearSelection();
+});
+
+it("semantic selections never request automatic refinement", async () => {
+  refineSelection.mockClear();
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    selectedByPerson: { 0: "cand-0" },
+    refineByPerson: {},
+  });
+  const data = { ...analysis([person({ index: 0 })]), source: "semantic" as const };
+  const hook = renderHook(() => useRefineSelection(data));
+  await waitFor(() => expect(hook.result.current.status).toBe("done"));
+  expect(refineSelection).not.toHaveBeenCalled();
+  expect(hook.result.current.selectedRefineProgress[0]?.status).toBe("skipped");
+  hook.unmount();
+  usePoseSelectionStore.getState().clearSelection();
+});
+
+it("keeps concurrent people and completed-request callbacks separate", async () => {
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    selectedByPerson: { 0: "cand-0", 1: "cand-1" },
+    refineByPerson: {},
+  });
+  type Input = Parameters<import("../api/refine.contract").RefineService["refineSelection"]>[0];
+  const requests: Input[] = [];
+  const resolvers: ((outcome: import("../api/refine.contract").RefineOutcome) => void)[] = [];
+  refineSelection.mockReset();
+  refineSelection.mockImplementation((input: Input) => {
+    requests[input.personIndex] = input;
+    return new Promise((resolve) => {
+      resolvers[input.personIndex] = resolve;
+    });
+  });
+  const hook = renderHook(() =>
+    useRefineSelection(analysis([person({ index: 0 }), person({ index: 1 })])),
+  );
+  await waitFor(() => expect(refineSelection).toHaveBeenCalledTimes(2));
+  act(() => requests[1].onProgress?.("refining"));
+  await waitFor(() =>
+    expect(hook.result.current.selectedRefineProgress.map((p) => p.status)).toEqual([
+      "requested",
+      "refining",
+    ]),
+  );
+  await act(async () => {
+    for (const personIndex of [0, 1])
+      resolvers[personIndex]({
+        jobId: "server-job",
+        personIndex,
+        candidateId: `cand-${personIndex}`,
+        refined: false,
+        reasonCode: "no_gain",
+        adjustedLimbs: [],
+        exportUrl: "base",
+        previewUrl: "",
+      });
+  });
+  await waitFor(() => expect(hook.result.current.status).toBe("done"));
+  act(() => requests[1].onProgress?.("refining"));
+  expect(hook.result.current.selectedRefineProgress.map((p) => p.status)).toEqual([
+    "unchanged",
+    "unchanged",
+  ]);
+  hook.unmount();
   usePoseSelectionStore.getState().clearSelection();
 });

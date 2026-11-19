@@ -54,7 +54,8 @@ export function exampleSnapshot(
     outcome?: NonNullable<AnalysisSnapshot["people"][number]["refinement"]>["status"];
   } = {},
 ): AnalysisSnapshot {
-  const index = ANALYSIS_STAGES.indexOf(stage);
+  const stages = ANALYSIS_STAGES.filter((value) => value !== "refining");
+  const index = stage === "refining" ? 5 : stages.indexOf(stage);
   const skeleton = structuredClone(exampleSkeleton);
   if (options.partial) for (const i of [13, 14, 15, 16]) skeleton.points[i] = null;
   const person: AnalysisSnapshot["people"][number] = {
@@ -71,7 +72,7 @@ export function exampleSnapshot(
         }
       : {}),
     ...(index >= 3 ? { candidates: previewCandidates } : {}),
-    ...(index >= 4
+    ...(stage === "refining"
       ? {
           refinement: {
             candidateId: "example-0",
@@ -124,7 +125,7 @@ export function exampleSnapshot(
     sequence: options.sequence ?? index + 1,
     stage,
     updatedAt: "2026-11-06T04:00:00Z",
-    completedStages: ANALYSIS_STAGES.slice(0, index),
+    completedStages: stages.slice(0, index),
     skippedStages: [],
     ...(index >= 1
       ? {

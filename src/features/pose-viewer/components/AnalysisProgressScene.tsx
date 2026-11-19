@@ -325,7 +325,7 @@ export function AnalysisProgressScene({
   const refinement = person?.refinement;
   const observedSkeleton = person?.skeleton ?? provisionalSkeleton;
   const actualFit = refinement?.status === "improved";
-  if (stage === "searching" && person?.candidates?.length)
+  if ((stage === "searching" || stage === "ranking") && person?.candidates?.length)
     return <ProgressCandidates candidates={person.candidates} ranking={finishingSearch} />;
   if (stage === "refining" && refinement) {
     const shown = actualFit ? (refinement.after ?? refinement.before) : refinement.before;

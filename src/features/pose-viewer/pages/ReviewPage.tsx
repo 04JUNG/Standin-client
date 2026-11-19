@@ -1,3 +1,4 @@
+import { SelectedRefineStatus } from "@/features/pose-viewer/components/SelectedRefineStatus";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
@@ -28,6 +29,7 @@ export function ReviewPage() {
     roughUrl,
     hands,
     isRefining,
+    selectedRefineProgress,
     previewLoading,
     preparationLoading,
     preparationError,
@@ -50,17 +52,32 @@ export function ReviewPage() {
   return (
     <AppShell title="저장할 포즈 확인">
       <div className="mx-auto flex h-full w-full max-w-[760px] flex-col gap-4">
-        {isRefining && !items.some((item) => item.interactivePreview) ? (
+        {isRefining &&
+        (!items.some((item) => item.interactivePreview) ||
+          selectedRefineProgress?.some((p) => p.status === "refining")) ? (
           <div className="flex flex-1 items-center justify-center">
             <PoseSearchPending
               mode="refine"
+              refinement={
+                selectedRefineProgress?.find((p) => p.status === "refining") ??
+                selectedRefineProgress?.find(
+                  (p) => p.status === "requested" || p.status === "preparing",
+                )
+              }
               preview={
                 roughUrl
                   ? { previewUrl: roughUrl, originalName: draft?.originalName ?? "러프" }
                   : null
               }
               selectionPreviewUrl={
-                items[0]?.candidate.thumbnailUrl || items[0]?.candidate.quickThumbnailUrl
+                items.find(
+                  (item) =>
+                    item.personIndex ===
+                    (selectedRefineProgress?.find((p) => p.status === "refining")?.personIndex ??
+                      selectedRefineProgress?.find(
+                        (p) => p.status === "requested" || p.status === "preparing",
+                      )?.personIndex),
+                )?.candidate.thumbnailUrl
               }
             />
           </div>
@@ -131,6 +148,7 @@ export function ReviewPage() {
             {preparationNotice}
           </p>
         )}
+        <SelectedRefineStatus progress={selectedRefineProgress} />
         {requiresFbx && <GeneratedFbxNotice />}
         {(preparationError || previewError) && (
           <div role="alert" className="text-[12px] text-brand-coral">

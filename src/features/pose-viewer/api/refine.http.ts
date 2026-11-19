@@ -1,6 +1,8 @@
-import { apiFetch } from "@/shared/api/client";
+import { apiFetchResponse } from "@/shared/api/client";
 import { endpoints } from "@/shared/api/endpoints";
 import type { RefineOutcome, RefineService } from "./refine.contract";
+import { ApiError } from "@/shared/api/errors";
+import { readSelectedRefineResponse } from "./selectedRefineProgress";
 import { loadThumbnail } from "./thumbnails";
 
 type BffRefineResponse = {
@@ -23,16 +25,33 @@ export const refineHttp: RefineService = {
     candidateId,
     deferPreview,
     releaseVersion,
+    signal,
+    onProgress,
   }): Promise<RefineOutcome> {
-    const res = await apiFetch<BffRefineResponse>(endpoints.analysis.refine(jobId, personIndex), {
-      method: "POST",
-      body: {
-        candidateId,
-        ...(releaseVersion ? { releaseVersion } : {}),
-        ...(deferPreview ? { deferPreview: true } : {}),
+    const response = await apiFetchResponse(
+      `${endpoints.analysis.refine(jobId, personIndex)}?progress=selected-refine-v1`,
+      {
+        method: "POST",
+        body: {
+          candidateId,
+          ...(releaseVersion ? { releaseVersion } : {}),
+          ...(deferPreview ? { deferPreview: true } : {}),
+        },
+        auth: false,
+        signal,
       },
-      auth: false,
+    );
+    const res = await readSelectedRefineResponse<BffRefineResponse>(response, {
+      jobId,
+      personIndex,
+      candidateId,
+      signal,
+      onProgress,
     });
+    if (res.jobId !== jobId || res.personIndex !== personIndex || res.candidateId !== candidateId)
+      throw new ApiError(409, "REFINE_SELECTION_CHANGED", "");
+    // The refinement ended before thumbnail fetch/render or final file preparation.
+    onProgress?.("preparing");
     return {
       release: res.release,
       jobId: res.jobId,

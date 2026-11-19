@@ -562,7 +562,10 @@ export function useFramedReview(jobId: string | undefined) {
                   }
                 : undefined,
             notice: review.isRefining
-              ? "포즈 보정 중"
+              ? review.selectedRefineProgress?.find((p) => p.personIndex === item.personIndex)
+                  ?.status === "refining"
+                ? "러프 맞춤 중"
+                : "선택한 포즈 확인 중"
               : interactiveErrors[index]
                 ? reviewRecovery(reviewFailure(index)).message
                 : interactive.snapshots[index]?.localSurface

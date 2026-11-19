@@ -727,7 +727,8 @@
   --entry-y: 30cqw !important;
 }
 /* Cut facts and body observations remain beside/below the image; keep the candidate ribbon clear. */
-.pose-loading[data-stage="searching"] .pose-loading__observation-flow[data-thumbnail="true"] {
+.pose-loading[data-stage="searching"] .pose-loading__observation-flow[data-thumbnail="true"],
+.pose-loading[data-stage="ranking"] .pose-loading__observation-flow[data-thumbnail="true"] {
   visibility: hidden;
 }
 .pose-loading__reel-track,
@@ -1086,4 +1087,22 @@
   bottom: 20px;
   padding: 3px 4px;
   gap: 3px;
+}
+
+.pose-loading__track[data-indeterminate="true"] .pose-loading__fill {
+  width: 30%;
+  animation: pose-selected-wait 1.8s ease-in-out infinite alternate;
+}
+@keyframes pose-selected-wait {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(230%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pose-loading__track[data-indeterminate="true"] .pose-loading__fill {
+    animation: none;
+  }
 }

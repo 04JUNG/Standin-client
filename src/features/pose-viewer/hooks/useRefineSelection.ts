@@ -1,123 +1,222 @@
-import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
+import { canUseInteractiveOperations } from "../interactive/capability";
 import { canRefineCandidate, canReleaseRefine } from "../api/routedSearch";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
+import type { RefineOutcome } from "../api/refine.contract";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInstallationStore } from "@/features/installation/installationStore";
 import { useExportStore } from "@/features/export/store/exportStore";
 import { modelRenderingAvailable } from "../preview/modelSupport";
 import type { AnalysisResult } from "../api/pose.contract";
-import type { RefineOutcome } from "../api/refine.contract";
 import { refineService } from "../api/refine.service";
 import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { beginWork } from "@/shared/stores/workActivityStore";
-
-/** 동시 호출 상한. 다인 컷에서 추론 서버에 한꺼번에 몰리지 않게 한다. */
-const MAX_PARALLEL = 3;
+import { refineResultStatus, type SelectedRefineProgress } from "../lib/selectedRefineProgress";
 
 export type RefineStatus = "idle" | "running" | "done";
+const MAX_PARALLEL = 3;
 
-/**
- * 확정한 선택을 러프에 맞춰 조정한다(FE-03).
- *
- * 앱 모드와 바 모드가 **같은 훅**을 쓴다. 여기가 갈리면 같은 job을 어디서 확정했는지에 따라
- * 저장되는 파일이 달라진다.
- *
- * 실패해도 저장 흐름을 멈추지 않는다. refine은 "좋아지거나, 그대로"이지 성공해야만 하는
- * 단계가 아니다. 호출이 실패하면 그 인물은 베이스 후보 URL로 저장된다.
- */
+/** Request/cache ownership survives app↔bar remounts; selection/owner changes abort it. */
 export function useRefineSelection(data: AnalysisResult | undefined) {
+  const client = useQueryClient();
+  const owner = useInstallationStore((s) => s.credentials?.installationId ?? "");
   const selectedByPerson = usePoseSelectionStore((s) => s.selectedByPerson);
   const refineByPerson = usePoseSelectionStore((s) => s.refineByPerson);
-  const setRefineOutcome = usePoseSelectionStore((s) => s.setRefineOutcome);
-  const [status, setStatus] = useState<RefineStatus>("idle");
+  const serverJobId = usePoseSelectionStore((s) => s.serverJobId);
+  const binding = JSON.stringify([owner, data?.jobId, selectedByPerson]);
+  const progressKey = ["selected-refine-progress", binding];
+  const progress = useQuery<SelectedRefineProgress[]>({
+    queryKey: progressKey,
+    queryFn: () => [],
+    enabled: false,
+    initialData: [],
+  });
+  const query = useQuery({
+    queryKey: ["selected-refine", binding],
+    enabled: !!data && (data.source === "semantic" || serverJobId === data.jobId),
+    staleTime: Infinity,
+    gcTime: 600_000,
+    retry: false,
+    queryFn: async () => {
+      const result = data!;
+      const picks = selectedByPerson;
+      const controller = new AbortController();
+      let finished = false;
+      const current = () => {
+        const state = usePoseSelectionStore.getState();
+        return (
+          !finished &&
+          !controller.signal.aborted &&
+          state.serverJobId === result.jobId &&
+          JSON.stringify([
+            useInstallationStore.getState().credentials?.installationId ?? "",
+            result.jobId,
+            state.selectedByPerson,
+          ]) === binding
+        );
+      };
+      const cancel = () => {
+        controller.abort();
+        client.setQueryData<SelectedRefineProgress[]>(progressKey, (entries = []) =>
+          entries.map((entry) =>
+            ["requested", "refining", "preparing"].includes(entry.status)
+              ? { ...entry, status: "cancelled" }
+              : entry,
+          ),
+        );
+      };
+      const cancelObsolete = () => {
+        if (!current()) cancel();
+      };
+      const unsubscribe = usePoseSelectionStore.subscribe(cancelObsolete);
+      const unsubscribeOwner = useInstallationStore.subscribe(cancelObsolete);
+      const unsubscribeCache = client.getQueryCache().subscribe((event) => {
+        if (
+          event.type === "removed" &&
+          event.query.queryKey[0] === "selected-refine" &&
+          event.query.queryKey[1] === binding
+        )
+          cancel();
+      });
+      const entries: SelectedRefineProgress[] = [];
+      const outcomes: RefineOutcome[] = [];
+      const report = (
+        personIndex: number,
+        candidateId: string,
+        status: SelectedRefineProgress["status"],
+      ) => {
+        if (!current()) return;
+        const entry = {
+          jobId: result.jobId,
+          personIndex,
+          candidateId,
+          status,
+          enteredAt: Date.now(),
+        };
+        const index = entries.findIndex((p) => p.personIndex === personIndex);
+        if (index < 0) entries.push(entry);
+        else entries[index] = entry;
+        client.setQueryData(progressKey, [...entries]);
+      };
+      const finishWork = beginWork();
+      try {
+        const targets =
+          result.source !== "semantic" &&
+          (result.capabilities.refine || result.capabilities.refineRelease)
+            ? result.people.flatMap((person) => {
+                const candidateId = picks[person.index];
+                // Search confidence and manual release are separate from refine eligibility.
+                if (
+                  !candidateId ||
+                  !(result.capabilities.refineRelease
+                    ? result.people.length === 1 &&
+                      canReleaseRefine(person.candidates.find((c) => c.id === candidateId))
+                    : person.refineAllowed &&
+                      canRefineCandidate(person.candidates.find((c) => c.id === candidateId)))
+                )
+                  return [];
+                const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
+                if (
+                  result.capabilities.bodyPreviews &&
+                  saved?.jobId === result.jobId &&
+                  saved.candidateId === candidateId
+                )
+                  return [];
+                return [{ personIndex: person.index, candidateId }];
+              })
+            : [];
 
-  // effect가 선택 객체의 정체성 변화마다 재실행되지 않게 최신 값만 참조한다.
-  const latest = useRef({ data, selectedByPerson });
-  latest.current = { data, selectedByPerson };
-
-  const run = useCallback(async () => {
-    const { data: result, selectedByPerson: picks } = latest.current;
-    if (!result) return;
-
-    // 서버가 refine을 노출하지 않으면 클라이언트는 호출하지 않는다(OPS-02).
-    const targets =
-      result.source !== "semantic" &&
-      (result.capabilities.refine || result.capabilities.refineRelease)
-        ? result.people.flatMap((person) => {
-            const candidateId = picks[person.index];
-            // Search confidence and manual release are separate from refine eligibility.
-            if (
-              !candidateId ||
-              !(result.capabilities.refineRelease
-                ? result.people.length === 1 &&
-                  canReleaseRefine(person.candidates.find((c) => c.id === candidateId))
-                : person.refineAllowed &&
-                  canRefineCandidate(person.candidates.find((c) => c.id === candidateId)))
-            )
-              return [];
-            const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
-            if (
-              result.capabilities.bodyPreviews &&
-              saved?.jobId === result.jobId &&
-              saved.candidateId === candidateId
-            )
-              return [];
-            return [{ personIndex: person.index, candidateId }];
-          })
-        : [];
-
-    if (targets.length === 0) {
-      setStatus("done");
-      return;
-    }
-
-    setStatus("running");
-    const finishWork = beginWork();
-    const queue = [...targets];
-    const worker = async () => {
-      for (let next = queue.shift(); next; next = queue.shift()) {
-        try {
-          const outcome = await refineService.refineSelection({
-            jobId: result.jobId,
-            personIndex: next.personIndex,
-            candidateId: next.candidateId,
-            ...(result.capabilities.refineRelease ? { releaseVersion: "RC4" as const } : {}),
-            ...((canUseInteractiveOperations(result.capabilities) ||
-              (result.capabilities.modelPreview &&
-                modelRenderingAvailable() &&
-                result.capabilities.outputScopeCropping)) &&
-            result.capabilities.fbxExport &&
-            useExportStore.getState().format === "fbx"
-              ? { deferPreview: true }
-              : {}),
-          });
-          // store에서도 현재 job/candidate를 다시 확인한다. 화면을 떠난 뒤 응답이 와도
-          // 새 선택의 export URL을 이전 조정본으로 되돌릴 수 없다.
-          setRefineOutcome(outcome);
-        } catch {
-          // 조정에 실패해도 베이스 포즈는 그대로 저장할 수 있다. 결과를 기록하지 않으면
-          // 저장 단계가 후보의 원래 bvhUrl을 쓴다 — 그게 정확히 원하는 폴백이다.
+        for (const person of result.people) {
+          const candidateId = picks[person.index];
+          if (candidateId)
+            report(
+              person.index,
+              candidateId,
+              targets.some((t) => t.personIndex === person.index)
+                ? "requested"
+                : (() => {
+                    const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
+                    return saved?.jobId === result.jobId && saved.candidateId === candidateId
+                      ? refineResultStatus(saved)
+                      : "skipped";
+                  })(),
+            );
         }
+        const queue = [...targets];
+        const worker = async () => {
+          for (let next = queue.shift(); next && current(); next = queue.shift()) {
+            const target = next;
+            try {
+              const outcome = await refineService.refineSelection({
+                jobId: result.jobId,
+                personIndex: next.personIndex,
+                candidateId: next.candidateId,
+                signal: controller.signal,
+                onProgress: (phase) => report(target.personIndex, target.candidateId, phase),
+                ...(result.capabilities.refineRelease ? { releaseVersion: "RC4" as const } : {}),
+                ...((canUseInteractiveOperations(result.capabilities) ||
+                  (result.capabilities.modelPreview &&
+                    modelRenderingAvailable() &&
+                    result.capabilities.outputScopeCropping)) &&
+                result.capabilities.fbxExport &&
+                useExportStore.getState().format === "fbx"
+                  ? { deferPreview: true }
+                  : {}),
+              });
+              if (!current()) return;
+              if (
+                outcome.jobId !== result.jobId ||
+                outcome.personIndex !== next.personIndex ||
+                outcome.candidateId !== next.candidateId
+              )
+                throw new Error("Refine selection changed");
+              outcomes.push(outcome);
+              usePoseSelectionStore.getState().setRefineOutcome(outcome);
+              report(next.personIndex, next.candidateId, refineResultStatus(outcome));
+            } catch {
+              report(
+                next.personIndex,
+                next.candidateId,
+                controller.signal.aborted ? "cancelled" : "failed",
+              );
+            }
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker));
+        controller.signal.throwIfAborted();
+        return outcomes;
+      } finally {
+        finished = true;
+        unsubscribe();
+        unsubscribeOwner();
+        unsubscribeCache();
+        finishWork();
       }
-    };
-    try {
-      await Promise.all(Array.from({ length: Math.min(MAX_PARALLEL, targets.length) }, worker));
-      setStatus("done");
-    } finally {
-      finishWork();
-    }
-  }, [setRefineOutcome]);
-
-  const started = useRef(false);
+    },
+  });
   useEffect(() => {
-    if (started.current || !data) return;
-    started.current = true;
-    void run();
-  }, [data, run]);
-
-  const outcomes: RefineOutcome[] = Object.values(refineByPerson);
+    for (const outcome of query.data ?? []) {
+      if (
+        outcome.jobId === data?.jobId &&
+        selectedByPerson[outcome.personIndex] === outcome.candidateId &&
+        usePoseSelectionStore.getState().refineByPerson[outcome.personIndex] !== outcome
+      )
+        usePoseSelectionStore.getState().setRefineOutcome(outcome);
+    }
+  }, [query.data, data?.jobId, selectedByPerson]);
+  const selectedRefineProgress = (progress.data ?? []).filter(
+    (p) => p.jobId === data?.jobId && selectedByPerson[p.personIndex] === p.candidateId,
+  );
   return {
-    status,
+    status: (query.isSuccess || query.isError
+      ? "done"
+      : query.isFetching
+        ? "running"
+        : "idle") as RefineStatus,
+    selectedRefineProgress,
     refineByPerson,
-    /** 실제로 조정본이 만들어진 인물 수. 배지 문구를 고를 때 쓴다. */
-    appliedCount: outcomes.filter((o) => o.refined).length,
+    appliedCount: Object.values(refineByPerson).filter(
+      (o) =>
+        o.refined && o.jobId === data?.jobId && selectedByPerson[o.personIndex] === o.candidateId,
+    ).length,
   };
 }
