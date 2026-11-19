@@ -2,6 +2,35 @@
 
 ## 관절 위치의 강조 링·4갈래 반짝임·점선 흐름
 
+### 실제 모델 좌표 + 실제 로컬 엔진 검증
+
+수동 annotation 없이 실제 RTMPose current-x로 001 러프의 좌표를 새로 추출하고,
+같은 파일 SHA의 보관 후보 `gen_new_st_hip_hang_cross_m`을 실제 v2.5.3/scipy
+`POST /refine`에 보냈다. **cache_hit=false**, 실행568ms, 양팔 모두 accepted,
+refined=true/ok를 확인했다. 모델 출력과 엔진 요청의 keypoints/scores는 값 변경 없이 일치한다.
+
+실제 엔진 실행 중 SVG의 7/9/8/10번 좌표와 입력 좌표의 정규화 값이 부동소수점 오차
+약1.14e-13 이내로 일치했다. 네 관절의 반짝임 최대 opacity는 모두0.98 이상이며 종료 뒤
+효과0/브라우저 오류0이다. 실제 실행이 짧아 기존 지연으로 일부 반짝임이 시작하지 못하던
+문제를 고쳐, 모양/위치는 유지하고 첫 반짝임과 stagger만 빠르게 시작한다.
+
+[이미지·원본 좌표 없는 집계 증거](real-engine-evidence.json).
+사용자에게 전달한 GIF는 실제 0.57초 실행을 4배 느리게 재생하고 관절 영역을 확대했다.
+실행 중 기다림을 삽입하거나 완료 뒤 효과를 유지하지 않았다.
+
+**범위/발견:** 실제 로컬 v2.5 엔진 검증이며 운영 RC4·배포 앱 실증은 아니다.
+VLM은 새 유료 호출 없이 1인/반신/하체 비관측 제어값만 고정했다. 소유권은 로컬 테스트
+identity, 저장은 실제 로컬 파일이다. Python API의 URL BVH를 실제 다운로드해 BFF의
+기존 inline BVH 계약으로 연결하는 검증 bridge를 쓴다. 늘어진 팔의 손목은 모델이 실제
+그림보다 높게 검출하는 오차가 보인다. UI는 그 모델 좌표를 정확히 따르며, 이를 수동 보정해
+해부학적으로 완벽한 위치라고 주장하지 않는다. 원본 이미지/좌표/녹화는 Git에 올리지 않는다.
+
+재현: BFF `scripts/prepare-selected-refine-real-input.py`에 inference repo, 원본 PNG,
+선택한 원본 BVH와 출력 디렉터리를 지정한다. 실제 RTMPose를 명시적으로 생성하므로 실패 시
+mock 포즈로 폴백하지 않는다. 생성된 selected.db와 library를 지정해 Python API를 띄우고,
+`INFERENCE_BASE_URL`을 그 loopback 주소로 지정한 BFF `scripts/selected-refine-real-qa.ts`와
+클라이언트 DEV `selected-refine-real.html`을 연결한다.
+
 리파인 `refining` 이벤트의 선택 job/person/candidate와 연결된 `target`을 받으면,
 선택 인형 대신 **원본 러프 위의 보정 대상 관절**에 효과를 표시한다. 처음 시연과 같은
 코랄색 링, 직접 그린 4갈래 반짝임, 점선을 따라 관절로 들어가는 작은 빛이다.

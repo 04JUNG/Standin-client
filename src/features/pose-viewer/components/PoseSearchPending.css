@@ -1116,8 +1116,8 @@
   opacity: 0.38;
 }
 .pose-loading__selected-effects .pose-loading__joint-glint {
-  animation: pose-target-glint 2.1s ease-in-out infinite;
-  animation-delay: calc(var(--order) * 370ms);
+  animation: pose-target-glint 1.2s ease-in-out infinite;
+  animation-delay: calc(var(--order) * 30ms);
 }
 .pose-loading__selected-effects .pose-loading__joint-input rect,
 .pose-loading__selected-effects .pose-loading__joint-input text {
@@ -1137,12 +1137,12 @@
 }
 @keyframes pose-target-glint {
   0%,
-  50%,
+  42%,
   100% {
     opacity: 0;
     transform: scale(0.3);
   }
-  25% {
+  16% {
     opacity: 1;
     transform: scale(1.1);
   }
