@@ -447,3 +447,39 @@ it("keeps concurrent people and completed-request callbacks separate", async () 
   hook.unmount();
   usePoseSelectionStore.getState().clearSelection();
 });
+
+it("restores cached body-review outcomes on revisit without relabelling them as a new execution", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  const saved = {
+    jobId: "server-job",
+    personIndex: 0,
+    candidateId: "cand-0",
+    refined: true,
+    reasonCode: "ok",
+    adjustedLimbs: [],
+    exportUrl: "refined",
+    previewUrl: "",
+  };
+  usePoseSelectionStore.setState({
+    serverJobId: "server-job",
+    selectedByPerson: { 0: "cand-0" },
+    refineByPerson: { 0: saved },
+  });
+  const data = analysis([person({ index: 0 })]);
+  data.capabilities.bodyPreviews = true;
+  refineSelection.mockClear();
+  const first = baseRenderHook(() => useRefineSelection(data), { wrapper });
+  await waitFor(() => expect(first.result.current.status).toBe("done"));
+  first.unmount();
+  usePoseSelectionStore.setState({ refineByPerson: {} });
+  const revisited = baseRenderHook(() => useRefineSelection(data), { wrapper });
+  await waitFor(() => expect(revisited.result.current.refineByPerson[0]).toEqual(saved));
+  expect(revisited.result.current.selectedRefineProgress[0].status).toBe("improved");
+  expect(refineSelection).not.toHaveBeenCalled();
+  revisited.unmount();
+  client.clear();
+  usePoseSelectionStore.getState().clearSelection();
+});

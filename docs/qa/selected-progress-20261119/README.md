@@ -40,11 +40,11 @@ BFF는 별도 main `d257c34`에서 분기한 [PR #209](https://github.com/04JUNG
 
 ## 자동 검증
 
-- 클라이언트 전체 Vitest: **1,759 passed / 기존 외부 opt-in 6 skipped**.
+- 클라이언트 전체 Vitest: **1,760 passed / 기존 외부 opt-in 6 skipped**.
 - 타입 검사(프로덕션 build의 tsc 포함), 웹 빌드, lint 오류 0. 기존 Fast Refresh 경고 2와 큰 번들 경고 유지.
 - icons:check Windows, release:check, 캠페인 publication gate 검사 통과.
 - 검색 1~5/6 부재·ranking 독립, 선택만으로 6 불가, 실제 서버 실행만 6, preparing/원본 유지/실패/취소에서 6 제거,
-  완료 경계·부분/다인물·활성 인물의 다른 사람 정보 대체 금지·기록 복원·자연어·재시도·늦은 job/선택 이벤트·앱↔바 요청 재사용 검사.
+  완료 경계·부분/다인물·활성 인물의 다른 사람 정보 대체 금지·기록 복원·자연어·재시도·늦은 job/선택 이벤트·앱↔바 요청 재사용·캐시 보정 결과의 기록 재방문 복구 검사.
 - BFF 전체: **1,201 passed / 기존 opt-in 2 skipped**, 후속 패키지 검사 **6 passed**,
   CI 설정 스크립트 **27 passed**, typecheck/build/diff check 통과.
 - BFF 추가 검사는 실제 upstream 구간 전에 정책/캐시 스킵이 이벤트를 만들지 않고,

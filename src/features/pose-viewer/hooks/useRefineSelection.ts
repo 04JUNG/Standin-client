@@ -127,19 +127,19 @@ export function useRefineSelection(data: AnalysisResult | undefined) {
 
         for (const person of result.people) {
           const candidateId = picks[person.index];
-          if (candidateId)
-            report(
-              person.index,
-              candidateId,
-              targets.some((t) => t.personIndex === person.index)
-                ? "requested"
-                : (() => {
-                    const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
-                    return saved?.jobId === result.jobId && saved.candidateId === candidateId
-                      ? refineResultStatus(saved)
-                      : "skipped";
-                  })(),
-            );
+          if (!candidateId) continue;
+          const requested = targets.some((t) => t.personIndex === person.index);
+          const saved = usePoseSelectionStore.getState().refineByPerson[person.index];
+          const reused =
+            !requested && saved?.jobId === result.jobId && saved.candidateId === candidateId
+              ? saved
+              : undefined;
+          if (reused) outcomes.push(reused);
+          report(
+            person.index,
+            candidateId,
+            requested ? "requested" : reused ? refineResultStatus(reused) : "skipped",
+          );
         }
         const queue = [...targets];
         const worker = async () => {
