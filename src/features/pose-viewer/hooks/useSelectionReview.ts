@@ -42,7 +42,7 @@ export function useSelectionReview(jobId: string | undefined) {
   const analysis = useAnalysisResult(jobId);
   const characterId = usePoseSelectionStore((s) => s.characterId);
   const byPerson = usePoseSelectionStore((s) => s.characterByPerson);
-  const { status, refineByPerson } = useRefineSelection(analysis.data);
+  const { status, refineByPerson, selectedRefineProgress } = useRefineSelection(analysis.data);
   const { data, selectedByPerson } = analysis;
   const format = useExportStore((s) => s.format);
   const framed =
@@ -140,6 +140,7 @@ export function useSelectionReview(jobId: string | undefined) {
 
   return {
     ...analysis,
+    selectedRefineProgress,
     items: items.map((item, i) => ({
       ...item,
       previewUrl: item.previewUrl || previews[i]?.data || "",

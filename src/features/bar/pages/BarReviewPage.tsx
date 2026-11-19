@@ -1,3 +1,4 @@
+import { SelectedRefineStatus } from "@/features/pose-viewer/components/SelectedRefineStatus";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
@@ -26,6 +27,7 @@ export function BarReviewPage() {
     roughUrl,
     hands,
     isRefining,
+    selectedRefineProgress,
     previewLoading,
     preparationLoading,
     preparationError,
@@ -49,9 +51,17 @@ export function BarReviewPage() {
     <BarShell title="저장할 포즈 확인">
       <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
-          {isRefining && !items.some((item) => item.interactivePreview) ? (
+          {isRefining &&
+          (!items.some((item) => item.interactivePreview) ||
+            selectedRefineProgress?.some((p) => p.status === "refining")) ? (
             <PoseSearchPending
               mode="refine"
+              refinement={
+                selectedRefineProgress?.find((p) => p.status === "refining") ??
+                selectedRefineProgress?.find(
+                  (p) => p.status === "requested" || p.status === "preparing",
+                )
+              }
               compact
               preview={
                 roughUrl
@@ -59,7 +69,14 @@ export function BarReviewPage() {
                   : null
               }
               selectionPreviewUrl={
-                items[0]?.candidate.thumbnailUrl || items[0]?.candidate.quickThumbnailUrl
+                items.find(
+                  (item) =>
+                    item.personIndex ===
+                    (selectedRefineProgress?.find((p) => p.status === "refining")?.personIndex ??
+                      selectedRefineProgress?.find(
+                        (p) => p.status === "requested" || p.status === "preparing",
+                      )?.personIndex),
+                )?.candidate.thumbnailUrl
               }
             />
           ) : (
@@ -122,6 +139,7 @@ export function BarReviewPage() {
             {preparationNotice}
           </p>
         )}
+        <SelectedRefineStatus progress={selectedRefineProgress} />
         {requiresFbx && <GeneratedFbxNotice />}
         {(preparationError || previewError) && (
           <p role="alert" className="text-[11px] text-brand-coral">
