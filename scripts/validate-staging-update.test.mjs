@@ -20,3 +20,15 @@ test('staging app identity and feed stay separate from production', () => {
   assert.equal(staging.bundle.createUpdaterArtifacts,true);
   assert.equal(staging.bundle.macOS?.signingIdentity,undefined);
 });
+test('dedicated staging workflow cannot select the production API, keychain, tag or latest feed', () => {
+  const workflow=readFileSync('.github/workflows/release-staging-desktop.yml','utf8');
+  assert.ok(workflow.includes('https://api-staging.standinpose.com'));
+  assert.ok(workflow.includes('app.standin.desktop.staging'));
+  assert.ok(workflow.includes('tagName: v${{ steps.release.outputs.version }}-staging'));
+  assert.ok(workflow.includes('prerelease: true'));
+  assert.ok(workflow.includes('refs/heads/develop'));
+  assert.ok(!workflow.includes('inputs.environment'));
+  assert.ok(!workflow.includes('https://api.standinpose.com'));
+  for(const line of workflow.split('\n').filter(line=>/gh release (?:create|edit)/.test(line)))
+    assert.ok(line.includes('--prerelease --latest=false'));
+});
