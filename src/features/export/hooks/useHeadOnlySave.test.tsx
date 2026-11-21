@@ -19,6 +19,8 @@ const mock = vi.hoisted(() => ({
   hand: vi.fn(),
   save: vi.fn(),
   interactiveDownload: vi.fn(),
+  track: vi.fn(),
+  packetCharacter: undefined as string | undefined,
   skin: "default" as string,
 }));
 vi.mock("@/features/pose-viewer/interactive/session", () => ({
@@ -26,6 +28,9 @@ vi.mock("@/features/pose-viewer/interactive/session", () => ({
   interactiveController: () => ({
     snapshot: () => ({
       binding: "final-binding",
+      ...(mock.packetCharacter
+        ? { model: { state: { identity: { body: { characterId: mock.packetCharacter } } } } }
+        : {}),
       operation: {
         candidateId: "pick0",
         fileUrl: "/fixture/final-skin.fbx",
@@ -51,7 +56,7 @@ vi.mock("@/features/hand-selection/api", async (original) => ({
 }));
 vi.mock("../api/export.service", () => ({ exportService: { saveCandidates: mock.save } }));
 vi.mock("@/features/analytics/analyticsClient", () => ({
-  trackEvent: vi.fn(),
+  trackEvent: mock.track,
   currentSurface: () => "app",
   resetAnalyticsQueue: vi.fn(),
 }));
@@ -74,6 +79,7 @@ const url = (index: number) =>
 beforeEach(() => {
   vi.clearAllMocks();
   mock.skin = "default";
+  mock.packetCharacter = undefined;
   mock.interactiveDownload.mockResolvedValue({ bytes: new Uint8Array([9]) });
   mock.bytes.mockResolvedValue(new Uint8Array([1]));
   mock.body.mockResolvedValue(new Uint8Array([2]));
@@ -323,6 +329,30 @@ it("drops a late zero download when width changes before the native write", asyn
   expect(mock.save).not.toHaveBeenCalled();
   act(() => usePoseSelectionStore.getState().setPersonOutline(0, 0));
   hook.unmount();
+});
+
+it("reports the downloaded interactive body instead of the pinned default character", async () => {
+  const previous = env.interactivePreview;
+  Object.defineProperty(env, "interactivePreview", { value: true, configurable: true });
+  try {
+    mock.packetCharacter = "female-base-lod-v4-20261118";
+    const selectedBody = {
+      ...body,
+      resolvedBody: { ...body.resolvedBody!, characterId: mock.packetCharacter },
+    };
+    const hook = mount(["head"], true, false, false, selectedBody, "default");
+    await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+    expect(mock.track).toHaveBeenCalledWith(
+      "export_completed",
+      expect.objectContaining({
+        characterId: "female-base-lod-v4-20261118",
+      }),
+      "job",
+    );
+    hook.unmount();
+  } finally {
+    Object.defineProperty(env, "interactivePreview", { value: previous, configurable: true });
+  }
 });
 
 it.each(SKIN_CHOICES)(

@@ -1,3 +1,4 @@
+import { computeReferenceAsync } from "./referenceAsync";
 import { recordCanvasFrame } from "@/features/replay/canvas";
 import * as THREE from "three";
 import {
@@ -67,6 +68,9 @@ export function mountShapeBody(
   let frame = 0;
   let computeMs = 0;
   let hasBody = false;
+  let disposed = false;
+  let busy = false;
+  let generation = 0;
   const draw = () => {
     if (!renderer || !hasBody) return;
     const width = Math.max(1, canvas.clientWidth),
@@ -82,32 +86,56 @@ export function mountShapeBody(
     renderer.render(scene, camera);
     recordCanvasFrame(canvas, { preview: "body_shape" });
   };
-  const flush = () => {
-    frame = 0;
-    if (!pending) return;
-    const c = pending;
-    pending = null;
-    const t = performance.now();
-    evaluateShape(runtime, c, blender, pendingPreset);
+  const apply = (values: Float32Array, elapsed: number) => {
     for (let i = 0; i < V; i++) {
-      positions[i * 3] = blender[i * 3]!;
-      positions[i * 3 + 1] = blender[i * 3 + 2]!;
-      positions[i * 3 + 2] = -blender[i * 3 + 1]!;
+      positions[i * 3] = values[i * 3]!;
+      positions[i * 3 + 1] = values[i * 3 + 2]!;
+      positions[i * 3 + 2] = -values[i * 3 + 1]!;
     }
     attribute.needsUpdate = true;
     geometry.computeVertexNormals();
-    computeMs = performance.now() - t;
+    computeMs = elapsed;
     hasBody = true;
     draw();
+  };
+  const schedule = () => {
+    if (!disposed && !frame) frame = requestAnimationFrame(flush);
+  };
+  const flush = () => {
+    frame = 0;
+    if (!pending || disposed || busy) return;
+    const c = pending,
+      revision = generation;
+    pending = null;
+    if (runtime.kind === "reference") {
+      busy = true;
+      void computeReferenceAsync(runtime, c)
+        .then(({ positions: values, computeMs: elapsed }) => {
+          // A slow result cannot replace the newest slider selection or a disposed view.
+          if (!disposed && revision === generation) apply(values, elapsed);
+        })
+        .catch(() => {
+          if (!disposed) onLost();
+        })
+        .finally(() => {
+          busy = false;
+          if (pending) schedule();
+        });
+      return;
+    }
+    const t = performance.now();
+    evaluateShape(runtime, c, blender, pendingPreset);
+    apply(blender, performance.now() - t);
   };
   const observer = new ResizeObserver(draw);
   observer.observe(canvas);
 
   return {
     update(controls, preset) {
+      generation++;
       pending = controls;
       pendingPreset = preset;
-      if (!frame) frame = requestAnimationFrame(flush);
+      schedule();
     },
     setRotation(radians) {
       mesh.rotation.y = radians;
@@ -115,6 +143,8 @@ export function mountShapeBody(
     },
     lastComputeMs: () => computeMs,
     dispose() {
+      disposed = true;
+      pending = null;
       if (frame) cancelAnimationFrame(frame);
       observer.disconnect();
       canvas.removeEventListener("webglcontextlost", lost);
@@ -138,12 +168,14 @@ export function snapshotShapeBody(
   preset?: string,
   width = 240,
   height = 320,
+  evaluated?: Float32Array,
 ): string {
   const V = runtime.header.vertexCount;
   const blender = new Float32Array(V * 3);
   const positions = new Float32Array(V * 3);
   // 표본(v2) 자산은 프리셋마다 모델이 따로라 프리셋이 있어야 계산한다.
-  evaluateShape(runtime, controls, blender, preset);
+  if (evaluated) blender.set(evaluated);
+  else evaluateShape(runtime, controls, blender, preset);
   for (let i = 0; i < V; i++) {
     positions[i * 3] = blender[i * 3]!;
     positions[i * 3 + 1] = blender[i * 3 + 2]!;
@@ -183,4 +215,17 @@ export function snapshotShapeBody(
     renderer?.dispose();
     renderer?.forceContextLoss();
   }
+}
+
+/** Custom reference thumbnails use the same bounded worker as the live preview. */
+export async function snapshotShapeBodyAsync(
+  runtime: AnyShapeRuntime,
+  controls: BlenderControls,
+  preset?: string,
+) {
+  const values =
+    runtime.kind === "reference"
+      ? (await computeReferenceAsync(runtime, controls, "thumbnail")).positions
+      : undefined;
+  return snapshotShapeBody(runtime, controls, preset, 240, 320, values);
 }

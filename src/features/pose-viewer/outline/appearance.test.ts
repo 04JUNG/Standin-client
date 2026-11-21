@@ -151,7 +151,8 @@ it.each([
 it("accepts exact current anatomy full receipts while rejecting copied hashes and crops", async () => {
   const { SKIN_ASSET_PINS } = await import("../skin/skinAssetPins");
   const pins = SKIN_ASSET_PINS.filter((p) => p.continuousOutline);
-  expect(pins).toHaveLength(20);
+  expect(pins).toHaveLength(120); // Existing 20 choices plus new20 × five skins.
+  expect(new Set(pins.filter(p => p.characterId.includes("-lod-")).map(p => p.characterId)).size).toBe(20);
   for (const pin of pins) {
     const receipt = acceptedReceipt();
     receipt.proof.character_id = pin.characterId;

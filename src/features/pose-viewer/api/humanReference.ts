@@ -25,7 +25,8 @@ export async function boundedReferenceBytes(response: Response, max: number): Pr
     }
   } finally {
     await reader.cancel().catch(() => {});
-    reader.releaseLock();
+    // The response is consumed once. Keep the closed reader and stream together
+    // for GC: WKWebView can deadlock inside releaseLock during collection.
   }
   const result = new Uint8Array(size);
   let offset = 0;

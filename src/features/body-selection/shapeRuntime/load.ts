@@ -4,7 +4,7 @@ import { apiFetchBlob } from "@/shared/api/client";
 import type { BodyOption } from "../contract";
 import { verifyDigest } from "../api";
 import { bodyMock, bodyMockEnabled } from "../mock";
-import { parseShapeRuntime, SHAPE_RUNTIME_FORMAT_V2, type AnyShapeRuntime } from "./format";
+import { parseShapeRuntimeAsync, SHAPE_RUNTIME_FORMAT_V2, type AnyShapeRuntime } from "./format";
 import { SUPPORTED_RULES } from "./evaluate";
 
 export type ShapeRuntimeRef = NonNullable<BodyOption["shapeRuntime"]>;
@@ -22,7 +22,7 @@ export const supportedRuntime = (ref?: ShapeRuntimeRef | null): ref is ShapeRunt
  */
 export function matchesCatalog(runtime: AnyShapeRuntime, ref: ShapeRuntimeRef) {
   if (runtime.header.rules !== ref.rules || !(ref.preset in runtime.header.presets)) return false;
-  if ((runtime.kind === "sampled") !== (ref.format === SHAPE_RUNTIME_FORMAT_V2)) return false;
+  if ((runtime.kind !== "rules") !== (ref.format === SHAPE_RUNTIME_FORMAT_V2)) return false;
   const source = runtime.header.source;
   // 카탈로그가 원본을 밝히지 않은 예전 체형(굽기 연동 전)은 규칙 이름만 맞으면 된다(v1만).
   if (!ref.source) return runtime.kind === "rules";
@@ -37,12 +37,12 @@ export function matchesCatalog(runtime: AnyShapeRuntime, ref: ShapeRuntimeRef) {
 }
 
 async function fetchRuntime(ref: ShapeRuntimeRef, signal?: AbortSignal): Promise<AnyShapeRuntime> {
-  if (bodyMockEnabled()) return parseShapeRuntime(await bodyMock.shapeRuntime(ref.rules));
+  if (bodyMockEnabled()) return parseShapeRuntimeAsync(await bodyMock.shapeRuntime(ref.rules));
   const blob = await apiFetchBlob(ref.url, { auth: false, signal });
   if (blob.size !== ref.bytes) throw new Error("shape runtime size");
   const bytes = await blob.arrayBuffer();
   await verifyDigest(bytes, ref.sha256);
-  return parseShapeRuntime(bytes);
+  return parseShapeRuntimeAsync(bytes);
 }
 
 /**
@@ -53,11 +53,14 @@ export function useShapeRuntime(ref?: ShapeRuntimeRef | null) {
   const enabled = supportedRuntime(ref);
   // Immutable bytes are shared, but each observer checks its current catalog binding,
   // including cache hits and a preset/source change while this hook stays mounted.
-  const select = useCallback((runtime: AnyShapeRuntime) => {
-    if (!ref || !matchesCatalog(runtime, ref))
-      throw new Error("shape runtime does not match catalog");
-    return runtime;
-  }, [ref]);
+  const select = useCallback(
+    (runtime: AnyShapeRuntime) => {
+      if (!ref || !matchesCatalog(runtime, ref))
+        throw new Error("shape runtime does not match catalog");
+      return runtime;
+    },
+    [ref],
+  );
   const query = useQuery({
     queryKey: ["body", "shape-runtime", enabled ? ref.sha256 : null, enabled ? ref.bytes : null],
     enabled,

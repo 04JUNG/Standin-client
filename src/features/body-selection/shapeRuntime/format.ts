@@ -1,3 +1,9 @@
+import { parseReferenceAsync } from "./referenceAsync";
+import {
+  parseReferenceRuntime,
+  type ReferenceRuntime,
+  REFERENCE_ENCODING,
+} from "./referenceFormat";
 import { z } from "zod";
 
 /**
@@ -88,7 +94,7 @@ export type ShapeRuntime = {
 const TYPED = { float32: Float32Array, uint16: Uint16Array, int16: Int16Array } as const;
 
 /** v1(규칙을 옮긴 계산) 또는 v2(컨트롤러 출력을 표본으로 굽힌 계산). */
-export type AnyShapeRuntime = ShapeRuntime | SampledRuntime;
+export type AnyShapeRuntime = ShapeRuntime | SampledRuntime | ReferenceRuntime;
 
 export function parseShapeRuntime(buffer: ArrayBuffer): AnyShapeRuntime {
   if (buffer.byteLength < 8) throw new Error("shape runtime: too short");
@@ -166,14 +172,34 @@ const MAX_BASIS = 512;
 
 const axisSchema = z.object({
   key: z.string().min(1),
-  knots: z.array(finite).min(2).max(64),
+  knots: z.array(finite).min(2).max(256),
   offset: z.number().int().nonnegative(),
 });
 const pairSchema = z.object({
   a: z.string().min(1),
   b: z.string().min(1),
+  ga: z.array(finite).min(2).max(256),
+  gb: z.array(finite).min(2).max(256),
+  offset: z.number().int().nonnegative(),
+});
+const tripleSchema = z.object({
+  a: z.string().min(1),
+  b: z.string().min(1),
+  c: z.string().min(1),
+  ga: z.array(finite).min(2).max(32),
+  gb: z.array(finite).min(2).max(32),
+  gc: z.array(finite).min(2).max(32),
+  offset: z.number().int().nonnegative(),
+});
+const quadSchema = z.object({
+  a: z.string().min(1),
+  b: z.string().min(1),
+  c: z.string().min(1),
+  d: z.string().min(1),
   ga: z.array(finite).min(2).max(16),
   gb: z.array(finite).min(2).max(16),
+  gc: z.array(finite).min(2).max(16),
+  gd: z.array(finite).min(2).max(16),
   offset: z.number().int().nonnegative(),
 });
 const sampledHeaderSchema = z.object({
@@ -193,14 +219,24 @@ const sampledHeaderSchema = z.object({
       base: z.number().int().nonnegative(),
       axes: z.array(axisSchema),
       pairs: z.array(pairSchema),
+      triples: z.array(tripleSchema).max(8).optional(),
+      quads: z.array(quadSchema).max(4).optional(),
     }),
   ),
   /**
    * 어느 프리셋 모델로 계산할지. 모든 모델은 같은 함수(컨트롤러 compute)를 서로 다른 점(프리셋)
    * 둘레에서 근사한다. `idw2`: 조절 범위로 정규화한 거리 d로 가까운 모델들을 1/d² 가중 평균한다
-   * (d가 가장 가까운 것의 `cutRatio`배를 넘는 모델은 0, 연속). 없으면 고른 프리셋 모델만 쓴다.
+   * (d가 가장 가까운 것의 `cutRatio`배를 넘는 모델은 0, 연속). `idw2-varying`은 프리셋
+   * 기준값이 달라지는 필드만 거리 계산에 쓰며, 모든 필드는 여전히 형상 계산에 적용한다.
+   * 없으면 고른 프리셋 모델만 쓴다.
    */
-  selection: z.object({ mode: z.literal("idw2"), cutRatio: finite.min(1).max(16) }).optional(),
+  selection: z
+    .object({
+      mode: z.enum(["idw2", "idw2-varying", "idw2-varying-trilinear", "idw2-varying-multilinear"]),
+      cutRatio: finite.min(1).max(16),
+      distanceKeys: z.array(z.string().min(1)).min(1).max(16).optional(),
+    })
+    .optional(),
   /** 굽을 때 잰 오차(mm). 앱은 쓰지 않고 기록용으로만 둔다. */
   quality: z.record(z.unknown()).optional(),
   arrays: z.array(arraySchema),
@@ -217,14 +253,18 @@ export type SampledRuntime = {
   coef: Float32Array;
 };
 
-function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
+function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime | ReferenceRuntime {
   const view = new DataView(buffer);
   const headerBytes = view.getUint32(4, true);
   if (headerBytes % 4 !== 0 || 8 + headerBytes > buffer.byteLength)
     throw new Error("shape runtime: bad header size");
-  const header = sampledHeaderSchema.parse(
-    JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, headerBytes))),
-  );
+  if (headerBytes > 256 * 1024 || buffer.byteLength > 32 * 1024 * 1024)
+    throw new Error("shape runtime: size limit");
+  const value = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, headerBytes)));
+  if (value.encoding === REFERENCE_ENCODING)
+    return parseReferenceRuntime(value, new Uint8Array(buffer, 8 + headerBytes));
+  if (value.encoding !== undefined) throw new Error("shape runtime: unsupported encoding");
+  const header = sampledHeaderSchema.parse(value);
   const dataStart = 8 + headerBytes;
   const arrays = new Map<string, Float32Array | Uint16Array | Int16Array>();
   for (const a of header.arrays) {
@@ -258,6 +298,21 @@ function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
     for (const v of a) if (!Number.isFinite(v)) throw new Error("shape runtime: not finite");
   // 모든 표·격자가 자산 안을 가리키고, 조절 이름이 헤더에 있고, 격자가 오름차순인가.
   const ascending = (xs: number[]) => xs.every((x, i) => i === 0 || x > xs[i - 1]!);
+  const distanceKeys = header.selection?.distanceKeys;
+  if (distanceKeys) {
+    if (
+      header.selection?.mode !== "idw2-varying-multilinear" ||
+      header.selection.cutRatio <= 1 ||
+      new Set(distanceKeys).size !== distanceKeys.length ||
+      !distanceKeys.every((key) => Object.prototype.hasOwnProperty.call(header.controls, key))
+    )
+      throw new Error("shape runtime: invalid explicit selection dimensions");
+    const centers = Object.values(header.presets).map((preset) =>
+      JSON.stringify(distanceKeys.map((key) => preset[key])),
+    );
+    if (new Set(centers).size !== centers.length)
+      throw new Error("shape runtime: selection dimensions do not distinguish presets");
+  }
   for (const [name, model] of Object.entries(header.models)) {
     if (!(name in header.presets)) throw new Error("shape runtime: model without preset " + name);
     const within = (offset: number, count: number) => {
@@ -280,8 +335,57 @@ function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
         throw new Error("shape runtime: pair " + pair.a + "×" + pair.b);
       within(pair.offset, pair.ga.length * pair.gb.length);
     }
+    if (
+      model.triples?.length &&
+      !["idw2-varying-trilinear", "idw2-varying-multilinear"].includes(header.selection?.mode ?? "")
+    )
+      throw new Error("shape runtime: three-control terms require explicit trilinear mode");
+    for (const triple of model.triples ?? []) {
+      if (
+        new Set([triple.a, triple.b, triple.c]).size !== 3 ||
+        ![triple.a, triple.b, triple.c].every((key) =>
+          Object.prototype.hasOwnProperty.call(header.controls, key),
+        ) ||
+        ![triple.ga, triple.gb, triple.gc].every(ascending)
+      )
+        throw new Error("shape runtime: invalid three-control grid");
+      within(triple.offset, triple.ga.length * triple.gb.length * triple.gc.length);
+    }
+    if (model.quads?.length && header.selection?.mode !== "idw2-varying-multilinear")
+      throw new Error("shape runtime: four-control terms require explicit multilinear mode");
+    for (const quad of model.quads ?? []) {
+      if (
+        new Set([quad.a, quad.b, quad.c, quad.d]).size !== 4 ||
+        ![quad.a, quad.b, quad.c, quad.d].every((key) =>
+          Object.prototype.hasOwnProperty.call(header.controls, key),
+        ) ||
+        ![quad.ga, quad.gb, quad.gc, quad.gd].every(ascending)
+      )
+        throw new Error("shape runtime: invalid four-control grid");
+      within(quad.offset, quad.ga.length * quad.gb.length * quad.gc.length * quad.gd.length);
+    }
   }
   for (const preset of Object.keys(header.presets))
     if (!header.models[preset]) throw new Error("shape runtime: preset without model " + preset);
   return { kind: "sampled", header, faces, mean, basis, basisScale, coef };
+}
+
+/** Reference graphs are validated in a worker during network loading. The sync
+ * parser remains available to CLI verification and existing small formats. */
+export async function parseShapeRuntimeAsync(buffer: ArrayBuffer): Promise<AnyShapeRuntime> {
+  if (buffer.byteLength < 8) return parseShapeRuntime(buffer);
+  const view = new DataView(buffer);
+  if (view.getUint32(0, true) !== MAGIC_V2) return parseShapeRuntime(buffer);
+  const size = view.getUint32(4, true);
+  if (
+    size % 4 ||
+    size > 256 * 1024 ||
+    8 + size > buffer.byteLength ||
+    buffer.byteLength > 32 * 1024 * 1024
+  )
+    throw new Error("shape runtime: bad size");
+  const value = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, size)));
+  if (value.encoding === REFERENCE_ENCODING)
+    return parseReferenceAsync(value, new Uint8Array(buffer, 8 + size));
+  return parseShapeRuntime(buffer);
 }

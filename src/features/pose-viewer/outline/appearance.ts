@@ -49,7 +49,27 @@ const acceptedCharacters: Record<string, string> = {
   "female-soft-v0-4-0": "5d0345f98d881ce46777fdf91129d02a54ff20619ee63e5af9c47738ec4057b2",
   "female-fat-max-v0-4-0": "87563be9bbb84e8d3c2f22b542a27a5c9d49bd939156338b45c40e323fb82cb9",
   "female-new-fat-v0-4-0": "43e0cff054daed6a7d76b5e338c6a0bb941760cecff417c7ca9f4ae3f5bf0f3f",
-  "female-new-muscular-v0-4-0": "b22bf84b91a7af1dbb4328aaafa99fbe5d89c30b29dd2c8987b65fd0fb223a96"
+  "female-new-muscular-v0-4-0": "b22bf84b91a7af1dbb4328aaafa99fbe5d89c30b29dd2c8987b65fd0fb223a96",
+  "female-base-lod-v4-20261118": "d9f65329a59ef043abcd7af48c33da1d0f8399632e27c65a29cbe545c99499d0",
+  "female-slim-lod-v4-20261118": "c9a161e68f4959444832469c01c989372feafa946662cb3d6813e8f79aa76d5b",
+  "female-ideal83-lod-v4-20261118": "47c69922eb2d8c120c3881a9ae960f2a2ba2d6f4c7a0f5fb212e5580cdf88aca",
+  "female-ideal70-lod-v4-20261118": "a638c55251a4e40b8799533e5aa7eabfb0f437c604315703068234d491edb8ce",
+  "female-toon64-lod-v4-20261118": "ebf2df8e137e4f991f00c167e3a7226e852b59dabb0f9a110c173e3417b53049",
+  "female-muscular-lod-v4-20261118": "d0025f27202e430da3e8389627e9b314a50b0f4ba5046f83ffc8b18f7c7849cf",
+  "female-muscle-max-lod-v4-20261118": "6c597944f5e2c01f0504ed721e06cd9c982d898bac6e15cdf99f8e83307369fd",
+  "female-soft-lod-v4-20261118": "f0a2da5009893904ec02a1629f5cc3240a9a62167a5f254be826ae7116ef65ba",
+  "female-fat-max-lod-v4-20261118": "f9f14caa69cce6345a94a7763e1b5ae8e2417b67e1aae93902a46c9104505708",
+  "female-new-fat-lod-v4-20261118": "efb857a0ef8b617dc4ea6682e433440543e1a6e5133ad47c6d43cd390fd3b130",
+  "female-new-muscular-lod-v4-20261118": "34a880888697d24ebb216caf4c34171952a23e2bad86fc3e49eabbbf31818a3d",
+  "male-base-lod-v5p2-20261118": "3bed84be1bad274310fae73a2e1f14e279817006acc2c9b69936f99630f6078e",
+  "male-ideal83-lod-v5p2-20261118": "1bd39f2f0c272f0dd7072a698bda5a74e5114a0e3eff8e76a00308e790991da4",
+  "male-ideal70-lod-v5p2-20261118": "9e3422f04a474545f77b1319cf03fc71ee48da45f3ef222ad74bf6529fcd6cb5",
+  "male-toon64-lod-v5p2-20261118": "7e5434290ac724f95e94c0005d10ced1dbafa3722372a54294ee45849489d0f0",
+  "male-muscular-lod-v5p2-20261118": "3e28602b32dcbca6c571fb5dd4683d2313822c663d2b2dbff75baca471269aad",
+  "male-muscle-max-lod-v5p2-20261118": "bf35f6756b28ec42ff6989b6b8a6b509d71a1d7fce566b7cfe0eb4d46fbc5c5f",
+  "male-bulk-lod-v5p2-20261118": "d47ac50fb5fd42fc0ca3aef026fd94c101904f6fd4239ce44661f8cb6a42c5e8",
+  "male-soft-lod-v5p2-20261118": "80b3ad2c7306f5d0f4f2a7fd24b725b7cb3fd429f106ffd1fdf0a43dcf7df053",
+  "male-fat-max-lod-v5p2-20261118": "2ff74ce44455a9062122c48b5f142b9053a23f438c534aac436ed6d4d66be137"
 };
 const acceptedExpression = z.string().refine((value) => ACCEPTED_OUTLINE_EXPRESSIONS.has(value));
 const nonzero = appearanceSchema.refine((a) => a.width > 0);

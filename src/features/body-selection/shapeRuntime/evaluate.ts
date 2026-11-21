@@ -1,3 +1,4 @@
+import { evaluateReference } from "./referenceEvaluate";
 import type { AnyShapeRuntime, ShapeRuntime } from "./format";
 import { evaluateSampled } from "./sampled";
 import { clip, type BlenderControls } from "./common";
@@ -67,6 +68,7 @@ export function evaluateShape(
   out = new Float32Array(runtime.header.vertexCount * 3),
   preset?: string,
 ) {
+  if (runtime.kind === "reference") return evaluateReference(runtime, c, out);
   if (runtime.kind === "sampled") {
     if (!preset) throw new Error("shape runtime: sampled runtime needs a preset");
     return evaluateSampled(runtime, preset, c, out);
