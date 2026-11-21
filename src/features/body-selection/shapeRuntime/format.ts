@@ -166,14 +166,23 @@ const MAX_BASIS = 512;
 
 const axisSchema = z.object({
   key: z.string().min(1),
-  knots: z.array(finite).min(2).max(64),
+  knots: z.array(finite).min(2).max(256),
   offset: z.number().int().nonnegative(),
 });
 const pairSchema = z.object({
   a: z.string().min(1),
   b: z.string().min(1),
-  ga: z.array(finite).min(2).max(16),
-  gb: z.array(finite).min(2).max(16),
+  ga: z.array(finite).min(2).max(256),
+  gb: z.array(finite).min(2).max(256),
+  offset: z.number().int().nonnegative(),
+});
+const tripleSchema = z.object({
+  a: z.string().min(1),
+  b: z.string().min(1),
+  c: z.string().min(1),
+  ga: z.array(finite).min(2).max(32),
+  gb: z.array(finite).min(2).max(32),
+  gc: z.array(finite).min(2).max(32),
   offset: z.number().int().nonnegative(),
 });
 const sampledHeaderSchema = z.object({
@@ -193,14 +202,22 @@ const sampledHeaderSchema = z.object({
       base: z.number().int().nonnegative(),
       axes: z.array(axisSchema),
       pairs: z.array(pairSchema),
+      triples: z.array(tripleSchema).max(8).optional(),
     }),
   ),
   /**
    * 어느 프리셋 모델로 계산할지. 모든 모델은 같은 함수(컨트롤러 compute)를 서로 다른 점(프리셋)
    * 둘레에서 근사한다. `idw2`: 조절 범위로 정규화한 거리 d로 가까운 모델들을 1/d² 가중 평균한다
-   * (d가 가장 가까운 것의 `cutRatio`배를 넘는 모델은 0, 연속). 없으면 고른 프리셋 모델만 쓴다.
+   * (d가 가장 가까운 것의 `cutRatio`배를 넘는 모델은 0, 연속). `idw2-varying`은 프리셋
+   * 기준값이 달라지는 필드만 거리 계산에 쓰며, 모든 필드는 여전히 형상 계산에 적용한다.
+   * 없으면 고른 프리셋 모델만 쓴다.
    */
-  selection: z.object({ mode: z.literal("idw2"), cutRatio: finite.min(1).max(16) }).optional(),
+  selection: z
+    .object({
+      mode: z.enum(["idw2", "idw2-varying", "idw2-varying-trilinear"]),
+      cutRatio: finite.min(1).max(16),
+    })
+    .optional(),
   /** 굽을 때 잰 오차(mm). 앱은 쓰지 않고 기록용으로만 둔다. */
   quality: z.record(z.unknown()).optional(),
   arrays: z.array(arraySchema),
@@ -279,6 +296,17 @@ function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
       )
         throw new Error("shape runtime: pair " + pair.a + "×" + pair.b);
       within(pair.offset, pair.ga.length * pair.gb.length);
+    }
+    if (model.triples?.length && header.selection?.mode !== "idw2-varying-trilinear")
+      throw new Error("shape runtime: three-control terms require explicit trilinear mode");
+    for (const triple of model.triples ?? []) {
+      if (
+        new Set([triple.a, triple.b, triple.c]).size !== 3 ||
+        ![triple.a, triple.b, triple.c].every((key) => key in header.controls) ||
+        ![triple.ga, triple.gb, triple.gc].every(ascending)
+      )
+        throw new Error("shape runtime: invalid three-control grid");
+      within(triple.offset, triple.ga.length * triple.gb.length * triple.gc.length);
     }
   }
   for (const preset of Object.keys(header.presets))

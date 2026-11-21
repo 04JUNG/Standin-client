@@ -40,6 +40,18 @@ export function sampledCoefficients(runtime: SampledRuntime, preset: string, c: 
     addRow(coef, at(i, j + 1), (1 - u) * v, K, out);
     addRow(coef, at(i + 1, j + 1), u * v, K, out);
   }
+  for (const triple of model.triples ?? []) {
+    const [i, u] = locate(triple.ga, c[triple.a]!);
+    const [j, v] = locate(triple.gb, c[triple.b]!);
+    const [k, w] = locate(triple.gc, c[triple.c]!);
+    for (const di of [0, 1])
+      for (const dj of [0, 1])
+        for (const dk of [0, 1]) {
+          const row =
+            triple.offset + ((i + di) * triple.gb.length + j + dj) * triple.gc.length + k + dk;
+          addRow(coef, row, (di ? u : 1 - u) * (dj ? v : 1 - v) * (dk ? w : 1 - w), K, out);
+        }
+  }
   return out;
 }
 
@@ -55,7 +67,20 @@ export function modelWeights(
 ): [string, number][] {
   const { header } = runtime;
   if (!header.selection) return [[preset, 1]];
-  const keys = Object.keys(header.controls);
+  const allKeys = Object.keys(header.controls);
+  // Invariant preset fields add the same offset to every distance. Keep them
+  // in geometry evaluation while omitting them only for this explicit mode.
+  const keys =
+    header.selection.mode === "idw2-varying" || header.selection.mode === "idw2-varying-trilinear"
+      ? allKeys.filter(
+          (key) =>
+            new Set(
+              Object.values(header.presets).map(
+                (values) => values[key] ?? header.controls[key]!.default,
+              ),
+            ).size > 1,
+        )
+      : allKeys;
   const dist = Object.entries(header.presets).map(([name, values]) => {
     let d = 0;
     for (const k of keys) {

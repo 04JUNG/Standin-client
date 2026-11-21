@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import fixture from "./__fixtures__/mini-sampled.json";
 import { parseShapeRuntime, type AnyShapeRuntime, type SampledRuntime } from "./format";
 import { evaluateShape, resolveControls } from "./evaluate";
-import { modelWeights } from "./sampled";
+import { modelWeights, sampledCoefficients } from "./sampled";
 import { matchesCatalog, supportedRuntime, type ShapeRuntimeRef } from "./load";
 
 /**
@@ -14,10 +14,29 @@ type Fixture = {
   ssrGzip: string;
   cases: Record<string, { preset: string; controls: Record<string, number>; positions: number[] }>;
 };
-async function load(): Promise<SampledRuntime> {
+async function load(
+  selectionMode?: string,
+  mutate?: (header: SampledRuntime["header"]) => void,
+): Promise<SampledRuntime> {
   const raw = Uint8Array.from(atob((fixture as Fixture).ssrGzip), (c) => c.charCodeAt(0));
   const stream = new Response(raw).body!.pipeThrough(new DecompressionStream("gzip"));
-  const parsed = parseShapeRuntime(await new Response(stream).arrayBuffer());
+  let buffer = await new Response(stream).arrayBuffer();
+  if (selectionMode) {
+    const size = new DataView(buffer).getUint32(4, true);
+    const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, size)));
+    header.selection.mode = selectionMode;
+    mutate?.(header);
+    const json = new TextEncoder().encode(JSON.stringify(header));
+    const padded = Math.ceil(json.length / 4) * 4;
+    const rewritten = new Uint8Array(8 + padded + buffer.byteLength - 8 - size);
+    rewritten.set(new Uint8Array(buffer, 0, 4));
+    new DataView(rewritten.buffer).setUint32(4, padded, true);
+    rewritten.fill(32, 8, 8 + padded);
+    rewritten.set(json, 8);
+    rewritten.set(new Uint8Array(buffer, 8 + size), 8 + padded);
+    buffer = rewritten.buffer;
+  }
+  const parsed = parseShapeRuntime(buffer);
   if (parsed.kind !== "sampled") throw new Error("expected v2");
   return parsed;
 }
@@ -57,6 +76,108 @@ describe("standin-shape-runtime.v2 (표본)", () => {
     const weights = modelWeights(rt, first, middle);
     expect(weights.map(([n]) => n).sort()).toEqual([first, second].sort());
     expect(weights.reduce((s, [, w]) => s + w, 0)).toBeCloseTo(1, 12);
+  });
+
+  it("parses the opt-in varying mode and rejects unknown selection semantics", async () => {
+    expect((await load("idw2-varying")).header.selection?.mode).toBe("idw2-varying");
+    await expect(load("unknown")).rejects.toThrow();
+  });
+
+  it("evaluates a known three-control polynomial at corners, inside and outside its grid", async () => {
+    const runtime = await load("idw2-varying-trilinear");
+    const preset = Object.keys(runtime.header.models)[0]!;
+    runtime.header.basisCount = 1;
+    const polynomial = (x: number, y: number, z: number) =>
+      1 + 2 * x + 3 * y + 4 * z + 5 * x * y * z;
+    const rows = [0];
+    for (const x of [0, 1])
+      for (const y of [0, 1]) for (const z of [0, 1]) rows.push(polynomial(x, y, z));
+    runtime.coef = new Float32Array(rows);
+    runtime.header.models[preset] = {
+      base: 0,
+      axes: [],
+      pairs: [],
+      triples: [{ a: "x", b: "y", c: "z", ga: [0, 1], gb: [0, 1], gc: [0, 1], offset: 1 }],
+    };
+    for (const [x, y, z] of [
+      [0, 0, 0],
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+      [1, 1, 0],
+      [1, 0, 1],
+      [0, 1, 1],
+      [1, 1, 1],
+      [0.2, 0.4, 0.7],
+      [-1, 0.4, 2],
+    ]) {
+      const clamp = (v: number) => Math.max(0, Math.min(1, v));
+      expect(sampledCoefficients(runtime, preset, { x: x!, y: y!, z: z! })[0]).toBeCloseTo(
+        polynomial(clamp(x!), clamp(y!), clamp(z!)),
+        12,
+      );
+    }
+  });
+
+  it("rejects undeclared, invalid and out-of-bounds three-control tables", async () => {
+    const add = (header: SampledRuntime["header"]) => {
+      const keys = Object.keys(header.controls),
+        model = Object.values(header.models)[0]!;
+      model.triples = [
+        { a: keys[0]!, b: keys[1]!, c: keys[2]!, ga: [0, 1], gb: [0, 1], gc: [0, 1], offset: 0 },
+      ];
+    };
+    await expect(load("idw2", add)).rejects.toThrow(/explicit trilinear/);
+    await expect(
+      load("idw2-varying-trilinear", (h) => {
+        add(h);
+        Object.values(h.models)[0]!.triples![0]!.c = "unknown";
+      }),
+    ).rejects.toThrow(/three-control grid/);
+    await expect(
+      load("idw2-varying-trilinear", (h) => {
+        add(h);
+        const t = Object.values(h.models)[0]!.triples![0]!;
+        t.c = t.a;
+      }),
+    ).rejects.toThrow(/three-control grid/);
+    await expect(
+      load("idw2-varying-trilinear", (h) => {
+        add(h);
+        Object.values(h.models)[0]!.triples![0]!.gc = [1, 0];
+      }),
+    ).rejects.toThrow(/three-control grid/);
+    await expect(
+      load("idw2-varying-trilinear", (h) => {
+        add(h);
+        Object.values(h.models)[0]!.triples![0]!.offset = h.coefCount;
+      }),
+    ).rejects.toThrow(/coef offset/);
+    expect((await load("idw2-varying-trilinear", add)).header.selection?.mode).toBe(
+      "idw2-varying-trilinear",
+    );
+  });
+
+  it("keeps common controls in geometry without letting them dilute preset selection", async () => {
+    const varying = await load("idw2-varying");
+    const [first, second] = Object.keys(varying.header.presets) as [string, string];
+    const a = varying.header.presets[first]!;
+    const b = varying.header.presets[second]!;
+    const near = Object.fromEntries(
+      Object.keys(a).map((key) => [key, a[key]! + 0.25 * (b[key]! - a[key]!)]),
+    );
+    const detail = { ...near };
+    for (const [key, bounds] of Object.entries(varying.header.controls)) {
+      if (a[key] !== b[key]) continue;
+      detail[key] =
+        Math.abs(bounds.max - a[key]!) > Math.abs(bounds.min - a[key]!) ? bounds.max : bounds.min;
+    }
+    expect(modelWeights(varying, first, near)).toEqual(modelWeights(varying, first, detail));
+    expect(modelWeights(rt, first, near)).not.toEqual(modelWeights(rt, first, detail));
+    const before = evaluateShape(varying, near, undefined, first);
+    const after = evaluateShape(varying, detail, undefined, first);
+    expect(after.some((value, index) => Math.abs(value - before[index]!) > 1e-6)).toBe(true);
+    expect(Object.keys(varying.header.controls)).toEqual(Object.keys(rt.header.controls));
   });
 
   it("needs the preset model to evaluate", () => {
