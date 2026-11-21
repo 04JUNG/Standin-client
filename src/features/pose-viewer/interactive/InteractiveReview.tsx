@@ -1,7 +1,7 @@
 import { selectionSkinPreview } from "../skin/selectionSkinPreview";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ExpandablePose, type SurfaceView } from "./InteractivePose";
-import { prepareSurface, solvedCamera } from "./solved";
+import { prepareSurface, finalReviewCamera } from "./solved";
 import type { ModelResult } from "./http";
 import type { StaticAsset } from "./contract";
 import { loadSkinSurface, sameSkin, type SkinPreview } from "../skin/skinPreview";
@@ -36,7 +36,7 @@ export function InteractiveReview({ data, fallback }: { data: InteractiveReviewD
     let result: ReturnType<typeof prepareSurface> | undefined;
     try {
       result = prepareSurface(model.state.model);
-      setPrepared({ ...result, camera: solvedCamera(model.state, model.frame), model });
+      setPrepared({ ...result, camera: finalReviewCamera(model.state, model.frame), model });
     } catch {
       setPrepared(undefined);
     }

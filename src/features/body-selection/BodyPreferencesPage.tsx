@@ -1,3 +1,5 @@
+import { personalDeformeEnabled } from "@/features/personal-body/config";
+import { PersonalDeformLibrary } from "@/features/personal-body/PersonalDeformCards";
 import { useFeatureView } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -33,7 +35,7 @@ export function BodyPreferencesPage() {
   const { cards, change, supported } = useBodyCards();
   const picker = useBodyPickerVisibility();
   useFeatureView("body_custom", supported, "exposure");
-  const [kindView, setKindView] = useState<BodyKind | "all">("all");
+  const [kindView, setKindView] = useState<BodyKind | "all" | "personal">("all");
   const [deleting, setDeleting] = useState<BodyCard | null>(null);
 
   const value = prefs.data;
@@ -82,11 +84,10 @@ export function BodyPreferencesPage() {
               새 작업을 시작할 때
             </h3>
             <p className="text-xs text-text-secondary">
-              마지막으로 사용한 체형으로 시작해요. 각 인물의 체형은 후보 화면에서 따로 바꿀 수 있어요.
+              마지막으로 사용한 체형으로 시작해요. 각 인물의 체형은 후보 화면에서 따로 바꿀 수
+              있어요.
             </p>
-            {lastLabel && (
-              <p className="text-xs text-text-secondary">현재 체형: {lastLabel}</p>
-            )}
+            {lastLabel && <p className="text-xs text-text-secondary">현재 체형: {lastLabel}</p>}
           </section>
         )}
 
@@ -158,40 +159,55 @@ export function BodyPreferencesPage() {
           </section>
         )}
 
-        {looks.length > 0 && (
-          <section aria-labelledby="preset-title">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 id="preset-title" className="text-[15px] font-bold text-text-primary">
-                기본 모델
-              </h3>
-              <div
-                role="group"
-                aria-label="기본 모델 종류"
-                className="inline-flex rounded-full border border-border bg-surface-0 p-0.5"
-              >
-                {(["all", ...kinds] as const).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    aria-pressed={kindView === k}
-                    onClick={() => setKindView(k)}
-                    className={cn(
-                      "rounded-full px-3 py-0.5 text-[12px] font-semibold transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
-                      kindView === k
-                        ? "bg-brand-ink text-white"
-                        : "text-text-secondary hover:text-text-primary",
-                    )}
-                  >
-                    {k === "all" ? "전체" : BODY_KIND_LABEL[k]}
-                  </button>
-                ))}
-              </div>
+        <section aria-labelledby="preset-title">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 id="preset-title" className="text-[15px] font-bold text-text-primary">
+              {kindView === "personal" ? "내 데포르메" : "기본 모델"}
+            </h3>
+            <div
+              role="group"
+              aria-label="기본 모델 종류"
+              className="inline-flex rounded-full border border-border bg-surface-0 p-0.5"
+            >
+              {(
+                [
+                  "all",
+                  "male",
+                  "female",
+                  "child",
+                  ...(personalDeformeEnabled() ? ["personal" as const] : []),
+                ] as const
+              ).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-pressed={kindView === k}
+                  disabled={k !== "all" && k !== "personal" && !kinds.includes(k)}
+                  onClick={() => setKindView(k)}
+                  className={cn(
+                    "rounded-full px-3 py-0.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+                    kindView === k
+                      ? "bg-brand-ink text-white"
+                      : "text-text-secondary hover:text-text-primary",
+                  )}
+                >
+                  {k === "all" ? "전체" : k === "personal" ? "내 데포르메" : BODY_KIND_LABEL[k]}
+                </button>
+              ))}
             </div>
+          </div>
+          {kindView !== "personal" && (
             <p className="mt-1 text-[12px] text-text-secondary">
               기본 모델은 바꾸거나 지울 수 없어요. 조절 가능한 모델을 누르면 그 체형에서 커스텀을
               시작해요.
             </p>
+          )}
+          {kindView === "personal" ? (
+            <div className="mt-3">
+              <PersonalDeformLibrary />
+            </div>
+          ) : (
             <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
               {presets.map((look) => (
                 <PresetTile
@@ -220,8 +236,8 @@ export function BodyPreferencesPage() {
                 />
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
         {(catalog.isError || catalog.data?.origin === "fallback") && (
           <p role="alert" className="text-xs text-text-secondary">
             사용 가능한 체형 목록을 확인하지 못했습니다.

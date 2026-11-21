@@ -19,7 +19,7 @@ import os from "node:os";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 
-const cli = path.resolve("node_modules/@tauri-apps/cli/tauri.js");
+const cli = path.resolve("scripts/tauri.mjs");
 const args = process.argv.slice(2);
 function run(command, argv, env = process.env) {
   const result = spawnSync(command, argv, { stdio: "inherit", env });

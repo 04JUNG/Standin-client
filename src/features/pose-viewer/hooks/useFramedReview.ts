@@ -1,3 +1,6 @@
+import { localBinding, prepareLocal } from "@/features/personal-body/prepare";
+import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
+import { localRecovery } from "@/features/personal-body/contract";
 import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
 import { loadPreparedFbx } from "@/features/export/lib/preparedFbx";
 import { apiFetchBytes } from "@/shared/api/client";
@@ -14,7 +17,7 @@ import {
 } from "../skin/skinScope";
 import { queueRepresentativeFrame } from "../interactive/history";
 import { historyUpload } from "../interactive/historyHttp";
-import { solvedCamera } from "../interactive/solved";
+import { finalReviewCamera } from "../interactive/solved";
 import { useInteractiveReviews } from "../interactive/useInteractiveReviews";
 import { env } from "@/shared/lib/env";
 import type { InteractiveReviewData } from "../interactive/InteractiveReview";
@@ -117,7 +120,13 @@ export function useFramedReview(jobId: string | undefined) {
       },
     })),
   });
-  const format = useExportStore((s) => s.format);
+  const preferredFormat = useExportStore((s) => s.format);
+  const localModels = useLocalBodies((s) => s.models);
+  const localSelected = useLocalBodies((s) => s.selected);
+  const hasLocal = review.items.some(
+    (item) => !!localSelected[localSelectionKey(review.data?.jobId ?? "", item.personIndex)],
+  );
+  const format = hasLocal ? "fbx" : preferredFormat;
   const hands = useHands(
     review.data,
     review.items.map((i) => i.personIndex),
@@ -147,6 +156,13 @@ export function useFramedReview(jobId: string | undefined) {
   const requiresFbx = format !== "fbx" && (generatedSelected || releaseMode);
   const generatedReviewUnavailable = format === "fbx" && generatedSelected && !enabled;
   const requests = review.items.map((item) => {
+    const local = !item.release
+      ? localModels.find(
+          (m) =>
+            m.localModelId ===
+            localSelected[localSelectionKey(review.data?.jobId ?? "", item.personIndex)],
+        )
+      : undefined;
     const scope = previewScope(review.data?.people.find((p) => p.index === item.personIndex));
     const character = resolveCharacter({
       pinned: byPerson[item.personIndex] ?? pinned,
@@ -175,8 +191,8 @@ export function useFramedReview(jobId: string | undefined) {
         /* Invalid server URLs fail closed. */
       }
     }
-    const appearance = outlineAppearance(outlines?.[item.personIndex] ?? 0);
-    const skin = selectedSkin(skins?.[item.personIndex] ?? "default");
+    const appearance = local ? undefined : outlineAppearance(outlines?.[item.personIndex] ?? 0);
+    const skin = local ? undefined : selectedSkin(skins?.[item.personIndex] ?? "default");
     const baseIdentity = [
       owner,
       item.personIndex,
@@ -191,12 +207,14 @@ export function useFramedReview(jobId: string | undefined) {
     const baseBinding = JSON.stringify([...baseIdentity, handEntry?.selection]);
     const binding = JSON.stringify([baseBinding, appearance, ...(skin ? [skin] : [])]);
     return {
+      local,
+      localBinding: local ? localBinding(local, item, scope, handEntry?.selection) : "",
       binding,
       baseBinding,
       poseBinding,
       appearance,
       skin,
-      editing: outlineEditing?.[item.personIndex] === true,
+      editing: !local && outlineEditing?.[item.personIndex] === true,
       scope,
       characterId,
       body,
@@ -213,7 +231,25 @@ export function useFramedReview(jobId: string | undefined) {
     !request.editing &&
     request.handReady &&
     (bodyMode ? review.bodies.ready : catalog.isSuccess);
-  const selectionsReady = requests.every(requestReady);
+  const selectionsReady = requests.every((r) => (r.local ? !review.isRefining : requestReady(r)));
+  const localQueries = useQueries({
+    queries: requests.map((request, index) => ({
+      queryKey: ["personal-body-result", owner, review.data?.jobId, request.localBinding],
+      enabled: !!request.local && !review.isRefining,
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        prepareLocal(
+          review.data!.jobId,
+          request.local!,
+          review.items[index]!,
+          request.scope,
+          request.localBinding,
+          signal,
+        ),
+      retry: false,
+      staleTime: 0,
+      gcTime: 600_000,
+    })),
+  });
   const interactive = useInteractiveReviews({
     enabled: interactiveEnabled,
     owner,
@@ -225,14 +261,15 @@ export function useFramedReview(jobId: string | undefined) {
       personIndex: review.items[i].personIndex,
       candidateId: review.items[i].candidate.id,
       ready: requestReady(r),
+      active: !r.local,
       appearance: r.appearance,
       skin: r.skin,
     })),
   });
   const interactiveErrors = interactive.snapshots.map(
     (s, i) =>
-      s.binding === requests[i]?.binding &&
-      (!!s.error || !!s.failure || s.exportState === "failed"),
+      s?.binding === requests[i]?.binding &&
+      (!!s?.error || !!s?.failure || s?.exportState === "failed"),
   );
   // Older servers only answer SKIN_DISABLED; the person's cropped scope is known here too.
   const reviewFailure = (i: number) => {
@@ -273,7 +310,12 @@ export function useFramedReview(jobId: string | undefined) {
             request.binding,
           ],
       enabled:
-        enabled && !request.appearance && !request.skin && requestReady(request) && !!request.url,
+        !request.local &&
+        enabled &&
+        !request.appearance &&
+        !request.skin &&
+        requestReady(request) &&
+        !!request.url,
       queryFn: async ({ signal }: { signal: AbortSignal }): Promise<PreparedReview> => {
         const item = review.items[index]!;
         if (bodyMode) {
@@ -367,7 +409,8 @@ export function useFramedReview(jobId: string | undefined) {
   const images = useQueries({
     queries: requests.map((r, i) => ({
       queryKey: ["framed-image", owner, currentData[i]?.downloadUrl ?? r.url],
-      enabled: enabled && requestReady(r) && !!currentData[i]?.downloadUrl && imageFallback(i),
+      enabled:
+        !r.local && enabled && requestReady(r) && !!currentData[i]?.downloadUrl && imageFallback(i),
       queryFn: async ({ signal }: { signal: AbortSignal }) => {
         const downloadUrl = currentData[i]!.downloadUrl;
         return { downloadUrl, image: await loadPreparedImage(downloadUrl, signal) };
@@ -383,42 +426,62 @@ export function useFramedReview(jobId: string | undefined) {
   const preparationError =
     outlineUnsupported ||
     skinUnsupported ||
+    localQueries.some((q, i) => !!requests[i]?.local && q.isError) ||
     (!interactiveEnabled && generatedReviewUnavailable) ||
     (enabled &&
-      (!!hands.error ||
-        (bodyMode ? review.bodies.entries.some((e) => e.error) : catalog.isError) ||
-        requests.some((r) => !r.url) ||
-        queries.some((q) => q.isError)));
-  const downloadReady = releaseMode
-    ? !review.isRefining &&
-      !requiresFbx &&
-      review.items.every(
-        (item, i) =>
-          !!item.release &&
-          releaseModels[i]?.isSuccess &&
-          releaseRendered[item.release.preview_sha256] === true,
-      )
-    : interactiveEnabled
-      ? interactive.ready
-      : !outlineUnsupported &&
-        !skinUnsupported &&
-        !requiresFbx &&
-        !generatedReviewUnavailable &&
-        !review.isRefining &&
-        (!enabled ||
-          (selectionsReady &&
-            requests.length > 0 &&
-            !preparationError &&
-            queries.every((q, i) => !!currentData[i] && q.isSuccess && !q.isFetching)));
+      ((requests.some((r) => !r.local) &&
+        (!!hands.error ||
+          (bodyMode
+            ? review.bodies.entries.some(
+                (e) =>
+                  e.error &&
+                  !localSelected[localSelectionKey(review.data?.jobId ?? "", e.personIndex)],
+              )
+            : catalog.isError))) ||
+        requests.some((r) => !r.local && !r.url) ||
+        queries.some((q, i) => !requests[i]?.local && q.isError)));
+  const downloadReady =
+    (releaseMode
+      ? releaseModels.every(
+          (q, i) => q.isSuccess && releaseRendered[review.items[i]?.release?.preview_sha256 ?? ""],
+        )
+      : true) &&
+    !outlineUnsupported &&
+    !skinUnsupported &&
+    !requiresFbx &&
+    (!generatedReviewUnavailable || interactiveEnabled) &&
+    !review.isRefining &&
+    (!(enabled || interactiveEnabled) ||
+      (selectionsReady &&
+        requests.length > 0 &&
+        !preparationError &&
+        queries.every((q, i) =>
+          requests[i]?.local
+            ? localQueries[i]?.data?.binding === requests[i]?.localBinding &&
+              localQueries[i]?.isSuccess &&
+              !localQueries[i]?.isFetching
+            : interactiveEnabled
+              ? interactive.controllers[i]?.ready(requests[i].binding) === true
+              : !!currentData[i] && q.isSuccess && !q.isFetching,
+        ))) &&
+    requests.every(
+      (r, i) =>
+        !r.local ||
+        (format === "fbx" &&
+          localQueries[i]?.data?.binding === r.localBinding &&
+          localQueries[i]?.isSuccess &&
+          !localQueries[i]?.isFetching),
+    );
   useReviewJourney({
     jobId: review.data?.jobId,
     binding: JSON.stringify([
       review.items.map((i) => [i.personIndex, i.candidate.id, i.exportUrl]),
-      requests.map((r) => r.binding),
+      requests.map((r) => (r.local ? r.localBinding : r.binding)),
     ]),
     ready: downloadReady,
-    failed: (interactiveEnabled ? interactive.failed : !!preparationError) || requiresFbx,
+    failed: !!preparationError || interactive.failed || requiresFbx,
     error:
+      localQueries.find((q, i) => requests[i]?.local && q.error)?.error ??
       interactiveFailure?.failure ??
       queries.find((q) => q.error)?.error ??
       hands.entries.find((e) => e.error)?.error ??
@@ -426,17 +489,22 @@ export function useFramedReview(jobId: string | undefined) {
       catalog.error,
     format,
   });
-  const preparationLoading = enabled && !preparationError && !downloadReady;
+  const localFailure = localQueries.find((q, i) => requests[i]?.local && q.error)?.error;
+  const preparationLoading =
+    (enabled || requests.some((r) => !!r.local)) && !preparationError && !downloadReady;
   const previewLoading =
-    enabled &&
+    (enabled || hasLocal) &&
     !preparationError &&
     (preparationLoading ||
-      requests.some((_, i) => {
+      requests.some((r, i) => {
+        if (r.local) return localQueries[i]?.isPending || localQueries[i]?.isFetching;
         const q = imageFallback(i) ? images[i] : models[i];
         return q?.isPending || q?.isFetching;
       }));
   const previewError =
-    enabled && (preparationError || images.some((q, i) => imageFallback(i) && q.isError));
+    enabled &&
+    (preparationError ||
+      images.some((q, i) => !requests[i]?.local && imageFallback(i) && q.isError));
   useEffect(() => {
     if (!enabled || !downloadReady || bodyMode) return;
     requests.forEach((r, i) => {
@@ -465,9 +533,11 @@ export function useFramedReview(jobId: string | undefined) {
       review.items.map((item, i) => ({
         personIndex: item.personIndex,
         candidateId: item.candidate.id,
-        downloadPath: interactiveEnabled
-          ? (interactive.snapshots[i]?.operation?.fileUrl ?? "")
-          : (currentData[i]?.downloadUrl ?? ""),
+        downloadPath: requests[i]?.local
+          ? (localQueries[i]?.data?.snapshotHash ?? "")
+          : interactiveEnabled
+            ? (interactive.snapshots[i]?.operation?.fileUrl ?? "")
+            : (currentData[i]?.downloadUrl ?? ""),
       })),
     ),
   );
@@ -499,15 +569,27 @@ export function useFramedReview(jobId: string | undefined) {
     hands,
     items: review.items.map((item, index) => ({
       ...item,
-      outlineWidth: outlines?.[item.personIndex] ?? 0,
+      localFbx:
+        requests[index]?.local &&
+        localQueries[index]?.data?.binding === requests[index]?.localBinding
+          ? localQueries[index]?.data?.content
+          : undefined,
+      localName: requests[index]?.local?.name,
+      outlineWidth: requests[index]?.local ? 0 : (outlines?.[item.personIndex] ?? 0),
       skin: requests[index]!.skin,
-      skinAvailable: interactiveEnabled && interactive.snapshots[index]?.skinAvailable === true,
+      skinAvailable:
+        interactiveEnabled &&
+        !requests[index]?.local &&
+        interactive.snapshots[index]?.skinAvailable === true,
       supportedSkins: interactive.snapshots[index]?.supportedSkins ?? ["default"],
       outlineAvailable:
-        interactiveEnabled && interactive.snapshots[index]?.appearanceAvailable === true,
+        interactiveEnabled &&
+        !requests[index]?.local &&
+        interactive.snapshots[index]?.appearanceAvailable === true,
       includesHands: scopeIncludesHands(requests[index]!.scope),
-      previewUrl:
-        generatedReviewUnavailable && item.candidate.source === "generation"
+      previewUrl: requests[index]?.local
+        ? ""
+        : generatedReviewUnavailable && item.candidate.source === "generation"
           ? ""
           : enabled
             ? requestReady(requests[index]!) &&
@@ -516,75 +598,82 @@ export function useFramedReview(jobId: string | undefined) {
               ? (images[index]?.data?.image ?? "")
               : ""
             : item.previewUrl,
-      interactivePreview: interactiveEnabled
-        ? ({
-            skin: requests[index]!.skin,
-            selectionSkin: {
-              location: `/v1/analysis/jobs/${review.data?.jobId}/people/${item.personIndex}`,
-              candidateId: item.candidate.id,
-              baseBinding: requests[index]!.baseBinding,
-            },
-            skinPreview:
-              interactive.snapshots[index]?.modelBinding === requests[index]!.baseBinding
-                ? interactive.snapshots[index]?.modelOperation?.skinPreview
-                : undefined,
-            skinState: interactive.snapshots[index]?.modelOperation?.stateHash
-              ? {
-                  stateHash: interactive.snapshots[index]!.modelOperation!.stateHash!,
-                  revision: interactive.snapshots[index]!.modelOperation!.revision,
-                }
-              : undefined,
-            outlineWidth: outlines?.[item.personIndex] ?? 0,
-            model:
-              interactive.snapshots[index]?.modelBinding === requests[index]!.baseBinding &&
-              interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
-                item.candidate.id
-                ? interactive.snapshots[index]?.model
-                : undefined,
-            asset: item.candidate.interactivePreview?.asset,
-            viewKey: `${review.data?.jobId}:${item.personIndex}:review`,
-            failed: interactiveErrors[index] || interactive.snapshots[index]?.modelError === true,
-            localSurface: interactive.snapshots[index]?.localSurface,
-            onFrame:
-              index === 0
-                ? (element: HTMLElement) => {
-                    const controller = interactive.controllers[index];
-                    const snapshot = controller?.snapshot();
-                    const model = snapshot?.model;
-                    const operation = snapshot?.operation;
-                    if (!controller || !model?.frame || !operation) return;
-                    queueRepresentativeFrame(
-                      controller,
-                      element,
-                      solvedCamera(model.state, model.frame),
-                      historyUpload(controller.target, operation),
-                    );
+      interactivePreview:
+        interactiveEnabled && !requests[index]?.local
+          ? ({
+              skin: requests[index]!.skin,
+              selectionSkin: {
+                location: `/v1/analysis/jobs/${review.data?.jobId}/people/${item.personIndex}`,
+                candidateId: item.candidate.id,
+                baseBinding: requests[index]!.baseBinding,
+              },
+              skinPreview:
+                interactive.snapshots[index]?.modelBinding === requests[index]!.baseBinding
+                  ? interactive.snapshots[index]?.modelOperation?.skinPreview
+                  : undefined,
+              skinState: interactive.snapshots[index]?.modelOperation?.stateHash
+                ? {
+                    stateHash: interactive.snapshots[index]!.modelOperation!.stateHash!,
+                    revision: interactive.snapshots[index]!.modelOperation!.revision,
                   }
                 : undefined,
-            notice: review.isRefining
-              ? "포즈 보정 중"
-              : interactiveErrors[index]
-                ? reviewRecovery(reviewFailure(index)).message
-                : interactive.snapshots[index]?.localSurface
-                  ? "변경 적용 중"
-                  : interactive.snapshots[index]?.binding !== requests[index]?.binding
+              outlineWidth: outlines?.[item.personIndex] ?? 0,
+              model:
+                interactive.snapshots[index]?.modelBinding === requests[index]!.baseBinding &&
+                interactive.snapshots[index]?.model?.state.identity.selection.candidate ===
+                  item.candidate.id
+                  ? interactive.snapshots[index]?.model
+                  : undefined,
+              asset: item.candidate.interactivePreview?.asset,
+              viewKey: `${review.data?.jobId}:${item.personIndex}:review`,
+              failed: interactiveErrors[index] || interactive.snapshots[index]?.modelError === true,
+              localSurface: interactive.snapshots[index]?.localSurface,
+              onFrame:
+                index === 0
+                  ? (element: HTMLElement) => {
+                      const controller = interactive.controllers[index];
+                      const snapshot = controller?.snapshot();
+                      const model = snapshot?.model;
+                      const operation = snapshot?.operation;
+                      if (!controller || !model?.frame || !operation) return;
+                      queueRepresentativeFrame(
+                        controller,
+                        element,
+                        finalReviewCamera(model.state, model.frame),
+                        historyUpload(controller.target, operation),
+                      );
+                    }
+                  : undefined,
+              notice: review.isRefining
+                ? "포즈 보정 중"
+                : interactiveErrors[index]
+                  ? reviewRecovery(reviewFailure(index)).message
+                  : interactive.snapshots[index]?.localSurface
                     ? "변경 적용 중"
-                    : interactive.snapshots[index]?.modelError
-                      ? "3D를 다시 준비해 주세요. 파일은 준비되면 다운로드할 수 있어요."
-                      : interactive.ready
-                        ? ""
-                        : "파일 준비 중",
-          } as InteractiveReviewData)
-        : undefined,
-      previewModel: item.release
-        ? releaseModels[index]?.data
-        : enabled &&
-            !imageFallback(index) &&
-            requestReady(requests[index]!) &&
-            models[index]?.data?.downloadUrl === currentData[index]?.downloadUrl
-          ? models[index]?.data?.model
+                    : interactive.snapshots[index]?.binding !== requests[index]?.binding
+                      ? "변경 적용 중"
+                      : interactive.snapshots[index]?.modelError
+                        ? "3D를 다시 준비해 주세요. 파일은 준비되면 다운로드할 수 있어요."
+                        : interactive.ready
+                          ? ""
+                          : "파일 준비 중",
+            } as InteractiveReviewData)
           : undefined,
-      previewReference: !enabled && item.previewReference && item.candidate.source !== "generation",
+      previewModel: requests[index]?.local
+        ? undefined
+        : item.release
+          ? releaseModels[index]?.data
+          : enabled &&
+              !imageFallback(index) &&
+              requestReady(requests[index]!) &&
+              models[index]?.data?.downloadUrl === currentData[index]?.downloadUrl
+            ? models[index]?.data?.model
+            : undefined,
+      previewReference:
+        !requests[index]?.local &&
+        !enabled &&
+        item.previewReference &&
+        item.candidate.source !== "generation",
       onModelStatus: (status: "ready" | "failed") => {
         const url = currentData[index]?.downloadUrl;
         if (!item.release && url && status === "failed")
@@ -602,18 +691,20 @@ export function useFramedReview(jobId: string | undefined) {
     preparationLoading: releaseMode
       ? !downloadReady && !releaseModels.some((q) => q.isError)
       : interactiveEnabled
-        ? !interactive.ready && !interactive.failed
+        ? !downloadReady && !interactive.failed && !preparationError
         : preparationLoading,
     preparationError: releaseMode
       ? releaseModels.some((q) => q.isError)
       : interactiveEnabled
-        ? interactive.failed
+        ? interactive.failed || preparationError
         : preparationError,
     previewLoading: releaseMode ? releaseModels.some((q) => q.isPending) : previewLoading,
     previewError: releaseMode
       ? releaseModels.some((q) => q.isError)
       : interactiveEnabled
-        ? interactiveErrors.some(Boolean) || interactive.snapshots.some((s) => s.modelError)
+        ? !!localFailure ||
+          interactiveErrors.some(Boolean) ||
+          interactive.snapshots.some((s) => s?.modelError)
         : previewError,
     downloadLabel: revision.repeated
       ? "다시 다운로드"
@@ -629,7 +720,11 @@ export function useFramedReview(jobId: string | undefined) {
             ? "변경한 손을 적용하고 있어요…"
             : "다운로드할 파일을 준비하고 있어요…",
     previewFailure: {
-      ...reviewRecovery(failure),
+      ...(localFailure instanceof ApiError
+        ? reviewRecovery(localFailure)
+        : localFailure
+          ? localRecovery(localFailure)
+          : reviewRecovery(failure)),
       switchToDefaultSkin,
     },
     shapedBake: bodyMode && review.bodies.entries.some((e) => !!e.selection?.shape),
@@ -647,9 +742,9 @@ export function useFramedReview(jobId: string | undefined) {
         await Promise.all(releaseModels.map((q) => q.refetch()));
         return;
       }
+      await Promise.all(localQueries.filter((_, i) => requests[i]?.local).map((q) => q.refetch()));
       if (interactiveEnabled) {
         interactive.retry();
-        return;
       }
       if (generatedReviewUnavailable) {
         await review.refetch();
@@ -659,12 +754,16 @@ export function useFramedReview(jobId: string | undefined) {
         if (hands.enabled) await Promise.all(hands.entries.map((e) => e.retry()));
         if (bodyMode) await Promise.all(review.bodies.entries.map((e) => e.retry()));
         else await catalog.refetch();
-        await Promise.all(queries.map((q) => q.refetch()));
+        await Promise.all(queries.filter((_, i) => !requests[i]?.local).map((q) => q.refetch()));
       } else {
         setFailedModels({});
         await Promise.all(
           requests.map((_, i) =>
-            currentData[i]?.file ? models[i]!.refetch() : images[i]!.refetch(),
+            requests[i]?.local
+              ? Promise.resolve()
+              : currentData[i]?.file
+                ? models[i]!.refetch()
+                : images[i]!.refetch(),
           ),
         );
       }

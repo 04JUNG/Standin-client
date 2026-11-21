@@ -134,6 +134,7 @@ it("removes internal CSP presets from management but retains saved personal card
 });
 
 beforeEach(() => {
+  vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "true");
   useInstallationStore.setState({ credentials: null });
   putPreferences.mockReset();
   changeCard.mockReset();
@@ -190,6 +191,22 @@ it("shows the last used body without offering automatic recommendation for a leg
   expect(await screen.findByText("현재 체형: 주인공 A")).toBeInTheDocument();
   expect(screen.queryByText("자동 추천")).not.toBeInTheDocument();
   expect(putPreferences).not.toHaveBeenCalled();
+});
+
+it("offers the personal library plus card even when server models are unavailable", async () => {
+  prefs.current = null;
+  show();
+  fireEvent.click(screen.getByRole("button", { name: "내 데포르메" }));
+  fireEvent.click(screen.getByRole("button", { name: "내 데포르메 불러오기" }));
+  expect(screen.getByRole("dialog", { name: "내 데포르메 불러오기" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "FBX·CS3C 파일 선택" })).toBeDisabled();
+});
+
+it("keeps the personal feature inactive in a normal build without a reviewed runtime", () => {
+  vi.stubEnv("VITE_PERSONAL_BODY_ENABLED", "false");
+  show();
+  expect(screen.queryByRole("button", { name: "내 데포르메" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "내 데포르메 불러오기" })).toBeNull();
 });
 
 it("shows separate new and previous presets while preserving the personal card and last-used mode", async () => {

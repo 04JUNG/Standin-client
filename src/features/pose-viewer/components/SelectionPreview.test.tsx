@@ -1,3 +1,12 @@
+import { useLocalBodies, localSelectionKey } from "@/features/personal-body/store";
+import type { LocalModel } from "@/features/personal-body/contract";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { localBodyApi } from "@/features/personal-body/api";
+import { act } from "@testing-library/react";
+vi.mock("@/features/personal-body/api", () => ({ localBodyApi: { preview: vi.fn() } }));
+vi.mock("@/features/personal-body/LocalFbxPreview", () => ({
+  LocalFbxPreview: () => <div>private registered model</div>,
+}));
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
@@ -50,6 +59,7 @@ const response = () =>
   });
 beforeEach(() => {
   vi.resetAllMocks();
+  useLocalBodies.setState({ models: [], selected: {} });
   vi.mocked(loadApprovedModel).mockResolvedValue({
     template: humanFixture(),
     skin: { baseSha: "", joints: [], weights: [[]] },
@@ -135,4 +145,42 @@ it("aborts stale requests and lets a failed source retry without a converter fal
       .mocked(apiFetchResponse)
       .mock.calls.every(([path]) => String(path).includes("poster-source")),
   ).toBe(true);
+});
+
+it("unmounts server preview and suppresses server appearance controls for a personal selection", async () => {
+  const props = {
+    job: "local-preview",
+    person: makePerson(),
+    entry,
+    bodiesEnabled: true,
+    canonicalPreview: true,
+  };
+  const r = render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SelectionPreview {...props} />
+    </QueryClientProvider>,
+  );
+  const model = {
+    localModelId: "private-model",
+    name: "private body",
+    sourceHash: "a".repeat(64),
+    version: 1,
+  } as LocalModel;
+  vi.mocked(localBodyApi.preview).mockResolvedValue(new Uint8Array([1]));
+  act(() =>
+    useLocalBodies.setState({
+      models: [model],
+      selected: { [localSelectionKey(props.job, 0)]: model.localModelId },
+    }),
+  );
+  await waitFor(() => expect(localBodyApi.preview).toHaveBeenCalledOnce());
+  expect(screen.getByText("private registered model")).toBeInTheDocument();
+  expect(screen.getByText(/등록한 모습/)).toBeInTheDocument();
+  expect(screen.queryByRole("slider", { name: "외곽선 두께" })).not.toBeInTheDocument();
+  act(() => useLocalBodies.getState().select(localSelectionKey(props.job, 0)));
+  await waitFor(() =>
+    expect(screen.queryByText("private registered model")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(screen.getByTestId("surface")).toBeInTheDocument());
+  r.unmount();
 });

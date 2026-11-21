@@ -1,0 +1,212 @@
+{
+  "dateKst": "2026-11-05",
+  "clientPr": "https://github.com/04JUNG/Standin-client/pull/159",
+  "sourceCommit": "c9021067ee1a34eef7d784455fa88dad0a773775",
+  "previousPrHead": "fa27d83cb808e800529da09adc7422b2b2e93e81",
+  "developCommit": "5934f0d2799d64074cb5836b9d7bab48d7246f1e",
+  "converterCommit": "1332d598be58aec68540137e887fea4dc5fb9991",
+  "converterDevelop": "efa8d68ff6ad7a27b1c613069ea77af53c00b109",
+  "runtime": {
+    "directory": "/Users/dowon/dev/Standin-server/artifacts/personal-deforme-followup-20261105/converter/runtime-v10",
+    "launcher": "/Users/dowon/dev/Standin-server/artifacts/personal-deforme-followup-20261105/converter/runtime-v10/standin-local-converter",
+    "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+    "releaseReady": false,
+    "target": "darwin-arm64",
+    "filesChecked": 6591,
+    "versions": {
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "converterVersion": "personal-converter/10",
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254"
+    }
+  },
+  "packageAudit": {
+    "source": {
+      "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+      "files": 6591,
+      "changed": [],
+      "extraFiles": [],
+      "releaseReady": false,
+      "target": "darwin-arm64"
+    },
+    "resources": {
+      "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+      "files": 6591,
+      "changed": [],
+      "extraFiles": [],
+      "releaseReady": false,
+      "target": "darwin-arm64"
+    },
+    "app": {
+      "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+      "files": 6591,
+      "changed": [],
+      "extraFiles": [],
+      "releaseReady": false,
+      "target": "darwin-arm64"
+    },
+    "binarySha256": "27bc92544c235331b5b6d622d2b18c245f911d88e41dafe08fef33c53d251f21"
+  },
+  "tests": {
+    "frontendPassed": 1335,
+    "frontendSkipped": 3,
+    "typecheck": "passed",
+    "lint": "passed; 0 errors, 1 preexisting warning",
+    "webBuild": "passed",
+    "runtimePackaging": 1,
+    "nativePersonalActualModels": 9,
+    "nativeRetainedOutputCases": 2,
+    "clippy": "passed; -D warnings"
+  },
+  "nativeExports": [
+    {
+      "sourceName": "standin-male-0.7.6-mapped-review.cs3c",
+      "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "pose": "recorded 03-staging-selected-pose.bvh; offline, not live BFF",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": null,
+        "rotation": null
+      },
+      "outputFile": "client/native-male-final.fbx",
+      "outputSha256": "b3032354e16af115a7551c6e1d923d8076efe80f1e146a12e1a78ca033e88d3b",
+      "nativeTest": "passed; export SHA verified; after worker delete user export preserved"
+    },
+    {
+      "sourceName": "female-chubby-tpose.fbx",
+      "sourceSha256": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "pose": "recorded 03-staging-selected-pose.bvh; offline, not live BFF",
+      "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+      "camera": {
+        "version": "personal-camera/1",
+        "sourceBvhSha256": null,
+        "rotation": null
+      },
+      "outputFile": "client/native-female-final.fbx",
+      "outputSha256": "248f01a2d489eb90485d34498c1f242e320c1653176625b03df3c48b41125dc9",
+      "nativeTest": "passed; export SHA verified; after worker delete user export preserved"
+    }
+  ],
+  "appUi": {
+    "registration": ["actual male CS3C", "actual female FBX", "separate bone-shaped CS3C control"],
+    "largePreview": "actual male CS3C registration preview passed",
+    "renameRestartReuse": "passed for male CS3C",
+    "appAndBarSelection": "passed with real native library and mock analysis result; no live BFF",
+    "deleteConfirmationAndCancel": "passed; original successful cards retained",
+    "poseSaveUiEndToEnd": "unverified; native adapter save verified separately",
+    "mode": "mock/isolated local app; no live BFF requests made"
+  },
+  "csp": {
+    "version": "5.1.1 (CFBundleShortVersionString and CFBundleVersion independently read from installed app)",
+    "mode": "trial; title states some functions unavailable",
+    "canvas": "new Standin personal v10 CSP QA 20261105; existing restored document untouched",
+    "stage": "File > Import > 3D data reached. GoTo file-path sheet failed to commit selection; keyboard and AX/coordinate variants retried; XPC service connection timed out.",
+    "import": "UNVERIFIED: no final FBX import confirmed",
+    "jointManipulation": "UNVERIFIED",
+    "clipSave": "UNVERIFIED: not reached",
+    "closeReopen": "UNVERIFIED: no .clip was created",
+    "priorCrashReproduced": false,
+    "cameraCrashCausality": "NOT ESTABLISHED",
+    "controls": [
+      {
+        "manifest": "/Users/dowon/dev/Standin-server/artifacts/personal-deforme-followup-20261105/converter/csp-male-seated/controls.json",
+        "sha256": "89d812a60a2759e2fff55063796eda1b2e5ffe393d5339fd5dc10b3322cd0e5a",
+        "sourceSha256": "2075ae9d5546472054b7e7853bcaba2081d2764fe7cf26a5f9844d005e82960c",
+        "variants": 5,
+        "blenderReimport": "passed",
+        "cspImportSave": "unverified"
+      },
+      {
+        "manifest": "/Users/dowon/dev/Standin-server/artifacts/personal-deforme-followup-20261105/converter/csp-female-cmu/controls.json",
+        "sha256": "3d1e7eb2e376eba32dacc380b960d21ed6314a9ecd7b2273774db55939b41adc",
+        "sourceSha256": "617bce03b6a41db7027a6d0c55057d3953c8e8e66018d06d1da7f1eba7cb96f8",
+        "variants": 5,
+        "blenderReimport": "passed",
+        "cspImportSave": "unverified"
+      }
+    ]
+  },
+  "remaining": [
+    "Visual quality NOT QUALIFIED: female CMU pelvis edge ~198.629x; seated ~26.640x; male CMU stretch regression and child creases remain (converter-owned).",
+    "Live installation-owned BFF -> final BVH -> native model -> app save continuous E2E unverified.",
+    "Actual selected-camera app export unverified; converter source/yaw35 controls are distinct.",
+    "CSP import/joint manipulation/.clip save/reopen blocked before input confirmation; previous excessive recursion crash neither fixed nor disproved.",
+    "Windows / Intel Mac actual runtime, signing, redistribution unverified."
+  ],
+  "constraints": {
+    "draft": true,
+    "featureEnabledByDefault": false,
+    "releaseReady": false,
+    "productionOrDeploymentChanges": false,
+    "newPaidCalls": false,
+    "forcePush": false,
+    "merge": false
+  },
+  "screenshots": [
+    {
+      "file": "app-male-v10-preview.png",
+      "sha256": "f5fa077dfc357ebff69b21012ba76a71ee41f4796e3f95b9bfd8cd79c4926a39"
+    },
+    {
+      "file": "app-v10-delete-confirm.png",
+      "sha256": "8e27154657c2ee5f09f8cafc7ed04e6448fdc8f43bd9f77c398241f2b09c4043"
+    },
+    {
+      "file": "app-v10-fbx-cs3c-cards.png",
+      "sha256": "cdbe6a356b5103bebfa918f83b15fd2038d6f4fa97aaa2b57eb683a894fd7a2a"
+    },
+    {
+      "file": "app-v10-mock-selected.png",
+      "sha256": "492fd7a9f0923c8dd43e066febddfbead3e3b20233a8fca5aec7de8bbda2dfca"
+    },
+    {
+      "file": "app-v10-restarted.png",
+      "sha256": "3d69f2ee018fa30f161fadfe33fcf117aa1da80a6fdc236308f4ef6308069d2a"
+    },
+    {
+      "file": "bar-v10-mock-selected.png",
+      "sha256": "118f03dccc6f026a7fc8257613bed23944a307921c5e604c79b99ba82e5164b7"
+    },
+    {
+      "file": "csp-file-dialog-blocked.png",
+      "sha256": "5f6299433fb7bc4cfb3d238e95754e437678b1232a4280cb15bf9eeed3d5f8a8"
+    }
+  ],
+  "appLibraryVersions": [
+    {
+      "name": "CS3C v10",
+      "sourceHash": "d4d81aff8b5f0537898e5541279749c46560515e1886f2443f1333094ceb7f4b",
+      "format": "cs3c",
+      "version": 1,
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "converterVersion": "personal-converter/10",
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254"
+    },
+    {
+      "name": "Female FBX v10",
+      "sourceHash": "fb47d89d1507c377b0af136b9dc6357ef35787c59ac79467ee180b2e1640017f",
+      "format": "fbx",
+      "version": 1,
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "converterVersion": "personal-converter/10",
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254"
+    },
+    {
+      "name": "Male v10 reused",
+      "sourceHash": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+      "format": "cs3c",
+      "version": 1,
+      "importerVersion": "personal-import/4",
+      "normalizationVersion": "personal-normalize/5",
+      "rigMappingVersion": "personal-rig/2",
+      "converterVersion": "personal-converter/10",
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254"
+    }
+  ]
+}

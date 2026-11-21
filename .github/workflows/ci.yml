@@ -49,6 +49,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Test runtime packaging gates
+        run: npm run test:runtime
+
       - name: Build frontend
         run: npm run build
 

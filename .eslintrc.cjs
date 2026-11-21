@@ -5,7 +5,7 @@ module.exports = {
   parser: "@typescript-eslint/parser",
   parserOptions: { ecmaVersion: "latest", sourceType: "module" },
   plugins: ["react-hooks", "react-refresh"],
-  ignorePatterns: ["dist", "src-tauri", ".eslintrc.cjs"],
+  ignorePatterns: ["dist", "src-tauri", "work", ".eslintrc.cjs"],
   rules: {
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn",

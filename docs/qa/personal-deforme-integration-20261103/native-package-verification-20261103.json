@@ -1,0 +1,28 @@
+{
+  "sourceCommit": "d4a273cc845fc4fb167cbb77800fe6293e7a043d",
+  "signed": false,
+  "debug": true,
+  "apiMode": "mock",
+  "app": {
+    "runtimeManifestSha256": "07325a2a63ad8e0abfb5547c0e6cd6a5ff775d9af6d45f4b28930450ef64a085",
+    "verifiedManifestFiles": 6579,
+    "changedManifestFiles": 0,
+    "runtimeTarget": "darwin-arm64",
+    "decoderIncluded": true,
+    "releaseReady": false,
+    "binarySha256": "7e2e2aa94d2bf39f422d9e02fc476033155362fd8a1882b50f7f3988108d262d",
+    "binaryArchitectures": "arm64"
+  },
+  "dmgSha256": "7e372860539e6717c525a86b504f153a4cdeb1acba6988126deecbe1b6f331c1",
+  "dmgContainedApp": {
+    "runtimeManifestSha256": "07325a2a63ad8e0abfb5547c0e6cd6a5ff775d9af6d45f4b28930450ef64a085",
+    "verifiedManifestFiles": 6579,
+    "changedManifestFiles": 0,
+    "runtimeTarget": "darwin-arm64",
+    "decoderIncluded": true,
+    "releaseReady": false,
+    "binarySha256": "7e2e2aa94d2bf39f422d9e02fc476033155362fd8a1882b50f7f3988108d262d",
+    "binaryArchitectures": "arm64"
+  },
+  "appMatchesDmg": true
+}

@@ -1,3 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+import { localBodyApi } from "@/features/personal-body/api";
+import { LocalFbxPreview } from "@/features/personal-body/LocalFbxPreview";
+import { modelIdentity, type LocalModel } from "@/features/personal-body/contract";
+import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
 import "../pages/selectionWorkspace.css";
 import { useMemo } from "react";
 import { CandidateAppearanceControls } from "./CandidateAppearanceControls";
@@ -17,7 +22,63 @@ import { useDefaultPosePoster } from "../api/posePoster";
 import { useLocalPreview } from "../preview/humanReference/useLocalPreview";
 import { referenceSurfaceCamera } from "../preview/humanReference/surface";
 
-export function SelectionPreview({
+export function SelectionPreview(props: Parameters<typeof ServerSelectionPreview>[0]) {
+  // Owner changes re-evaluate the local selection even when the device library is unchanged.
+  useBodyOwner();
+  const local = useLocalBodies((state) =>
+    state.models.find(
+      (model) =>
+        model.localModelId === state.selected[localSelectionKey(props.job, props.person.index)],
+    ),
+  );
+  return local ? (
+    <PersonalSelectionPreview model={local} personIndex={props.person.index} />
+  ) : (
+    <ServerSelectionPreview {...props} />
+  );
+}
+function PersonalSelectionPreview({
+  model,
+  personIndex,
+}: {
+  model: LocalModel;
+  personIndex: number;
+}) {
+  const preview = useQuery({
+    queryKey: ["personal-body-preview", ...modelIdentity(model)],
+    queryFn: () => localBodyApi.preview(model.localModelId, model.sourceHash),
+    staleTime: Infinity,
+    gcTime: 60_000,
+    retry: false,
+  });
+  return (
+    <section
+      data-replay-private
+      aria-label={`인물 ${personIndex + 1} 큰 미리보기`}
+      className="selection-preview"
+    >
+      <div className="selection-preview-heading">
+        <h2 className="text-[13px] font-semibold">{model.name} · 등록한 모습</h2>
+      </div>
+      <div className="selection-preview-model">
+        {preview.isError ? (
+          <p role="alert" className="p-4 text-xs">
+            미리보기를 불러오지 못했어요.{" "}
+            <button className="underline" onClick={() => void preview.refetch()}>
+              다시 시도
+            </button>
+          </p>
+        ) : (
+          <LocalFbxPreview content={preview.data} name={model.name} format="glb" />
+        )}
+      </div>
+      <p className="p-3 text-xs text-text-secondary">
+        고른 포즈는 저장 전 확인 화면에서 적용해요. 원래 손 모양·표면으로 저장돼요.
+      </p>
+    </section>
+  );
+}
+function ServerSelectionPreview({
   job,
   person,
   selectedId,

@@ -42,6 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init());
 
     let builder = builder
+        .manage(commands::personal_body::PersonalBodyState::default())
         .manage(commands::updates::UpdateRuntime::default())
         .manage(commands::release_notes::ReleaseNotesState::default())
         .plugin(tauri_plugin_opener::init())
@@ -91,6 +92,14 @@ pub fn run() {
             }
             let handler: fn(tauri::ipc::Invoke) -> bool = tauri::generate_handler![
                 commands::capture::grab_screen,
+                commands::personal_body::personal_body_capabilities,
+                commands::personal_body::personal_body_list,
+                commands::personal_body::personal_body_import,
+                commands::personal_body::personal_body_rename,
+                commands::personal_body::personal_body_delete,
+                commands::personal_body::personal_body_cancel,
+                commands::personal_body::personal_body_apply,
+                commands::personal_body::personal_body_preview,
                 commands::replay::replay_session,
                 commands::csp_result::list_csp_windows,
                 commands::csp_result::capture_csp_result,
@@ -137,15 +146,23 @@ pub fn run() {
             .build(tauri::generate_context!())
             .expect("error building QA application");
         update_e2e::trace("build-complete");
-        app.run(|_, event| match event {
+        app.run(|handle, event| match event {
             tauri::RunEvent::Ready => update_e2e::trace("event-loop-ready"),
             tauri::RunEvent::ExitRequested { .. } => update_e2e::trace("exit-requested-event"),
-            tauri::RunEvent::Exit => update_e2e::trace("exit-event"),
+            tauri::RunEvent::Exit => {
+                commands::personal_body::shutdown(handle);
+                update_e2e::trace("exit-event");
+            }
             _ => {}
         });
     }
     #[cfg(not(feature = "update-e2e"))]
     builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|handle, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                commands::personal_body::shutdown(handle);
+            }
+        });
 }

@@ -23,6 +23,8 @@ export type PoseCandidate = import("./routedSearch").CandidatePolicy & {
   deferredThumbnailUrl?: string;
   /** Already rendered library JPEG; its view may only approximate the camera. */
   quickThumbnailUrl?: string;
+  /** Preserve server camera independently of whether a GLB preview URL is available. */
+  presentationCamera?: { version?: string; rotation?: unknown; sourceBvhSha256?: string };
   interactivePreview?: {
     version: "interactive-preview-v1";
     asset?: import("../interactive/contract").StaticAsset;

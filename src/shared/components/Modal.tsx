@@ -20,6 +20,8 @@ type ModalProps = {
    * 간다. 키 입력을 받아야 하는 대화상자는 반드시 넘겨야 한다.
    */
   initialFocus?: RefObject<HTMLElement>;
+  /** Mask user supplied model names and previews in replay capture. */
+  privateContent?: boolean;
   children: ReactNode;
 };
 
@@ -40,6 +42,7 @@ export function Modal({
   closeOnEscape = true,
   width = "md",
   initialFocus,
+  privateContent,
   children,
 }: ModalProps) {
   const titleId = useId();
@@ -110,7 +113,10 @@ export function Modal({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-8">
+    <div
+      data-replay-private={privateContent || undefined}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-8"
+    >
       <div className="absolute inset-0 bg-brand-ink/40" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}

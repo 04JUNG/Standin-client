@@ -4,7 +4,7 @@ import { Group } from "three";
 import { expect, it, vi } from "vitest";
 import { InteractiveReview } from "./InteractiveReview";
 import type { ModelResult } from "./http";
-import { prepareSurface } from "./solved";
+import { prepareSurface, finalReviewCamera } from "./solved";
 import { loadSkinSurface, skinPreviewSchema } from "../skin/skinPreview";
 import { selectionSkinPreview } from "../skin/selectionSkinPreview";
 import { previewFixture } from "../skin/__fixtures__/skinPreview";
@@ -18,7 +18,7 @@ vi.mock("./InteractivePose", () => ({
 }));
 vi.mock("./solved", () => ({
   prepareSurface: vi.fn(() => ({ body: {}, release: vi.fn() })),
-  solvedCamera: vi.fn(() => ({})),
+  finalReviewCamera: vi.fn(() => ({})),
 }));
 it("releases every prepared surface across StrictMode, notice updates and unmount", () => {
   const model = {
@@ -32,6 +32,7 @@ it("releases every prepared surface across StrictMode, notice updates and unmoun
     </StrictMode>,
   );
   const count = vi.mocked(prepareSurface).mock.calls.length;
+  expect(finalReviewCamera).toHaveBeenCalledWith(model.state, model.frame);
   view.rerender(
     <StrictMode>
       <InteractiveReview data={{ ...data, notice: "" }} />

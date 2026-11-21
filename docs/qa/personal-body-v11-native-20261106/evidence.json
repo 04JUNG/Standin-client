@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "dateKst": "2026-11-06",
+  "clientBaseline": "b0be9f6e03a28a6c197b277a062eb729455e7814",
+  "clientCompatibilityCommit": "35e0136cf9cd230b18f0772116bd955f4228bf68",
+  "serverCandidateCommit": "7616e491fc500cbfec04fc9fe4defce93fa5776e",
+  "scope": "macOS arm64 native packaging/contract/migration; geometry and CSP acceptance are separate",
+  "supportedContractPairs": [
+    {
+      "revision": 5,
+      "converter": "personal-converter/10"
+    },
+    {
+      "revision": 6,
+      "converter": "personal-converter/11"
+    }
+  ],
+  "preflight": {
+    "v10OriginalSource": {
+      "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+      "status": "FAIL",
+      "files": 6591,
+      "modified": 538,
+      "missing": 0,
+      "extra": 3,
+      "modifiedFileTypes": [".pyc"],
+      "extraPaths": [
+        "runtime/Blender.app/Contents/Resources/5.2/scripts/addons_core/io_scene_fbx/__pycache__/data_types.cpython-314.pyc",
+        "runtime/Blender.app/Contents/Resources/5.2/scripts/addons_core/io_scene_fbx/__pycache__/parse_fbx.cpython-314.pyc",
+        "runtime/Blender.app/Contents/Resources/5.2/scripts/addons_core/io_scene_fbx/__pycache__/fbx_utils_threading.cpython-314.pyc"
+      ]
+    },
+    "v10PreservedConnectionApp": {
+      "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+      "status": "PASS",
+      "files": 6591,
+      "modified": 0,
+      "missing": 0,
+      "extra": 0,
+      "modifiedFileTypes": [],
+      "extraPaths": []
+    },
+    "v10PreservedPriorApp": {
+      "manifestSha256": "eaac3841c8b9e693ff88c959eabaceaf1ecc298e547eede748e83ad4a0de1d70",
+      "status": "PASS",
+      "files": 6591,
+      "modified": 0,
+      "missing": 0,
+      "extra": 0,
+      "modifiedFileTypes": [],
+      "extraPaths": []
+    },
+    "v11Candidate": {
+      "manifestSha256": "2540a161e19fa34ad1d9c38bcc79751d471b938f6de5b0757923e303def5789b",
+      "status": "PASS",
+      "files": 6606,
+      "modified": 0,
+      "missing": 0,
+      "extra": 0,
+      "modifiedFileTypes": [],
+      "extraPaths": []
+    }
+  },
+  "v10SourceDisposition": "FAIL closed; 538 modified pyc and 3 unlisted cp314 pyc observed; not executed, repaired or overwritten. Actual v10 acceptance uses the preserved verified app runtime. Cause of mutation not established here.",
+  "runtimeDelta": {
+    "added": [
+      "converter/local/csp_compat.py",
+      "converter/outline_fbx.py",
+      "converter/outline_probe.py",
+      "converter/outline_qa.py",
+      "converter/outline_spec.py",
+      "converter/outline_worker.py",
+      "converter/reviewed_library.py",
+      "converter/reviewed_source_fingers.py",
+      "converter/skin_assets.v1.json",
+      "converter/skin_fbx.py",
+      "converter/skin_spec.py",
+      "converter/skin_worker.py",
+      "runtime/Blender.app/Contents/Resources/5.2/scripts/addons_core/io_scene_fbx/__pycache__/data_types.cpython-314.pyc",
+      "runtime/Blender.app/Contents/Resources/5.2/scripts/addons_core/io_scene_fbx/__pycache__/fbx_utils_threading.cpython-314.pyc",
+      "runtime/Blender.app/Contents/Resources/5.2/scripts/addons_core/io_scene_fbx/__pycache__/parse_fbx.cpython-314.pyc"
+    ],
+    "removed": [],
+    "changedConverter": [
+      "converter/interactive_adapter.py",
+      "converter/local/blender_job.py",
+      "converter/local/contract.py",
+      "converter/local/inspection.py",
+      "converter/worker.py",
+      "converter-client-contract.v1.json",
+      "entry.py"
+    ]
+  },
+  "app": {
+    "binarySha256": "265d37b474084916da59ecf6638228aed3b0f7f924b0473f29ec0351fe85b5f7",
+    "treeSha256": "3fe201675c9f551066ef4a9f7cbfcc45506de3dae5e2645cdb502e38b049ef3d",
+    "fileCount": 6610,
+    "fileManifestFormat": "SHA256 + two spaces + relative POSIX file path + LF; sorted directory traversal",
+    "identifier": "app.standin.desktop.personal-connection-v11-qa-20261106",
+    "version": "0.2.3",
+    "architecture": "Mach-O 64-bit executable arm64",
+    "environment": {
+      "STANDIN_KEYRING_SERVICE": "app.standin.desktop.personal-connection-v11-qa-20261106",
+      "VITE_API_BASE_URL": "http://localhost:8000",
+      "VITE_USE_MOCK_API": "false",
+      "VITE_USE_MOCK_POSE_API": "false",
+      "VITE_INTERACTIVE_POSE_PREVIEW": "true",
+      "VITE_APP_ENV": "development",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "updaterEndpoints": [],
+    "deepLinkSchemes": ["standin-personal-connection-v11-qa-20261106"],
+    "configSha256": "81f041d07f92568f48e9a1282bd0bcdd1c89958cf1b61461ad2d4c332693f105",
+    "keyringService": "app.standin.desktop.personal-connection-v11-qa-20261106",
+    "signing": "local debug; release signing/notarization not qualified"
+  },
+  "keyringIsolationEvidence": {
+    "depInfoFile": "standin_desktop_lib.d",
+    "line": 64,
+    "record": "# env-dep:STANDIN_KEYRING_SERVICE=app.standin.desktop.personal-connection-v11-qa-20261106",
+    "credentialValuesRead": false
+  },
+  "runtimeAudits": {
+    "candidate": {
+      "manifestSha256": "2540a161e19fa34ad1d9c38bcc79751d471b938f6de5b0757923e303def5789b",
+      "files": 6606,
+      "target": "darwin-arm64",
+      "releaseReady": false,
+      "contractRevision": 6,
+      "converterVersion": "personal-converter/11",
+      "modified": 0,
+      "missing": 0,
+      "extra": 0,
+      "status": "PASS"
+    },
+    "generatedResource": {
+      "manifestSha256": "2540a161e19fa34ad1d9c38bcc79751d471b938f6de5b0757923e303def5789b",
+      "files": 6606,
+      "target": "darwin-arm64",
+      "releaseReady": false,
+      "contractRevision": 6,
+      "converterVersion": "personal-converter/11",
+      "modified": 0,
+      "missing": 0,
+      "extra": 0,
+      "status": "PASS"
+    },
+    "finishedAppRuntime": {
+      "manifestSha256": "2540a161e19fa34ad1d9c38bcc79751d471b938f6de5b0757923e303def5789b",
+      "files": 6606,
+      "target": "darwin-arm64",
+      "releaseReady": false,
+      "contractRevision": 6,
+      "converterVersion": "personal-converter/11",
+      "modified": 0,
+      "missing": 0,
+      "extra": 0,
+      "status": "PASS"
+    }
+  },
+  "nativeBinaryInventory": {
+    "target": "darwin-arm64",
+    "nativeMachOFiles": 195,
+    "wrongArchitecture": []
+  },
+  "nativeMigration": {
+    "allPassed": true,
+    "cardVersionIncremented": true,
+    "deletionPreservesBothExports": true,
+    "explicitReregistrationPassed": true,
+    "freshV11ApplyPassed": true,
+    "oldCardIdentityPreserved": true,
+    "oldSnapshotRejected": true,
+    "oldWorkerRejected": true,
+    "poseSha256": "756b393a31732e270a6fa65454fb4162e6f442a7f0e31ef8c7f0da204dc74ad6",
+    "sameRuntimeDuplicateReused": true,
+    "scope": "actual product native registration/replacement core and retained NDJSON adapter; offline recorded pose; no picker/UI/live BFF/CSP or geometry quality qualification",
+    "sourceSha256": "a2b61fd5673abfec339fa7a2019f8f6894f8a207a0a524c334275846158bad0c",
+    "v10ExportSha256": "ae3f531616f2e330727e748c504f7cf0c2a4bb09b8bff3ad3c32d79631c99e8a",
+    "v10SnapshotHash": "c877482a493059ef2eedf9ceedf5ff19f31770308fb4b613a27da1376ecfbef1",
+    "v10Versions": {
+      "converterFingerprint": "3fe31c1322bb2d5c618920bda19dee5d96ea58b15caa1e5a9d8cdf842c73b254",
+      "converterVersion": "personal-converter/10"
+    },
+    "v11CacheReusePassed": true,
+    "v11ExportSha256": "1453d1a5a99d824251421ea6277aacb31247f476794ff1d9272d5b121edd4d0d",
+    "v11SnapshotHash": "044d5252a4f5529f654be66e216ebe35fb02865542739faa0071517ea7555b3d",
+    "v11Versions": {
+      "converterFingerprint": "5fdc61c7775279392171e8002aece0e87744fe6187855746fe7411b4004458d1",
+      "converterVersion": "personal-converter/11"
+    }
+  },
+  "actualTests": [
+    {
+      "test": "real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 58.51660529203946
+    },
+    {
+      "test": "real_packaged_worker_import_apply_export_restart_delete",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 138.33686275000218,
+      "output": "female-v11.fbx",
+      "outputSha256": "c19dd27ab9d5fb541b0e0b5c33543462367d4d22d65cd16f18e9585e9547fb7e"
+    },
+    {
+      "test": "real_packaged_worker_with_decoder_imports_original_cs3c",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 60.57438608299708,
+      "output": "male-v11.fbx",
+      "outputSha256": "6c3c282ac7517495ba8b2fe33d0e90c8036945eb08e4b72baec840eee3c5049b"
+    },
+    {
+      "test": "real_packaged_worker_cancel_does_not_publish_model",
+      "status": "PASS",
+      "returncode": 0,
+      "seconds": 12.26774404203752
+    }
+  ],
+  "allActualTestsPassed": true,
+  "tests": {
+    "nodePackagingPassed": 5,
+    "nativeUnitPassed": 6,
+    "nativeUnitIgnored": 6,
+    "nativeActualPassed": 4,
+    "clippy": "PASS -D warnings",
+    "normalWrapperBuild": "PASS debug .app; both Mock=false; local HTTP fixture mode; not actual UI/live BFF"
+  },
+  "remaining": [
+    "Windows and Intel runtime UNVERIFIED; no candidate for those targets.",
+    "v11 name compatibility is not geometry-quality qualification; existing geometry safety gates unchanged.",
+    "Actual CSP import/save/reopen and full product UI acceptance belong to the connection/CSP owners.",
+    "releaseReady:false, public signing/notarization and redistribution gates remain."
+  ],
+  "constraints": {
+    "releaseReady": false,
+    "defaultEnabled": false,
+    "deployment": false,
+    "merge": false,
+    "directPrPush": false,
+    "privateAssetsInGit": false,
+    "oldAppOrRuntimeOverwritten": false
+  }
+}

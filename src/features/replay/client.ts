@@ -18,6 +18,7 @@ import {
   persistPendingWithdrawal,
   type QueueItem,
 } from "./queue";
+import { createReplayPrivacyFilter } from "./privateDom";
 import { sanitizeReplay } from "./privacy";
 
 export const useReplayStatus = create<{
@@ -51,6 +52,7 @@ let sequence = new Map<string, number>();
 let ordered = Promise.resolve();
 let pendingChunks = 0;
 let aborter = new AbortController();
+const privateFilters = new Map<string, ReturnType<typeof createReplayPrivacyFilter>>();
 const assetCache = new Map<string, Promise<string>>();
 const withdrawalKey = "standin.replay.withdrawn.v1";
 const pendingWithdrawalKey = "standin.replay.withdrawal.pending.v1";
@@ -124,6 +126,7 @@ export async function beginReplay(owner: string, qualityConsentId?: string) {
   retryAt = 0;
   sequence = new Map();
   assetCache.clear();
+  privateFilters.clear();
   const session = appSession();
   const ctx: Context = {
     owner,
@@ -161,6 +164,7 @@ export function stopReplay() {
   aborter.abort();
   context = undefined;
   assetCache.clear();
+  privateFilters.clear();
   useReplayStatus.setState({ state: "stopped" });
 }
 export async function withdrawReplay() {
@@ -344,7 +348,13 @@ export function sendReplayEvents(
   const stream = `${ctx.windowId}_${surface}`;
   const seq = sequence.get(stream) ?? 0;
   sequence.set(stream, seq + 1);
-  const captured = events;
+  if (!privateFilters.has(stream)) privateFilters.set(stream, createReplayPrivacyFilter());
+  const filter = privateFilters.get(stream)!;
+  const captured = events.map(filter).filter((event) => event !== undefined);
+  if (!captured.length) {
+    pendingChunks--;
+    return;
+  }
   ordered = ordered
     .then(async () => {
       if (!active(ctx)) return;
