@@ -1,16 +1,22 @@
 # SSR2 reader compatibility and rollout
 
-The candidate reader adds the explicit selection modes `idw2-varying` and
-`idw2-varying-trilinear`. The first excludes controls whose preset defaults are
+The candidate reader adds the explicit selection modes `idw2-varying`,
+`idw2-varying-trilinear`, and `idw2-varying-multilinear`. The first excludes controls whose preset defaults are
 identical from distance calculation; every control still affects geometry.
-The second also evaluates measured three-control residual tables. Legacy `idw2`
+The second also evaluates measured three-control residual tables. The third
+also supports four-control tables by interpolating their sixteen corners. A
+direct four-control displacement table can replace lower-order terms wholly
+contained in that block; overlapping terms must not be counted twice. Legacy `idw2`
 selection and runtimes without selection metadata keep their existing behavior.
 
 An axis or pair dimension can contain at most 256 nodes. A three-control term
 requires three distinct known controls, increasing grids of 2–32 nodes, and a
 complete coefficient range inside the verified payload. Each model permits at
-most eight three-control terms. Three-control tables without the explicit mode
-are rejected. The 32 MiB file limit, source/SHA identity, finite values, vertex
+most eight three-control terms. Four-control terms require four distinct known
+controls, increasing grids of 2–16 nodes, and a complete coefficient range.
+Each model permits at most four four-control terms. Three-control tables
+require the trilinear or multilinear mode; four-control tables require the
+multilinear mode. Undeclared tables are rejected. The 32 MiB file limit, source/SHA identity, finite values, vertex
 and index validation remain mandatory.
 
 Older readers reject the new mode. A successful build or a local candidate file

@@ -52,6 +52,26 @@ export function sampledCoefficients(runtime: SampledRuntime, preset: string, c: 
           addRow(coef, row, (di ? u : 1 - u) * (dj ? v : 1 - v) * (dk ? w : 1 - w), K, out);
         }
   }
+  for (const quad of model.quads ?? []) {
+    const located = [
+      locate(quad.ga, c[quad.a]!),
+      locate(quad.gb, c[quad.b]!),
+      locate(quad.gc, c[quad.c]!),
+      locate(quad.gd, c[quad.d]!),
+    ];
+    const lengths = [quad.ga.length, quad.gb.length, quad.gc.length, quad.gd.length];
+    for (let mask = 0; mask < 16; mask++) {
+      let row = 0,
+        weight = 1;
+      for (let axis = 0; axis < 4; axis++) {
+        const upper = (mask >> (3 - axis)) & 1;
+        const [index, fraction] = located[axis]!;
+        row = row * lengths[axis]! + index + upper;
+        weight *= upper ? fraction : 1 - fraction;
+      }
+      addRow(coef, quad.offset + row, weight, K, out);
+    }
+  }
   return out;
 }
 
@@ -71,7 +91,9 @@ export function modelWeights(
   // Invariant preset fields add the same offset to every distance. Keep them
   // in geometry evaluation while omitting them only for this explicit mode.
   const keys =
-    header.selection.mode === "idw2-varying" || header.selection.mode === "idw2-varying-trilinear"
+    header.selection.mode === "idw2-varying" ||
+    header.selection.mode === "idw2-varying-trilinear" ||
+    header.selection.mode === "idw2-varying-multilinear"
       ? allKeys.filter(
           (key) =>
             new Set(

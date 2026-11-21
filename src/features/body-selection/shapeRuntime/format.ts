@@ -185,6 +185,17 @@ const tripleSchema = z.object({
   gc: z.array(finite).min(2).max(32),
   offset: z.number().int().nonnegative(),
 });
+const quadSchema = z.object({
+  a: z.string().min(1),
+  b: z.string().min(1),
+  c: z.string().min(1),
+  d: z.string().min(1),
+  ga: z.array(finite).min(2).max(16),
+  gb: z.array(finite).min(2).max(16),
+  gc: z.array(finite).min(2).max(16),
+  gd: z.array(finite).min(2).max(16),
+  offset: z.number().int().nonnegative(),
+});
 const sampledHeaderSchema = z.object({
   format: z.literal(SHAPE_RUNTIME_FORMAT_V2),
   rules: z.string().min(1).max(64),
@@ -203,6 +214,7 @@ const sampledHeaderSchema = z.object({
       axes: z.array(axisSchema),
       pairs: z.array(pairSchema),
       triples: z.array(tripleSchema).max(8).optional(),
+      quads: z.array(quadSchema).max(4).optional(),
     }),
   ),
   /**
@@ -214,7 +226,7 @@ const sampledHeaderSchema = z.object({
    */
   selection: z
     .object({
-      mode: z.enum(["idw2", "idw2-varying", "idw2-varying-trilinear"]),
+      mode: z.enum(["idw2", "idw2-varying", "idw2-varying-trilinear", "idw2-varying-multilinear"]),
       cutRatio: finite.min(1).max(16),
     })
     .optional(),
@@ -297,16 +309,34 @@ function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
         throw new Error("shape runtime: pair " + pair.a + "×" + pair.b);
       within(pair.offset, pair.ga.length * pair.gb.length);
     }
-    if (model.triples?.length && header.selection?.mode !== "idw2-varying-trilinear")
+    if (
+      model.triples?.length &&
+      !["idw2-varying-trilinear", "idw2-varying-multilinear"].includes(header.selection?.mode ?? "")
+    )
       throw new Error("shape runtime: three-control terms require explicit trilinear mode");
     for (const triple of model.triples ?? []) {
       if (
         new Set([triple.a, triple.b, triple.c]).size !== 3 ||
-        ![triple.a, triple.b, triple.c].every((key) => key in header.controls) ||
+        ![triple.a, triple.b, triple.c].every((key) =>
+          Object.prototype.hasOwnProperty.call(header.controls, key),
+        ) ||
         ![triple.ga, triple.gb, triple.gc].every(ascending)
       )
         throw new Error("shape runtime: invalid three-control grid");
       within(triple.offset, triple.ga.length * triple.gb.length * triple.gc.length);
+    }
+    if (model.quads?.length && header.selection?.mode !== "idw2-varying-multilinear")
+      throw new Error("shape runtime: four-control terms require explicit multilinear mode");
+    for (const quad of model.quads ?? []) {
+      if (
+        new Set([quad.a, quad.b, quad.c, quad.d]).size !== 4 ||
+        ![quad.a, quad.b, quad.c, quad.d].every((key) =>
+          Object.prototype.hasOwnProperty.call(header.controls, key),
+        ) ||
+        ![quad.ga, quad.gb, quad.gc, quad.gd].every(ascending)
+      )
+        throw new Error("shape runtime: invalid four-control grid");
+      within(quad.offset, quad.ga.length * quad.gb.length * quad.gc.length * quad.gd.length);
     }
   }
   for (const preset of Object.keys(header.presets))

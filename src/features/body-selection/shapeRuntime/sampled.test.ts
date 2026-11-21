@@ -158,6 +158,103 @@ describe("standin-shape-runtime.v2 (표본)", () => {
     );
   });
 
+  it("interpolates an independent four-control polynomial at corners and inside the grid", async () => {
+    const runtime = await load("idw2-varying-multilinear");
+    const preset = Object.keys(runtime.header.models)[0]!;
+    const polynomial = (x: number, y: number, z: number, w: number) =>
+      1 + 2 * x + 3 * y + 4 * z + 5 * w + 6 * x * z + 7 * y * z * w + 11 * x * y * z * w;
+    const corners: number[][] = [];
+    for (const x of [0, 1])
+      for (const y of [0, 1])
+        for (const z of [0, 1]) for (const w of [0, 1]) corners.push([x, y, z, w]);
+    runtime.header.basisCount = 1;
+    runtime.coef = new Float32Array([
+      0,
+      ...corners.map((v) => polynomial(v[0]!, v[1]!, v[2]!, v[3]!)),
+    ]);
+    runtime.header.models[preset] = {
+      base: 0,
+      axes: [],
+      pairs: [],
+      quads: [
+        {
+          a: "x",
+          b: "y",
+          c: "z",
+          d: "w",
+          ga: [0, 1],
+          gb: [0, 1],
+          gc: [0, 1],
+          gd: [0, 1],
+          offset: 1,
+        },
+      ],
+    };
+    for (const [x, y, z, w] of [...corners, [0.2, 0.4, 0.7, 0.3], [-1, 0.4, 2, 0.2]]) {
+      const clamp = (v: number) => Math.max(0, Math.min(1, v));
+      expect(sampledCoefficients(runtime, preset, { x: x!, y: y!, z: z!, w: w! })[0]).toBeCloseTo(
+        polynomial(clamp(x!), clamp(y!), clamp(z!), clamp(w!)),
+        12,
+      );
+    }
+  });
+
+  it("rejects undeclared, prototype, duplicate and out-of-bounds four-control grids", async () => {
+    const add = (header: SampledRuntime["header"]) => {
+      const keys = Object.keys(header.controls);
+      Object.values(header.models)[0]!.quads = [
+        {
+          a: keys[0]!,
+          b: keys[1]!,
+          c: keys[2]!,
+          d: keys[3]!,
+          ga: [0, 1],
+          gb: [0, 1],
+          gc: [0, 1],
+          gd: [0, 1],
+          offset: 0,
+        },
+      ];
+    };
+    await expect(load("idw2-varying-trilinear", add)).rejects.toThrow(/explicit multilinear/);
+    for (const key of ["unknown", "constructor"]) {
+      await expect(
+        load("idw2-varying-multilinear", (h) => {
+          add(h);
+          Object.values(h.models)[0]!.quads![0]!.d = key;
+        }),
+      ).rejects.toThrow(/four-control grid/);
+    }
+    await expect(
+      load("idw2-varying-multilinear", (h) => {
+        add(h);
+        const q = Object.values(h.models)[0]!.quads![0]!;
+        q.d = q.a;
+      }),
+    ).rejects.toThrow(/four-control grid/);
+    await expect(
+      load("idw2-varying-multilinear", (h) => {
+        add(h);
+        Object.values(h.models)[0]!.quads![0]!.gd = [1, 0];
+      }),
+    ).rejects.toThrow(/four-control grid/);
+    await expect(
+      load("idw2-varying-multilinear", (h) => {
+        add(h);
+        Object.values(h.models)[0]!.quads![0]!.offset = h.coefCount;
+      }),
+    ).rejects.toThrow(/coef offset/);
+    await expect(
+      load("idw2-varying-multilinear", (h) => {
+        add(h);
+        Object.values(h.models)[0]!.quads![0]!.gd = Array.from({ length: 17 }, (_, i) => i);
+      }),
+    ).rejects.toThrow();
+    expect((await load("idw2-varying-multilinear", add)).header.selection?.mode).toBe(
+      "idw2-varying-multilinear",
+    );
+  });
+
   it("keeps common controls in geometry without letting them dilute preset selection", async () => {
     const varying = await load("idw2-varying");
     const [first, second] = Object.keys(varying.header.presets) as [string, string];
