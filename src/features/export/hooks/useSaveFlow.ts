@@ -38,7 +38,7 @@ import { canRelease } from "@/features/pose-viewer/api/routedSearch";
 import { handKeys, downloadHandReview, type HandReview } from "@/features/hand-selection/api";
 import type { HandSelection } from "@/features/hand-selection/contract";
 import { useInstallationStore } from "@/features/installation/installationStore";
-import { bodyKeys } from "@/features/body-selection/api";
+import { bodyKeys, getSelection as getBodySelection } from "@/features/body-selection/api";
 import { downloadBodyReview, type BodyReview } from "@/features/body-selection/review";
 import type { BodySelection } from "@/features/body-selection/contract";
 import {
@@ -53,7 +53,7 @@ import {
   type BodyScope,
 } from "@/features/pose-viewer/api/outputScope";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetchBytes } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
 import { ApiError, isAppError, toAppError } from "@/shared/api/errors";
@@ -62,6 +62,7 @@ import { useUploadStore } from "@/features/upload/store/uploadStore";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
 import type { AnalysisResult } from "@/features/pose-viewer/api/pose.contract";
+import { poseService } from "@/features/pose-viewer/api/pose.service";
 import { currentSurface, trackEvent } from "@/features/analytics/analyticsClient";
 import { exportService } from "../api/export.service";
 import {
@@ -206,15 +207,36 @@ export function useSaveFlow(jobId: string | undefined) {
   const selections = Object.entries(selectedByPerson);
   const selectionCount = selections.length;
   const isSaved = status === "saved" && savedPaths.length > 0;
+  // The save page can stay open longer than the ordinary inactive cache lifetime.
+  // Observe these completed results without starting another analysis or request;
+  // otherwise GC changes an already saved FBX summary to BVH/zero people.
+  const { data: analysis } = useQuery<AnalysisResult>({
+    queryKey: poseQueryKeys.result(jobId ?? ""),
+    queryFn: ({ signal, queryKey }) =>
+      poseService.loadResult({
+        jobId: queryClient.getQueryData<AnalysisResult>(queryKey)?.jobId ?? jobId ?? "",
+        signal,
+      }),
+    enabled: false,
+  });
+  const bodyOwner = useInstallationStore((s) => s.credentials?.installationId ?? "");
+  const bodyQueries = useQueries({
+    queries: analysis?.capabilities.bodyPreviews
+      ? selections.map(([index]) => ({
+          queryKey: bodyKeys.selection(bodyOwner, analysis.jobId, Number(index)),
+          queryFn: ({ signal }: { signal: AbortSignal }) =>
+            getBodySelection(analysis.jobId, Number(index), signal),
+          enabled: false,
+        }))
+      : [],
+  });
 
   /**
    * 실제로 저장할 포맷. 설정값은 "가능하면 이 포맷"이라는 뜻이고, FBX를 노출하지 않는
    * 배포에서는 BVH로 내려간다(`capabilities.fbxExport`). 여기서 좁히지 않으면 저장이
    * 전건 409로 실패한다.
    */
-  const serverSupportsFbx =
-    queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
-      .fbxExport === true;
+  const serverSupportsFbx = analysis?.capabilities.fbxExport === true;
   const effectiveFormat: ExportFormat =
     preferredFormat === "fbx" && !serverSupportsFbx ? "bvh" : preferredFormat;
   /** 사용자가 FBX를 골랐는데 서버가 못 주는 상태. 저장 화면이 이유를 알려 줘야 한다. */
@@ -223,16 +245,12 @@ export function useSaveFlow(jobId: string | undefined) {
   /**
    * 이 작업을 어떤 체형으로 저장하는가(ADR-013).
    *
-   * ⚠ capability는 훅이 아니라 쿼리 캐시에서 직접 읽는다(위 `serverSupportsFbx`와 같은
-   * 자리). 세션이 끝나면 캐시가 비워지므로(`sessionCacheReset`) "모름"이 될 수 있고,
-   * 그때는 파라미터를 붙이지 않아 기본 모델로 저장된다 — 화면 문구도 그렇게 읽혀야 한다.
+   * 완료 결과와 선택 체형은 읽기 전용 쿼리 옵저버로 유지한다. 저장 화면을 오래 열어도
+   * 비활성 캐시 정리 때문에 저장 형식이나 체형 안내가 바뀌지 않는다. 세션 종료 시의
+   * 명시적 캐시 제거와 실제 다운로드 직전의 서버 검증은 그대로 적용된다.
    */
-  const bodyMode =
-    queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
-      .bodyPreviews === true;
-  const serverSupportsCharacter =
-    queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.capabilities
-      .characterSelection === true;
+  const bodyMode = analysis?.capabilities.bodyPreviews === true;
+  const serverSupportsCharacter = analysis?.capabilities.characterSelection === true;
   /**
    * 인물마다 따로 푼다 — 한 컷에서 인물별로 다른 체형을 고를 수 있다(ADR-013 개정).
    * 고르지 않은 인물은 이 작업의 기본 체형을 쓴다.
@@ -249,14 +267,9 @@ export function useSaveFlow(jobId: string | undefined) {
   const defaultCharacterName =
     modelCatalog?.characters.find((item) => item.characterId === modelCatalog.defaultCharacterId)
       ?.displayName ?? null;
-  const resolutions = selections.map(([personIndex]) => {
+  const resolutions = selections.map(([personIndex], selectionIndex) => {
     if (!bodyMode) return resolveFor(Number(personIndex));
-    const owner = useInstallationStore.getState().credentials?.installationId ?? "";
-    const serverJob =
-      queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""))?.jobId ?? "";
-    const body = queryClient.getQueryData<BodySelection>(
-      bodyKeys.selection(owner, serverJob, Number(personIndex)),
-    );
+    const body = bodyQueries[selectionIndex]?.data;
     const id = body?.resolvedBody?.characterId ?? null;
     return {
       characterId: id,
@@ -291,7 +304,6 @@ export function useSaveFlow(jobId: string | undefined) {
       (r) => r.characterId !== null && r.characterId !== modelCatalog?.defaultCharacterId,
     );
 
-  const analysis = queryClient.getQueryData<AnalysisResult>(poseQueryKeys.result(jobId ?? ""));
   const isSceneExport =
     effectiveFormat === "fbx" &&
     analysis?.source !== "semantic" &&
@@ -668,6 +680,8 @@ export function useSaveFlow(jobId: string | undefined) {
               const verified = await current.download(interactiveBinding, controller.signal);
               content = verified.bytes;
               downloadPath = current.snapshot().operation!.fileUrl!;
+              const savedCharacter = current.snapshot().model?.state.identity.body.characterId;
+              if (savedCharacter) bodyNames.add(savedCharacter);
             } else if (analysisResult.capabilities.bodyPreviews && format === "fbx") {
               if (options.forceDefaultCharacter) throw new ApiError(409, "BODY_PREVIEW_STALE", "");
               const owner = useInstallationStore.getState().credentials?.installationId ?? "";
