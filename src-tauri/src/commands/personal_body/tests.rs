@@ -287,12 +287,12 @@ fn real_packaged_worker_with_decoder_imports_original_cs3c() {
 }
 
 #[test]
-#[ignore = "Requires separate immutable v10/v11 packages and permitted CS3C/BVH; exercises product registration/replacement core"]
-fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
+#[ignore = "Requires separate immutable current/v12 packages and permitted CS3C/BVH; exercises product registration/replacement core"]
+fn real_current_to_v12_reimport_invalidates_native_card_cache_and_snapshots() {
     let old_launcher =
-        PathBuf::from(std::env::var("STANDIN_TEST_V10_LAUNCHER").expect("preserved v10 launcher"));
+        PathBuf::from(std::env::var("STANDIN_TEST_PREVIOUS_LAUNCHER").expect("preserved current launcher"));
     let new_launcher =
-        PathBuf::from(std::env::var("STANDIN_TEST_LAUNCHER").expect("candidate v11 launcher"));
+        PathBuf::from(std::env::var("STANDIN_TEST_LAUNCHER").expect("candidate v12 launcher"));
     let source = PathBuf::from(std::env::var("STANDIN_TEST_CS3C").expect("permitted CS3C"));
     let pose = PathBuf::from(std::env::var("STANDIN_TEST_BVH").expect("recorded pose"));
     let root =
@@ -337,7 +337,7 @@ fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
                 .unwrap()
         };
     let old_card = register(&mut runtime, &old_launcher, old_id, None);
-    assert_eq!(old_card.converter_version, "personal-converter/10");
+    assert_eq!(old_card.converter_version, "personal-converter/11");
     let duplicate = register(
         &mut runtime,
         &old_launcher,
@@ -358,12 +358,12 @@ fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
             session.request(None, "migration", &cancel, apply(old_id))
         })
         .unwrap();
-    let old_export = root.join("user exports/v10 preserved.fbx");
+    let old_export = root.join("user exports/previous preserved.fbx");
     runtime.with_session(&old_launcher,&root,context(),|session,_| session.request(None,"migration",&cancel,
         json!({"action":"export","localModelId":old_id,"snapshotHash":old_applied["snapshotHash"],"destinationPath":old_export}))).unwrap();
     let old_export_hash = hash(&fs::read(&old_export).unwrap());
     // The production runtime cache switches launcher/profile; old worker model
-    // metadata must fail before any v11 apply/cache result can be consumed.
+    // metadata must fail before any current apply/cache result can be consumed.
     let stale = runtime.with_session(&new_launcher, &root, context(), |session, _| {
         session.request(None, "migration", &cancel, apply(old_id))
     });
@@ -372,7 +372,7 @@ fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
         card(&root, &old_card.local_model_id)
             .unwrap()
             .converter_version,
-        "personal-converter/10"
+        "personal-converter/11"
     );
     assert_eq!(hash(&fs::read(&old_export).unwrap()), old_export_hash);
     // Explicit user re-registration invokes the exact core used by the picker:
@@ -383,7 +383,7 @@ fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
         new_id,
         Some(&old_card.local_model_id),
     );
-    assert_eq!(new_card.converter_version, "personal-converter/11");
+    assert_eq!(new_card.converter_version, "personal-converter/12");
     assert_ne!(
         new_card.converter_fingerprint,
         old_card.converter_fingerprint
@@ -418,7 +418,7 @@ fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
             "snapshotHash":old_applied["snapshotHash"],"destinationPath":root.join("user exports/stale.fbx")})));
     assert_eq!(stale_export.unwrap_err().code, "SNAPSHOT_MISMATCH");
     assert!(!root.join("user exports/stale.fbx").exists());
-    let new_export = root.join("user exports/v11 saved.fbx");
+    let new_export = root.join("user exports/current saved.fbx");
     runtime
         .with_session(&new_launcher, &root, context(), |session, _| {
             session.request(
@@ -447,13 +447,13 @@ fn real_v10_to_v11_reimport_invalidates_native_card_cache_and_snapshots() {
     assert_eq!(hash(&fs::read(&new_export).unwrap()), new_export_hash);
     assert_eq!(hash(&fs::read(&source).unwrap()), source_hash);
     let report = json!({"allPassed":true,"sourceSha256":source_hash,"poseSha256":pose_hash,
-        "v10Versions":{"converterVersion":old_card.converter_version,"converterFingerprint":old_card.converter_fingerprint},
-        "v11Versions":{"converterVersion":new_card.converter_version,"converterFingerprint":new_card.converter_fingerprint},
-        "v10ExportSha256":old_export_hash,"v11ExportSha256":new_export_hash,
-        "v10SnapshotHash":old_applied["snapshotHash"],"v11SnapshotHash":new_applied["snapshotHash"],
+        "previousVersions":{"converterVersion":old_card.converter_version,"converterFingerprint":old_card.converter_fingerprint},
+        "currentVersions":{"converterVersion":new_card.converter_version,"converterFingerprint":new_card.converter_fingerprint},
+        "previousExportSha256":old_export_hash,"currentExportSha256":new_export_hash,
+        "previousSnapshotHash":old_applied["snapshotHash"],"currentSnapshotHash":new_applied["snapshotHash"],
         "sameRuntimeDuplicateReused":true,"oldWorkerRejected":true,"explicitReregistrationPassed":true,
         "cardVersionIncremented":true,"oldCardIdentityPreserved":true,"oldSnapshotRejected":true,
-        "freshV11ApplyPassed":true,"v11CacheReusePassed":true,"deletionPreservesBothExports":true,
+        "freshCurrentApplyPassed":true,"currentCacheReusePassed":true,"deletionPreservesBothExports":true,
         "scope":"actual product native registration/replacement core and retained NDJSON adapter; offline recorded pose; no picker/UI/live BFF/CSP or geometry quality qualification"});
     fs::write(
         std::env::var("STANDIN_TEST_MIGRATION_REPORT").unwrap(),

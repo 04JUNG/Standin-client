@@ -1,6 +1,6 @@
 import { localBinding, prepareLocal } from "@/features/personal-body/prepare";
 import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
-import { localError } from "@/features/personal-body/contract";
+import { localRecovery } from "@/features/personal-body/contract";
 import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
 import { loadPreparedFbx } from "@/features/export/lib/preparedFbx";
 import { apiFetchBytes } from "@/shared/api/client";
@@ -723,12 +723,7 @@ export function useFramedReview(jobId: string | undefined) {
       ...(localFailure instanceof ApiError
         ? reviewRecovery(localFailure)
         : localFailure
-          ? {
-              action: "retry" as const,
-              label: "다시 준비",
-              retryUseless: false,
-              message: localError(localFailure),
-            }
+          ? localRecovery(localFailure)
           : reviewRecovery(failure)),
       switchToDefaultSkin,
     },

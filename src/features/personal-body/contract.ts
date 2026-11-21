@@ -32,6 +32,8 @@ export const capabilitySchema = z.object({
   reason: z.string().optional(),
 });
 export const messages: Record<string, string> = {
+  POSE_QUALITY_REJECTED:
+    "이 모델에 포즈를 적용하면 표면이 심하게 늘어나거나 접혀 저장을 중단했어요. 다른 포즈를 골라 주세요. 등록한 원본과 이전 저장 파일은 유지돼요.",
   CAMERA_UNSUPPORTED:
     "선택한 포즈의 방향을 확인하지 못했어요. 후보를 다시 고르거나 앱 업데이트를 확인해 주세요.",
   LIBRARY_REFRESH_FAILED:
@@ -66,6 +68,19 @@ export function localError(error: unknown) {
   const code =
     typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
   return messages[code] ?? "데포르메를 준비하지 못했어요. 다른 파일을 고르거나 다시 시도해 주세요.";
+}
+export function localRecovery(error: unknown) {
+  const qualityRejected =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "POSE_QUALITY_REJECTED";
+  return {
+    action: qualityRejected ? ("choose" as const) : ("retry" as const),
+    label: qualityRejected ? "다른 포즈 고르기" : "다시 준비",
+    retryUseless: qualityRejected,
+    message: localError(error),
+  };
 }
 export function modelIdentity(model: LocalModel) {
   return [

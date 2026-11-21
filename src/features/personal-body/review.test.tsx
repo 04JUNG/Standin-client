@@ -156,6 +156,22 @@ it("shows a recoverable worker error without preparing a different body", async 
   expect(fixtures.loadServerBody).not.toHaveBeenCalled();
 });
 
+it.each([false, true])(
+  "blocks unsafe native poses without a restored-file claim, interactive=%s",
+  async (interactive) => {
+    fixtures.interactive = interactive;
+    fixtures.prepare.mockRejectedValue({ code: "POSE_QUALITY_REJECTED" });
+    const { result } = setup();
+    await waitFor(() => expect(result.current.preparationError).toBe(true));
+    expect(result.current.downloadReady).toBe(false);
+    expect(result.current.items[0].localFbx).toBeUndefined();
+    expect(result.current.previewFailure.message).toContain("저장을 중단");
+    expect(result.current.previewFailure.action).toBe("choose");
+    expect(result.current.previewFailure.retryUseless).toBe(true);
+    expect(fixtures.loadServerBody).not.toHaveBeenCalled();
+  },
+);
+
 it("invalidates a completed local review immediately when only presentation rotation changes", async () => {
   fixtures.prepare.mockImplementationOnce(async (_j, _m, _i, _s, binding) => ({
     binding,

@@ -78,6 +78,7 @@ export function verifyRuntimeContract(contract) {
   const converter = new Map([
     [5, "personal-converter/10"],
     [6, "personal-converter/11"],
+    [7, "personal-converter/12"],
   ]).get(contract.contractRevision);
   const versions = {
     importerVersion: "personal-import/4",

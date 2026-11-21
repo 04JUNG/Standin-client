@@ -230,6 +230,7 @@ test("only reviewed revision/version pairs are accepted in every contract sectio
   for (const [rev, version] of [
     [5, "personal-converter/10"],
     [6, "personal-converter/11"],
+    [7, "personal-converter/12"],
   ]) {
     const valid = contract(rev, version);
     verifyRuntimeContract(valid);

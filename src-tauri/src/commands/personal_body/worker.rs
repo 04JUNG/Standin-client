@@ -40,6 +40,7 @@ fn matches_reviewed_contract(contract: &Value, hello: &Value) -> bool {
     let converter = match contract["contractRevision"].as_u64() {
         Some(5) => "personal-converter/10",
         Some(6) => "personal-converter/11",
+        Some(7) => "personal-converter/12",
         _ => return false,
     };
     let versions = [
@@ -341,7 +342,7 @@ mod tests {
     }
     #[test]
     fn only_reviewed_revision_version_pairs_and_fingerprints_are_accepted() {
-        for (revision, converter) in [(5, "personal-converter/10"), (6, "personal-converter/11")] {
+        for (revision, converter) in [(5, "personal-converter/10"), (6, "personal-converter/11"), (7, "personal-converter/12")] {
             let contract = fixture_contract(revision, converter);
             let hello = contract["results"]["hello"].clone();
             assert!(matches_reviewed_contract(&contract, &hello));
