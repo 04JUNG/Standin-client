@@ -1,3 +1,9 @@
+import { parseReferenceAsync } from "./referenceAsync";
+import {
+  parseReferenceRuntime,
+  type ReferenceRuntime,
+  REFERENCE_ENCODING,
+} from "./referenceFormat";
 import { z } from "zod";
 
 /**
@@ -88,7 +94,7 @@ export type ShapeRuntime = {
 const TYPED = { float32: Float32Array, uint16: Uint16Array, int16: Int16Array } as const;
 
 /** v1(규칙을 옮긴 계산) 또는 v2(컨트롤러 출력을 표본으로 굽힌 계산). */
-export type AnyShapeRuntime = ShapeRuntime | SampledRuntime;
+export type AnyShapeRuntime = ShapeRuntime | SampledRuntime | ReferenceRuntime;
 
 export function parseShapeRuntime(buffer: ArrayBuffer): AnyShapeRuntime {
   if (buffer.byteLength < 8) throw new Error("shape runtime: too short");
@@ -247,14 +253,18 @@ export type SampledRuntime = {
   coef: Float32Array;
 };
 
-function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
+function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime | ReferenceRuntime {
   const view = new DataView(buffer);
   const headerBytes = view.getUint32(4, true);
   if (headerBytes % 4 !== 0 || 8 + headerBytes > buffer.byteLength)
     throw new Error("shape runtime: bad header size");
-  const header = sampledHeaderSchema.parse(
-    JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, headerBytes))),
-  );
+  if (headerBytes > 256 * 1024 || buffer.byteLength > 32 * 1024 * 1024)
+    throw new Error("shape runtime: size limit");
+  const value = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, headerBytes)));
+  if (value.encoding === REFERENCE_ENCODING)
+    return parseReferenceRuntime(value, new Uint8Array(buffer, 8 + headerBytes));
+  if (value.encoding !== undefined) throw new Error("shape runtime: unsupported encoding");
+  const header = sampledHeaderSchema.parse(value);
   const dataStart = 8 + headerBytes;
   const arrays = new Map<string, Float32Array | Uint16Array | Int16Array>();
   for (const a of header.arrays) {
@@ -358,4 +368,24 @@ function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
   for (const preset of Object.keys(header.presets))
     if (!header.models[preset]) throw new Error("shape runtime: preset without model " + preset);
   return { kind: "sampled", header, faces, mean, basis, basisScale, coef };
+}
+
+/** Reference graphs are validated in a worker during network loading. The sync
+ * parser remains available to CLI verification and existing small formats. */
+export async function parseShapeRuntimeAsync(buffer: ArrayBuffer): Promise<AnyShapeRuntime> {
+  if (buffer.byteLength < 8) return parseShapeRuntime(buffer);
+  const view = new DataView(buffer);
+  if (view.getUint32(0, true) !== MAGIC_V2) return parseShapeRuntime(buffer);
+  const size = view.getUint32(4, true);
+  if (
+    size % 4 ||
+    size > 256 * 1024 ||
+    8 + size > buffer.byteLength ||
+    buffer.byteLength > 32 * 1024 * 1024
+  )
+    throw new Error("shape runtime: bad size");
+  const value = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, size)));
+  if (value.encoding === REFERENCE_ENCODING)
+    return parseReferenceAsync(value, new Uint8Array(buffer, 8 + size));
+  return parseShapeRuntime(buffer);
 }

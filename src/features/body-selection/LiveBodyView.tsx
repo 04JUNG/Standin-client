@@ -14,7 +14,7 @@ import type { AnyShapeRuntime } from "./shapeRuntime/format";
 import { resolveControls } from "./shapeRuntime/evaluate";
 import {
   mountShapeBody,
-  snapshotShapeBody,
+  snapshotShapeBodyAsync,
   type ShapeBodyView,
 } from "./shapeRuntime/mountShapeBody";
 import { supportedRuntime, useShapeRuntime } from "./shapeRuntime/load";
@@ -63,7 +63,7 @@ export function ShapeThumb({
     queryKey: ["body", "shape-thumb", ref?.sha256, ref?.preset, controls],
     enabled: !!runtime.data && !!ref,
     queryFn: () =>
-      snapshotShapeBody(
+      snapshotShapeBodyAsync(
         runtime.data!,
         resolveControls(runtime.data!, ref!.preset, controls),
         ref!.preset,

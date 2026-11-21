@@ -1,0 +1,1285 @@
+{
+  "format": "standin-shape-runtime.v2",
+  "rules": "standin-lod-female-hands-body-250um-ref-v4-final",
+  "source": {
+    "blendSha256": "aa10276a7c63a2b0f2336b6f4569e0fb541c6f2aa2dcf689ab96ec04573159d3",
+    "controllerSha256": "3a3ccd4e1fe09967b86dde7823aad9d0886d47b86b47021a3fcea58e61145052"
+  },
+  "sourceReferenceGraphSha256": "dd3f65712e8c394619b7e6374b682d2a2e297ce15b0992e5c91f92fbe32705bb",
+  "referenceVertices": 105430,
+  "referenceFaces": 210856,
+  "vertexCount": 50000,
+  "faceCount": 99996,
+  "controls": {
+    "height_cm": {
+      "min": 150.0,
+      "max": 190.0,
+      "default": 169.893087
+    },
+    "heads": {
+      "min": 6.2,
+      "max": 8.7,
+      "default": 8.0000006227343
+    },
+    "head_scale": {
+      "min": 0.94,
+      "max": 1.04,
+      "default": 1.0
+    },
+    "head_width": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "head_depth": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "neck_width": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "neck_length": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "physique": {
+      "min": -1.0,
+      "max": 1.4,
+      "default": 0.0
+    },
+    "fat_gain": {
+      "min": 0.0,
+      "max": 2.0,
+      "default": 0.0
+    },
+    "muscle": {
+      "min": 0.0,
+      "max": 4.0,
+      "default": 0.0
+    },
+    "definition": {
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "shoulders": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "chest_width": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "chest_depth": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "waist": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "pelvis": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "glute": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "thigh": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "calf": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "torso_length": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "arm_length": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "leg_length": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "leg_ratio": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "breast_size": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "breast_projection": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "breast_spacing": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "breast_height": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "breast_width": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "fat_distribution": {
+      "min": -1.0,
+      "max": 1.0,
+      "default": 0.0
+    },
+    "detail_chest": {
+      "min": -0.5,
+      "max": 0.5,
+      "default": 0.0
+    },
+    "detail_back": {
+      "min": -0.5,
+      "max": 0.5,
+      "default": 0.0
+    },
+    "detail_shoulder": {
+      "min": -0.5,
+      "max": 0.5,
+      "default": 0.0
+    },
+    "detail_upperarm": {
+      "min": -0.5,
+      "max": 0.5,
+      "default": 0.0
+    },
+    "detail_forearm": {
+      "min": -0.5,
+      "max": 0.5,
+      "default": 0.0
+    },
+    "detail_thigh": {
+      "min": -0.5,
+      "max": 0.5,
+      "default": 0.0
+    },
+    "detail_calf": {
+      "min": -0.5,
+      "max": 0.5,
+      "default": 0.0
+    },
+    "fat_torso": {
+      "min": -0.3,
+      "max": 0.3,
+      "default": 0.0
+    },
+    "fat_arms": {
+      "min": -0.3,
+      "max": 0.3,
+      "default": 0.0
+    },
+    "fat_legs": {
+      "min": -0.3,
+      "max": 0.3,
+      "default": 0.0
+    }
+  },
+  "presets": {
+    "BASE": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.0,
+      "muscle": 0.0,
+      "physique": 0.0,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "SLIM": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.0,
+      "muscle": 0.12,
+      "physique": -0.8,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "IDEAL83": {
+      "height_cm": 169.893087,
+      "heads": 8.3,
+      "shoulders": 0.12,
+      "muscle": 0.35,
+      "physique": -0.2,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": -0.12,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.35,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "IDEAL70": {
+      "height_cm": 168.0,
+      "heads": 7.0,
+      "shoulders": 0.0,
+      "muscle": 0.2,
+      "physique": 0.0,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.1,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "TOON64": {
+      "height_cm": 162.0,
+      "heads": 6.4,
+      "shoulders": -0.1,
+      "muscle": 0.0,
+      "physique": -0.2,
+      "fat_gain": 0.0,
+      "breast_size": -0.2,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "MUSCULAR": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.25,
+      "muscle": 1.25,
+      "physique": 0.0,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.45,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.12,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "MUSCLE_MAX": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.4,
+      "muscle": 2.0,
+      "physique": 0.0,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.7,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.2,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "SOFT": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.0,
+      "muscle": 0.0,
+      "physique": 0.8,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.03,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.15,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "FAT_MAX": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.0,
+      "muscle": 0.0,
+      "physique": 1.4,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.03,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.2,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "NEW_FAT": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.0,
+      "muscle": 0.0,
+      "physique": 1.4,
+      "fat_gain": 2.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.0,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.0,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.2,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    },
+    "NEW_MUSCULAR": {
+      "height_cm": 169.893087,
+      "heads": 8.000001,
+      "shoulders": 0.4,
+      "muscle": 4.0,
+      "physique": 0.0,
+      "fat_gain": 0.0,
+      "breast_size": 0.0,
+      "head_scale": 1.0,
+      "head_width": 0.0,
+      "head_depth": 0.0,
+      "neck_width": 0.0,
+      "neck_length": 0.0,
+      "definition": 0.7,
+      "chest_width": 0.0,
+      "chest_depth": 0.0,
+      "waist": 0.0,
+      "pelvis": 0.0,
+      "glute": 0.0,
+      "thigh": 0.2,
+      "calf": 0.0,
+      "torso_length": 0.0,
+      "arm_length": 0.0,
+      "leg_length": 0.0,
+      "leg_ratio": 0.0,
+      "breast_projection": 0.0,
+      "breast_spacing": 0.0,
+      "breast_height": 0.0,
+      "breast_width": 0.0,
+      "fat_distribution": 0.0,
+      "detail_chest": 0.0,
+      "detail_back": 0.0,
+      "detail_shoulder": 0.0,
+      "detail_upperarm": 0.0,
+      "detail_forearm": 0.0,
+      "detail_thigh": 0.0,
+      "detail_calf": 0.0,
+      "fat_torso": 0.0,
+      "fat_arms": 0.0,
+      "fat_legs": 0.0
+    }
+  },
+  "aliases": {
+    "height": "height_cm"
+  },
+  "landmarks": {
+    "ankle": 0.09780016541481018,
+    "chin": 1.4945189952850342,
+    "chin_vertex": 3395,
+    "crown_vertex": 6233,
+    "floor": 0.007954465225338936,
+    "head_y": 0.027366310358047485,
+    "hip": 0.9854546189308167,
+    "knee": 0.5313444137573242,
+    "shoulder": 1.4044604301452637,
+    "top": 1.7068853378295898
+  },
+  "deltaNames": [
+    "BODY_Slim_Torso",
+    "BODY_Fat_Torso",
+    "BODY_Slim_Arms",
+    "BODY_Fat_Arms",
+    "BODY_Slim_Legs",
+    "BODY_Fat_Legs",
+    "BODY_Fat_Abdomen",
+    "BODY_Muscle_Chest",
+    "BODY_Muscle_Back",
+    "BODY_Muscle_Shoulder",
+    "BODY_Muscle_UpperArm",
+    "BODY_Muscle_ForeArm",
+    "BODY_Muscle_Thigh",
+    "BODY_Muscle_Calf",
+    "BODY_Definition",
+    "BODY_WeightGain",
+    "BODY_AthleticVolume",
+    "BODY_AthleticDefinition",
+    "BODY_ProfileFat",
+    "BODY_ProfileAthletic",
+    "BODY_ChestWidth",
+    "BODY_ChestDepth",
+    "BODY_Waist",
+    "BODY_Glute",
+    "BODY_Thigh",
+    "BODY_Calf",
+    "BODY_BreastProjection",
+    "BODY_BreastSpacing",
+    "BODY_BreastHeight",
+    "BODY_BreastWidth",
+    "BODY_BreastSmall",
+    "BODY_BreastLarge"
+  ],
+  "offsetNames": [
+    "BODY_Slim_Torso",
+    "BODY_Fat_Torso",
+    "BODY_Slim_Arms",
+    "BODY_Fat_Arms",
+    "BODY_Slim_Legs",
+    "BODY_Fat_Legs",
+    "BODY_Fat_Abdomen",
+    "BODY_Muscle_Chest",
+    "BODY_Muscle_Back",
+    "BODY_Muscle_Shoulder",
+    "BODY_Muscle_UpperArm",
+    "BODY_Muscle_ForeArm",
+    "BODY_Muscle_Thigh",
+    "BODY_Muscle_Calf",
+    "BODY_Definition",
+    "BODY_WeightGain",
+    "BODY_AthleticVolume",
+    "BODY_AthleticDefinition",
+    "BODY_ProfileFat",
+    "BODY_ProfileAthletic",
+    "BODY_Waist",
+    "BODY_Glute",
+    "BODY_Thigh",
+    "BODY_Calf"
+  ],
+  "limbs": [
+    {
+      "name": "mixamorig:LeftArm",
+      "amount": 0.48,
+      "head": [0.16393564641475677, 0.04972999915480614, 1.4044604301452637],
+      "tail": [0.41255366802215576, 0.0459800623357296, 1.3902661800384521]
+    },
+    {
+      "name": "mixamorig:LeftForeArm",
+      "amount": 0.44,
+      "head": [0.41255366802215576, 0.0459800623357296, 1.3902661800384521],
+      "tail": [0.6810994744300842, 0.04835377261042595, 1.3920193910598755]
+    },
+    {
+      "name": "mixamorig:LeftUpLeg",
+      "amount": 0.4,
+      "head": [0.07926736772060394, 0.011528730392456055, 0.9854546189308167],
+      "tail": [0.06957792490720749, 0.029401294887065887, 0.5313444137573242]
+    },
+    {
+      "name": "mixamorig:RightArm",
+      "amount": 0.48,
+      "head": [-0.16393549740314484, 0.049375586211681366, 1.4044604301452637],
+      "tail": [-0.41255348920822144, 0.04660092666745186, 1.3902660608291626]
+    },
+    {
+      "name": "mixamorig:RightForeArm",
+      "amount": 0.44,
+      "head": [-0.41255348920822144, 0.04660092666745186, 1.3902660608291626],
+      "tail": [-0.6810988187789917, 0.048044368624687195, 1.3920201063156128]
+    },
+    {
+      "name": "mixamorig:RightUpLeg",
+      "amount": 0.4,
+      "head": [-0.07926736772060394, 0.013938999734818935, 0.9854546189308167],
+      "tail": [-0.06957793235778809, 0.028925500810146332, 0.5313448905944824]
+    }
+  ],
+  "forearms": [
+    {
+      "side": "Left",
+      "head": [0.41255366802215576, 0.0459800623357296, 1.3902661800384521]
+    },
+    {
+      "side": "Right",
+      "head": [-0.41255348920822144, 0.04660092666745186, 1.3902660608291626]
+    }
+  ],
+  "arrays": {
+    "base": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 0,
+      "bytes": 2530320
+    },
+    "referenceFaces": {
+      "dtype": "<u4",
+      "shape": [210856, 3],
+      "offset": 2530320,
+      "bytes": 2530272
+    },
+    "adjDst": {
+      "dtype": "<u4",
+      "shape": [632568],
+      "offset": 5060592,
+      "bytes": 2530272
+    },
+    "adjSrc": {
+      "dtype": "<u4",
+      "shape": [632568],
+      "offset": 7590864,
+      "bytes": 2530272
+    },
+    "degree": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 10121136,
+      "bytes": 843440
+    },
+    "normals": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 10964576,
+      "bytes": 2530320
+    },
+    "fatProtect": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 13494896,
+      "bytes": 843440
+    },
+    "pin": {
+      "dtype": "|u1",
+      "shape": [105430],
+      "offset": 14338336,
+      "bytes": 105430
+    },
+    "pelvisMask": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 14443768,
+      "bytes": 843440
+    },
+    "raw:BODY_Slim_Torso": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 15287208,
+      "bytes": 2530320
+    },
+    "offset:BODY_Slim_Torso": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 17817528,
+      "bytes": 2530320
+    },
+    "raw:BODY_Fat_Torso": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 20347848,
+      "bytes": 2530320
+    },
+    "offset:BODY_Fat_Torso": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 22878168,
+      "bytes": 2530320
+    },
+    "raw:BODY_Slim_Arms": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 25408488,
+      "bytes": 2530320
+    },
+    "offset:BODY_Slim_Arms": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 27938808,
+      "bytes": 2530320
+    },
+    "raw:BODY_Fat_Arms": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 30469128,
+      "bytes": 2530320
+    },
+    "offset:BODY_Fat_Arms": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 32999448,
+      "bytes": 2530320
+    },
+    "raw:BODY_Slim_Legs": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 35529768,
+      "bytes": 2530320
+    },
+    "offset:BODY_Slim_Legs": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 38060088,
+      "bytes": 2530320
+    },
+    "raw:BODY_Fat_Legs": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 40590408,
+      "bytes": 2530320
+    },
+    "offset:BODY_Fat_Legs": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 43120728,
+      "bytes": 2530320
+    },
+    "raw:BODY_Fat_Abdomen": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 45651048,
+      "bytes": 2530320
+    },
+    "offset:BODY_Fat_Abdomen": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 48181368,
+      "bytes": 2530320
+    },
+    "raw:BODY_Muscle_Chest": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 50711688,
+      "bytes": 2530320
+    },
+    "offset:BODY_Muscle_Chest": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 53242008,
+      "bytes": 2530320
+    },
+    "raw:BODY_Muscle_Back": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 55772328,
+      "bytes": 2530320
+    },
+    "offset:BODY_Muscle_Back": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 58302648,
+      "bytes": 2530320
+    },
+    "raw:BODY_Muscle_Shoulder": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 60832968,
+      "bytes": 2530320
+    },
+    "offset:BODY_Muscle_Shoulder": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 63363288,
+      "bytes": 2530320
+    },
+    "raw:BODY_Muscle_UpperArm": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 65893608,
+      "bytes": 2530320
+    },
+    "offset:BODY_Muscle_UpperArm": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 68423928,
+      "bytes": 2530320
+    },
+    "raw:BODY_Muscle_ForeArm": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 70954248,
+      "bytes": 2530320
+    },
+    "offset:BODY_Muscle_ForeArm": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 73484568,
+      "bytes": 2530320
+    },
+    "raw:BODY_Muscle_Thigh": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 76014888,
+      "bytes": 2530320
+    },
+    "offset:BODY_Muscle_Thigh": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 78545208,
+      "bytes": 2530320
+    },
+    "raw:BODY_Muscle_Calf": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 81075528,
+      "bytes": 2530320
+    },
+    "offset:BODY_Muscle_Calf": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 83605848,
+      "bytes": 2530320
+    },
+    "raw:BODY_Definition": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 86136168,
+      "bytes": 2530320
+    },
+    "offset:BODY_Definition": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 88666488,
+      "bytes": 2530320
+    },
+    "raw:BODY_WeightGain": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 91196808,
+      "bytes": 2530320
+    },
+    "offset:BODY_WeightGain": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 93727128,
+      "bytes": 2530320
+    },
+    "raw:BODY_AthleticVolume": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 96257448,
+      "bytes": 2530320
+    },
+    "offset:BODY_AthleticVolume": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 98787768,
+      "bytes": 2530320
+    },
+    "raw:BODY_AthleticDefinition": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 101318088,
+      "bytes": 2530320
+    },
+    "offset:BODY_AthleticDefinition": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 103848408,
+      "bytes": 2530320
+    },
+    "raw:BODY_ProfileFat": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 106378728,
+      "bytes": 2530320
+    },
+    "offset:BODY_ProfileFat": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 108909048,
+      "bytes": 2530320
+    },
+    "raw:BODY_ProfileAthletic": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 111439368,
+      "bytes": 2530320
+    },
+    "offset:BODY_ProfileAthletic": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 113969688,
+      "bytes": 2530320
+    },
+    "raw:BODY_ChestWidth": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 116500008,
+      "bytes": 2530320
+    },
+    "raw:BODY_ChestDepth": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 119030328,
+      "bytes": 2530320
+    },
+    "raw:BODY_Waist": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 121560648,
+      "bytes": 2530320
+    },
+    "offset:BODY_Waist": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 124090968,
+      "bytes": 2530320
+    },
+    "raw:BODY_Glute": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 126621288,
+      "bytes": 2530320
+    },
+    "offset:BODY_Glute": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 129151608,
+      "bytes": 2530320
+    },
+    "raw:BODY_Thigh": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 131681928,
+      "bytes": 2530320
+    },
+    "offset:BODY_Thigh": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 134212248,
+      "bytes": 2530320
+    },
+    "raw:BODY_Calf": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 136742568,
+      "bytes": 2530320
+    },
+    "offset:BODY_Calf": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 139272888,
+      "bytes": 2530320
+    },
+    "raw:BODY_BreastProjection": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 141803208,
+      "bytes": 2530320
+    },
+    "raw:BODY_BreastSpacing": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 144333528,
+      "bytes": 2530320
+    },
+    "raw:BODY_BreastHeight": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 146863848,
+      "bytes": 2530320
+    },
+    "raw:BODY_BreastWidth": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 149394168,
+      "bytes": 2530320
+    },
+    "raw:BODY_BreastSmall": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 151924488,
+      "bytes": 2530320
+    },
+    "raw:BODY_BreastLarge": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 154454808,
+      "bytes": 2530320
+    },
+    "limbMask:0": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 156985128,
+      "bytes": 843440
+    },
+    "limbMask:1": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 157828568,
+      "bytes": 843440
+    },
+    "limbMask:2": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 158672008,
+      "bytes": 843440
+    },
+    "limbMask:3": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 159515448,
+      "bytes": 843440
+    },
+    "limbMask:4": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 160358888,
+      "bytes": 843440
+    },
+    "limbMask:5": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 161202328,
+      "bytes": 843440
+    },
+    "forearmRadial:Left": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 162045768,
+      "bytes": 2530320
+    },
+    "forearmTaper:Left": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 164576088,
+      "bytes": 843440
+    },
+    "forearmWeight:Left": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 165419528,
+      "bytes": 843440
+    },
+    "armOwn:Left": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 166262968,
+      "bytes": 843440
+    },
+    "forearmRadial:Right": {
+      "dtype": "<f8",
+      "shape": [105430, 3],
+      "offset": 167106408,
+      "bytes": 2530320
+    },
+    "forearmTaper:Right": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 169636728,
+      "bytes": 843440
+    },
+    "forearmWeight:Right": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 170480168,
+      "bytes": 843440
+    },
+    "armOwn:Right": {
+      "dtype": "<f8",
+      "shape": [105430],
+      "offset": 171323608,
+      "bytes": 843440
+    },
+    "previewIndices": {
+      "dtype": "<u4",
+      "shape": [50000, 3],
+      "offset": 172167048,
+      "bytes": 600000
+    },
+    "previewWeights": {
+      "dtype": "<f8",
+      "shape": [50000, 3],
+      "offset": 172767048,
+      "bytes": 1200000
+    },
+    "faces": {
+      "dtype": "<u2",
+      "shape": [99996, 3],
+      "offset": 173967048,
+      "bytes": 599976
+    }
+  },
+  "rawBytes": 174567024,
+  "rawSha256": "6ee3bbb911d7d224018efeed311da81a16a8c69b36f70158f959c94d88a7e0d5",
+  "encoding": "female-reference-v4-zlib",
+  "dataVersion": 1,
+  "asset": "female-v4-exact-reference"
+}
