@@ -1,3 +1,5 @@
+import leftExample from "./assets/source-hand-example-left.png";
+import rightExample from "./assets/source-hand-example-right.png";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ImageOff, Loader2 } from "lucide-react";
@@ -38,7 +40,21 @@ export function HandThumbnail({
         <Loader2 className="h-5 w-5 animate-spin text-text-secondary" aria-hidden />
       </span>
     );
-  if (!path || image.isError || !image.data || failedAt === image.dataUpdatedAt)
+  const unavailable = !path || image.isError || !image.data || failedAt === image.dataUpdatedAt;
+  if (unavailable && preset.id === "source_pose")
+    return (
+      <span className={`${size} relative overflow-hidden rounded bg-surface-2`}>
+        <img
+          src={side === "left" ? leftExample : rightExample}
+          alt=""
+          className="h-full w-full object-contain"
+        />
+        <span className="absolute bottom-0 right-0 rounded-tl bg-black/75 px-1 text-[10px] text-white">
+          예시
+        </span>
+      </span>
+    );
+  if (unavailable)
     return (
       <span
         className={`${size} flex flex-col items-center justify-center gap-1 rounded bg-surface-2 text-[10px] text-text-secondary`}

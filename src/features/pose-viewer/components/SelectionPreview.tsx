@@ -3,15 +3,24 @@ import { localBodyApi } from "@/features/personal-body/api";
 import { LocalFbxPreview } from "@/features/personal-body/LocalFbxPreview";
 import { modelIdentity, type LocalModel } from "@/features/personal-body/contract";
 import { localSelectionKey, useLocalBodies } from "@/features/personal-body/store";
-import { MAX_OUTLINE_WIDTH } from "../outline/outlineSettings";
-import { loadSelectionPacket } from "../interactive/selectionPacket";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { BodyEntry } from "@/features/body-selection/hooks";
-import { useBodyOwner } from "@/features/body-selection/hooks";
+import "../pages/selectionWorkspace.css";
+import { useMemo } from "react";
+import { CandidateAppearanceControls } from "./CandidateAppearanceControls";
+import { usePoseSelectionStore } from "../store/poseSelectionStore";
+import { useReferenceSkin } from "../preview/humanReference/referenceSkin";
+import { useBodyOwner, type BodyEntry } from "@/features/body-selection/hooks";
+import { bodyKind } from "@/features/body-selection/bodyPanel";
 import type { PersonResult } from "../api/pose.contract";
 import { previewScope } from "../api/outputScope";
 import { InteractivePose } from "../interactive/InteractivePose";
-import type { PreviewAppearance } from "../interactive/renderer";
+import {
+  candidatePosterOptions,
+  candidateReferenceUrl,
+  presentationPosterOptions,
+} from "../api/candidatePoster";
+import { useDefaultPosePoster } from "../api/posePoster";
+import { useLocalPreview } from "../preview/humanReference/useLocalPreview";
+import { referenceSurfaceCamera } from "../preview/humanReference/surface";
 
 export function SelectionPreview(props: Parameters<typeof ServerSelectionPreview>[0]) {
   // Owner changes re-evaluate the local selection even when the device library is unchanged.
@@ -69,111 +78,83 @@ function PersonalSelectionPreview({
     </section>
   );
 }
-const appearances = new Map<string, PreviewAppearance>();
 function ServerSelectionPreview({
   job,
   person,
   selectedId,
   entry,
-  bodiesEnabled,
-  canonicalPreview = false,
+  presentationPosters = false,
+  renderLayer = 0,
 }: {
   job: string;
   person: PersonResult;
   selectedId?: string;
   entry?: BodyEntry;
-  bodiesEnabled: boolean;
-  canonicalPreview?: boolean;
+  presentationPosters?: boolean;
+  renderLayer?: number;
 }) {
   const owner = useBodyOwner();
   const candidate = person.candidates.find((c) => c.id === selectedId) ?? person.candidates[0];
   const appearanceKey = JSON.stringify([owner, job, person.index]);
-  const [appearance, setAppearance] = useState<PreviewAppearance>(
-    () => appearances.get(appearanceKey) ?? { skin: "default", outlineWidth: 0 },
-  );
-  useEffect(() => {
-    appearances.set(appearanceKey, appearance);
-    while (appearances.size > 64) appearances.delete(appearances.keys().next().value!);
-  }, [appearanceKey, appearance]);
-  const selection = entry?.selection;
-  const scope = previewScope(person);
-  const binding = JSON.stringify([
-    owner,
-    job,
-    person.index,
-    [candidate?.id, candidate?.sourceBvhSha256, candidate?.interactivePreview?.asset?.camera],
-    selection,
-    scope,
-    entry?.ready,
-  ]);
-  const [loaded, setLoaded] = useState<{
-    binding: string;
-    surface: Awaited<ReturnType<typeof loadSelectionPacket>>;
-  }>();
-  const leases = useRef(new Set<Awaited<ReturnType<typeof loadSelectionPacket>>>());
-  useEffect(() => {
-    const owned = leases.current;
-    return () => {
-      for (const lease of owned) lease.release();
-      owned.clear();
-    };
-  }, []);
-  useEffect(() => {
-    for (const lease of leases.current)
-      if (lease !== loaded?.surface) {
-        lease.release();
-        leases.current.delete(lease);
-      }
-  }, [loaded]);
-  const [error, setError] = useState<string>();
-  const [retry, setRetry] = useState(0);
-  useEffect(() => {
-    if (!canonicalPreview || !bodiesEnabled || !candidate || !selection || !entry?.ready || !owner)
-      return;
-    const controller = new AbortController();
-    setError(undefined);
-    // Only the current candidate enters the existing bounded preview queue.
-    const timer = setTimeout(
-      () =>
-        void loadSelectionPacket(job, selection, candidate, scope, controller.signal)
-          .then((result) => {
-            if (controller.signal.aborted) {
-              result.release();
-              return;
-            }
-            leases.current.add(result);
-            setLoaded({ binding, surface: result });
-          })
-          .catch(() => {
-            if (!controller.signal.aborted) setError(binding);
-          }),
-      120,
-    );
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-    // binding includes all model/source/body/scope identities; appearance never fetches or reparses.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [binding, bodiesEnabled, retry, canonicalPreview]);
-  const surface = useMemo(
-    () => (loaded ? { body: loaded.surface.body, camera: loaded.surface.camera } : undefined),
-    [loaded],
-  );
-  const baseAsset = candidate?.interactivePreview?.asset;
-  const asset =
-    !bodiesEnabled ||
-    (entry?.ready &&
-      !selection?.shape &&
-      baseAsset?.characterId === selection?.resolvedBody?.characterId &&
-      baseAsset?.characterSha256 === selection?.resolvedBody?.assetSha256)
-      ? baseAsset
+  const outlineWidth = usePoseSelectionStore((s) => s.outlineByPerson[person.index] ?? 0);
+  const skin = usePoseSelectionStore((s) => s.skinByPerson[person.index] ?? "default");
+  const presentation = person.posePresentation;
+  const presentationCandidate =
+    presentation && (presentationPosters || candidate?.manualExportAllowed)
+      ? [
+          ...presentation.library_candidates,
+          ...presentation.review_candidates,
+          ...presentation.generated_candidates,
+        ].find((c) => c.candidate_id === candidate?.id)
       : undefined;
-  const lastAsset = useRef(asset);
-  if (asset) lastAsset.current = asset;
-  const displayAsset = asset ?? (!surface ? lastAsset.current : undefined);
-  const showingPrevious =
-    !asset && ((loaded && loaded.binding !== binding) || (!loaded && !!lastAsset.current));
+  const posterOptions = presentationCandidate
+    ? presentationPosterOptions(
+        presentationCandidate,
+        presentationPosters ? presentation?.output_scope : previewScope(person),
+        presentation?.version === "semantic-pose-presentation-v1",
+      )
+    : candidatePosterOptions(candidate);
+  const poster = useDefaultPosePoster(posterOptions);
+  const image = poster.data?.url || (!presentationCandidate ? candidate?.thumbnailUrl : undefined);
+  const alt = candidate ? `${candidate.title} 포즈 이미지` : "";
+  const scope = posterOptions.scope ?? previewScope(person);
+  const sourceUrl = candidateReferenceUrl(candidate, presentationCandidate);
+  const source = posterOptions.source;
+  const owned = sourceUrl?.startsWith("/v1/analysis/jobs/") ?? false;
+  const scopedUrl = sourceUrl && !owned ? withScope(sourceUrl, scope) : sourceUrl;
+  const gender =
+    bodyKind({ characterId: entry?.selection?.resolvedBody?.characterId ?? "male" }) === "female"
+      ? "female"
+      : "male";
+  const binding = JSON.stringify([appearanceKey, candidate?.id, scopedUrl, source, scope, gender]);
+  const { model, loading, failed, retry } = useLocalPreview({
+    owner,
+    binding,
+    url: entry && !entry.ready ? undefined : scopedUrl,
+    source,
+    scope,
+    gender,
+  });
+  const renderCamera = presentationCandidate?.render_camera;
+  const rotation =
+    presentationCandidate?.camera_kind === "fixed_117" &&
+    renderCamera?.version === "pose-preview-camera-v1" &&
+    renderCamera.basis === "right-handed-Y-up" &&
+    renderCamera.bvh_camera_rotation_applied === false
+      ? renderCamera.rotation
+      : candidate?.previewModel?.sourceSha === source
+        ? candidate?.previewModel?.rotation
+        : undefined;
+  const posterCamera = poster.data?.camera;
+  const yaw = posterCamera?.fallback === "none" ? posterCamera.yaw : 0;
+  const surface = useMemo(
+    () => model && { body: model.body, camera: referenceSurfaceCamera(model, yaw, rotation) },
+    [model, yaw, rotation],
+  );
+  const display = useReferenceSkin(surface, gender, skin);
+  const posterImage = image ? (
+    <img className="h-full w-full object-contain" src={image} alt={alt} />
+  ) : undefined;
   return (
     <section aria-label={`인물 ${person.index + 1} 큰 미리보기`} className="selection-preview">
       <div className="selection-preview-heading">
@@ -187,106 +168,61 @@ function ServerSelectionPreview({
         <span className="text-[11px] text-text-secondary">인물 {person.index + 1}</span>
       </div>
       <div className="selection-preview-model">
-        {surface || displayAsset ? (
+        {display.surface ? (
           <InteractivePose
-            surface={loaded?.binding === binding || !asset ? surface : undefined}
-            asset={displayAsset}
-            viewKey={`${appearanceKey}:selection`}
+            key={binding}
+            surface={display.surface}
+            viewKey={binding}
             large
-            renderLayer={0}
-            appearance={appearance}
+            rotationOnly
+            renderLayer={renderLayer}
+            outlineWidth={outlineWidth}
           />
         ) : (
-          <div
-            role="status"
-            className="flex h-full items-center justify-center p-4 text-center text-xs text-text-secondary"
-          >
-            {error === binding || entry?.error ? (
-              <div>
-                <p>선택한 체형의 3D를 불러오지 못했어요.</p>
-                <button
-                  className="mt-2 rounded border px-3 py-2"
-                  onClick={() => {
-                    void entry?.retry();
-                    setRetry((n) => n + 1);
-                  }}
-                >
-                  다시 시도
-                </button>
-              </div>
-            ) : bodiesEnabled && candidate && canonicalPreview ? (
-              "이 포즈에 고른 체형을 적용하는 중…"
-            ) : (
-              "이 후보는 회전 미리보기를 제공하지 않습니다."
-            )}
-          </div>
+          (posterImage ??
+          (candidate && (
+            <div
+              role="status"
+              className="flex h-full items-center justify-center p-4 text-center text-xs text-text-secondary"
+            >
+              {poster.isFetching || loading
+                ? "포즈 불러오는 중…"
+                : "포즈 미리보기를 표시할 수 없어요."}
+            </div>
+          )))
         )}
-        {showingPrevious && (
-          <div
-            role="status"
-            className="absolute left-2 right-12 top-2 z-[20] rounded bg-surface-0/95 p-2 text-center text-xs text-text-secondary"
+        {failed && !surface && (
+          <button
+            type="button"
+            className="absolute bottom-2 right-2 z-[20] rounded border bg-surface-0 px-3 py-1 text-xs"
+            onClick={() => void retry()}
           >
-            {error === binding || entry?.error ? (
-              <>
-                새 미리보기를 불러오지 못했어요. 이전 모습입니다.{" "}
-                <button
-                  type="button"
-                  className="underline"
-                  onClick={() => {
-                    void entry?.retry();
-                    setRetry((n) => n + 1);
-                  }}
-                >
-                  다시 시도
-                </button>
-              </>
-            ) : (
-              "새 모습을 준비하는 중… 지금은 이전 미리보기입니다."
-            )}
-          </div>
+            3D 다시 시도
+          </button>
         )}
       </div>
       <div className="selection-preview-settings">
-        <p className="text-[11px] text-text-secondary">드래그로 회전 · 휠로 확대 · R로 처음 시점</p>
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="미리보기 스킨">
-          <span className="mr-auto text-xs font-semibold">스킨</span>
-          {(
-            [
-              ["default", "기본"],
-              ["flesh", "살색"],
-            ] as const
-          ).map(([skin, label]) => (
-            <button
-              key={skin}
-              type="button"
-              aria-pressed={appearance.skin === skin}
-              onClick={() => setAppearance((a) => ({ ...a, skin }))}
-              className={`rounded-md border px-3 py-1 text-xs ${appearance.skin === skin ? "border-brand-coral text-brand-coral" : "border-border"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-xs">
-          <span className="shrink-0 font-semibold">외곽선</span>
-          <input
-            aria-label="외곽선 두께"
-            className="min-w-0 flex-1 accent-brand-coral"
-            type="range"
-            min="0"
-            max={MAX_OUTLINE_WIDTH}
-            step="0.05"
-            value={appearance.outlineWidth}
-            onChange={(e) => setAppearance((a) => ({ ...a, outlineWidth: Number(e.target.value) }))}
-          />
-          <output className="w-10 text-right tabular-nums">
-            {appearance.outlineWidth.toFixed(1)}
-          </output>
-        </label>
-        <p className="text-[10px] text-text-secondary">
-          이 화면의 스킨·외곽선 설정은 FBX에 저장되지 않아요.
-        </p>
+        {surface && (
+          <p className="text-[11px] text-text-secondary">
+            {gender === "female" ? "여성" : "남성"} 기본형 · 참고용 포즈
+          </p>
+        )}
+        <CandidateAppearanceControls personIndex={person.index} scope={previewScope(person)} />
+        {surface && (display.pending || display.failed) && (
+          <p role="status" className="text-[11px] text-text-secondary">
+            {display.failed
+              ? "스킨을 불러오지 못했어요. 다른 스킨을 선택해 주세요."
+              : "스킨 불러오는 중…"}
+          </p>
+        )}
       </div>
     </section>
   );
+}
+
+function withScope(sourceUrl: string, scope: string) {
+  const [path, query] = sourceUrl.split("?", 2);
+  const params = new URLSearchParams(query);
+  params.set("scope", scope);
+  return path + "?" + params;
 }

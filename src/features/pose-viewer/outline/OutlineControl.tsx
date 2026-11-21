@@ -3,9 +3,17 @@ import { usePoseSelectionStore } from "../store/poseSelectionStore";
 import { MAX_OUTLINE_WIDTH } from "./outlineSettings";
 
 /** Width redraws immediately. A pointer/key gesture prepares only after it ends. */
-export function OutlineControl({ personIndex }: { personIndex: number }) {
+export function OutlineControl({
+  personIndex,
+  compact = false,
+}: {
+  personIndex: number;
+  compact?: boolean;
+}) {
   const id = useId();
   const width = usePoseSelectionStore((s) => s.outlineByPerson[personIndex] ?? 0);
+  const skin = usePoseSelectionStore((s) => s.skinByPerson[personIndex] ?? "default");
+  const hasLines = skin.includes("guide") || skin.includes("muscle");
   const setWidth = usePoseSelectionStore((s) => s.setPersonOutline);
   const edit = (editing: boolean) =>
     usePoseSelectionStore.getState().setOutlineEditing(personIndex, editing);
@@ -14,7 +22,9 @@ export function OutlineControl({ personIndex }: { personIndex: number }) {
     [personIndex],
   );
   return (
-    <div className="flex items-center gap-2 px-2 py-2 text-xs">
+    <div
+      className={`flex items-center gap-2 text-xs ${compact ? "min-w-[150px] flex-1" : "px-2 py-2"}`}
+    >
       <label htmlFor={id} className="shrink-0">
         외곽선
       </label>
@@ -25,11 +35,11 @@ export function OutlineControl({ personIndex }: { personIndex: number }) {
         aria-valuetext={width === 0 ? "꺼짐" : `${width}`}
         min={0}
         max={MAX_OUTLINE_WIDTH}
-        step={0.05}
+        step={hasLines ? 2 : 0.05}
         value={width}
-        className="min-w-0 flex-1 accent-brand-sky"
+        className="h-[18px] min-w-0 flex-1 accent-brand-sky"
         onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId);
+          event.stopPropagation();
           edit(true);
         }}
         onPointerUp={() => edit(false)}

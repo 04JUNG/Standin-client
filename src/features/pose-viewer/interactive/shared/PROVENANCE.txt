@@ -4,3 +4,11 @@ Implementation commit: 3fa41e71fc51b4aa696a2855c858dc5a73d36265
 SHA256: 0484cc1ded584faf7beccd62b6fcc75e594084023cc67f1ea2ec0a3776f3f287
 Copied byte-for-byte. No independent hand kinematics implementation.
 Draft contract; actual approved variant table has not been published.
+
+Upstream: 04JUNG/Standin-server
+Path: converter/shared/interactive_pose_v2.mjs
+Implementation commit: dac06ff50fce70a20e80d944488048dfe1a8ce8f (04JUNG/Standin-server#231, branch perf/binary-solved-packet)
+SHA256: 4f249f923166f92294126097561696243e4033e9b42f108a56c13bcc09908530
+Contract: docs/INTERACTIVE_STATE_BINARY_V2.md (standin-binary-f64le-v2).
+Copied byte-for-byte. Client-only checks (identity schema, bone matrix
+determinant, id lengths) live in ../solved.ts, never in this file.

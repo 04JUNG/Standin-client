@@ -14,6 +14,20 @@ Preview assets are restricted to their operation-owned URLs, state/revision and 
 
 Final processing is verified base→skin→outline. The strict receipt checks exact supported asset/model/compatibility, choice digest, verifier material manifest, unchanged-body limits and proof chain. Native download compares the currently selected skin and outline to the operation, checks streamed final bytes and SHA, and rejects late/stale results. Default skin omission retains the existing server identity/path.
 
+## Output scope and recovery (2026-11-13)
+
+Nondefault skins work only for full output. For every other resolved scope (`half`, `bust`, `shoulder_head`, `head`) the Converter crops the mesh, so it never matches the pinned full-mesh UV, and the BFF refuses it as `SKIN_UNSUPPORTED`. Production example: rough_178 is upper body only. Its cropped male mesh has 97,337 vertices; the full mesh has 139,474.
+
+- **Candidate page.** `CandidateAppearanceControls` gets the person's resolved scope (`previewScope(person)`, the same rule as the BFF's `resolvePersonOutputScope`). For a cropped scope, only 기본 stays enabled. Disabled choices carry the reason as a tooltip, and a note says "전신 포즈에서만 스킨을 쓸 수 있어요." We disable rather than flag because `SkinControl` already disables unavailable combinations, and a choice that can never be saved should not be pickable. 기본 always returns to the plain default skin when gray line layers are unavailable.
+- **Head reason.** The BFF head now adds a sibling `skinUnavailable:{code,outputScope?}` next to the unchanged strict `skinExport`. The controller keeps it in its snapshot. Each case becomes a different failure:
+  - A cropped `outputScope` becomes `SKIN_UNSUPPORTED` (422) with `details.outputScope`. It is permanent, so there is no auto-retry.
+  - `SKIN_UNSUPPORTED` or `SKIN_UV_INCOMPATIBLE` stays permanent (422).
+  - A named outage such as `SKIN_UNAVAILABLE` stays 503 and uses the existing auto-recovery.
+  - An older server sends no reason, so the result is the unchanged `SKIN_DISABLED`.
+  - An available capability that does not list the chosen ID becomes `SKIN_UNSUPPORTED`.
+- **Retry.** Any refused skin capability makes the next run read the head again. Before this change, 다시 시도 replayed the cached refusal, so it could never recover.
+- **Review page.** If a skin failure still arrives, `useFramedReview` uses the person's own scope when the server only says `SKIN_DISABLED`, which covers older BFFs. The alert names the scope: "전신 포즈에서만 스킨을 쓸 수 있어요. 이 포즈는 반신 범위예요. 기본 스킨으로 바꾸면 저장할 수 있어요." It also offers **기본 스킨으로 바꾸기**, which resets only the failing people's skin. Their pose, body, hands and outline stay as they were. For permanent failures, 다시 시도 is hidden. For outages, both actions are shown. Nothing silently falls back: the switch is an explicit user choice.
+
 ## Actual observations
 
 - Final typed-writer neutral FBXs:16 actual automatic CSP imports (male/female×4nondefault skins×skin-only/outline2). All isolated source directories contained only their FBX after import; no locator or manually supplied PNG was needed.

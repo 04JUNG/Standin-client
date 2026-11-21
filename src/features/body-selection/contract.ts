@@ -108,6 +108,12 @@ export const preferencesSchema = z.object({
   mode: z.enum(["auto", "last_used"]),
   /** 내 체형 카드. 카드를 모르는 BFF는 빼고 보낸다. */
   cards: z.array(bodyCardSchema).optional(),
+  pickerVisibility: z
+    .object({
+      hiddenPresetIds: z.array(id).max(256),
+      hiddenCardIds: z.array(id).max(48),
+    })
+    .optional(),
   /** 마지막으로 직접 고른 체형. 서버가 체형을 고를 때마다 적는다. */
   lastUsed: z
     .object({ characterId: id, controls: controlsSchema.nullable(), usedAt: z.string() })

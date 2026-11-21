@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { ReviewPosePreview } from "./ReviewPosePreview";
+import type { PoseCandidate } from "../api/pose.contract";
+import type { ReactNode } from "react";
 import type { ReviewModel } from "../preview/mountReviewModel";
 
 const renderer = vi.hoisted(() => ({ status: vi.fn<(status: "ready" | "failed") => void>() }));
@@ -15,6 +17,12 @@ vi.mock("./ReviewModelPreview", () => ({
     renderer.status = onStatus;
     return <canvas role="img" aria-label={label} />;
   },
+}));
+vi.mock("../api/posePoster", () => ({
+  useDefaultPosePoster: vi.fn(() => ({ data: { url: "/cached-candidate.png" } })),
+}));
+vi.mock("../interactive/InteractiveReview", () => ({
+  InteractiveReview: ({ fallback }: { fallback?: ReactNode }) => <div>{fallback}</div>,
 }));
 const props = { label: "저장할 포즈", loading: true, error: false, onModelStatus: vi.fn() };
 
@@ -58,4 +66,16 @@ it("waits for model rendering and resets when the model changes", () => {
   act(() => renderer.status("failed"));
   expect(callback).toHaveBeenCalledWith("failed");
   expect(screen.queryByRole("status")).toBeNull();
+});
+
+it("shows the cached candidate image if the review 3D fails before a final image exists", () => {
+  const onModelStatus = vi.fn();
+  const candidate = { id: "pose", posterUrl: "/v1/reference/poster", source: "library" } as PoseCandidate;
+  render(<ReviewPosePreview {...props} candidate={candidate} onModelStatus={onModelStatus}
+    interactive={{ viewKey: "rough", failed: true, notice: "요청을 처리하지 못했어요." }} />);
+  const image = screen.getByRole("img", { name: "선택한 포즈의 참고 이미지" });
+  expect(image).toHaveAttribute("src", "/cached-candidate.png");
+  expect(onModelStatus).not.toHaveBeenCalled();
+  fireEvent.error(image);
+  expect(screen.queryByRole("img")).toBeNull();
 });

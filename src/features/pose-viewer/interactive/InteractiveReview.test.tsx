@@ -1,17 +1,21 @@
 import { StrictMode } from "react";
-import { render, act, waitFor } from "@testing-library/react";
+import { render, act, fireEvent, waitFor } from "@testing-library/react";
 import { Group } from "three";
 import { expect, it, vi } from "vitest";
 import { InteractiveReview } from "./InteractiveReview";
 import type { ModelResult } from "./http";
 import { prepareSurface } from "./solved";
 import { loadSkinSurface, skinPreviewSchema } from "../skin/skinPreview";
+import { selectionSkinPreview } from "../skin/selectionSkinPreview";
 import { previewFixture } from "../skin/__fixtures__/skinPreview";
 vi.mock("../skin/skinPreview", async (original) => ({
   ...(await original<typeof import("../skin/skinPreview")>()),
   loadSkinSurface: vi.fn(),
 }));
-vi.mock("./InteractivePose", () => ({ ExpandablePose: () => <div>포즈</div> }));
+vi.mock("../skin/selectionSkinPreview", () => ({ selectionSkinPreview: vi.fn() }));
+vi.mock("./InteractivePose", () => ({
+  ExpandablePose: ({ loading }: { loading: boolean }) => <div>{loading ? "로딩 중" : "포즈"}</div>,
+}));
 vi.mock("./solved", () => ({
   prepareSurface: vi.fn(() => ({ body: {}, release: vi.fn() })),
   solvedCamera: vi.fn(() => ({})),
@@ -64,6 +68,7 @@ it("reuses verified skin assets across equivalent operation polls/notice updates
     skin: preview.skin,
     skinPreview: preview,
     skinState: { stateHash: "a".repeat(64), revision: 1 },
+    selectionSkin: { location: "/v1/analysis/jobs/job_test/people/0", candidateId: "fixture", baseBinding: "binding" },
     viewKey: "skin-fixture",
     notice: "파일 준비 중",
     failed: false,
@@ -95,7 +100,61 @@ it("reuses verified skin assets across equivalent operation polls/notice updates
     await Promise.resolve();
   });
   expect(loadSkinSurface).toHaveBeenCalledTimes(count);
+  expect(selectionSkinPreview).not.toHaveBeenCalled();
   view.unmount();
   for (const result of vi.mocked(loadSkinSurface).mock.results)
     expect((await result.value).release).toHaveBeenCalledOnce();
 });
+
+it("retries just the skin overlay after a terminal asset error", async () => {
+  vi.mocked(loadSkinSurface).mockClear().mockRejectedValueOnce(Error("asset unavailable"));
+  const preview = skinPreviewSchema.parse(previewFixture());
+  const skinState = { stateHash: "a".repeat(64), revision: 1 };
+  const model = {
+    frame: {},
+    packet: skinState,
+    state: { model: {}, identity: {
+      selection: { candidate: "fixture" },
+      scope: "full",
+      body: { characterId: preview.compatibility.characterId, characterSha256: preview.compatibility.characterSha256 },
+    } },
+  } as ModelResult;
+  const view = render(<InteractiveReview data={{
+    model, skinState, skin: preview.skin, skinPreview: preview,
+    viewKey: "skin-retry", notice: "", failed: false,
+  }} />);
+  fireEvent.click(await view.findByRole("button", { name: "스킨 다시 불러오기" }));
+  await waitFor(() => expect(view.queryByRole("status")).toBeNull());
+  expect(loadSkinSurface).toHaveBeenCalledTimes(2);
+  expect(loadSkinSurface).toHaveBeenLastCalledWith(
+    preview, skinState, expect.anything(), model.state.model, expect.any(AbortSignal),
+  );
+  view.unmount();
+});
+
+it.each([false, true])(
+  "stops the missing-skin overlay spinner on terminal failure (surface: %s)",
+  (withSurface) => {
+    const data = {
+      skin: { version: "fbx-skin-v1" as const, id: "gray-guide" as const },
+      viewKey: "unsupported-skin",
+      notice: "파일 준비 중",
+      failed: false,
+      ...(withSurface
+        ? {
+            localSurface: { body: new Group(), camera: {} } as NonNullable<
+              import("./InteractiveReview").InteractiveReviewData["localSurface"]
+            >,
+          }
+        : {}),
+    };
+    const view = render(<InteractiveReview data={data} />);
+    expect(view.getByText("로딩 중")).toBeTruthy();
+    const notice = "이 조합은 선택한 스킨을 아직 지원하지 않아요. 외곽선 0 또는 2를 선택해 주세요.";
+    view.rerender(<InteractiveReview data={{ ...data, failed: true, notice }} />);
+    expect(view.queryByText("로딩 중")).toBeNull();
+    expect(view.queryByText("스킨 불러오는 중")).toBeNull();
+    expect(view.getByRole("status").textContent).toBe(notice);
+    view.unmount();
+  },
+);

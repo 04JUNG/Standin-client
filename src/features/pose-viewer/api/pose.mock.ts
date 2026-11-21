@@ -95,13 +95,14 @@ export const poseMock: PoseResultService = {
     jobId,
     width = 0,
     height = 0,
-  }: {
-    jobId: string;
-    file: File;
-    width?: number;
-    height?: number;
-  }): Promise<AnalysisResult> {
-    await delay(600);
+    onProgress,
+  }: Parameters<PoseResultService["analyze"]>[0]): Promise<AnalysisResult> {
+    onProgress?.("uploading");
+    await delay(100);
+    onProgress?.("running");
+    await delay(400);
+    onProgress?.("preparing");
+    await delay(100);
     // 원본 패널을 볼 수 있게 올린 그림을 세로로 셋 나눈 상자를 준다(실제 검출이 아니다).
     const box = (i: number): PersonResult["box"] =>
       width > 0 && height > 0

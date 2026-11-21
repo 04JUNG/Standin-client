@@ -94,6 +94,7 @@ export type AnalysisResult = {
    * false가 오고, 클라이언트는 그걸 따른다(자기 판단으로 호출하지 않는다).
    */
   capabilities: {
+    refineRelease?: boolean;
     /** Read-only, unconfirmed canonical packet endpoint. */
     selectionPreview?: boolean;
     handSelection?: boolean;
@@ -122,6 +123,7 @@ export type AnalysisResult = {
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
     interactivePreview?: import("../interactive/contract").InteractiveCapability;
+    interactiveState?: import("../interactive/capability").InteractiveStateCapability;
     /**
      * 같은 인물의 다음 후보 묶음을 서버가 줄 수 있는가. 아직 어떤 서버도 켜지 않는다 —
      * 켜지기 전에는 "후보 다시 찾기" 자리를 그리지 않는다(없는 기능을 보이지 않는다).
@@ -171,5 +173,10 @@ export interface PoseResultService {
     height: number;
     /** React Query가 화면 이탈/쿼리 취소 시 진행 중인 HTTP 요청까지 중단한다. */
     signal?: AbortSignal;
+    /** Observed transport milestones; no server percentage is implied. */
+    onProgress?: (
+      phase: import("../lib/loadingProgress").AnalysisPhase,
+      snapshot?: import("./analysisProgress").AnalysisSnapshot,
+    ) => void;
   }): Promise<AnalysisResult>;
 }

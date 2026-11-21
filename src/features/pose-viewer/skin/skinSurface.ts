@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { z } from "zod";
-import type { PoseModel } from "../interactive/solved";
+import { meshTopology, type AnyPoseModel } from "../interactive/poseModel";
 import { libraryPreviewMaterial } from "../preview/previewStyle";
 import type { SkinId } from "./skinChoices";
 const pair = z.tuple([z.number().finite().min(0).max(1), z.number().finite().min(0).max(1)]);
@@ -11,19 +11,21 @@ export const skinUvSchema = z
     triangles: z
       .array(z.tuple([index, index, index]))
       .min(1)
-      .max(200000),
-    uv: z.array(pair).min(3).max(600000),
+      .max(333333),
+    uv: z.array(pair).min(3).max(1000000),
   })
   .strict()
   .refine((v) => v.uv.length === v.triangles.length * 3);
 export type SkinUv = z.infer<typeof skinUvSchema>;
 
 /** Camera-space lighting matches the existing preview; albedo is an approved sRGB image. */
-function skinMaterial(texture: THREE.Texture, skin: SkinId) {
+export function skinMaterial(texture: THREE.Texture, skin: SkinId) {
   const material = libraryPreviewMaterial();
   material.side = THREE.DoubleSide;
   material.uniforms.skinMap = { value: texture };
-  material.uniforms.skinFill = { value: skin === "flesh" || skin === "flesh-guide" ? 0.3 : 0 };
+  material.uniforms.skinFill = {
+    value: skin === "flesh" || skin === "flesh-guide" || skin === "flesh-muscle" ? 0.3 : 0,
+  };
   material.vertexShader = material.vertexShader
     .replace("varying vec3 previewNormal;", "varying vec3 previewNormal; varying vec2 skinUv;")
     .replace("previewNormal = normalize", "skinUv = uv; previewNormal = normalize");
@@ -34,7 +36,7 @@ function skinMaterial(texture: THREE.Texture, skin: SkinId) {
     )
     .replace(
       "gl_FragColor = vec4(0.72 * (ambient + keyColor * key + fillColor * fill), 1.0);",
-      "vec3 light = ambient + keyColor * key + fillColor * fill; vec3 albedo = texture2D(skinMap, skinUv).rgb; gl_FragColor = vec4(albedo * mix(light, vec3(1.0), skinFill), 1.0);",
+      "vec3 light = ambient + keyColor * key + fillColor * fill; vec3 albedo = skinUv.x < 0.0 ? vec3(0.72) : texture2D(skinMap, skinUv).rgb; gl_FragColor = vec4(albedo * mix(light, vec3(1.0), skinFill), 1.0);",
     );
   return material;
 }
@@ -42,7 +44,7 @@ function skinMaterial(texture: THREE.Texture, skin: SkinId) {
 /** Own only display geometry/materials. Never mutate canonical points, normals, bones or cached surfaces. */
 export function skinDisplaySurface(
   source: THREE.Group,
-  model: PoseModel,
+  model: AnyPoseModel,
   uv: SkinUv,
   characterSha256: string,
   texture: THREE.Texture,
@@ -52,13 +54,14 @@ export function skinDisplaySurface(
   source.traverse((o) => {
     if (o instanceof THREE.Mesh) meshes.push(o);
   });
+  const mesh = model.meshes.length === 1 ? meshTopology(model, 0) : undefined;
   if (
     uv.source_sha256 !== characterSha256 ||
-    model.meshes.length !== 1 ||
+    !mesh ||
     meshes.length !== 1 ||
-    uv.triangles.length !== model.meshes[0].triangles.length ||
+    uv.triangles.length !== mesh.triangleCount ||
     uv.uv.length !== uv.triangles.length * 3 ||
-    uv.triangles.some((t, i) => t.some((v, c) => v !== model.meshes[0].triangles[i][c])) ||
+    uv.triangles.some((t, i) => t.some((v, c) => v !== mesh.corner(i, c))) ||
     meshes[0].geometry.getAttribute("position").count !== uv.uv.length
   )
     throw Error("skin UV topology changed");

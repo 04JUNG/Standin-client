@@ -471,6 +471,7 @@ let preferences: BodyPreferences = {
   mode: "last_used",
   // 처음에는 비어 있다 — 체형 커스텀에서 카드를 만드는 흐름을 처음부터 볼 수 있게.
   cards: [],
+  pickerVisibility: { hiddenPresetIds: [], hiddenCardIds: [] },
   lastUsed: null,
   revision: 1,
 };
@@ -590,6 +591,9 @@ export const bodyMock = {
     preferences = {
       ...preferences,
       mode: value.mode ?? preferences.mode,
+      ...(value.pickerVisibility
+        ? { pickerVisibility: structuredClone(value.pickerVisibility) }
+        : {}),
       revision: preferences.revision + 1,
     };
     return { ...structuredClone(preferences), shapeEditable: shapeEditable() };
@@ -624,7 +628,21 @@ export const bodyMock = {
           : c,
       );
     else next = cards.filter((c) => c.cardId !== change.cardId);
-    preferences = { ...preferences, cards: next, revision: preferences.revision + 1 };
+    preferences = {
+      ...preferences,
+      cards: next,
+      ...(preferences.pickerVisibility
+        ? {
+            pickerVisibility: {
+              ...preferences.pickerVisibility,
+              hiddenCardIds: preferences.pickerVisibility.hiddenCardIds.filter((id) =>
+                next.some((card) => card.cardId === id),
+              ),
+            },
+          }
+        : {}),
+      revision: preferences.revision + 1,
+    };
     return { ...structuredClone(preferences), shapeEditable: shapeEditable() };
   },
   async getManifest(job: string, person: number, selection: BodySelection): Promise<BodyManifest> {

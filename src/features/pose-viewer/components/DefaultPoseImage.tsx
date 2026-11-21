@@ -2,7 +2,7 @@ import { useThumbnailJourney } from "@/features/analytics/useThumbnailJourney";
 import { useNearViewport } from "@/shared/hooks/useNearViewport";
 import { CompactPoseImage } from "@/features/bar/components/CompactPoseLayout";
 import { useCompactPoseLayout } from "@/features/bar/components/compactPoseContext";
-import { bodyScopeSchema } from "../api/outputScope";
+import { presentationPosterOptions } from "../api/candidatePoster";
 import type { PreviewCandidate } from "../api/posePresentation";
 import { useDefaultPosePoster } from "../api/posePoster";
 export function DefaultPoseImage({
@@ -24,15 +24,9 @@ export function DefaultPoseImage({
 }) {
   const { ref, visible } = useNearViewport(lazy);
   const inFloatingBar = useCompactPoseLayout();
-  const scope = bodyScopeSchema.safeParse(rawScope).data ?? "full";
   const q = useDefaultPosePoster({
-    url: candidate.source === "library" ? candidate.asset.preview_bvh_url + "/poster" : undefined,
-    source: candidate.asset.bvh_sha256,
-    candidate,
-    scope,
+    ...presentationPosterOptions(candidate, rawScope, savedOnly),
     enabled: visible,
-    savedOnly,
-    directional: candidate.source === "library",
   });
   const reportFailure = useThumbnailJourney(
     jobId,

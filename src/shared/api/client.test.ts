@@ -1,3 +1,4 @@
+import { useAccessStore } from "@/shared/stores/accessStore";
 import { useRequiredUpdateStore } from "@/shared/stores/requiredUpdateStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -35,6 +36,88 @@ function authHeaderOf(call: unknown[]): string | null {
 }
 
 describe("apiFetch", () => {
+  it("closes the access gate when an already-running app is denied", async () => {
+    useAccessStore.setState({ phase: "allowed" });
+    fetchMock.mockResolvedValue(errorResponse(403, "ACCESS_CODE_REQUIRED"));
+    await expect(apiFetch("/v1/analysis/jobs", { auth: false })).rejects.toMatchObject({
+      status: 403,
+      code: "ACCESS_CODE_REQUIRED",
+    });
+    expect(useAccessStore.getState().phase).toBe("blocked");
+    useAccessStore.setState({ phase: "unknown" });
+  });
+  it("opts BFF capability and interactive requests into the pose/body-only protocol", async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ ok: true }));
+    await apiFetch("/v1/analysis/jobs/job_test/result", { auth: false });
+    await apiFetch("/v1/analysis/jobs/job_test/people/0/interactive-state", { auth: false });
+    for (const call of fetchMock.mock.calls) {
+      const headers = (call[1] as RequestInit).headers as Record<string, string>;
+      // Old BFFs require the exact v1 token until the result advertises v2.
+      expect(headers["X-Standin-Interactive-Protocol"]).toBe("pose-body-only-v1");
+    }
+  });
+  const binaryCapability = {
+    capabilities: {
+      solvedStateBinary: {
+        available: true,
+        protocolToken: "solved-state-binary-v2",
+        mediaType: "application/vnd.standin.solved-pose-state-v2",
+      },
+    },
+  };
+  it("adds the binary token only after a first-party job explicitly advertises it", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(binaryCapability))
+      .mockImplementation(async () => jsonResponse({ ok: true }));
+    await apiFetch("/v1/analysis/jobs/job_test/result");
+    await apiFetch("/v1/analysis/jobs/job_test/people/0/interactive-state");
+    expect(fetchMock.mock.calls.map((c) => (c[1] as RequestInit).headers)).toMatchObject([
+      { "X-Standin-Interactive-Protocol": "pose-body-only-v1" },
+      { "X-Standin-Interactive-Protocol": "pose-body-only-v1, solved-state-binary-v2" },
+    ]);
+    fetchMock.mockResolvedValueOnce(jsonResponse({ capabilities: {} }));
+    await apiFetch("/v1/analysis/jobs/job_test/result");
+    await apiFetch("/v1/models");
+    expect((fetchMock.mock.lastCall![1] as RequestInit).headers).toMatchObject({
+      "X-Standin-Interactive-Protocol": "pose-body-only-v1",
+    });
+  });
+  it("resumes after a BFF protocol rollback without changing an idempotent prepare body", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(binaryCapability))
+      .mockResolvedValueOnce(errorResponse(426, "INTERACTIVE_PROTOCOL_REQUIRED"))
+      .mockResolvedValue(jsonResponse({ accepted: true }));
+    await apiFetch("/v1/analysis/jobs/job_test/result");
+    await apiFetch("/v1/analysis/jobs/job_test/people/0/interactive-state", {
+      method: "POST",
+      body: { mutationId: "same", revision: 1 },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect((fetchMock.mock.calls[1][1] as RequestInit).body).toBe(
+      (fetchMock.mock.calls[2][1] as RequestInit).body,
+    );
+    expect((fetchMock.mock.calls[2][1] as RequestInit).headers).toMatchObject({
+      "X-Standin-Interactive-Protocol": "pose-body-only-v1",
+    });
+  });
+  it("does not negotiate from an external origin or malformed capability", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(binaryCapability))
+      .mockResolvedValue(jsonResponse({ ok: true }));
+    await apiFetch("https://external.invalid/v1/analysis/jobs/job_test/result", {
+      installation: false,
+    });
+    await apiFetch("/v1/models");
+    expect((fetchMock.mock.lastCall![1] as RequestInit).headers).toMatchObject({
+      "X-Standin-Interactive-Protocol": "pose-body-only-v1",
+    });
+  });
+  it("does not send the protocol opt-in to external asset origins", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
+    await apiFetch("https://external.invalid/model", { auth: false, installation: false });
+    const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers).not.toHaveProperty("X-Standin-Interactive-Protocol");
+  });
   it("sends the current build version on every request", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ ok: true }));
     await apiFetch("/v1/models", { auth: false });

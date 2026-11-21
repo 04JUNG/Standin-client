@@ -1,6 +1,8 @@
+import { SKIN_ASSET_PINS } from "../skin/skinAssetPins";
 import { skinReceiptSchema } from "../skin/skinReceipt";
 import { skinPreviewSchema, checkSkinPreviewPaths } from "../skin/skinPreview";
 import { skinSchema, skinCapabilitySchema, sameSkin, type Skin } from "../skin/skin";
+import { skinUnavailableSchema, type SkinUnavailable } from "../skin/skinScope";
 import { z } from "zod";
 import {
   appearanceSchema,
@@ -15,10 +17,13 @@ import { boundedBytes, verifyBytes, BoundedQueue } from "./assets";
 import {
   frameSchema,
   identitySchema,
+  loadBinarySolvedState,
   loadSolvedPacket,
   prepareHandVariants,
   type LoadedVariants,
 } from "./solved";
+import { MEDIA_TYPE as SOLVED_V2_MEDIA_TYPE } from "./shared/interactive_pose_v2.mjs";
+const SOLVED_V1_MEDIA_TYPE = "application/vnd.standin.solved-pose-state-v1+json";
 export const exportReceiptSchema = z
   .object({
     schema: z.literal("interactive-fbx-receipt-v1"),
@@ -94,7 +99,19 @@ export function operationPath(target: Target, operationId: string) {
 }
 export function checkOperation(raw: unknown, target: Target): Operation {
   const op = operationSchema.parse(raw);
-  if (op.skin && op.appearance && op.appearance.width !== 2)
+  if (
+    op.skin &&
+    op.appearance &&
+    op.appearance.width !== 2 &&
+    !SKIN_ASSET_PINS.some(
+      (pin) =>
+        pin.continuousOutline &&
+        pin.skinId === op.skin!.id &&
+        pin.manifestSha256 === op.skinPreview?.assetManifestSha256 &&
+        pin.characterId === op.skinPreview.compatibility.characterId &&
+        pin.characterSha256 === op.skinPreview.compatibility.characterSha256,
+    )
+  )
     throw Error("unsupported skin outline combination");
   const root = operationPath(target, op.operationId);
   if (op.skinPreview) {
@@ -197,7 +214,10 @@ export const receiptSchema = z
   })
   .passthrough();
 export type Receipt = z.infer<typeof receiptSchema>;
-export type ModelResult = Awaited<ReturnType<typeof loadSolvedPacket>> & {
+/** v1 typed-JSON or v2 binary state; `packet.canonicalEncoding` tells them apart. */
+export type ModelResult = (
+  Awaited<ReturnType<typeof loadSolvedPacket>> | Awaited<ReturnType<typeof loadBinarySolvedState>>
+) & {
   frame?: z.infer<typeof frameSchema>;
 };
 export interface InteractiveTransport {
@@ -211,6 +231,8 @@ export interface InteractiveTransport {
   ): Promise<{
     appearanceExport?: z.infer<typeof appearanceCapabilitySchema>;
     skinExport?: z.infer<typeof skinCapabilitySchema>;
+    /** Why `skinExport` is unavailable; omitted by older servers. */
+    skinUnavailable?: SkinUnavailable;
     currentRevision: number;
     currentStateHash: string | null;
     operation: Operation | null;
@@ -277,6 +299,7 @@ export const interactiveHttp: InteractiveTransport = {
         // Unknown/malformed future capability stays unavailable on old clients.
         appearanceExport: z.unknown().optional(),
         skinExport: z.unknown().optional(),
+        skinUnavailable: z.unknown().optional(),
       })
       .parse(
         await apiFetch(
@@ -296,11 +319,17 @@ export const interactiveHttp: InteractiveTransport = {
       throw Error("head binding changed");
     const capability = appearanceCapabilitySchema.safeParse(raw.appearanceExport);
     const skinCapability = skinCapabilitySchema.safeParse(raw.skinExport);
+    const skinUnavailable = skinUnavailableSchema.safeParse(raw.skinUnavailable);
     return {
       ...raw,
       operation,
       appearanceExport: capability.success ? capability.data : undefined,
       skinExport: skinCapability.success ? skinCapability.data : undefined,
+      // A reason only qualifies an unavailable capability; it never grants or denies one.
+      skinUnavailable:
+        skinCapability.success && !skinCapability.data.available && skinUnavailable.success
+          ? skinUnavailable.data
+          : undefined,
     };
   },
   async prepare(target, body) {
@@ -335,10 +364,10 @@ export const interactiveHttp: InteractiveTransport = {
       stateHash = op.stateHash;
     return packetDownloads.run(async () => {
       const response = await apiFetchResponse(modelUrl, jsonOptions(signal));
-      if (
-        response.headers.get("Content-Type")?.split(";")[0] !==
-        "application/vnd.standin.solved-pose-state-v1+json"
-      )
+      // The BFF chooses per operation: v1 JSON envelope, or raw v2 bytes for clients that
+      // advertised `solved-state-binary-v2`. Anything else is refused before reading the body.
+      const contentType = response.headers.get("Content-Type")?.split(";")[0];
+      if (contentType !== SOLVED_V1_MEDIA_TYPE && contentType !== SOLVED_V2_MEDIA_TYPE)
         throw Error("invalid packet type");
       if (
         response.headers.get("X-Standin-State-Hash") !== op.stateHash ||
@@ -347,14 +376,17 @@ export const interactiveHttp: InteractiveTransport = {
         throw Error("packet headers changed");
       const bytes = await boundedBytes(response, 64 * 1024 * 1024, signal);
       return packetParses.run(async () => {
-        const raw: unknown = JSON.parse(new TextDecoder().decode(bytes));
-        const result = await loadSolvedPacket(raw, {
+        const expected = {
           operationId: op.operationId,
           revision: op.revision,
           stateHash,
           personIndex: target.personIndex,
           candidateId,
-        });
+        };
+        const result =
+          contentType === SOLVED_V2_MEDIA_TYPE
+            ? await loadBinarySolvedState(new Uint8Array(bytes), expected)
+            : await loadSolvedPacket(JSON.parse(new TextDecoder().decode(bytes)), expected);
         // v2 Converter owns a fixed square, hip-origin frame. Its projection
         // already contains continuous search orientation, focal length and
         // scope centering. Legacy packets still need their explicit adapter.

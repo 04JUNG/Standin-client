@@ -1,4 +1,9 @@
-import { preparedIdentity, preparedUrl } from "@/features/export/lib/preparedArtifact";
+import {
+  preparedIdentity,
+  preparedUrl,
+  preparedFile,
+  type PreparedFile,
+} from "@/features/export/lib/preparedArtifact";
 import { handReviewFromResponse, type HandReview } from "@/features/hand-selection/api";
 import type { HandSelection } from "@/features/hand-selection/contract";
 import { ApiError } from "@/shared/api/errors";
@@ -8,7 +13,9 @@ import { framedExportUrl } from "@/features/export/lib/framedExport";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
 import { sha, type BodySelection } from "./contract";
 import { verifyDigest } from "./api";
+import { fetchPreparedFbxResponse } from "@/features/export/lib/preparedFbx";
 export type BodyReview = {
+  file?: PreparedFile;
   hands?: HandReview;
   previewUrl: string;
   downloadUrl: string;
@@ -73,6 +80,7 @@ export async function loadBodyReview(
     : legacyDownloadUrl;
   signal.throwIfAborted();
   return {
+    file: prepareOnly ? preparedFile(res) : undefined,
     ...(hands ? { hands: handReviewFromResponse(res, hands, downloadUrl) } : {}),
     previewUrl: blob ? await blobToDataUrl(blob) : "",
     downloadUrl,
@@ -86,10 +94,7 @@ export async function loadBodyReview(
   };
 }
 export async function downloadBodyReview(receipt: BodyReview, signal?: AbortSignal) {
-  const res = await apiFetchResponse(receipt.downloadUrl, {
-    auth: false,
-    ...(signal ? { signal } : {}),
-  });
+  const res = await fetchPreparedFbxResponse(receipt.downloadUrl, signal);
   if (
     (!scopeIncludesHands(receipt.scope) &&
       (res.headers.has("X-Standin-Hand-Revision") ||

@@ -1,11 +1,10 @@
 import { LocalFbxPreview } from "@/features/personal-body/LocalFbxPreview";
-import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
-import { SkinControl } from "../skin/SkinControl";
+import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { Loader2, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "../hooks/useFramedReview";
@@ -26,6 +25,8 @@ export function ReviewPage() {
   const navigate = useNavigate();
   const {
     items,
+    draft,
+    roughUrl,
     hands,
     isRefining,
     previewLoading,
@@ -42,6 +43,8 @@ export function ReviewPage() {
     retryPreview,
   } = useFramedReview(jobId);
 
+  // A skin that cannot be prepared must not dead-end the download: offer the default skin.
+  const switchSkin = preparationError ? previewFailure.switchToDefaultSkin : undefined;
   if (!jobId) return <Navigate to="/app/home" replace />;
   if (!isRefining && items.length === 0) return <Navigate to={`/app/jobs/${jobId}`} replace />;
 
@@ -49,9 +52,18 @@ export function ReviewPage() {
     <AppShell title="저장할 포즈 확인">
       <div className="mx-auto flex h-full w-full max-w-[760px] flex-col gap-4">
         {isRefining && !items.some((item) => item.interactivePreview) ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-text-secondary">
-            <Loader2 className="h-8 w-8 animate-spin text-brand-sky" aria-hidden />
-            <p className="text-[14px]">포즈를 러프에 맞춰 조정하고 있습니다…</p>
+          <div className="flex flex-1 items-center justify-center">
+            <PoseSearchPending
+              mode="refine"
+              preview={
+                roughUrl
+                  ? { previewUrl: roughUrl, originalName: draft?.originalName ?? "러프" }
+                  : null
+              }
+              selectionPreviewUrl={
+                items[0]?.candidate.thumbnailUrl || items[0]?.candidate.quickThumbnailUrl
+              }
+            />
           </div>
         ) : (
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-0 p-4">
@@ -69,6 +81,7 @@ export function ReviewPage() {
                     <ReviewPosePreview
                       telemetryJobId={hands?.jobId}
                       interactive={item.interactivePreview}
+                      candidate={item.candidate}
                       model={item.previewModel}
                       outlineWidth={item.outlineWidth}
                       src={item.previewUrl}
@@ -82,12 +95,7 @@ export function ReviewPage() {
                       onModelStatus={item.onModelStatus}
                     />
                   )}
-                  {(item.outlineAvailable || item.outlineWidth > 0) && (
-                    <OutlineControl personIndex={item.personIndex} />
-                  )}
-                  {(item.skinAvailable || item.skin) && (
-                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
-                  )}
+
                   <div className="flex flex-col gap-0.5 p-2">
                     <span className="text-[13px] font-semibold text-text-primary">
                       인물 {item.personIndex + 1}
@@ -134,16 +142,25 @@ export function ReviewPage() {
             {preparationError
               ? previewFailure.message
               : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
-            <button
-              onClick={() =>
-                previewFailure.action === "choose"
-                  ? navigate(`/app/jobs/${jobId}`)
-                  : void retryPreview()
-              }
-              className="underline"
-            >
-              {previewFailure.label}
-            </button>
+            {switchSkin && (
+              <>
+                <button onClick={switchSkin} className="font-semibold underline">
+                  기본 스킨으로 바꾸기
+                </button>{" "}
+              </>
+            )}
+            {!(switchSkin && previewFailure.retryUseless) && (
+              <button
+                onClick={() =>
+                  previewFailure.action === "choose"
+                    ? navigate(`/app/jobs/${jobId}`)
+                    : void retryPreview()
+                }
+                className="underline"
+              >
+                {previewFailure.label}
+              </button>
+            )}
           </div>
         )}
         <div className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">

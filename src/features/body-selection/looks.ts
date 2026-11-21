@@ -4,6 +4,7 @@ import { isRetiredCharacter } from "@/features/models/lib/retiredCharacters";
 import { sortBodyLooks } from "./bodyPanel";
 import type { BodyLook } from "./contract";
 import { useBodyPreferences } from "./preferences";
+import { isInternalCspPreset } from "./pickerVisibility";
 
 /**
  * 작업 밖(체형 커스텀 화면)에서 그릴 수 있는 체형들.
@@ -36,7 +37,8 @@ export function useBodyLooks() {
   return {
     prefs,
     catalog,
-    looks,
+    // Keep find() on the complete set so existing cards remain editable.
+    looks: looks.filter((look) => !isInternalCspPreset(look.characterId)),
     find,
     name: (id?: string) => find(id)?.displayName ?? id ?? "",
   };

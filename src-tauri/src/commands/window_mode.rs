@@ -126,10 +126,21 @@ fn main_window(app: &AppHandle) -> Result<WebviewWindow, WindowError> {
         .ok_or_else(|| WindowError::new("NO_WINDOW", "메인 창을 찾지 못했습니다."))
 }
 
+fn clamp_bar_position(
+    position: LogicalPosition<f64>,
+    size: LogicalSize<f64>,
+    work_origin: LogicalPosition<f64>,
+    work_size: LogicalSize<f64>,
+) -> LogicalPosition<f64> {
+    let max_x = (work_origin.x + work_size.width - size.width).max(work_origin.x);
+    let max_y = (work_origin.y + work_size.height - size.height).max(work_origin.y);
+    LogicalPosition::new(
+        position.x.clamp(work_origin.x, max_x),
+        position.y.clamp(work_origin.y, max_y),
+    )
+}
+
 /// 바가 화면 밖으로 나가지 않게 현재 모니터 작업 영역 안으로 위치를 민다.
-///
-/// 모니터 해상도가 바뀌거나 저장된 위치가 사라진 모니터를 가리킬 때 바가 보이지 않는
-/// 사고를 막는다. 모니터 정보 접근이 여기 있으므로 클램프도 여기서 한다.
 fn clamp_into_monitor(window: &WebviewWindow, width: f64, height: f64) {
     let Ok(Some(monitor)) = window.current_monitor() else {
         return;
@@ -143,14 +154,9 @@ fn clamp_into_monitor(window: &WebviewWindow, width: f64, height: f64) {
     };
     let current = current.to_logical::<f64>(scale);
 
-    // 창이 최소한 화면 안에 완전히 들어오도록 민다. 화면보다 크면 좌상단에 붙인다.
-    let max_x = (origin.x + area.width - width).max(origin.x);
-    let max_y = (origin.y + area.height - height).max(origin.y);
-    let x = current.x.clamp(origin.x, max_x);
-    let y = current.y.clamp(origin.y, max_y);
-
-    if (x - current.x).abs() > 0.5 || (y - current.y).abs() > 0.5 {
-        let _ = window.set_position(LogicalPosition::new(x, y));
+    let position = clamp_bar_position(current, LogicalSize::new(width, height), origin, area);
+    if (position.x - current.x).abs() > 0.5 || (position.y - current.y).abs() > 0.5 {
+        let _ = window.set_position(position);
     }
 }
 
@@ -468,20 +474,76 @@ pub fn set_window_position(
     *BAR_MAX_WIDTH_FRACTION
         .lock()
         .unwrap_or_else(|error| error.into_inner()) = max_width_fraction;
-    window
-        .set_position(LogicalPosition::new(x, y))
-        .map_err(|e| WindowError::new("POSITION_FAILED", e.to_string()))?;
-    let (width, height) = fit_bar_to_work_area(&window, width, height, max_width_fraction);
-    window
-        .set_size(LogicalSize::new(width, height))
-        .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
-    clamp_into_monitor(&window, width, height);
+
+    #[cfg(target_os = "macos")]
+    {
+        // Both the saved position and macOS monitor hit-testing use global points.
+        // Resolve and clamp before moving: NSWindow.screen is nil offscreen.
+        let Some(monitor) = window
+            .monitor_from_point(x, y)
+            .ok()
+            .flatten()
+            .or_else(|| window.current_monitor().ok().flatten())
+            .or_else(|| window.primary_monitor().ok().flatten())
+        else {
+            // The mode switch has already sized the bar. Keep its current position
+            // when no display is available to validate the saved one.
+            return Ok(());
+        };
+
+        let area = monitor.work_area();
+        let scale = monitor.scale_factor();
+        let (width, height) = fit_bar_dimensions(
+            width,
+            height,
+            (area.size.width, area.size.height),
+            scale,
+            max_width_fraction,
+        );
+        let size = LogicalSize::new(width, height);
+        let position = clamp_bar_position(
+            LogicalPosition::new(x, y),
+            size,
+            area.position.to_logical(scale),
+            area.size.to_logical(scale),
+        );
+        window
+            .set_size(size)
+            .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
+        window
+            .set_position(position)
+            .map_err(|e| WindowError::new("POSITION_FAILED", e.to_string()))?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        window
+            .set_position(LogicalPosition::new(x, y))
+            .map_err(|e| WindowError::new("POSITION_FAILED", e.to_string()))?;
+        let (width, height) = fit_bar_to_work_area(&window, width, height, max_width_fraction);
+        window
+            .set_size(LogicalSize::new(width, height))
+            .map_err(|e| WindowError::new("RESIZE_FAILED", e.to_string()))?;
+        clamp_into_monitor(&window, width, height);
+    }
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saved_bar_position_past_the_right_edge_is_clamped_before_moving() {
+        let position = clamp_bar_position(
+            LogicalPosition::new(1533.0, 31.0),
+            LogicalSize::new(360.0, 88.0),
+            LogicalPosition::new(0.0, 25.0),
+            LogicalSize::new(1512.0, 900.0),
+        );
+        assert_eq!(position, LogicalPosition::new(1152.0, 31.0));
+    }
 
     #[test]
     fn semantic_bar_stays_below_half_on_common_screens() {

@@ -48,6 +48,8 @@ it("does not create server controllers or expose native bindings for personal pe
     true,
     { version: "fbx-outline-v1", width: 2 },
     { version: "fbx-skin-v1", id: "flesh" },
+    undefined,
+    undefined,
   );
   expect(result.current.controllers[0]).toBeUndefined();
   expect(result.current.snapshots[0]).toBeUndefined();

@@ -41,7 +41,7 @@
     },
     "GET /{operationId}": "200 Operation after full current-state revalidation",
     "DELETE /{operationId}": "200 cancelled (idempotent); abort queued and active worker",
-    "GET /{operationId}/model": "200 server packet; never client matrices",
+    "GET /{operationId}/model": "200 server packet; never client matrices. Content-Type application/vnd.standin.solved-pose-state-v1+json (JSON envelope) or, only for clients sending the solved-state-binary-v2 protocol token, application/vnd.standin.solved-pose-state-v2 (raw standin-binary-f64le-v2 bytes, SHA256 = X-Standin-State-Hash = op.stateHash); same X-Standin-Revision. v2 operations have no /variants atlas (409).",
     "POST /{operationId}/export": "202 same-state idempotent export preparation",
     "GET /{operationId}/file": "200 verified FBX only; latest revision + full release/current-state recheck",
     "GET /{operationId}/poster": "200 server-authoritative static PNG or 404; never blocks list/export",

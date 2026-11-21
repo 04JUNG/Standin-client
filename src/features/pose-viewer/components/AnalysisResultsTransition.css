@@ -1,0 +1,92 @@
+.analysis-transition {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+.analysis-transition--fill,
+.analysis-transition--fill > .analysis-transition__result {
+  height: 100%;
+  min-height: 0;
+}
+.analysis-transition__outgoing {
+  position: absolute;
+  z-index: 8;
+  inset: 0 0 auto;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-1);
+  pointer-events: none;
+  transform-origin: 40% 50%;
+  will-change: transform, opacity;
+  animation: analysis-out 0.76s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.analysis-transition__outgoing .pose-loading {
+  margin: auto;
+}
+.analysis-transition--compact .analysis-transition__outgoing {
+  max-width: 360px;
+  margin-inline: auto;
+  background: var(--surface-0);
+}
+.analysis-transition--entering > .analysis-transition__result {
+  transform-origin: 50% 45%;
+  will-change: transform, opacity;
+  animation: analysis-in 0.76s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.analysis-transition--entering .pose-candidate-arrival {
+  will-change: transform, opacity;
+  animation: analysis-card-in 0.64s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--candidate-order, 0) * 36ms);
+}
+@keyframes analysis-out {
+  0%,
+  10% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-24px, -10px, 0) scale(0.965) rotate(-0.5deg);
+    visibility: hidden;
+  }
+}
+@keyframes analysis-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(28px, 18px, 0) scale(0.98);
+  }
+  68% {
+    opacity: 1;
+    transform: translate3d(-1px, -1px, 0) scale(1.001);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes analysis-card-in {
+  from {
+    opacity: 0;
+    transform: translate3d(12px, 18px, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .analysis-transition__outgoing {
+    display: none;
+  }
+  .analysis-transition--entering > .analysis-transition__result,
+  .analysis-transition--entering .pose-candidate-arrival {
+    animation: none;
+  }
+}
+.analysis-transition[data-pending="true"] {
+  min-height: 100%;
+  display: grid;
+  align-items: center;
+}

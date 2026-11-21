@@ -27,7 +27,7 @@ export const skinReceiptSchema = z
         characterId: z.string().min(1).max(200),
         characterSha256: sha,
         vertices: z.number().int().positive().max(500000),
-        bones: z.literal(52),
+        bones: z.number().int().positive().max(256),
         polygonIndicesSha256: sha,
         weightsSha256: sha,
         previewMesh: z.string().min(1).max(200),

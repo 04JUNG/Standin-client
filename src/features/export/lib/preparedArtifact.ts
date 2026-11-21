@@ -48,3 +48,23 @@ export async function loadPreparedImage(downloadUrl: string, signal: AbortSignal
   signal.throwIfAborted();
   return blobToDataUrl(blob);
 }
+
+// Negotiated independently of the interactive solver: these are the exact final FBX bytes.
+export type PreparedFile = {
+  identity: ReturnType<typeof preparedIdentity>;
+  headers: Record<string, string | null>;
+};
+export function preparedFile(response: Response): PreparedFile | undefined {
+  if (response.headers.get("X-Standin-Local-Preview") !== "fbx-v1") return undefined;
+  return {
+    identity: preparedIdentity(response),
+    headers: Object.fromEntries(
+      [
+        "X-Standin-Output-Scope",
+        "X-Standin-Body-Revision",
+        "X-Standin-Hand-Revision",
+        "X-Standin-Hand-Library-SHA256",
+      ].map((name) => [name, response.headers.get(name)]),
+    ),
+  };
+}

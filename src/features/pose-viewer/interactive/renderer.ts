@@ -18,6 +18,7 @@ type View = {
   materials: THREE.Material[];
   outlineWidth?: () => number;
   outline: BodyOutlineRenderer;
+  drawnCamera?: THREE.Camera;
   ready(): void;
   failed(): void;
 };
@@ -29,7 +30,10 @@ let observer: ResizeObserver | undefined;
 function lost(event: Event) {
   event.preventDefault();
   measure("context-loss", performance.now());
-  for (const view of views) view.failed();
+  for (const view of views) {
+    view.drawnCamera = undefined;
+    view.failed();
+  }
 }
 function restored() {
   invalidate();
@@ -100,6 +104,7 @@ function draw() {
     document.body;
   if (output.domElement.parentElement !== parent) parent.appendChild(output.domElement);
   for (const view of views) {
+    view.drawnCamera = undefined;
     if (view.layer !== layer) continue;
     const { rect, left, top, width, height } = clipRect(view.element);
     if (!width || !height || !rect.width || !rect.height) continue;
@@ -119,6 +124,7 @@ function draw() {
           material.uniforms.baseColor?.value.set(color.r, color.g, color.b);
       view.outline.setWidth(view.body, appearance?.outlineWidth ?? view.outlineWidth?.() ?? 0);
       view.outline.render(view.scene, camera);
+      view.drawnCamera = camera;
       view.ready();
     } catch {
       view.failed();
@@ -130,7 +136,7 @@ function draw() {
 export function invalidate() {
   if (!scheduled) scheduled = requestAnimationFrame(draw);
 }
-export function registerView(view: Omit<View, "scene" | "materials" | "outline">) {
+export function registerView(view: Omit<View, "scene" | "materials" | "outline" | "drawnCamera">) {
   getOutput();
   const scene = new THREE.Scene();
   scene.add(view.body);
@@ -147,7 +153,12 @@ export function registerView(view: Omit<View, "scene" | "materials" | "outline">
       ? object.material.map(clone)
       : clone(object.material);
   });
-  const registered: View = { ...view, scene, materials, outline: new BodyOutlineRenderer(getOutput()) };
+  const registered: View = {
+    ...view,
+    scene,
+    materials,
+    outline: new BodyOutlineRenderer(getOutput()),
+  };
   views.add(registered);
   observer!.observe(view.element);
   invalidate();
@@ -161,6 +172,23 @@ export function registerView(view: Omit<View, "scene" | "materials" | "outline">
     else invalidate();
   };
 }
+/** Pick the mesh through the same camera, viewport and clip space as the last visible frame. */
+export function pickPoseSurface(element: HTMLElement, clientX: number, clientY: number) {
+  const view = [...views].find((candidate) => candidate.element === element);
+  const camera = view?.drawnCamera;
+  if (!view || !camera) return;
+  const { rect, left, top, width, height } = clipRect(element);
+  if (clientX < left || clientX >= left + width || clientY < top || clientY >= top + height) return;
+  const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  const y = 1 - ((clientY - rect.top) / rect.height) * 2;
+  // These are protocol cameras with explicit matrices, rather than Three camera subclasses.
+  const near = new THREE.Vector3(x, y, -1).unproject(camera);
+  const far = new THREE.Vector3(x, y, 1).unproject(camera).sub(near);
+  const ray = new THREE.Raycaster(near, far.clone().normalize(), 0, far.length());
+  return ray.intersectObject(view.body, true).find(({ object }) => object instanceof THREE.Mesh)
+    ?.point;
+}
+
 /** Capture only the registered mannequin rectangle, synchronously after this revision's draw. */
 export async function captureView(element: HTMLElement): Promise<Blob> {
   const view = [...views].find((v) => v.element === element);

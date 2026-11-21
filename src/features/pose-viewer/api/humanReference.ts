@@ -6,6 +6,10 @@ import {
   type HumanTemplate,
 } from "../preview/humanReference/template";
 const templates = new Map<HumanScope, Promise<HumanTemplate>>();
+const templateDigests = new WeakMap<HumanTemplate, string>();
+export function humanTemplateDigest(template: HumanTemplate) {
+  return templateDigests.get(template);
+}
 export async function boundedReferenceBytes(response: Response, max: number): Promise<Uint8Array> {
   const reader = response.body?.getReader();
   if (!reader) throw Error("빈 인체 참고 자산입니다.");
@@ -70,6 +74,7 @@ async function template(scope: HumanScope) {
     h.get("X-Standin-Character-SHA256") !== parsed.character_sha256
   )
     throw Error("기본 인체가 변경되었습니다.");
+  templateDigests.set(parsed, rawDigest);
   return parsed;
 }
 export async function loadHumanTemplate(scope: string, signal: AbortSignal) {
@@ -87,20 +92,22 @@ export async function loadHumanTemplate(scope: string, signal: AbortSignal) {
   signal.throwIfAborted();
   return result;
 }
-export async function loadHumanReference(
+export function validReferenceSource(url: string, owned: boolean) {
+  if (url.includes("\\") || url.includes("#")) return false;
+  return owned
+    ? /^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/pose-previews\/preview_[a-f0-9]{64}\/[a-f0-9]{64}$/.test(
+        url,
+      )
+    : /^\/v1\/pose-candidates\/[^/]+\/poster-source\?/.test(url);
+}
+export async function loadReferenceBvh(
   sourceUrl: string,
   expectedSource: string | undefined,
   scope: string,
   signal: AbortSignal,
   presentation = false,
 ) {
-  const normal = /^\/v1\/pose-candidates\/[^/]+\/poster-source\?/.test(sourceUrl);
-  const owned =
-    /^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/pose-previews\/preview_[a-f0-9]{64}\/[a-f0-9]{64}$/.test(
-      sourceUrl,
-    );
-  if ((presentation ? !owned : !normal) || sourceUrl.includes("\\") || sourceUrl.includes("#"))
-    throw Error("잘못된 참고 원본 경로입니다.");
+  if (!validReferenceSource(sourceUrl, presentation)) throw Error("잘못된 참고 원본 경로입니다.");
   const response = await apiFetchResponse(sourceUrl, { auth: false, signal });
   const declared =
     response.headers.get("X-Standin-Source-BVH-SHA256") ??
@@ -117,11 +124,19 @@ export async function loadHumanReference(
   }
   const bytes = await boundedReferenceBytes(response, 2_000_000);
   if ((await referenceDigest(bytes)) !== declared) throw Error("BVH가 변경되었습니다.");
+  signal.throwIfAborted();
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+
+export async function loadHumanReference(
+  sourceUrl: string,
+  expectedSource: string | undefined,
+  scope: string,
+  signal: AbortSignal,
+  presentation = false,
+) {
+  const text = await loadReferenceBvh(sourceUrl, expectedSource, scope, signal, presentation);
   const mesh = await loadHumanTemplate(scope, signal);
   const { renderHumanReference } = await import("../preview/humanReference/render");
-  return renderHumanReference(
-    mesh,
-    new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-    signal,
-  );
+  return renderHumanReference(mesh, text, signal);
 }

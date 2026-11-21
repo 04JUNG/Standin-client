@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __resetApiClient, setAccessToken, setInstallationCredentials } from "@/shared/api/client";
 import { env } from "@/shared/lib/env";
 import { __resetAnalysisJobs, poseHttp } from "./pose.http";
+import { exampleSnapshot } from "@/dev/analysis-progress-fixture";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -11,6 +12,151 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("poseHttp", () => {
+  it.each([true, false])(
+    "accepts optional progress (%s) and completes without an animation delay",
+    async (valid) => {
+      vi.useFakeTimers();
+      const onProgress = vi.fn();
+      const snapshot = exampleSnapshot("understanding");
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ jobId: "job_live", status: "queued" }, 202))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_live",
+            status: "running",
+            progress: valid ? snapshot : { ...snapshot, version: "unknown" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_live",
+            status: "completed",
+            progress: exampleSnapshot("refining"),
+          }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_live",
+            notes: [],
+            candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+          }),
+        );
+      const request = poseHttp.analyze({
+        jobId: `client_live_${valid}`,
+        file: new File(["png"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 250,
+        height: 315,
+        onProgress,
+      });
+      await vi.advanceTimersByTimeAsync(800);
+      await expect(request).resolves.toMatchObject({ jobId: "job_live" });
+      expect(onProgress.mock.calls.map(([phase]) => phase)).toEqual([
+        "uploading",
+        valid ? "understanding" : "running",
+        "preparing",
+      ]);
+      expect(onProgress.mock.calls[1][1]).toEqual(valid ? snapshot : undefined);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    },
+  );
+  it("a failed Job wins over a late progress payload", async () => {
+    const onProgress = vi.fn();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ jobId: "job_fail", status: "queued" }, 202))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "job_fail",
+          status: "failed",
+          error: "INFERENCE_FAILED",
+          progress: exampleSnapshot("ranking"),
+        }),
+      );
+    await expect(
+      poseHttp.analyze({
+        jobId: "client_fail_progress",
+        file: new File(["png"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 250,
+        height: 315,
+        onProgress,
+      }),
+    ).rejects.toMatchObject({ code: "JOB_FAILED" });
+    expect(onProgress.mock.calls.map(([phase]) => phase)).toEqual(["uploading"]);
+  });
+
+  it.each(["analyzing", "extracting", "searching", "refining", "ranking", "unknown-stage"])(
+    "passes the integrated %s stage through only while the job is running",
+    async (stage) => {
+      vi.useFakeTimers();
+      const onProgress = vi.fn();
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse({ jobId: "stage-job", status: "queued", createdAt: "now" }, 202),
+        )
+        .mockResolvedValueOnce(jsonResponse({ jobId: "stage-job", status: "running", stage }))
+        .mockResolvedValueOnce(
+          jsonResponse({ jobId: "stage-job", status: "completed", stage: "refining" }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "stage-job",
+            notes: [],
+            candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+          }),
+        );
+      const request = poseHttp.analyze({
+        jobId: "stage-client",
+        file: new File(["png"], "rough.png", { type: "image/png" }),
+        source: "file",
+        width: 100,
+        height: 100,
+        onProgress,
+      });
+      await vi.advanceTimersByTimeAsync(800);
+      await expect(request).resolves.toMatchObject({ jobId: "stage-job" });
+      expect(onProgress.mock.calls.map(([value]) => value)).toEqual([
+        "uploading",
+        stage === "unknown-stage" ? "running" : stage,
+        "preparing",
+      ]);
+    },
+  );
+  it("reports observed milestones without reporting completion before fetching results", async () => {
+    vi.useFakeTimers();
+    const onProgress = vi.fn();
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ jobId: "progress-job", status: "queued", createdAt: "now" }, 202),
+      )
+      .mockResolvedValueOnce(jsonResponse({ jobId: "progress-job", status: "queued" }))
+      .mockResolvedValueOnce(jsonResponse({ jobId: "progress-job", status: "running" }))
+      .mockResolvedValueOnce(jsonResponse({ jobId: "progress-job", status: "completed" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          jobId: "progress-job",
+          notes: [],
+          candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+        }),
+      );
+    const request = poseHttp.analyze({
+      jobId: "progress-client",
+      file: new File(["png"], "rough.png", { type: "image/png" }),
+      source: "file",
+      width: 100,
+      height: 100,
+      onProgress,
+    });
+    await vi.advanceTimersByTimeAsync(1_600);
+    await expect(request).resolves.toMatchObject({ jobId: "progress-job" });
+    expect(onProgress.mock.calls.map(([phase]) => phase)).toEqual([
+      "uploading",
+      "queued",
+      "running",
+      "preparing",
+    ]);
+  });
+
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -138,6 +284,93 @@ describe("poseHttp", () => {
       expect(result.capabilities.sceneExport).toBe(true);
     },
   );
+
+  it.each([undefined, false, true])(
+    "honors explicit read-only selection capability without enabling interactive operations (%s)",
+    async (selectionPreview) => {
+      const flag = env.interactivePreview;
+      Object.defineProperty(env, "interactivePreview", { value: false, configurable: true });
+      try {
+        fetchMock.mockResolvedValueOnce(
+          jsonResponse({
+            jobId: "job_saved",
+            notes: [],
+            candidatesByPerson: [{ personIndex: 0, tags: {}, candidates: [] }],
+            capabilities: { selectionPreview },
+          }),
+        );
+        const result = await poseHttp.loadResult({ jobId: "job_saved" });
+        expect(result.capabilities.selectionPreview).toBe(
+          selectionPreview === true ? true : undefined,
+        );
+        expect(result.capabilities.interactivePreview).toBeUndefined();
+      } finally {
+        Object.defineProperty(env, "interactivePreview", { value: flag, configurable: true });
+      }
+    },
+  );
+
+  it("accepts a validated per-candidate static preview without requiring full Top-5 coverage", async () => {
+    const source = "a".repeat(64),
+      character = "b".repeat(64);
+    const matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    const asset = {
+      schemaVersion: "interactive-static-asset-v1",
+      url: "/v1/analysis/jobs/job_partial/people/0/interactive-static/a/artifact",
+      sha256: "c".repeat(64),
+      bytes: 5000,
+      sourceSha256: source,
+      characterId: "male-default83-v0-7-6-p1",
+      characterSha256: character,
+      revision: "static-v1",
+      scope: "full",
+      modelVersion: "posed-mesh-v1",
+      camera: {
+        schemaVersion: "interactive-camera-v1",
+        projection: "orthographic",
+        viewMatrix: matrix,
+        projectionMatrix: matrix,
+        matrixLayout: "column-major",
+        basis: "right-handed-Y-up",
+        clipSpace: "webgl-minus-one-to-one",
+        origin: "hips",
+        units: "meters",
+        distanceTorso: 12,
+        torsoReferenceSha256: character,
+        target: [0, 0, 0],
+        referenceAspect: 1,
+        framing: "projection-includes-center-scale-crop",
+        baked: "none",
+      },
+    };
+    const candidates = ["a", "b", "c"].map((id, index) => ({
+      id,
+      poseId: id,
+      rank: index + 1,
+      tags: [],
+      matchLevel: "high",
+      source: "library",
+      lookupAllowed: true,
+      releaseAllowed: true,
+      bvhAvailable: true,
+      sourceBvhSha256: source,
+      interactivePreview:
+        index === 0 ? asset : index === 1 ? { ...asset, sourceSha256: "d".repeat(64) } : undefined,
+    }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        jobId: "job_partial",
+        notes: [],
+        candidatesByPerson: [{ personIndex: 0, tags: {}, candidates }],
+        capabilities: { selectionPreview: true },
+      }),
+    );
+    const result = await poseHttp.loadResult({ jobId: "job_partial" });
+    expect(result.capabilities.interactivePreview).toBeUndefined();
+    expect(
+      result.people[0].candidates.map((candidate) => candidate.interactivePreview?.asset),
+    ).toEqual([asset, undefined, undefined]);
+  });
 
   function semanticPayload(thumbnailUrl?: string) {
     return {
@@ -475,6 +708,7 @@ describe("poseHttp", () => {
         handSelection: false,
         semanticBodySelection: false,
         refine: false,
+        refineRelease: false,
         fbxExport: false,
         sceneExport: false,
         characterSelection: false,
@@ -725,7 +959,9 @@ describe("poseHttp", () => {
     });
     const assertion = expect(pending).rejects.toMatchObject({ code: "TIMEOUT" });
 
-    await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(requestSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(30_000);
 
     await assertion;
     expect(requestSignal?.aborted).toBe(true);
@@ -952,4 +1188,34 @@ describe("poseHttp", () => {
     );
     expect(created).toHaveLength(1);
   });
+  // Regression: semantic jobs expose final operations without Top5 static coverage.
+  it.each([true, false])(
+    "reads final interactive support independently of Top5 coverage (%s)",
+    async (available) => {
+      const flag = env.interactivePreview;
+      Object.defineProperty(env, "interactivePreview", { value: true, configurable: true });
+      try {
+        fetchMock.mockResolvedValueOnce(
+          jsonResponse({
+            ...semanticPayload(),
+            capabilities: {
+              interactiveState: {
+                schemaVersion: "standin.interactive-http.v1",
+                available,
+                transport: "polling",
+                localHands: false,
+                initialFbxRequired: true,
+              },
+            },
+          }),
+        );
+        const result = await poseHttp.loadResult({ jobId: "job_saved" });
+        expect(result.capabilities.interactiveState?.available).toBe(available);
+        expect(result.capabilities.interactivePreview).toBeUndefined();
+        expect(result.people[0].candidates.every((c) => !c.interactivePreview)).toBe(true);
+      } finally {
+        Object.defineProperty(env, "interactivePreview", { value: flag, configurable: true });
+      }
+    },
+  );
 });

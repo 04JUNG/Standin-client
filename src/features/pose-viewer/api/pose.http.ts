@@ -1,3 +1,4 @@
+import { interactiveStateCapabilitySchema } from "../interactive/capability";
 import { capabilitySchema, readAsset } from "../interactive/contract";
 import { env } from "@/shared/lib/env";
 import { rememberAnalysisFailure } from "@/features/analytics/analysisContext";
@@ -27,6 +28,8 @@ import type {
 } from "./pose.contract";
 
 import { ANALYSIS_TIMEOUT_MESSAGE, upstreamAnalysisFailure } from "@/shared/api/analysisJobFailure";
+import { readAnalysisStage } from "../lib/loadingProgress";
+import { readAnalysisProgress } from "./analysisProgress";
 
 /** BFF의 비동기 분석 Job 계약. */
 type AnalysisJobStatus = "queued" | "running" | "completed" | "failed";
@@ -40,6 +43,9 @@ type CreateJobResponse = {
 type JobStatusResponse = CreateJobResponse & {
   updatedAt: string;
   error: string | null;
+  /** Optional detailed progress from the integrated search/refine pipeline. */
+  stage?: unknown;
+  progress?: unknown;
 };
 
 import { validRotation } from "../preview/modelContract";
@@ -79,6 +85,7 @@ type BffAnalysisResult = {
   sourceImage?: unknown;
   /** 구 BFF에는 없다. 없으면 refine을 노출하지 않는다. */
   capabilities?: {
+    refineRelease?: boolean;
     handSelection?: boolean;
     refine?: boolean;
     fbxExport?: boolean;
@@ -95,6 +102,7 @@ type BffAnalysisResult = {
     outputScopeCropping?: boolean;
     modelPreview?: boolean;
     interactivePreview?: unknown;
+    interactiveState?: unknown;
     selectionPreview?: boolean;
     candidateRerun?: boolean;
   };
@@ -168,7 +176,8 @@ function resolveFallbackMode(
 }
 
 const POLL_INTERVAL_MS = 750;
-const JOB_TIMEOUT_MS = 3 * 60 * 1000;
+// Allow the BFF's 180-second inference window plus time for upload and polling.
+const JOB_TIMEOUT_MS = 210_000;
 
 function analysisTimeoutError(): AnalysisError {
   return new AnalysisError("TIMEOUT", ANALYSIS_TIMEOUT_MESSAGE);
@@ -378,6 +387,10 @@ export async function toAnalysisResult(
     )
   )
     throw new ApiError(502, "SEMANTIC_CONTRACT", "invalid semantic candidates");
+  const selectionPreview = raw.capabilities?.selectionPreview === true;
+  const interactive =
+    env.interactivePreview &&
+    capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success;
   const people: PersonResult[] = await Promise.all(
     raw.candidatesByPerson.map(async (person) => {
       const confidence = narrow(CONFIDENCE, person.confidence, "low");
@@ -389,9 +402,10 @@ export async function toAnalysisResult(
             person.personIndex,
             signal,
             readOutputScope(person.outputScope).resolved,
-            env.interactivePreview &&
-              raw.source !== "semantic" &&
-              capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success,
+            // The Top-5 capability requires full coverage. The read-only preview
+            // can also reuse an asset advertised for just this candidate.
+            !semantic &&
+              (interactive || (selectionPreview && candidate.interactivePreview !== undefined)),
           ),
         ),
       );
@@ -440,6 +454,7 @@ export async function toAnalysisResult(
         : undefined,
     people,
     capabilities: {
+      refineRelease: !semantic && raw.capabilities?.refineRelease === true && people.length === 1,
       handSelection: raw.capabilities?.handSelection === true,
       presentationBodyPreviews: raw.capabilities?.presentationBodyPreviews === true,
       semanticBodySelection: !!semantic && raw.capabilities?.semanticBodySelection === true,
@@ -468,10 +483,16 @@ export async function toAnalysisResult(
       characterSelection: raw.capabilities?.characterSelection === true,
       outputScopeSelection: raw.capabilities?.outputScopeSelection === true,
       outputScopeCropping: raw.capabilities?.outputScopeCropping === true,
-      ...(env.interactivePreview && raw.capabilities?.selectionPreview === true
-        ? { selectionPreview: true }
-        : {}),
+      ...(selectionPreview ? { selectionPreview } : {}),
       modelPreview: raw.capabilities?.modelPreview === true,
+      ...(env.interactivePreview &&
+      interactiveStateCapabilitySchema.safeParse(raw.capabilities?.interactiveState).success
+        ? {
+            interactiveState: interactiveStateCapabilitySchema.parse(
+              raw.capabilities?.interactiveState,
+            ),
+          }
+        : {}),
       ...(env.interactivePreview &&
       capabilitySchema.safeParse(raw.capabilities?.interactivePreview).success
         ? { interactivePreview: capabilitySchema.parse(raw.capabilities?.interactivePreview) }
@@ -485,6 +506,7 @@ async function waitForResult(
   jobId: string,
   deadline: number,
   signal: AbortSignal,
+  onProgress?: AnalyzeInput["onProgress"],
 ): Promise<BffAnalysisResult> {
   while (Date.now() < deadline) {
     const job = await apiFetch<JobStatusResponse>(endpoints.analysis.job(jobId), {
@@ -492,7 +514,14 @@ async function waitForResult(
       signal,
     });
 
+    if (signal.aborted) throw signal.reason;
+    if (job.status === "queued") onProgress?.("queued");
+    if (job.status === "running") {
+      const snapshot = readAnalysisProgress(job.progress);
+      onProgress?.(snapshot?.stage ?? readAnalysisStage(job.stage) ?? "running", snapshot);
+    }
     if (job.status === "completed") {
+      onProgress?.("preparing");
       return apiFetch<BffAnalysisResult>(endpoints.analysis.result(jobId), {
         auth: false,
         signal,
@@ -630,18 +659,20 @@ export const poseHttp: PoseResultService = {
     width,
     height,
     signal: parentSignal,
+    onProgress,
   }): Promise<AnalysisResult> {
     const timeout = createAnalysisDeadline(parentSignal);
     let knownServerJobId: string | undefined;
 
     try {
+      if (!serverJobByClientJob.has(jobId)) onProgress?.("uploading");
       const serverJobId = await serverJobFor(
         jobId,
         { file, source, width, height },
         timeout.createSignal,
       );
       knownServerJobId = serverJobId;
-      const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal);
+      const result = await waitForResult(serverJobId, timeout.deadline, timeout.signal, onProgress);
       const analysis = await toAnalysisResult(result, timeout.signal);
       if (timeout.signal.aborted) throw timeout.signal.reason;
       return {

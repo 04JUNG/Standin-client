@@ -1,12 +1,11 @@
 import { LocalFbxPreview } from "@/features/personal-body/LocalFbxPreview";
-import { OutlineControl } from "@/features/pose-viewer/outline/OutlineControl";
-import { SkinControl } from "@/features/pose-viewer/skin/SkinControl";
+import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
 import { journeyExit } from "@/features/analytics/featureJourney";
 import "@/shared/styles/horizontal-scroll.css";
 import { GeneratedFbxNotice } from "@/features/pose-viewer/components/GeneratedFbxNotice";
 import { HandChips } from "@/features/hand-selection/HandChips";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Loader2, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { useFramedReview } from "@/features/pose-viewer/hooks/useFramedReview";
 import { ReviewPosePreview } from "@/features/pose-viewer/components/ReviewPosePreview";
@@ -24,6 +23,8 @@ export function BarReviewPage() {
   const jobId = usePoseSelectionStore((s) => s.jobId);
   const {
     items,
+    draft,
+    roughUrl,
     hands,
     isRefining,
     previewLoading,
@@ -40,6 +41,8 @@ export function BarReviewPage() {
     retryPreview,
   } = useFramedReview(jobId ?? undefined);
 
+  // A skin that cannot be prepared must not dead-end the download: offer the default skin.
+  const switchSkin = preparationError ? previewFailure.switchToDefaultSkin : undefined;
   if (!jobId) return <Navigate to="/bar/actions" replace />;
   if (!isRefining && items.length === 0) return <Navigate to="/bar/candidates" replace />;
 
@@ -48,10 +51,18 @@ export function BarReviewPage() {
       <div className={`flex h-full flex-col gap-2 p-2.5 ${hands?.enabled ? "min-h-[440px]" : ""}`}>
         <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-text-secondary">
           {isRefining && !items.some((item) => item.interactivePreview) ? (
-            <>
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-              <span className="text-[12px]">포즈를 조정하는 중…</span>
-            </>
+            <PoseSearchPending
+              mode="refine"
+              compact
+              preview={
+                roughUrl
+                  ? { previewUrl: roughUrl, originalName: draft?.originalName ?? "러프" }
+                  : null
+              }
+              selectionPreviewUrl={
+                items[0]?.candidate.thumbnailUrl || items[0]?.candidate.quickThumbnailUrl
+              }
+            />
           ) : (
             <ul
               tabIndex={0}
@@ -61,7 +72,7 @@ export function BarReviewPage() {
               {items.map((item) => (
                 <li
                   key={item.personIndex}
-                  className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[320px]" : "max-w-[256px]"}`}
+                  className={`min-w-[160px] flex-1 basis-0 ${items.length === 1 ? "max-w-[192px]" : "max-w-[192px]"}`}
                 >
                   {item.localName ? (
                     <LocalFbxPreview content={item.localFbx} name={item.localName} />
@@ -69,6 +80,7 @@ export function BarReviewPage() {
                     <ReviewPosePreview
                       telemetryJobId={hands?.jobId}
                       interactive={item.interactivePreview}
+                      candidate={item.candidate}
                       model={item.previewModel}
                       outlineWidth={item.outlineWidth}
                       src={item.previewUrl}
@@ -82,12 +94,7 @@ export function BarReviewPage() {
                       onModelStatus={item.onModelStatus}
                     />
                   )}
-                  {(item.outlineAvailable || item.outlineWidth > 0) && (
-                    <OutlineControl personIndex={item.personIndex} />
-                  )}
-                  {(item.skinAvailable || item.skin) && (
-                    <SkinControl personIndex={item.personIndex} available={item.supportedSkins} />
-                  )}
+
                   {item.previewReference && (
                     <p className="px-2 text-[10px] text-text-secondary">
                       포즈만 확인하는 모습이에요. BVH에는 체형{item.includesHands ? "·손 모양" : ""}{" "}
@@ -126,16 +133,25 @@ export function BarReviewPage() {
             {preparationError
               ? previewFailure.message
               : "미리보기를 표시하지 못했어요. 준비된 파일은 다운로드할 수 있어요."}{" "}
-            <button
-              onClick={() =>
-                previewFailure.action === "choose"
-                  ? navigate("/bar/candidates")
-                  : void retryPreview()
-              }
-              className="underline"
-            >
-              {previewFailure.label}
-            </button>
+            {switchSkin && (
+              <>
+                <button onClick={switchSkin} className="font-semibold underline">
+                  기본 스킨으로 바꾸기
+                </button>{" "}
+              </>
+            )}
+            {!(switchSkin && previewFailure.retryUseless) && (
+              <button
+                onClick={() =>
+                  previewFailure.action === "choose"
+                    ? navigate("/bar/candidates")
+                    : void retryPreview()
+                }
+                className="underline"
+              >
+                {previewFailure.label}
+              </button>
+            )}
           </p>
         )}
         {!previewLoading && !previewError && !requiresFbx && previewNotice && (

@@ -9,6 +9,7 @@ import { useShortcutStore } from "@/shared/stores/shortcutStore";
 import { SemanticSearchBar } from "@/features/semantic-search/SemanticSearchBar";
 import { useExportStore } from "@/features/export/store/exportStore";
 import { PoseSearchPending } from "@/features/pose-viewer/components/PoseSearchPending";
+import { AnalysisResultsTransition } from "@/features/pose-viewer/components/AnalysisResultsTransition";
 import { useAnalysisResult } from "@/features/pose-viewer/hooks/useAnalysisResult";
 import { usePoseViewerShortcuts } from "@/features/pose-viewer/hooks/usePoseViewerShortcuts";
 import { usePoseSelectionStore } from "@/features/pose-viewer/store/poseSelectionStore";
@@ -145,47 +146,65 @@ export function BarCandidatesPage() {
       preferredWidth={isPending || isError ? 360 : resultWidth}
       footer={footer}
     >
-      <div data-semantic-results={semantic || undefined} className="flex flex-col gap-2 p-2">
-        {isPending && (
-          <PoseSearchPending preview={restoreOnly ? null : draft} restoring={restoreOnly} compact />
-        )}
-        {isError && (
-          <div className="flex flex-col items-center justify-center gap-2 px-3 py-3 text-center">
-            <p className="text-[12px] text-text-secondary">{analysisFailure(error).message}</p>
-            {analysisFailure(error).retryable && (
-              <Button
-                size="md"
-                onClick={() => {
-                  retryAnalysis(() => navigate("/bar/progress", { replace: true }));
-                }}
-              >
-                다시 시도
-              </Button>
-            )}
+      <AnalysisResultsTransition
+        key={jobId}
+        jobKey={jobId}
+        pending={isPending}
+        ready={!isError && !!data}
+        enabled={!restoreOnly && !semantic}
+        compact
+        progress={analysis.analysisProgress}
+        renderPending={(completed, capturedProgress) => (
+          <div className="p-2">
+            <PoseSearchPending
+              preview={restoreOnly ? null : draft}
+              restoring={restoreOnly}
+              progress={capturedProgress}
+              completed={completed}
+              compact
+            />
           </div>
         )}
-        {!isPending && !isError && data && (
-          <>
-            {semantic && (
-              <div className="sticky top-0 z-10 border-b border-border bg-surface-0 p-2">
-                <SemanticSearchBar
-                  resultKey={data.jobId}
-                  initialQuery={data.semantic?.query ?? ""}
-                  surface="bar"
+      >
+        <div data-semantic-results={semantic || undefined} className="flex flex-col gap-2 p-2">
+          {isError && (
+            <div className="flex flex-col items-center justify-center gap-2 px-3 py-3 text-center">
+              <p className="text-[12px] text-text-secondary">{analysisFailure(error).message}</p>
+              {analysisFailure(error).retryable && (
+                <Button
+                  size="md"
+                  onClick={() => {
+                    retryAnalysis(() => navigate("/bar/progress", { replace: true }));
+                  }}
+                >
+                  다시 시도
+                </Button>
+              )}
+            </div>
+          )}
+          {!isPending && !isError && data && (
+            <>
+              {semantic && (
+                <div className="sticky top-0 z-10 border-b border-border bg-surface-0 p-2">
+                  <SemanticSearchBar
+                    resultKey={data.jobId}
+                    initialQuery={data.semantic?.query ?? ""}
+                    surface="bar"
+                  />
+                </div>
+              )}
+              {people.map((person) => (
+                <BarPersonCandidates
+                  key={`${data.jobId}:${person.index}`}
+                  person={person}
+                  analysis={analysis}
+                  onPickPerson={scrollToPerson}
                 />
-              </div>
-            )}
-            {people.map((person) => (
-              <BarPersonCandidates
-                key={`${data.jobId}:${person.index}`}
-                person={person}
-                analysis={analysis}
-                onPickPerson={scrollToPerson}
-              />
-            ))}
-          </>
-        )}
-      </div>
+              ))}
+            </>
+          )}
+        </div>
+      </AnalysisResultsTransition>
     </BarShell>
   );
 }

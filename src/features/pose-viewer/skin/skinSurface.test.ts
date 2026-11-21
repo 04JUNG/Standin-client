@@ -2,7 +2,9 @@ import { webcrypto } from "node:crypto";
 import { beforeAll, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import fixture from "../interactive/__fixtures__/converter-packet.json";
-import { loadSolvedPacket, prepareSurface } from "../interactive/solved";
+import v2Fixture from "../interactive/__fixtures__/converter-packet-v2.json";
+import { stateBytes } from "../interactive/__fixtures__/binaryState";
+import { loadBinarySolvedState, loadSolvedPacket, prepareSurface } from "../interactive/solved";
 import { skinDisplaySurface, skinUvSchema } from "./skinSurface";
 
 beforeAll(() => vi.stubGlobal("crypto", webcrypto));
@@ -88,4 +90,54 @@ it("rejects missing UV corners and invalid coordinates before allocating display
     expect(
       skinUvSchema.safeParse({ source_sha256: "a".repeat(64), triangles: [[0, 1, 2]], uv }).success,
     ).toBe(false);
+});
+
+it("applies the same UV correspondence to a binary v2 model and refuses reordered triangles", async () => {
+  const { state: legacy, source: legacySource, uv, texture } = await sample();
+  const { state } = await loadBinarySolvedState(stateBytes(v2Fixture), {
+    operationId: "op_fixture",
+    revision: 1,
+    stateHash: v2Fixture.packet.stateHash,
+    personIndex: 0,
+    candidateId: "candidate",
+  });
+  const source = prepareSurface(state.model);
+  const overlay = skinDisplaySurface(
+    source.body,
+    state.model,
+    uv,
+    uv.source_sha256,
+    texture,
+    "flesh-guide",
+  );
+  const legacyOverlay = skinDisplaySurface(
+    legacySource.body,
+    legacy.model,
+    uv,
+    uv.source_sha256,
+    texture,
+    "flesh-guide",
+  );
+  const displayed = overlay.body.children[0] as THREE.Mesh,
+    expected = legacyOverlay.body.children[0] as THREE.Mesh;
+  for (const attribute of ["position", "normal", "uv"])
+    expect([...displayed.geometry.getAttribute(attribute).array]).toEqual([
+      ...expected.geometry.getAttribute(attribute).array,
+    ]);
+  const wrong = structuredClone(uv);
+  wrong.triangles[0] = [2, 1, 0];
+  expect(() =>
+    skinDisplaySurface(source.body, state.model, wrong, uv.source_sha256, texture, "muscle"),
+  ).toThrow("skin UV topology changed");
+  const extra = structuredClone(uv);
+  extra.triangles.push([0, 1, 2]);
+  extra.uv.push([0, 0], [1, 0], [0, 1]);
+  expect(() =>
+    skinDisplaySurface(source.body, state.model, extra, uv.source_sha256, texture, "muscle"),
+  ).toThrow("skin UV topology changed");
+  overlay.release();
+  legacyOverlay.release();
+  source.release();
+  legacySource.release();
+  texture.dispose();
 });

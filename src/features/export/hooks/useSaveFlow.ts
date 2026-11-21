@@ -1,3 +1,5 @@
+import { canUseInteractiveOperations } from "@/features/pose-viewer/interactive/capability";
+import { fetchPreparedFbxResponse } from "../lib/preparedFbx";
 import { interactiveController } from "@/features/pose-viewer/interactive/session";
 import { selectedSkin, sameSkin } from "@/features/pose-viewer/skin/skin";
 import { rememberSavedArtifacts } from "@/features/replay/savedArtifact";
@@ -140,7 +142,9 @@ async function resolvePoseBytes(
           )
         : url;
     onDownloadPath?.(pinnedUrl);
-    const bytes = await apiFetchBytes(pinnedUrl, { auth: false, ...(signal ? { signal } : {}) });
+    const bytes = new URL(pinnedUrl, "https://standin.invalid").searchParams.has("artifactReceipt")
+      ? new Uint8Array(await (await fetchPreparedFbxResponse(pinnedUrl, signal)).arrayBuffer())
+      : await apiFetchBytes(pinnedUrl, { auth: false, ...(signal ? { signal } : {}) });
     const digest =
       scope && format === "fbx"
         ? reviewedArtifactSha(framedExportUrl(exportUrl, scope, "fbx", characterId) + `#${refined}`)
@@ -618,7 +622,7 @@ export function useSaveFlow(jobId: string | undefined) {
               skin &&
               (format !== "fbx" ||
                 !env.interactivePreview ||
-                !analysisResult.capabilities.interactivePreview?.operations)
+                !canUseInteractiveOperations(analysisResult.capabilities))
             )
               throw new ApiError(422, "SKIN_UNSUPPORTED", "");
             if (
@@ -626,7 +630,7 @@ export function useSaveFlow(jobId: string | undefined) {
               (outline > 0 &&
                 (format !== "fbx" ||
                   !env.interactivePreview ||
-                  !analysisResult.capabilities.interactivePreview?.operations))
+                  !canUseInteractiveOperations(analysisResult.capabilities)))
             )
               throw new ApiError(422, "OUTLINE_UNSUPPORTED", "");
             const person = analysisResult.people.find((p) => p.index === personIndex);
@@ -688,9 +692,29 @@ export function useSaveFlow(jobId: string | undefined) {
               downloadPath = "local:" + artifact.snapshotHash;
               // Private names and device IDs are never included in export telemetry.
               bodyNames.add("personal-local");
+            } else if (currentOutcome?.release) {
+              if (format !== "fbx" || !exportUrl)
+                throw new ApiError(409, "GENERATED_FBX_REQUIRED", "");
+              const parsed = new URL(exportUrl, "https://standin.invalid");
+              if (
+                parsed.origin !== "https://standin.invalid" ||
+                !/^\/v1\/analysis\/jobs\/[^/]+\/people\/\d+\/refine\/release\/fbx$/.test(
+                  parsed.pathname,
+                )
+              )
+                throw new ApiError(409, "INVALID_EXPORT", "");
+              content = await apiFetchBytes(exportUrl, { auth: false, signal: controller.signal });
+              await verifyDigest(
+                content.buffer.slice(
+                  content.byteOffset,
+                  content.byteOffset + content.byteLength,
+                ) as ArrayBuffer,
+                currentOutcome.release.artifact_sha256,
+              );
+              downloadPath = exportUrl;
             } else if (
               env.interactivePreview &&
-              analysisResult.capabilities.interactivePreview?.operations &&
+              canUseInteractiveOperations(analysisResult.capabilities) &&
               format === "fbx"
             ) {
               const owner = useInstallationStore.getState().credentials?.installationId ?? "";
@@ -788,6 +812,7 @@ export function useSaveFlow(jobId: string | undefined) {
               personIndex,
               candidateId,
               downloadPath,
+              releaseSha: currentOutcome?.release?.artifact_sha256,
             };
           }),
         );
@@ -798,6 +823,7 @@ export function useSaveFlow(jobId: string | undefined) {
         if (
           !picks.some(([index]) => !!selectedLocalModel(analysisResult.jobId, Number(index))) &&
           format === "fbx" &&
+          !files.some((f) => !!f.releaseSha) &&
           analysisResult.source !== "semantic" &&
           sceneSelectionAvailable(analysisResult, selectionState.selectedByPerson) &&
           !env.useMockPoseApi
@@ -977,9 +1003,18 @@ export function useSaveFlow(jobId: string | undefined) {
         // A late response must never write an older selection to disk.
         if (
           (env.interactivePreview &&
-            analysisResult.capabilities.interactivePreview?.operations &&
+            canUseInteractiveOperations(analysisResult.capabilities) &&
             files.some((f) => {
               if (selectedLocalModel(analysisResult.jobId, f.personIndex)) return false;
+              if (f.releaseSha) {
+                const receipt = usePoseSelectionStore.getState().refineByPerson[f.personIndex];
+                return (
+                  receipt?.jobId !== analysisResult.jobId ||
+                  receipt.candidateId !== f.candidateId ||
+                  receipt.release?.artifact_sha256 !== f.releaseSha ||
+                  receipt.exportUrl !== f.downloadPath
+                );
+              }
               const current = interactiveController(
                 useInstallationStore.getState().credentials?.installationId ?? "",
                 analysisResult.jobId,

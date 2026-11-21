@@ -11,7 +11,31 @@ import { handKeys } from "@/features/hand-selection/api";
 import { selection as hands } from "@/features/hand-selection/fixtures";
 import type { BodySelection } from "@/features/body-selection/contract";
 import { poseQueryKeys } from "@/features/pose-viewer/queryKeys";
-const mock = vi.hoisted(() => ({ bytes: vi.fn(), body: vi.fn(), hand: vi.fn(), save: vi.fn() }));
+import { env } from "@/shared/lib/env";
+import { SKIN_CHOICES, type SkinId } from "@/features/pose-viewer/skin/skinChoices";
+const mock = vi.hoisted(() => ({
+  bytes: vi.fn(),
+  body: vi.fn(),
+  hand: vi.fn(),
+  save: vi.fn(),
+  interactiveDownload: vi.fn(),
+  skin: "default" as string,
+}));
+vi.mock("@/features/pose-viewer/interactive/session", () => ({
+  invalidateInteractiveJob: vi.fn(),
+  interactiveController: () => ({
+    snapshot: () => ({
+      binding: "final-binding",
+      operation: {
+        candidateId: "pick0",
+        fileUrl: "/fixture/final-skin.fbx",
+        ...(mock.skin === "default" ? {} : { skin: { version: "fbx-skin-v1", id: mock.skin } }),
+      },
+    }),
+    download: mock.interactiveDownload,
+    ready: () => true,
+  }),
+}));
 vi.mock("@/shared/lib/env", () => ({ env: { useMockPoseApi: false, isProduction: false } }));
 vi.mock("@/shared/api/client", async (original) => ({
   ...(await original<typeof import("@/shared/api/client")>()),
@@ -49,6 +73,8 @@ const url = (index: number) =>
   `/v1/pose-candidates/pose/export?jobId=job&personIndex=${index}&candidateId=pick${index}`;
 beforeEach(() => {
   vi.clearAllMocks();
+  mock.skin = "default";
+  mock.interactiveDownload.mockResolvedValue({ bytes: new Uint8Array([9]) });
   mock.bytes.mockResolvedValue(new Uint8Array([1]));
   mock.body.mockResolvedValue(new Uint8Array([2]));
   mock.hand.mockResolvedValue(new Uint8Array([3]));
@@ -70,6 +96,8 @@ beforeEach(() => {
     refineByPerson: {},
     characterId: "master",
     characterByPerson: {},
+    skinByPerson: {},
+    outlineByPerson: {},
   });
   useInstallationStore.setState({
     credentials: { installationId: "owner", deviceToken: "fixture", consentVersion: "2026-08-02" },
@@ -81,12 +109,24 @@ function mount(
   staleBodyHands = false,
   generatedMixed = false,
   selectedBody = body,
+  finalSkin?: SkinId,
 ) {
   const qc = new QueryClient();
   qc.setQueryData(poseQueryKeys.result("job"), {
     jobId: "job",
     capabilities: {
       fbxExport: true,
+      ...(finalSkin
+        ? {
+            interactiveState: {
+              schemaVersion: "standin.interactive-http.v1",
+              available: true,
+              transport: "polling",
+              localHands: false,
+              initialFbxRequired: true,
+            },
+          }
+        : {}),
       outputScopeCropping: true,
       handSelection: true,
       characterSelection: true,
@@ -121,6 +161,7 @@ function mount(
   } as AnalysisResult);
   usePoseSelectionStore.setState({
     selectedByPerson: Object.fromEntries(scopes.map((_, i) => [i, `pick${i}`])),
+    ...(finalSkin ? { skinByPerson: { 0: finalSkin } } : {}),
   });
   scopes.forEach((scope, i) => {
     qc.setQueryData(handKeys.selection("owner", "job", i), { ...hands, personIndex: i });
@@ -283,3 +324,27 @@ it("drops a late zero download when width changes before the native write", asyn
   act(() => usePoseSelectionStore.getState().setPersonOutline(0, 0));
   hook.unmount();
 });
+
+it.each(SKIN_CHOICES)(
+  "saves $label from final operations when static Top5 assets are absent",
+  async ({ id }) => {
+    const previous = env.interactivePreview;
+    Object.defineProperty(env, "interactivePreview", { value: true, configurable: true });
+    try {
+      mock.skin = id;
+      const hook = mount(["head"], false, false, false, body, id);
+      await waitFor(() => expect(hook.result.current.status).toBe("saved"));
+      expect(mock.interactiveDownload).toHaveBeenCalledWith(
+        "final-binding",
+        expect.any(AbortSignal),
+      );
+      expect(mock.save.mock.calls[0]?.[0].files[0].content).toEqual(new Uint8Array([9]));
+      expect(mock.bytes).not.toHaveBeenCalled();
+      expect(mock.body).not.toHaveBeenCalled();
+      expect(mock.hand).not.toHaveBeenCalled();
+      hook.unmount();
+    } finally {
+      Object.defineProperty(env, "interactivePreview", { value: previous, configurable: true });
+    }
+  },
+);

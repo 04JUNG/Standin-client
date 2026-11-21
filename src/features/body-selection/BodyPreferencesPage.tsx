@@ -3,21 +3,24 @@ import { PersonalDeformLibrary } from "@/features/personal-body/PersonalDeformCa
 import { useFeatureView } from "@/features/analytics/featureJourney";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
-import { useInstallationStore } from "@/features/installation/installationStore";
 import { AppShell } from "@/shared/components/AppShell";
 import { Button } from "@/shared/components/Button";
 import { ConfirmDialog } from "@/shared/components/ConfirmDialog";
-import { bodyKeys, putPreferences } from "./api";
-import { useBodyOwner } from "./hooks";
 import { BODY_KIND_LABEL, bodyKind, bodyRoleLabel, type BodyKind } from "./bodyPanel";
 import { NeutralImage, ShapeThumb } from "./LiveBodyView";
 import { useBodyLooks } from "./looks";
-import { CARD_NAME_MAX, cleanCardName, matchCard, useBodyCards } from "./preferences";
+import {
+  CARD_NAME_MAX,
+  cleanCardName,
+  matchCard,
+  useBodyCards,
+  useBodyPickerVisibility,
+} from "./preferences";
+import { pickerIncludes } from "./pickerVisibility";
 import { sameShape } from "./shapeValues";
-import type { BodyCard, BodyLook, BodyPreferences } from "./contract";
+import type { BodyCard, BodyLook } from "./contract";
 
 /**
  * 체형 커스텀(모델 화면): 내 체형 카드 + 기본 모델(프리셋) + 새 작업의 시작 체형.
@@ -30,20 +33,8 @@ export function BodyPreferencesPage() {
   const navigate = useNavigate();
   const { prefs, catalog, looks, find, name } = useBodyLooks();
   const { cards, change, supported } = useBodyCards();
+  const picker = useBodyPickerVisibility();
   useFeatureView("body_custom", supported, "exposure");
-  const owner = useBodyOwner();
-  const qc = useQueryClient();
-  const mode = useMutation({
-    mutationFn: (next: BodyPreferences["mode"]) => {
-      if (!prefs.data) throw new Error("preferences missing");
-      return putPreferences({ mode: next }, prefs.data.revision);
-    },
-    onSuccess: (value) => {
-      if (useInstallationStore.getState().credentials?.installationId === owner)
-        qc.setQueryData(bodyKeys.preferences(owner), value);
-    },
-    onError: () => void prefs.refetch(),
-  });
   const [kindView, setKindView] = useState<BodyKind | "all" | "personal">("all");
   const [deleting, setDeleting] = useState<BodyCard | null>(null);
 
@@ -93,32 +84,10 @@ export function BodyPreferencesPage() {
               새 작업을 시작할 때
             </h3>
             <p className="text-xs text-text-secondary">
-              다음 분석부터 적용됩니다. 각 인물의 체형은 후보 화면의 ‘체형 더보기’에서 따로 바꿀 수
+              마지막으로 사용한 체형으로 시작해요. 각 인물의 체형은 후보 화면에서 따로 바꿀 수
               있어요.
             </p>
-            <fieldset disabled={mode.isPending} className="space-y-2">
-              <legend className="sr-only">새 작업의 체형</legend>
-              <ModeOption
-                checked={value.mode === "last_used"}
-                onChange={() => mode.mutate("last_used")}
-                title="마지막으로 쓴 체형 (기본)"
-                description="마지막으로 사용한 체형으로 시작해요."
-              />
-              {value.mode === "last_used" && lastLabel && (
-                <p className="pl-7 text-xs text-text-secondary">현재 체형: {lastLabel}</p>
-              )}
-              <ModeOption
-                checked={value.mode === "auto"}
-                onChange={() => mode.mutate("auto")}
-                title="자동 추천"
-                description="러프에 맞는 체형으로 시작해요."
-              />
-            </fieldset>
-            {mode.isError && (
-              <p role="alert" className="text-[12px] text-brand-coral">
-                설정을 저장하지 못했습니다. 현재 값을 확인하고 다시 시도해 주세요.
-              </p>
-            )}
+            {lastLabel && <p className="text-xs text-text-secondary">현재 체형: {lastLabel}</p>}
           </section>
         )}
 
@@ -161,12 +130,24 @@ export function BodyPreferencesPage() {
                   look={find(card.characterId)}
                   baseName={name(card.characterId)}
                   editable={supported}
-                  busy={change.isPending}
+                  busy={change.isPending || picker.mutation.isPending}
                   onOpen={() => navigate(`/app/models/custom/${encodeURIComponent(card.cardId)}`)}
                   onRename={(next) =>
                     change.mutateAsync({ op: "update", cardId: card.cardId, name: next })
                   }
                   onDelete={() => setDeleting(card)}
+                  pickerToggle={
+                    picker.supported ? (
+                      <PickerToggle
+                        name={card.name}
+                        checked={pickerIncludes(value, "card", card.cardId)}
+                        disabled={picker.mutation.isPending || change.isPending}
+                        onChange={(included) =>
+                          picker.mutation.mutate({ kind: "card", id: card.cardId, included })
+                        }
+                      />
+                    ) : undefined
+                  }
                 />
               ))}
             </div>
@@ -232,6 +213,18 @@ export function BodyPreferencesPage() {
                 <PresetTile
                   key={look.characterId}
                   look={look}
+                  pickerToggle={
+                    picker.supported ? (
+                      <PickerToggle
+                        name={look.displayName ?? "기본 체형"}
+                        checked={pickerIncludes(value, "preset", look.characterId)}
+                        disabled={picker.mutation.isPending || change.isPending}
+                        onChange={(included) =>
+                          picker.mutation.mutate({ kind: "preset", id: look.characterId, included })
+                        }
+                      />
+                    ) : undefined
+                  }
                   onCustomize={
                     look.shape
                       ? () =>
@@ -248,6 +241,11 @@ export function BodyPreferencesPage() {
         {(catalog.isError || catalog.data?.origin === "fallback") && (
           <p role="alert" className="text-xs text-text-secondary">
             사용 가능한 체형 목록을 확인하지 못했습니다.
+          </p>
+        )}
+        {picker.mutation.isError && (
+          <p role="alert" className="text-xs text-brand-coral">
+            표시 설정을 저장하지 못했어요. 다시 시도해 주세요.
           </p>
         )}
       </div>
@@ -275,28 +273,6 @@ export function BodyPreferencesPage() {
   );
 }
 
-function ModeOption({
-  checked,
-  onChange,
-  title,
-  description,
-}: {
-  checked: boolean;
-  onChange(): void;
-  title: string;
-  description: string;
-}) {
-  return (
-    <label className="flex min-h-11 items-start gap-3">
-      <input type="radio" name="body-mode" className="mt-1" checked={checked} onChange={onChange} />
-      <span>
-        <span className="block text-sm font-semibold">{title}</span>
-        <span className="block text-xs text-text-secondary">{description}</span>
-      </span>
-    </label>
-  );
-}
-
 /** 내 체형 카드 한 장: 누르면 편집, 연필로 이름 변경(그 자리에서), 휴지통으로 삭제. */
 function CardTile({
   card,
@@ -307,6 +283,7 @@ function CardTile({
   onOpen,
   onRename,
   onDelete,
+  pickerToggle,
 }: {
   card: BodyCard;
   look?: BodyLook;
@@ -316,6 +293,7 @@ function CardTile({
   onOpen(): void;
   onRename(name: string): Promise<unknown>;
   onDelete(): void;
+  pickerToggle?: React.ReactNode;
 }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [invalid, setInvalid] = useState(false);
@@ -416,12 +394,21 @@ function CardTile({
           )}
         </div>
       )}
+      {pickerToggle}
     </div>
   );
 }
 
-/** 기본 모델(프리셋) 한 장. 이름 변경·삭제는 없다. 조절 가능한 체형만 눌러서 커스텀을 시작한다. */
-function PresetTile({ look, onCustomize }: { look: BodyLook; onCustomize?: () => void }) {
+/** 기본 모델은 유지하고, 선택창에 표시할지는 별도로 정한다. */
+function PresetTile({
+  look,
+  onCustomize,
+  pickerToggle,
+}: {
+  look: BodyLook;
+  onCustomize?: () => void;
+  pickerToggle?: React.ReactNode;
+}) {
   const kind = BODY_KIND_LABEL[bodyKind(look)];
   const body = (
     <>
@@ -442,20 +429,51 @@ function PresetTile({ look, onCustomize }: { look: BodyLook; onCustomize?: () =>
     </>
   );
   const box = "flex flex-col gap-2 rounded-xl border border-border bg-surface-0 p-3 text-left";
-  return onCustomize ? (
-    <button
-      type="button"
-      onClick={onCustomize}
-      className={cn(
-        box,
-        "transition-colors hover:border-brand-sky/60",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+  return (
+    <div className={cn(box, onCustomize && "transition-colors hover:border-brand-sky/60")}>
+      {onCustomize ? (
+        <button
+          type="button"
+          onClick={onCustomize}
+          className={cn(
+            "flex flex-col gap-2 text-left",
+            "transition-colors hover:border-brand-sky/60",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-sky",
+          )}
+        >
+          {body}
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2">{body}</div>
       )}
-    >
-      {body}
-    </button>
-  ) : (
-    <div className={box}>{body}</div>
+      {pickerToggle}
+    </div>
+  );
+}
+
+function PickerToggle({
+  name,
+  checked,
+  disabled,
+  onChange,
+}: {
+  name: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange(included: boolean): void;
+}) {
+  return (
+    <label className="mt-auto flex min-h-9 items-center gap-2 border-t border-border pt-2 text-xs text-text-secondary">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        aria-label={`${name} 체형 더보기에 표시`}
+        className="h-4 w-4 accent-brand-coral"
+      />
+      체형 더보기에 표시
+    </label>
   );
 }
 

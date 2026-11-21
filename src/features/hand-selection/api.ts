@@ -1,8 +1,13 @@
-import { preparedIdentity, preparedUrl } from "@/features/export/lib/preparedArtifact";
+import {
+  preparedIdentity,
+  preparedUrl,
+  preparedFile,
+} from "@/features/export/lib/preparedArtifact";
 import { ApiError } from "@/shared/api/errors";
 import { endpoints } from "@/shared/api/endpoints";
 import { apiFetch, apiFetchResponse } from "@/shared/api/client";
 import { blobToDataUrl } from "@/features/pose-viewer/api/thumbnails";
+import { fetchPreparedFbxResponse } from "@/features/export/lib/preparedFbx";
 import { verifyDigest } from "@/features/body-selection/api";
 import { catalogSchema, selectionSchema, sha, type HandSelection } from "./contract";
 
@@ -88,10 +93,7 @@ export function handReviewFromResponse(
   };
 }
 export async function downloadHandReview(receipt: HandReview, signal?: AbortSignal) {
-  const response = await apiFetchResponse(receipt.downloadUrl, {
-    auth: false,
-    ...(signal ? { signal } : {}),
-  });
+  const response = await fetchPreparedFbxResponse(receipt.downloadUrl, signal);
   if (
     response.headers.get("X-Standin-Review-Key") !== receipt.reviewKey ||
     response.headers.get("X-Standin-Artifact-SHA256") !== receipt.artifactSha256 ||
@@ -120,7 +122,7 @@ export async function loadHandReview(
     preparedIdentity(response);
     handReceipt.downloadUrl = preparedUrl(handReceipt.downloadUrl, handReceipt.reviewKey, "fbx");
     signal.throwIfAborted();
-    return { image: "", handReceipt };
+    return { image: "", handReceipt, file: preparedFile(response) };
   }
   const blob = await response.blob();
   if (blob.type !== "image/png") throw new Error("손이 적용된 미리보기를 확인하지 못했습니다.");

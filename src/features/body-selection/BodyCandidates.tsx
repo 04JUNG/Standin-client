@@ -7,7 +7,7 @@ import {
   failureProperties,
 } from "@/features/analytics/featureJourney";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
-import { Plus, RotateCcw, Sparkles } from "lucide-react";
+import { Plus, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/shared/lib/cn";
 import { Button } from "@/shared/components/Button";
@@ -30,6 +30,7 @@ import {
   type BodyKind,
 } from "./bodyPanel";
 import { cardsOf, matchCard, useBodyPreferences } from "./preferences";
+import { pickerIncludes } from "./pickerVisibility";
 import { ShapeControlGrid } from "./ShapeControls";
 import { shapeDefaults as defaults } from "./shapeValues";
 import { LiveBodyView, NeutralImage, ShapeThumb } from "./LiveBodyView";
@@ -39,7 +40,7 @@ import "@/shared/styles/horizontal-scroll.css";
 export function selectionFallbackMessage(selection?: BodySelection) {
   return selection?.resolvedSource === "catalog_default_fallback" &&
     selection.resolutionStatus === "ready" &&
-    selection.recommendation.status !== "available"
+    selection.recommendation.status === "unavailable"
     ? "체형을 찾지 못해 남성 기본형으로 시작했어요. 체형 더보기에서 바꿀 수 있어요."
     : undefined;
 }
@@ -76,7 +77,8 @@ function useBodyTitle(job: string, person: Pick<PersonResult, "index">, selectio
   );
   const { options } = useBodyControls(job, person, selection);
   const name = useBodyName(job, person, selection);
-  const cards = cardsOf(useBodyPreferences().data);
+  const preferences = useBodyPreferences().data;
+  const cards = cardsOf(preferences);
   const id = selection?.resolvedBody?.characterId;
   const spec = options.data?.characters.find((c) => c.characterId === id)?.shape;
   const card = matchCard(cards, id, selection?.shape?.controls ?? null, spec);
@@ -312,7 +314,8 @@ export function BodyExpand({
   const selection = entry?.selection;
   useFeatureView("body_selection", !!selection, "open", job, String(person.index));
   const { options, mutation } = useBodyControls(job, person, selection);
-  const cards = cardsOf(useBodyPreferences().data);
+  const preferences = useBodyPreferences().data;
+  const cards = cardsOf(preferences);
   const navigate = useNavigate();
   const name = useBodyName(job, person, selection);
   const characters = sortBodyLooks(options.data?.characters ?? []);
@@ -324,7 +327,9 @@ export function BodyExpand({
   const { kindView, setKindView } = useBodyCategory(job, person.index);
   const kind: BodyKind | "personal" =
     kindView ?? (localSelected ? "personal" : current ? bodyKind(current) : (kinds[0] ?? "male"));
-  const visible = characters.filter((c) => bodyKind(c) === kind);
+  const visible = characters.filter(
+    (c) => bodyKind(c) === kind && pickerIncludes(preferences, "preset", c.characterId),
+  );
 
   /* ---- 수치 조절: 손을 뗀 뒤 0.6초 쉬면 저장. 저장 중이면 끝난 뒤 마지막 값을 보낸다. */
   const spec = current?.shape;
@@ -402,7 +407,9 @@ export function BodyExpand({
   const baseOf = (card: BodyCard) => characters.find((c) => c.characterId === card.characterId);
   const visibleCards = cards.filter((card) => {
     const base = baseOf(card);
-    return !!base?.shape && bodyKind(base) === kind;
+    return (
+      !!base?.shape && bodyKind(base) === kind && pickerIncludes(preferences, "card", card.cardId)
+    );
   });
   function applyCard(card: BodyCard) {
     const base = baseOf(card);
@@ -541,7 +548,7 @@ export function BodyExpand({
               {variant === "bar" && visibleCards.length === 0 && (
                 <span className="font-normal">
                   {" "}
-                  · 내 체형 카드는 앱의 ‘체형 커스텀’에서 만들어요
+                  · 체형 커스텀에서 표시할 체형을 관리할 수 있어요
                 </span>
               )}
             </span>
@@ -708,22 +715,6 @@ export function BodyExpand({
             </p>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
-            <ToolButton
-              disabled={busy || !selection || selection.resolutionStatus === "not_applicable"}
-              onClick={() => {
-                clearLocal();
-                setKindView(null);
-                mutation.mutate({ intent: "auto" });
-              }}
-              title={
-                selection?.recommendation.status === "available"
-                  ? "러프에 맞춰 추천한 체형으로 바꿉니다"
-                  : "추천을 찾지 못하면 남성 기본형으로 바꿉니다"
-              }
-            >
-              <Sparkles className="h-3 w-3 text-brand-coral" aria-hidden />
-              자동 추천
-            </ToolButton>
             <ToolButton
               disabled={!!localSelected || busy || !currentId || (!selection?.shape && !draft)}
               onClick={() => {

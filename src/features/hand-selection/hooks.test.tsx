@@ -127,3 +127,78 @@ it("preserves saved hands across full → head → full, revalidating when hands
   await waitFor(() => expect(mocks.get).toHaveBeenCalledTimes(2));
   expect(hook.result.current.entries[0]?.selection?.left).toBe("fist");
 });
+
+// Production 2026-11-12 15:25 UTC: an idle review page re-read hands while the BFF was
+// stalled by another user's legacy v1 job. Both reads failed with 503 once, the page showed
+// "손 선택을 불러오지 못했습니다", download fell back to "파일 준비 중", and nothing retried.
+it("a busy server while re-reading held hands keeps the cards and readiness, then recovers alone", async () => {
+  const hook = setup();
+  await waitFor(() => expect(hook.result.current.ready).toBe(true));
+  const busy = new ApiError(503, "HANDS_UNAVAILABLE", "손 적용 서비스를 확인하지 못했습니다.");
+  mocks.getCatalog.mockRejectedValueOnce(busy);
+  mocks.get.mockRejectedValueOnce(busy);
+  const reads = mocks.get.mock.calls.length;
+  await act(async () => {
+    await hook.qc.refetchQueries({ queryKey: ["hands"] }, { throwOnError: false }).catch(() => {});
+  });
+  // Retries are in flight: the held selection still drives the page.
+  expect(hook.result.current.ready).toBe(true);
+  expect(hook.result.current.error).toBe(false);
+  expect(hook.result.current.entries[0]!.selection).toEqual(selection);
+  await waitFor(() => expect(mocks.get.mock.calls.length).toBe(reads + 2), { timeout: 3000 });
+  await waitFor(() =>
+    expect(hook.qc.getQueryState(["hands", "owner", "job", 0])?.status).toBe("success"),
+  );
+  expect(hook.result.current.ready).toBe(true);
+  expect(hook.result.current.error).toBe(false);
+});
+
+it("library changes and a disabled feature are not retried", async () => {
+  mocks.get.mockRejectedValue(new ApiError(409, "HAND_LIBRARY_CHANGED", "changed"));
+  const hook = setup();
+  await waitFor(() => expect(hook.result.current.error).toBe(true));
+  expect(mocks.get).toHaveBeenCalledTimes(1);
+  expect(hook.result.current.ready).toBe(false);
+  vi.clearAllMocks();
+  mocks.getCatalog.mockRejectedValue(new ApiError(503, "HAND_SELECTION_DISABLED", "disabled"));
+  mocks.get.mockResolvedValue(selection);
+  const disabled = setup();
+  await waitFor(() => expect(disabled.result.current.error).toBe(true));
+  expect(mocks.getCatalog).toHaveBeenCalledTimes(1);
+});
+
+it("an invalidated selection (a change that may have committed) still waits for the new answer", async () => {
+  const hook = setup();
+  await waitFor(() => expect(hook.result.current.ready).toBe(true));
+  let answer!: (value: unknown) => void;
+  mocks.get.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+  act(() => {
+    void hook.qc.invalidateQueries({ queryKey: ["hands", "owner", "job", 0] });
+  });
+  await waitFor(() => expect(hook.result.current.ready).toBe(false));
+  await act(async () => answer({ ...selection, revision: 1, left: "fist", changed: ["left"] }));
+  await waitFor(() => expect(hook.result.current.ready).toBe(true));
+  expect(hook.result.current.entries[0]!.selection!.revision).toBe(1);
+});
+
+it("a read that exhausts its retries shows the error and keeps healing every 15 s", async () => {
+  vi.useFakeTimers();
+  try {
+    mocks.get.mockRejectedValue(new ApiError(503, "HANDS_UNAVAILABLE", "busy"));
+    const hook = setup();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8_000);
+    });
+    expect(mocks.get).toHaveBeenCalledTimes(4);
+    expect(hook.result.current.error).toBe(true);
+    expect(hook.result.current.ready).toBe(false);
+    mocks.get.mockResolvedValue(selection);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(16_000);
+    });
+    expect(hook.result.current.error).toBe(false);
+    expect(hook.result.current.ready).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
