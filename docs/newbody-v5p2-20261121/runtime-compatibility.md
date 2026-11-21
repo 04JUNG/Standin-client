@@ -19,6 +19,18 @@ require the trilinear or multilinear mode; four-control tables require the
 multilinear mode. Undeclared tables are rejected. The 32 MiB file limit, source/SHA identity, finite values, vertex
 and index validation remain mandatory.
 
+The multilinear mode may declare bounded, distinct known `distanceKeys` that
+separate every preset center. These dimensions select the body family; all
+controls still affect geometry. Legacy modes reject this override. The candidate
+uses core body controls so height, leg and detail adjustments cannot inflate
+unrelated family distances.
+
+The offline reducer removes only original table knots and retains all preset
+knots. Its coefficient norm certificate bounds the total geometry change to
+0.05 mm per model before PCA. Compression weights complete single-control axis
+blocks more heavily to protect their stricter few-control error budget. These
+training operations never replace final full-precision controller checks.
+
 Older readers reject the new mode. A successful build or a local candidate file
 does not make the new catalog compatible with clients already in production.
 The compatible client must be reviewed, released, and available before any

@@ -277,6 +277,55 @@ describe("standin-shape-runtime.v2 (표본)", () => {
     expect(Object.keys(varying.header.controls)).toEqual(Object.keys(rt.header.controls));
   });
 
+  it("uses declared body-family dimensions while retaining other geometry controls", async () => {
+    const family = await load("idw2-varying-multilinear", (h) => {
+      const [a, b] = Object.values(h.presets) as [Record<string, number>, Record<string, number>];
+      h.selection!.distanceKeys = [Object.keys(h.controls).find((key) => a[key] !== b[key])!];
+    });
+    const first = Object.keys(family.header.presets)[0]!;
+    const metricKey = family.header.selection!.distanceKeys![0]!;
+    const before = { ...family.header.presets[first]! };
+    const after = { ...before };
+    for (const [key, bounds] of Object.entries(family.header.controls))
+      if (key !== metricKey)
+        after[key] =
+          Math.abs(bounds.max - before[key]!) > Math.abs(bounds.min - before[key]!)
+            ? bounds.max
+            : bounds.min;
+    expect(modelWeights(family, first, after)).toEqual([[first, 1]]);
+    expect(modelWeights(family, first, before)).toEqual(modelWeights(family, first, after));
+    const a = evaluateShape(family, before, undefined, first);
+    const b = evaluateShape(family, after, undefined, first);
+    expect(b.some((value, index) => Math.abs(value - a[index]!) > 1e-6)).toBe(true);
+  });
+
+  it.each(["duplicate", "unknown", "empty", "indistinguishable", "legacy", "cutoff"])(
+    "rejects invalid declared selection dimensions: %s",
+    async (kind) => {
+      await expect(
+        load(kind === "legacy" ? "idw2-varying" : "idw2-varying-multilinear", (h) => {
+          const [a, b] = Object.values(h.presets) as [
+            Record<string, number>,
+            Record<string, number>,
+          ];
+          const different = Object.keys(h.controls).find((key) => a[key] !== b[key])!;
+          const common = Object.keys(h.controls).find((key) => a[key] === b[key])!;
+          if (kind === "cutoff") h.selection!.cutRatio = 1;
+          h.selection!.distanceKeys =
+            kind === "duplicate"
+              ? [different, different]
+              : kind === "unknown"
+                ? ["toString"]
+                : kind === "empty"
+                  ? []
+                  : kind === "indistinguishable"
+                    ? [common]
+                    : [different];
+        }),
+      ).rejects.toThrow();
+    },
+  );
+
   it("needs the preset model to evaluate", () => {
     const c = resolveControls(rt, Object.keys(rt.header.presets)[0], {});
     expect(() => evaluateShape(rt, c)).toThrow(/preset/);

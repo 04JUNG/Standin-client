@@ -228,6 +228,7 @@ const sampledHeaderSchema = z.object({
     .object({
       mode: z.enum(["idw2", "idw2-varying", "idw2-varying-trilinear", "idw2-varying-multilinear"]),
       cutRatio: finite.min(1).max(16),
+      distanceKeys: z.array(z.string().min(1)).min(1).max(16).optional(),
     })
     .optional(),
   /** 굽을 때 잰 오차(mm). 앱은 쓰지 않고 기록용으로만 둔다. */
@@ -287,6 +288,21 @@ function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
     for (const v of a) if (!Number.isFinite(v)) throw new Error("shape runtime: not finite");
   // 모든 표·격자가 자산 안을 가리키고, 조절 이름이 헤더에 있고, 격자가 오름차순인가.
   const ascending = (xs: number[]) => xs.every((x, i) => i === 0 || x > xs[i - 1]!);
+  const distanceKeys = header.selection?.distanceKeys;
+  if (distanceKeys) {
+    if (
+      header.selection?.mode !== "idw2-varying-multilinear" ||
+      header.selection.cutRatio <= 1 ||
+      new Set(distanceKeys).size !== distanceKeys.length ||
+      !distanceKeys.every((key) => Object.prototype.hasOwnProperty.call(header.controls, key))
+    )
+      throw new Error("shape runtime: invalid explicit selection dimensions");
+    const centers = Object.values(header.presets).map((preset) =>
+      JSON.stringify(distanceKeys.map((key) => preset[key])),
+    );
+    if (new Set(centers).size !== centers.length)
+      throw new Error("shape runtime: selection dimensions do not distinguish presets");
+  }
   for (const [name, model] of Object.entries(header.models)) {
     if (!(name in header.presets)) throw new Error("shape runtime: model without preset " + name);
     const within = (offset: number, count: number) => {

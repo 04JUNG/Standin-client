@@ -87,7 +87,7 @@ export function modelWeights(
 ): [string, number][] {
   const { header } = runtime;
   if (!header.selection) return [[preset, 1]];
-  const allKeys = Object.keys(header.controls);
+  const allKeys = header.selection.distanceKeys ?? Object.keys(header.controls);
   // Invariant preset fields add the same offset to every distance. Keep them
   // in geometry evaluation while omitting them only for this explicit mode.
   const keys =
