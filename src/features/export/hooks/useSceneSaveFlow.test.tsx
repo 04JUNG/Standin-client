@@ -87,8 +87,8 @@ beforeEach(() => {
   });
 });
 afterEach(() => vi.useRealTimers());
-function setup(negotiated = true) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function setup(negotiated = true, gcTime = 5 * 60 * 1000) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime } } });
   qc.setQueryData(poseQueryKeys.result("job"), {
     jobId: "job",
     inputPreviewUrl: "/fixture/original.png",
@@ -111,6 +111,38 @@ function setup(negotiated = true) {
   );
   return { qc, wrapper };
 }
+it("keeps the saved FBX format, people and body data when the ordinary cache lifetime passes", async () => {
+  vi.useFakeTimers();
+  const { qc, wrapper } = setup(true, 20);
+  const resultKey = poseQueryKeys.result("job");
+  const result = qc.getQueryData<AnalysisResult>(resultKey)!;
+  qc.setQueryData(resultKey, {
+    ...result,
+    capabilities: { ...result.capabilities, bodyPreviews: true },
+  });
+  const bodyKey = bodyKeys.selection("owner", "job", 0);
+  const body = { resolvedBody: { characterId: "selected-female-body" }, selectionRevision: 4 };
+  qc.setQueryData(bodyKey, body);
+  useExportStore.setState({ status: "saved", savedPaths: ["/fixture/selected-female.fbx"] });
+  const hook = renderHook(() => useSaveFlow("job"), { wrapper });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(50);
+  });
+  expect(qc.getQueryData(resultKey)).toBeDefined();
+  expect(qc.getQueryData(bodyKey)).toEqual(body);
+  expect(hook.result.current.format).toBe("fbx");
+  expect(hook.result.current.formatDowngraded).toBe(false);
+  expect(hook.result.current.coverage.detected).toHaveLength(2);
+  expect(hook.result.current.coverage.included).toHaveLength(2);
+  expect(mock.prepare).not.toHaveBeenCalled();
+  expect(mock.save).not.toHaveBeenCalled();
+  hook.unmount();
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(50);
+  });
+  expect(qc.getQueryData(resultKey)).toBeUndefined();
+  expect(qc.getQueryData(bodyKey)).toBeUndefined();
+});
 function unavailableScene(
   reason: string,
 ): NonNullable<AnalysisResult["capabilities"]["sceneAvailability"]> {

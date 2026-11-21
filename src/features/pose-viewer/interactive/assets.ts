@@ -44,7 +44,8 @@ export async function boundedBytes(response: Response, limit: number, signal: Ab
   } finally {
     signal.removeEventListener("abort", abort);
     await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
+    // The response is consumed once. Keep the closed reader and stream together
+    // for GC: WKWebView can deadlock inside releaseLock during collection.
   }
 }
 export class BoundedQueue {
