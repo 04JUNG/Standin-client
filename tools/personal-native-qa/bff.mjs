@@ -4,9 +4,11 @@
  * Build a separate BFF checkout first; pass BFF_QA_ROOT, QA_BVH and QA_WORK.
  */
 import { createRequire } from "node:module";
+import process from "node:process";
+import { Buffer } from "node:buffer";
 import { pathToFileURL } from "node:url";
 import { createServer } from "node:http";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, appendFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -160,22 +162,56 @@ const result = {
     },
   ],
 };
-await db.query(
-  "INSERT INTO jobs (id,status,created_at,updated_at,result_json,installation_id) VALUES ($1,'completed',$2,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET result_json=EXCLUDED.result_json",
-  [job, now, JSON.stringify(result), credentials.installationId],
-);
-await db.query(
-  "INSERT INTO analysis_people (job_id,person_index,tags_json) VALUES ($1,0,'{}') ON CONFLICT DO NOTHING",
-  [job],
-);
-for (const c of result.candidatesByPerson[0].candidates)
-  await db.query(
-    "INSERT INTO analysis_candidates (job_id,person_index,candidate_id,pose_id,rank,view,match_level,tags_json,pose_library_version) VALUES ($1,0,$2,$3,$4,'front','similar','[]','local-qa') ON CONFLICT DO NOTHING",
-    [job, c.id, c.poseId, c.rank],
-  );
-await confirmSelections(credentials.installationId, job, [
-  { personIndex: 0, candidateId: "recorded-source" },
+// Separate owned jobs make camera/source selection explicit even when the offline
+// fixture has no approved default-body poster. This does not bypass export checks.
+const severe = new Uint8Array(await readFile(process.env.QA_SEVERE_BVH));
+const severeSha = createHash("sha256").update(severe).digest("hex");
+if (severeSha !== process.env.QA_SEVERE_BVH_SHA256) throw Error("Pinned severe BVH mismatch");
+const yawJob = `${job}_yaw35`,
+  severeJob = `${job}_severe`;
+const yawResult = structuredClone(result);
+yawResult.jobId = yawJob;
+yawResult.notes = ["LOCAL QA neutral diagnostic, camera yaw35; no approved default-body poster"];
+yawResult.candidatesByPerson[0].candidates = [candidate("recorded-yaw35", 1, rotation)];
+const severeResult = structuredClone(result);
+severeResult.jobId = severeJob;
+severeResult.notes = ["LOCAL QA recorded seated pose: expected private native quality rejection"];
+severeResult.candidatesByPerson[0].candidates = [
+  candidate("recorded-severe", 1, [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ]),
+];
+const severeCandidate = severeResult.candidatesByPerson[0].candidates[0];
+Object.assign(severeCandidate, { poseId: "recorded-severe-pose", sourceBvhSha256: severeSha });
+Object.assign(severeCandidate.camera, {
+  pose_id: "recorded-severe-pose",
+  source_bvh_sha256: severeSha,
+});
+const jobs = new Map([
+  [job, result],
+  [yawJob, yawResult],
+  [severeJob, severeResult],
 ]);
+for (const [jobId, jobResult] of jobs) {
+  await db.query(
+    "INSERT INTO jobs (id,status,created_at,updated_at,result_json,installation_id) VALUES ($1,'completed',$2,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET result_json=EXCLUDED.result_json",
+    [jobId, now, JSON.stringify(jobResult), credentials.installationId],
+  );
+  await db.query(
+    "INSERT INTO analysis_people (job_id,person_index,tags_json) VALUES ($1,0,'{}') ON CONFLICT DO NOTHING",
+    [jobId],
+  );
+  for (const c of jobResult.candidatesByPerson[0].candidates)
+    await db.query(
+      "INSERT INTO analysis_candidates (job_id,person_index,candidate_id,pose_id,rank,view,match_level,tags_json,pose_library_version) VALUES ($1,0,$2,$3,$4,'front','similar','[]','local-qa') ON CONFLICT DO NOTHING",
+      [jobId, c.id, c.poseId, c.rank],
+    );
+  await confirmSelections(credentials.installationId, jobId, [
+    { personIndex: 0, candidateId: jobResult.candidatesByPerson[0].candidates[0].id },
+  ]);
+}
 const objectRoot = path.join(work, "objects");
 await mkdir(objectRoot, { recursive: true });
 const objectServer = createServer(async (req, res) => {
@@ -206,11 +242,17 @@ const objectServer = createServer(async (req, res) => {
 });
 await new Promise((r) => objectServer.listen(18462, "127.0.0.1", r));
 let upstreamBytes = source;
-const upstream = createServer((req, res) =>
-  req.url === "/pose/recorded-pose/bvh"
-    ? res.writeHead(200, { "Content-Type": "application/octet-stream" }).end(upstreamBytes)
-    : res.writeHead(403).end(),
-);
+const upstream = createServer((req, res) => {
+  const bytes =
+    req.url === "/pose/recorded-pose/bvh"
+      ? upstreamBytes
+      : req.url === "/pose/recorded-severe-pose/bvh"
+        ? severe
+        : null;
+  return bytes
+    ? res.writeHead(200, { "Content-Type": "application/octet-stream" }).end(bytes)
+    : res.writeHead(403).end();
+});
 await new Promise((r) => upstream.listen(18463, "127.0.0.1", r));
 const quality = {
   version: "2026-10-19",
@@ -221,6 +263,26 @@ const quality = {
 };
 const app = new Hono();
 app.use("*", appCors(["tauri://localhost", "http://tauri.localhost", "http://localhost:1420"]));
+app.use("*", async (c, next) => {
+  const started = performance.now();
+  await next();
+  let finalBvhSha256;
+  if (c.res.status === 200 && c.req.path.endsWith("/export") && c.req.query("format") === "bvh")
+    finalBvhSha256 = createHash("sha256")
+      .update(new Uint8Array(await c.res.clone().arrayBuffer()))
+      .digest("hex");
+  await appendFile(
+    path.join(work, "requests-sanitized.jsonl"),
+    JSON.stringify({
+      time: new Date().toISOString(),
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      finalBvhSha256,
+      durationMs: performance.now() - started,
+    }) + "\n",
+  );
+});
 app.post("/v1/installations", (c) => c.json({ ...credentials, qualityConsent: quality }));
 app.use("/v1/*", requireInstallation);
 app.use("/v1/*", async (c, next) => {
@@ -248,71 +310,71 @@ app.get("/v1/events/capabilities", (c) => c.json({ journeyVersion: 0, featureUsa
 app.get("/v1/semantic-search/capabilities", (c) => c.json({ available: false }));
 app.get("/v1/analysis/jobs", (c) =>
   c.json({
-    items: [
-      {
-        jobId: job,
-        status: "completed",
-        createdAt: now,
-        completedAt: now,
-        errorCode: null,
-        source: "file",
-        personCount: 1,
-        selectionCount: 1,
-        hasSelection: true,
-        thumbnailUrl: null,
-        inputAvailable: false,
-      },
-    ],
+    items: Array.from(jobs.keys()).map((jobId) => ({
+      jobId,
+      status: "completed",
+      createdAt: now,
+      completedAt: now,
+      errorCode: null,
+      source: "file",
+      personCount: 1,
+      selectionCount: 1,
+      hasSelection: true,
+      thumbnailUrl: null,
+      inputAvailable: false,
+    })),
     nextCursor: null,
   }),
 );
-app.get(`/v1/analysis/jobs/${job}`, async (c) => {
-  const owned = await getOwnedJob(job, c.get("installationId"));
-  return owned
-    ? c.json({ jobId: job, status: "completed", createdAt: now, updatedAt: now, error: null })
-    : c.json({ error: { code: "NOT_FOUND" } }, 404);
-});
-app.get(`/v1/analysis/jobs/${job}/result`, async (c) => {
-  const owned = await getOwnedJob(job, c.get("installationId"));
-  return owned ? c.json(owned.result) : c.json({ error: { code: "NOT_FOUND" } }, 404);
-});
-app.get(`/v1/analysis/jobs/${job}/selections`, async (c) =>
-  c.json({
-    selections: (
-      await db.query(
-        "SELECT person_index,candidate_id,rank,confirmed_at FROM confirmed_selections WHERE job_id=$1 AND installation_id=$2",
-        [job, c.get("installationId")],
-      )
-    ).rows.map((r) => ({
-      personIndex: r.person_index,
-      candidateId: r.candidate_id,
-      rank: r.rank,
-      confirmedAt: r.confirmed_at,
-    })),
-  }),
-);
-app.put(`/v1/analysis/jobs/${job}/selections`, async (c) => {
-  const b = await c.req.json();
-  return (await confirmSelections(c.get("installationId"), job, b.selections))
-    ? c.json({ ok: true })
-    : c.json({ error: { code: "INVALID_SELECTION" } }, 409);
-});
-app.get(`/v1/analysis/jobs/${job}/people/0/body-selection`, (c) =>
-  c.json({
-    schemaVersion: "body-selection.v1",
-    personIndex: 0,
-    intent: "inherit",
-    manualCharacterId: null,
-    recommendation: { status: "disabled", body: null, reasonCodes: ["local_qa"] },
-    resolvedBody: null,
-    resolvedSource: null,
-    resolutionStatus: "needs_selection",
-    selectionRevision: 0,
-  }),
-);
-app.get(`/v1/analysis/jobs/${job}/people/0/body-options`, (c) =>
-  c.json({ catalogRevision: "local-qa", characters: [] }),
-);
+for (const jobId of jobs.keys()) {
+  app.get(`/v1/analysis/jobs/${jobId}`, async (c) => {
+    const owned = await getOwnedJob(jobId, c.get("installationId"));
+    return owned
+      ? c.json({ jobId, status: "completed", createdAt: now, updatedAt: now, error: null })
+      : c.json({ error: { code: "NOT_FOUND" } }, 404);
+  });
+  app.get(`/v1/analysis/jobs/${jobId}/result`, async (c) => {
+    const owned = await getOwnedJob(jobId, c.get("installationId"));
+    return owned ? c.json(owned.result) : c.json({ error: { code: "NOT_FOUND" } }, 404);
+  });
+  app.get(`/v1/analysis/jobs/${jobId}/selections`, async (c) =>
+    c.json({
+      selections: (
+        await db.query(
+          "SELECT person_index,candidate_id,rank,confirmed_at FROM confirmed_selections WHERE job_id=$1 AND installation_id=$2",
+          [jobId, c.get("installationId")],
+        )
+      ).rows.map((r) => ({
+        personIndex: r.person_index,
+        candidateId: r.candidate_id,
+        rank: r.rank,
+        confirmedAt: r.confirmed_at,
+      })),
+    }),
+  );
+  app.put(`/v1/analysis/jobs/${jobId}/selections`, async (c) => {
+    const b = await c.req.json();
+    return (await confirmSelections(c.get("installationId"), jobId, b.selections))
+      ? c.json({ ok: true })
+      : c.json({ error: { code: "INVALID_SELECTION" } }, 409);
+  });
+  app.get(`/v1/analysis/jobs/${jobId}/people/0/body-selection`, (c) =>
+    c.json({
+      schemaVersion: "body-selection.v1",
+      personIndex: 0,
+      intent: "inherit",
+      manualCharacterId: null,
+      recommendation: { status: "disabled", body: null, reasonCodes: ["local_qa"] },
+      resolvedBody: null,
+      resolvedSource: null,
+      resolutionStatus: "needs_selection",
+      selectionRevision: 0,
+    }),
+  );
+  app.get(`/v1/analysis/jobs/${jobId}/people/0/body-options`, (c) =>
+    c.json({ catalogRevision: "local-qa", characters: [] }),
+  );
+}
 const url = `/v1/pose-candidates/recorded-pose/export?jobId=${job}&personIndex=0&candidateId=recorded-source&format=bvh`;
 const headers = (c) => ({
   "X-Installation-Id": c.installationId,
