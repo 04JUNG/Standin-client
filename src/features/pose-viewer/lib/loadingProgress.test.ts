@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ANALYSIS_STAGES } from "../api/analysisProgress";
 import {
+  POSE_LOADING_STAGES,
   estimateLoadingProgress,
   loadingVisualStage,
   readAnalysisStage,
@@ -23,13 +24,15 @@ describe("estimated loading progress", () => {
     for (const stage of ANALYSIS_STAGES) expect(readAnalysisStage(stage)).toBe(stage);
     for (const value of [undefined, null, "done", "refine", {}, 42])
       expect(readAnalysisStage(value)).toBeUndefined();
-    for (const phase of ["running", "ranking", "preparing"] as const)
+    for (const phase of ["running", "refining"] as const)
       expect(loadingVisualStage(phase)).toBe("searching");
   });
   it("keeps integrated pipeline estimates monotonic at every stage boundary", () => {
-    for (let i = 0; i < ANALYSIS_STAGES.length - 1; i++)
-      expect(estimateLoadingProgress(ANALYSIS_STAGES[i], 3_600_000)).toBeLessThanOrEqual(
-        estimateLoadingProgress(ANALYSIS_STAGES[i + 1], 0),
+    expect(loadingVisualStage("ranking")).toBe("ranking");
+    expect(loadingVisualStage("preparing")).toBe("ranking");
+    for (let i = 0; i < POSE_LOADING_STAGES.length - 1; i++)
+      expect(estimateLoadingProgress(POSE_LOADING_STAGES[i], 3_600_000)).toBeLessThanOrEqual(
+        estimateLoadingProgress(POSE_LOADING_STAGES[i + 1], 0),
       );
     expect(estimateLoadingProgress("ranking", 3_600_000)).toBeLessThanOrEqual(
       estimateLoadingProgress("preparing", 0),

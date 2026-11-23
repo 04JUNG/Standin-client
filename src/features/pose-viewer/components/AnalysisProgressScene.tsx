@@ -137,9 +137,32 @@ export function ProgressSkeleton({
             data-active-joint={index}
             cx={p[0] * 1000}
             cy={p[1] * height}
-            r={21 * unit}
+            r={23 * unit}
             vectorEffect="non-scaling-stroke"
-          />
+          >
+            {inputRunning && !reduced && (
+              <animate
+                attributeName="r"
+                values={`${23 * unit};${26 * unit};${23 * unit}`}
+                dur="2.1s"
+                repeatCount="indefinite"
+              />
+            )}
+            {animate(
+              "cx",
+              before?.points[index]?.[0] === undefined
+                ? undefined
+                : before.points[index]![0] * 1000,
+              p[0] * 1000,
+            )}
+            {animate(
+              "cy",
+              before?.points[index]?.[1] === undefined
+                ? undefined
+                : before.points[index]![1] * height,
+              p[1] * height,
+            )}
+          </circle>
         );
       })}
       {polishing &&
@@ -149,14 +172,22 @@ export function ProgressSkeleton({
           if (!p) return null;
           return (
             <g key={`polish-${index}`} data-polish-joint={index} aria-hidden="true">
-              {[
-                [-29, -23],
-                [30, 16],
-              ].map(([dx, dy], i) => (
+              {[[28, -25]].map(([dx, dy], i) => (
                 <g
                   key={i}
                   transform={`translate(${p[0] * 1000 + dx * unit} ${p[1] * height + dy * unit}) scale(${unit})`}
                 >
+                  {!reduced && before?.points[index] && (
+                    <animateTransform
+                      attributeName="transform"
+                      type="translate"
+                      from={`${((before.points[index]![0] - p[0]) * 1000) / unit} ${((before.points[index]![1] - p[1]) * height) / unit}`}
+                      to="0 0"
+                      additive="sum"
+                      dur="900ms"
+                      fill="freeze"
+                    />
+                  )}
                   <path
                     className="pose-loading__joint-glint"
                     style={{ "--order": order * 2 + i } as CSSProperties}
@@ -167,13 +198,13 @@ export function ProgressSkeleton({
             </g>
           );
         })}
-      {inputJoints.slice(0, 2).map((index, i) => {
+      {inputJoints.slice(0, 2).map((index) => {
         const p = skeleton.points[index];
         if (!p) return null;
         const x = p[0] * 1000,
           y = p[1] * height;
-        const fromX = x + (i % 2 ? -105 : 105) * unit,
-          fromY = y - (92 + i * 16) * unit;
+        const fromX = x + (index % 2 === 0 ? -108 : 108) * unit,
+          fromY = y - 90 * unit;
         const path = `M ${fromX} ${fromY} Q ${x} ${fromY} ${x} ${y}`;
         return (
           <g key={`input-${index}`} className="pose-loading__joint-input" data-input-joint={index}>
@@ -325,7 +356,7 @@ export function AnalysisProgressScene({
   const refinement = person?.refinement;
   const observedSkeleton = person?.skeleton ?? provisionalSkeleton;
   const actualFit = refinement?.status === "improved";
-  if (stage === "searching" && person?.candidates?.length)
+  if ((stage === "searching" || stage === "ranking") && person?.candidates?.length)
     return <ProgressCandidates candidates={person.candidates} ranking={finishingSearch} />;
   if (stage === "refining" && refinement) {
     const shown = actualFit ? (refinement.after ?? refinement.before) : refinement.before;

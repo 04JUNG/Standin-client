@@ -117,7 +117,12 @@ it("history loads a text job without uploading and keeps both source ids for exp
   expect(data.people[0]!.candidates[1]!.bvhUrl).toContain("candidateId=throw_mirror%3A%3Afront");
   usePoseSelectionStore.getState().startJob("job_saved", null);
   usePoseSelectionStore.getState().selectCandidate(0, "throw_mirror::front");
-  const { result: hook } = renderHook(() => useRefineSelection(data));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { result: hook } = renderHook(() => useRefineSelection(data), {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
   await waitFor(() => expect(hook.current.status).toBe("done"));
   expect(refine).not.toHaveBeenCalled();
 });

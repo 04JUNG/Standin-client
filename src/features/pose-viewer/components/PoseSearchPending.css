@@ -673,6 +673,18 @@
   stroke: var(--brand-coral);
   stroke-width: 1;
 }
+[data-refinement="running"] .pose-loading__joint-ring {
+  animation: pose-joint-emphasis 2.4s ease-in-out infinite;
+}
+@keyframes pose-joint-emphasis {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 .pose-loading__joint-input path {
   stroke: var(--brand-coral);
   stroke-width: 1;
@@ -727,7 +739,8 @@
   --entry-y: 30cqw !important;
 }
 /* Cut facts and body observations remain beside/below the image; keep the candidate ribbon clear. */
-.pose-loading[data-stage="searching"] .pose-loading__observation-flow[data-thumbnail="true"] {
+.pose-loading[data-stage="searching"] .pose-loading__observation-flow[data-thumbnail="true"],
+.pose-loading[data-stage="ranking"] .pose-loading__observation-flow[data-thumbnail="true"] {
   visibility: hidden;
 }
 .pose-loading__reel-track,
@@ -1086,4 +1099,69 @@
   bottom: 20px;
   padding: 3px 4px;
   gap: 3px;
+}
+
+.pose-loading__track[data-indeterminate="true"] .pose-loading__fill {
+  width: 30%;
+  animation: pose-selected-wait 1.8s ease-in-out infinite alternate;
+}
+
+/* Same image viewport as the observed COCO points. No guessed mannequin positions. */
+.pose-loading__selected-effects {
+  position: absolute;
+  inset: 38px 24px;
+  pointer-events: none;
+}
+.pose-loading__visual[data-selected-refining="true"] .pose-loading__source {
+  opacity: 0.38;
+}
+.pose-loading__selected-effects .pose-loading__joint-glint {
+  animation: pose-target-glint 1.2s ease-in-out infinite;
+  animation-delay: calc(var(--order) * 30ms);
+}
+.pose-loading__selected-effects .pose-loading__joint-input rect,
+.pose-loading__selected-effects .pose-loading__joint-input text {
+  display: none;
+}
+.pose-loading__selected-effects .pose-loading__joint-feed {
+  bottom: 0;
+}
+.pose-loading__selected-effects .pose-loading__joint-status {
+  bottom: -23px;
+}
+.pose-loading--compact .pose-loading__selected-effects {
+  inset: 29px 13px 28px;
+}
+.pose-loading--compact .pose-loading__selected-effects .pose-loading__joint-feed {
+  display: none;
+}
+@keyframes pose-target-glint {
+  0%,
+  42%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  16% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pose-loading__selected-effects .pose-loading__joint-glint {
+    display: none;
+  }
+}
+@keyframes pose-selected-wait {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(230%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pose-loading__track[data-indeterminate="true"] .pose-loading__fill {
+    animation: none;
+  }
 }

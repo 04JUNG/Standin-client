@@ -1,0 +1,28 @@
+{
+  "coordinate_source": "actual RTMPose current-x; no manual joint coordinates",
+  "engine_version": "v2.5.3",
+  "backend": "scipy",
+  "cache_hit": false,
+  "refined": true,
+  "accepted_limbs": ["left_arm", "right_arm"],
+  "loss_base": 0.025268891139263887,
+  "loss_final": 0.005026800511003821,
+  "engine_duration_ms": 568,
+  "ui_recorded_ms": 521,
+  "joint_ids": [7, 9, 8, 10],
+  "max_dom_coordinate_error": 1.1368683772161603e-13,
+  "max_sparkle_opacity_by_joint": {
+    "7": 0.987717,
+    "8": 0.999563,
+    "9": 0.995703,
+    "10": 0.997438
+  },
+  "effects_after_result": 0,
+  "runtime_errors": [],
+  "limits": [
+    "local real v2.5 solver, not production RC4",
+    "routing controls fixed; local file-backed ownership/storage",
+    "wrist detection on hanging arm is visibly above the drawn wrist; UI follows model input exactly",
+    "local bridge fetches real result BVH to adapt URL response to existing BFF inline contract"
+  ]
+}

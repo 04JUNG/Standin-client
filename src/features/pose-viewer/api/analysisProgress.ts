@@ -128,5 +128,7 @@ export function activeProgressPerson(
       : evidence === "refinement"
         ? !!person.refinement
         : !!person[evidence]?.length;
+  // Never borrow another person's evidence when the server named the active person.
+  if (snapshot.activePersonIndex !== undefined) return active;
   return active && available(active) ? active : (snapshot.people.find(available) ?? active);
 }

@@ -48,6 +48,11 @@ export interface RefineService {
     personIndex: number;
     candidateId: string;
     deferPreview?: boolean;
+    signal?: AbortSignal;
+    onProgress?: (
+      phase: "refining" | "preparing",
+      target?: import("./selectedRefineTarget").SelectedRefineTarget,
+    ) => void;
     releaseVersion?: "RC4";
   }): Promise<RefineOutcome>;
 }
