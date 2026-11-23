@@ -1,5 +1,10 @@
 # Female 0.4.0 breast7 runtime
 
+The user's 2026-11-23 follow-up authorizes a code-only main promotion of these
+validated changes. Earlier review-only/main-unmerged statements describe the
+initial validation snapshot. Asset activation, desktop release and updater feed
+changes remain separate; unrelated develop changes are excluded.
+
 This is a separate source-bound port of the original breast7 candidate onto the
 current 105,430-vertex, 54-bone female 0.4.0 model. It preserves the current body,
 hands, proportions, rig and weights. It does not activate a catalog or replace an
