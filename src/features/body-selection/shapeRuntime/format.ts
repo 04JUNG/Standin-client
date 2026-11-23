@@ -11,12 +11,14 @@ import { z } from "zod";
  */
 export const SHAPE_RUNTIME_FORMAT = "standin-shape-runtime.v1";
 const MAGIC = 0x31525353; // "SSR1" little-endian
-const MAX_VERTICES = 65535; // faces/indices are u16
+const MAX_VERTICES = 65535; // sampled runtimes retain u16 indices
+const MAX_RULE_VERTICES = 200000;
+export type ShapeIndex = Uint16Array | Uint32Array;
 
 const finite = z.number().finite();
 const arraySchema = z.object({
   name: z.string().min(1),
-  dtype: z.enum(["float32", "uint16", "int16"]),
+  dtype: z.enum(["float32", "uint16", "uint32", "int16"]),
   offset: z.number().int().nonnegative(),
   length: z.number().int().nonnegative(),
 });
@@ -30,7 +32,8 @@ const headerSchema = z.object({
   asset: z.string().min(1),
   /** 이 자산을 구운 원본 .blend·컨트롤러 해시(2026-10-16부터). 굽기 연동 카탈로그는 이 값을 대조한다. */
   source: sourceSchema.optional(),
-  vertexCount: z.number().int().positive().max(MAX_VERTICES),
+  vertexCount: z.number().int().positive().max(MAX_RULE_VERTICES),
+  indexDtype: z.enum(["uint16", "uint32"]).optional(),
   faceCount: z.number().int().nonnegative(),
   bandCount: z.number().int().nonnegative(),
   landmarks: z
@@ -56,6 +59,7 @@ const headerSchema = z.object({
       name: z.string().min(1),
       scale: finite.positive(),
       bandScale: finite.positive(),
+      valueDtype: z.enum(["int16", "float32"]).optional(),
       count: z.number().int().nonnegative(),
     }),
   ),
@@ -66,8 +70,8 @@ export type ShapeRuntimeHeader = z.infer<typeof headerSchema>;
 export type ShapeField = {
   name: string;
   /** 0이 아닌 정점 번호와 xyz 값(int16 × scale). */
-  index: Uint16Array;
-  values: Int16Array;
+  index: ShapeIndex;
+  values: Int16Array | Float32Array;
   scale: number;
   /** 지방 연결 띠(band) 정점의 36회 평활 차이(int16 × bandScale). */
   band: Int16Array;
@@ -77,15 +81,20 @@ export type ShapeRuntime = {
   kind: "rules";
   header: ShapeRuntimeHeader;
   basis: Float32Array;
-  faces: Uint16Array;
-  band: Uint16Array;
+  faces: ShapeIndex;
+  band: ShapeIndex;
   bandConst: Float32Array;
   fields: Map<string, ShapeField>;
   /** 규칙별 추가 표(예: 0.6.10 근육 볼륨 `MB.idx`/`MB.val`). 각 규칙 모듈이 길이를 다시 검사한다. */
-  arrays: ReadonlyMap<string, Float32Array | Uint16Array | Int16Array>;
+  arrays: ReadonlyMap<string, Float32Array | Uint16Array | Uint32Array | Int16Array>;
 };
 
-const TYPED = { float32: Float32Array, uint16: Uint16Array, int16: Int16Array } as const;
+const TYPED = {
+  float32: Float32Array,
+  uint16: Uint16Array,
+  uint32: Uint32Array,
+  int16: Int16Array,
+} as const;
 
 /** v1(규칙을 옮긴 계산) 또는 v2(컨트롤러 출력을 표본으로 굽힌 계산). */
 export type AnyShapeRuntime = ShapeRuntime | SampledRuntime;
@@ -102,7 +111,7 @@ export function parseShapeRuntime(buffer: ArrayBuffer): AnyShapeRuntime {
     JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, headerBytes))),
   );
   const dataStart = 8 + headerBytes;
-  const arrays = new Map<string, Float32Array | Uint16Array | Int16Array>();
+  const arrays = new Map<string, Float32Array | Uint16Array | Uint32Array | Int16Array>();
   for (const a of header.arrays) {
     const Type = TYPED[a.dtype];
     const start = dataStart + a.offset;
@@ -113,7 +122,7 @@ export function parseShapeRuntime(buffer: ArrayBuffer): AnyShapeRuntime {
     if (arrays.has(a.name)) throw new Error("shape runtime: duplicate " + a.name);
     arrays.set(a.name, new Type(buffer, start, a.length));
   }
-  const take = <T extends Float32Array | Uint16Array | Int16Array>(
+  const take = <T extends Float32Array | Uint16Array | Uint32Array | Int16Array>(
     name: string,
     Type: { new (...args: never[]): T },
     length: number,
@@ -124,20 +133,30 @@ export function parseShapeRuntime(buffer: ArrayBuffer): AnyShapeRuntime {
   };
   const V = header.vertexCount;
   const basis = take("basis", Float32Array, V * 3);
-  const faces = take("faces", Uint16Array, header.faceCount * 3);
-  const band = take("band", Uint16Array, header.bandCount);
+  const Index = header.indexDtype === "uint32" ? Uint32Array : Uint16Array;
+  if (header.vertexCount > MAX_VERTICES && Index !== Uint32Array)
+    throw new Error("shape runtime: large mesh requires uint32 indices");
+  const faces = take<ShapeIndex>("faces", Index, header.faceCount * 3);
+  const band = take<ShapeIndex>("band", Index, header.bandCount);
   const bandConst = take("bandConst", Float32Array, header.bandCount * 3);
   for (const i of faces) if (i >= V) throw new Error("shape runtime: face index");
   for (const i of band) if (i >= V) throw new Error("shape runtime: band index");
   for (const v of basis) if (!Number.isFinite(v)) throw new Error("shape runtime: basis");
   const fields = new Map<string, ShapeField>();
   for (const f of header.fields) {
-    const index = take("F.idx:" + f.name, Uint16Array, f.count);
+    const index = take<ShapeIndex>("F.idx:" + f.name, Index, f.count);
     for (const i of index) if (i >= V) throw new Error("shape runtime: field index " + f.name);
+    const values = take<Int16Array | Float32Array>(
+      "F.val:" + f.name,
+      f.valueDtype === "float32" ? Float32Array : Int16Array,
+      f.count * 3,
+    );
+    for (const v of values)
+      if (!Number.isFinite(v)) throw new Error("shape runtime: nonfinite field " + f.name);
     fields.set(f.name, {
       name: f.name,
       index,
-      values: take("F.val:" + f.name, Int16Array, f.count * 3),
+      values,
       scale: f.scale,
       band: take("G.val:" + f.name, Int16Array, header.bandCount * 3),
       bandScale: f.bandScale,
@@ -226,7 +245,7 @@ function parseSampledRuntime(buffer: ArrayBuffer): SampledRuntime {
     JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 8, headerBytes))),
   );
   const dataStart = 8 + headerBytes;
-  const arrays = new Map<string, Float32Array | Uint16Array | Int16Array>();
+  const arrays = new Map<string, Float32Array | Uint16Array | Uint32Array | Int16Array>();
   for (const a of header.arrays) {
     const Type = TYPED[a.dtype];
     const start = dataStart + a.offset;

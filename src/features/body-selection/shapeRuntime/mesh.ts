@@ -1,4 +1,4 @@
-import type { ShapeRuntime } from "./format";
+import type { ShapeRuntime, ShapeIndex } from "./format";
 
 /**
  * 메시 위 계산(이웃 평활·면 뒤집힘 수리)과 규칙별 표 읽기. 0.6.10 근육 볼륨과
@@ -10,7 +10,10 @@ import type { ShapeRuntime } from "./format";
 export function table(runtime: ShapeRuntime, name: string, width: number) {
   const index = runtime.arrays.get(name + ".idx");
   const values = runtime.arrays.get(name + ".val");
-  if (!(index instanceof Uint16Array) || !(values instanceof Float32Array))
+  if (
+    !(index instanceof Uint16Array || index instanceof Uint32Array) ||
+    !(values instanceof Float32Array)
+  )
     throw new Error("shape runtime: missing " + name);
   if (values.length !== index.length * width) throw new Error("shape runtime: bad " + name);
   const V = runtime.header.vertexCount;
@@ -41,7 +44,7 @@ export function adjacency(runtime: ShapeRuntime) {
     for (let e = 0; e < 3; e++) {
       const p = faces[f + e]!,
         q = faces[f + ((e + 1) % 3)]!;
-      const key = p < q ? p * 65536 + q : q * 65536 + p;
+      const key = p < q ? p * V + q : q * V + p;
       if (seen.has(key)) continue;
       seen.add(key);
       pairs.push(p, q);
@@ -102,7 +105,7 @@ export function faceNormals(
   return out;
 }
 
-function normalsInto(faces: Uint16Array, q: ArrayLike<number>, out: Float64Array, k: number) {
+function normalsInto(faces: ShapeIndex, q: ArrayLike<number>, out: Float64Array, k: number) {
   const nf = faces.length / 3;
   for (let f = 0; f < nf; f++) {
     const a = faces[f * 3]! * 3,
