@@ -17,7 +17,7 @@ function mappings(runtime: ShapeRuntime, c: BlenderControls) {
   return weights;
 }
 
-export function evaluateFemale034Breast7(
+export function evaluateBreastResidual(
   runtime: ShapeRuntime,
   c: BlenderControls,
   out: Float32Array,
@@ -49,4 +49,12 @@ export function evaluateFemale034Breast7(
   foldGuard(runtime, reference, body, faceNormals(runtime, reference, reference, normals), 20, 3);
   out.set(body);
   return out;
+}
+
+export function evaluateFemale034Breast7(
+  runtime: ShapeRuntime,
+  controls: BlenderControls,
+  out: Float32Array,
+) {
+  return evaluateBreastResidual(runtime, controls, out);
 }
