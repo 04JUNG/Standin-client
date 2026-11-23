@@ -456,6 +456,7 @@ def write(path, sb, m, baked, subset=None, source=None):
         # subset is closed under the smoothing neighbourhood of the checked vertices).
         faces = remap[faces[np.all(remap[faces] >= 0, axis=1)]] if extra else np.zeros((0, 3), int)
         extra = {k: (remap[i[np.isin(i, subset)]], v[np.isin(i, subset)]) for k, (i, v) in extra.items()}
+    index_dtype = "<u4" if len(co) > 65535 else "<u2"
     blobs, arrays = [], []
 
     def add(name, a, dtype):
@@ -467,23 +468,26 @@ def write(path, sb, m, baked, subset=None, source=None):
         blobs.append(a.tobytes())
 
     add("basis", co, "<f4")
-    add("faces", faces, "<u2")
-    add("band", idx, "<u2")
+    add("faces", faces, index_dtype)
+    add("band", idx, index_dtype)
     add("bandConst", band_const, "<f4")
     for k, (i, v) in extra.items():
-        add(k + ".idx", i, "<u2")
+        add(k + ".idx", i, index_dtype)
         add(k + ".val", v, "<f4")
     fields = []
     for k, f in F.items():
-        sel = np.nonzero(np.abs(f).max(1) > EPS)[0]
-        scale = float(np.abs(f[sel]).max() / 32767) if len(sel) else 1.
-        add("F.idx:" + k, sel, "<u2")
-        add("F.val:" + k, np.round(f[sel] / scale), "<i2")
+        precise = sb.VERSION in ("standin-female-body-0.4.0.breast7.2", "standin-female-body-0.4.0.breast7.4")
+        sel = np.nonzero(np.abs(f).max(1) > (0 if precise else EPS))[0]
+        scale = 1. if precise else (float(np.abs(f[sel]).max() / 32767) if len(sel) else 1.)
+        add("F.idx:" + k, sel, index_dtype)
+        add("F.val:" + k, f[sel] if precise else np.round(f[sel] / scale), "<f4" if precise else "<i2")
         gs = (float(np.abs(G[k]).max() / 32767) if G[k].size else 0.) or 1.
         add("G.val:" + k, np.round(G[k] / gs), "<i2")
-        fields.append(dict(name=k, scale=scale, bandScale=gs, count=int(len(sel))))
+        fields.append(dict(name=k, scale=scale, bandScale=gs, count=int(len(sel)),
+                           **({"valueDtype": "float32"} if precise else {})))
     header = dict(
         format=FORMAT, rules=sb.VERSION, asset=m["asset_identity"],
+        **({"indexDtype": "uint32"} if index_dtype == "<u4" else {}),
         vertexCount=int(len(co)), faceCount=int(len(faces)), bandCount=int(len(idx)),
         landmarks=json.loads(m["landmarks"]), baseHeads=float(m["base_heads"]),
         controls={k: dict(min=lo, max=hi, default=(float(m["base_heads"]) if k == "heads" else d)) for k, (lo, hi, d, _) in sb.FIELDS.items()},
